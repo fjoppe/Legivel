@@ -1,4 +1,4 @@
-﻿namespace FSharp.ProjectTemplate
+namespace YamlParser
 
 /// Documentation for my library
 ///

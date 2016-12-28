@@ -1,0 +1,25 @@
+type project
+title
+    YamlParser
+owners
+    Frank Joppe
+authors 
+    Frank Joppe
+projectUrl
+    https://github.com/fjoppe/FsYamlParser/fjoppe/FsYamlParser
+iconUrl
+    https://raw.githubusercontent.com/fjoppe/FsYamlParser/master/docs/files/img/logo.png
+licenseUrl
+    https://github.com/fjoppe/FsYamlParser/fjoppe/FsYamlParser/blob/master/LICENSE.txt
+requireLicenseAcceptance
+    false
+copyright
+    Copyright 2015
+tags
+    fsharp yaml
+summary
+    F# Yaml deserializer
+description
+    FsYamlParser
+
+

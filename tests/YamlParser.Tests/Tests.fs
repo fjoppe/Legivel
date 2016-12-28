@@ -1,6 +1,6 @@
-﻿module FSharp.ProjectScaffold.Tests
+module YamlParser.Tests
 
-open FSharp.ProjectTemplate
+open YamlParser
 open NUnit.Framework
 
 [<Test>]
