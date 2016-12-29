@@ -2,6 +2,8 @@ source https://nuget.org/api/v2
 
 nuget FSharp.Core redirects: force
 nuget NLog
+nuget NLog.Fsharp
+nuget NUnit
 
 group Build
   source https://nuget.org/api/v2

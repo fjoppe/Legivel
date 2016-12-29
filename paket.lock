@@ -2,6 +2,9 @@ NUGET
   remote: https://www.nuget.org/api/v2
     FSharp.Core (4.0.0.1) - redirects: force
     NLog (4.4.1)
+    NLog.FSharp (4.2.3)
+      NLog (>= 4.2.3)
+    NUnit (2.6.4)
 
 GROUP Build
 NUGET
