@@ -1,7 +1,7 @@
 [![Issue Stats](http://issuestats.com/github/fjoppe/FsYamlParser/badge/issue)](http://issuestats.com/github/fjoppe/FsYamlParser)
 [![Issue Stats](http://issuestats.com/github/fjoppe/FsYamlParser/badge/pr)](http://issuestats.com/github/fjoppe/FsYamlParser)
 
-# FsYamlParsr
+# FsYamlParser
 
 This project primarily aims to be an **exact** Yaml 1.2 deserializer, according to [Yaml 1.2 specification](http://www.yaml.org/spec/1.2/spec.html)
 
