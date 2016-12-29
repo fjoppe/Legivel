@@ -1,17 +1,21 @@
 ﻿module RegexDSL
 
+open System.Diagnostics
+open System.Text
+open System.IO
+open System.Text.RegularExpressions
+
 exception RegexException of string
 
 type Plain =
     private {
         ``fixed`` : string
     }
-    override this.ToString() =
-        sprintf "%s" this.``fixed``
-    static member (+) (r1:Plain, r2:Plain) =
-        {``fixed`` = r1.``fixed`` + r2.``fixed``}
-    static member Create r =
-        {``fixed`` = r}
+    override this.ToString() = sprintf "%s" this.``fixed``
+
+    static member (+) (r1:Plain, r2:Plain) = {``fixed`` = r1.``fixed`` + r2.``fixed``}
+
+    static member Create r = {``fixed`` = r}
 
 
 type OneInSet =
@@ -140,11 +144,69 @@ type MatchResult = {
         Groups      : string list
     }
     with
-        static member Create f r g =
-            { FullMatch = f; Rest = r ; Groups = g }
-
+        static member Create f r g = { FullMatch = f; Rest = r ; Groups = g }
         member this.ge1 with get() = (this.Groups.[1])
         member this.ge2 with get() = (this.Groups.[1], this.Groups.[2])
         member this.ge3 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3])
         member this.ge4 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3], this.Groups.[4])
+
+
+/// Returns list of match groups, for pattern p on string s
+[<DebuggerStepThrough>]
+let Match(s, p) = 
+    let mt = Regex.Matches(s, RGS(p), RegexOptions.Multiline)
+    if mt.Count = 0 then 
+        []
+    else
+        [ for g in mt -> g.Value ] //   |> List.tail
+
+/// Checks for matches of pattern p in string s.
+/// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
+[<DebuggerStepThrough>]
+let HasMatches(s,p) = 
+    let ml = Match(s, p)
+    if ml.Length > 0 then
+        let m0 = ml.[0]
+        (true, m0, Advance(m0, s))
+    else
+        (false, "",s)
+
+/// Checks for matches of pattern p in string s.
+/// If matched, returns rest-string, otherwise s.
+/// This function may be useful to skip whitespace.
+[<DebuggerStepThrough>]
+let SkipIfMatch (s:string) (p:RGXType) =
+    match (HasMatches(s, p)) with
+    |   (true, mt,frs)  -> frs
+    |   (false, _,_)    -> s
+
+[<DebuggerStepThrough>]
+let ``value or zero`` sv =
+    match sv with
+    |   Some(v) -> v
+    |   None    -> 0
+
+
+//[<DebuggerStepThrough>]
+let (|Regex|_|) pattern input =
+    let m = Regex.Match(input, pattern, RegexOptions.Multiline)
+    if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
+    else None
+
+[<DebuggerStepThrough>]
+let (|Regex2|_|) (pattern:RGXType) input =
+    let m = Regex.Match(input, RGS(pattern), RegexOptions.Multiline)
+    if m.Success then 
+        let lst = [ for g in m.Groups -> g.Value ]
+        let fullMatch = lst |> List.head
+        let rest = Advance(fullMatch, input)
+        let groups = lst |> List.tail
+        Some(MatchResult.Create fullMatch rest groups)
+    else None
+
+
+[<DebuggerStepThrough>]
+let (|Parse|_|) func ps = func ps
+[<DebuggerStepThrough>]
+let (|Eval|_|)  func x = func x
 

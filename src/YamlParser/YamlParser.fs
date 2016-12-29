@@ -11,65 +11,7 @@ open System.Diagnostics
 exception ParseException of string
 
 open RegexDSL
-
-/// Returns list of match groups, for pattern p on string s
-[<DebuggerStepThrough>]
-let Match(s, p) = 
-    let mt = Regex.Matches(s, RGS(p), RegexOptions.Multiline)
-    if mt.Count = 0 then 
-        []
-    else
-        [ for g in mt -> g.Value ] //   |> List.tail
-
-/// Checks for matches of pattern p in string s.
-/// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
-[<DebuggerStepThrough>]
-let HasMatches(s,p) = 
-    let ml = Match(s, p)
-    if ml.Length > 0 then
-        let m0 = ml.[0]
-        (true, m0, Advance(m0, s))
-    else
-        (false, "",s)
-
-/// Checks for matches of pattern p in string s.
-/// If matched, returns rest-string, otherwise s.
-/// This function may be useful to skip whitespace.
-[<DebuggerStepThrough>]
-let SkipIfMatch (s:string) (p:RGXType) =
-    match (HasMatches(s, p)) with
-    |   (true, mt,frs)  -> frs
-    |   (false, _,_)    -> s
-
-[<DebuggerStepThrough>]
-let ``value or zero`` sv =
-    match sv with
-    |   Some(v) -> v
-    |   None    -> 0
-
-
-//[<DebuggerStepThrough>]
-let (|Regex|_|) pattern input =
-    let m = Regex.Match(input, pattern, RegexOptions.Multiline)
-    if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
-    else None
-
-[<DebuggerStepThrough>]
-let (|Regex2|_|) (pattern:RGXType) input =
-    let m = Regex.Match(input, RGS(pattern), RegexOptions.Multiline)
-    if m.Success then 
-        let lst = [ for g in m.Groups -> g.Value ]
-        let fullMatch = lst |> List.head
-        let rest = Advance(fullMatch, input)
-        let groups = lst |> List.tail
-        Some(MatchResult.Create fullMatch rest groups)
-    else None
-
-
-[<DebuggerStepThrough>]
-let (|Parse|_|) func ps = func ps
-[<DebuggerStepThrough>]
-let (|Eval|_|)  func x = func x
+open RepresentationGraph
 
 type Context = ``Block-out`` | ``Block-in`` | ``Flow-out`` | ``Flow-in`` | ``Block-key`` | ``Flow-key``
 
@@ -77,116 +19,10 @@ type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 
 let ``start-of-line`` = RGP "\n" ||| RGP "^"
 
-type TagScope =
-    | Global
-    | Local
-
-type TagKind = 
-    | Mapping
-    | Sequence
-    | Scalar
-
-type Tag = {
-        Scope   : TagScope
-        Kind    : TagKind
-        Uri     : string
-        Short   : string
-        Regex   : string
-        canonFn : string -> string
-    }
-    with
-        static member Create (scope, kind, uri, short, rgx, canon) =
-            { 
-                Scope = scope; 
-                Kind = kind; 
-                Uri = uri; 
-                Short = short; 
-                Regex = sprintf "^(%s)$" rgx
-                canonFn = canon
-            }
-
-        static member Create (scope, kind, uri, short, rgx) =
-            Tag.Create (scope, kind, uri, short, rgx, fun s -> s)
-
-        static member Create (scope, kind, uri, short) =
-            Tag.Create (scope, kind, uri, short, ".*", fun s -> s)
-
-        static member Create (scope, kind, uri) =
-            Tag.Create (scope, kind, uri, uri, ".*", fun s -> s)
-
-        member this.Canonical s = this.canonFn s
-        
-
-type NodeData<'T> = {
-        Tag  : Tag
-        Data : 'T
-    }
-    with
-        static member Create t d =
-            { Tag = t; Data = d}
-
-        member this.SetTag t = 
-            { this with Tag = t}
-
-type Node =
-    | SeqNode of NodeData<Node list>
-    | MapNode of NodeData<(Node*Node) list>
-    | ScalarNode of NodeData<string>
-    with
-        member this.Indent l =
-            [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
-
-        member this.ToCanonical l =
-            match this with
-            |   SeqNode n ->
-                let ind0 = this.Indent l
-                let head = sprintf "%s%s [\n" (ind0) (n.Tag.Short)
-                let content = n.Data |> List.fold(fun s ni -> s + (sprintf "%s,\n" (ni.ToCanonical(l+1)))) ""
-                let tail = sprintf "%s]\n" ind0
-                sprintf "%s%s%s" head content tail
-            |   MapNode n -> 
-                let ind0 = this.Indent l
-                let ind1 = this.Indent (l+1)
-                let head = sprintf "%s%s {\n" (ind0) (n.Tag.Short)
-                let content = 
-                    n.Data 
-                    |> List.fold(
-                        fun s (k,v) -> 
-                            let kc = k.ToCanonical(l+1)
-                            let vc = v.ToCanonical(l+1)
-                            match (k,v) with
-                            |   (ScalarNode(_),ScalarNode(_))   -> s + sprintf "%s? %s\t: %s,\n" ind1 kc vc
-                            |   _ -> s + sprintf "%s? %s\n%s: %s,\n" ind1 kc ind1 vc
-                        ) ""
-                let tail = sprintf "%s}\n" ind0
-                sprintf "%s%s%s" head content tail
-            |   ScalarNode n ->
-                let ind0 = this.Indent l
-                sprintf "%s%s \"%s\"" ind0 (n.Tag.Short) (n.Data)
-        
-        member this.SetTag t = 
-            match this with
-            |   SeqNode n       -> SeqNode(n.SetTag t)
-            |   MapNode n       -> MapNode(n.SetTag t)
-            |   ScalarNode n    -> ScalarNode(n.SetTag t)
-
-        member this.NodeTag 
-            with get() =
-                match this with
-                |   SeqNode n       -> n.Tag
-                |   MapNode n       -> n.Tag
-                |   ScalarNode n    -> n.Tag
-
-
-type Legend = {
-        YamlVersion : string
-    }
-
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
 let MappingGlobalTag =  Tag.Create(Global, Mapping, "tag:yaml.org,2002:map", "!!map")
 let SequenceGlobalTag =  Tag.Create(Global, Sequence, "tag:yaml.org,2002:seq", "!!seq")
 let StringGlobalTag = Tag.Create(Global, Scalar, "tag:yaml.org,2002:str", "!!str")
-
 
 //    Json schema:  http://www.yaml.org/spec/1.2/spec.html#id2803231
 let NullGlobalTag =
@@ -250,8 +86,8 @@ let FloatGlobalTag =
                 let cleanMantissa = mantissa.Replace("_","")
                 let expCorrection, canMantissa = 
                     match cleanMantissa.Length with
-                    | 0 -> (cleanMantissa.Length,  cleanMantissa + zprec)
-                    | _ -> (-zprec.Length, "")
+                    | 0 -> (-zprec.Length, "")
+                    | _ -> (cleanMantissa.Length,  cleanMantissa + zprec)
                 let canExp = int(esign + "0" + exp) + expCorrection
                 let canSign = canonicalSign sign
                 sprintf "%s0.%s%se%+04d" canSign canMantissa prec canExp

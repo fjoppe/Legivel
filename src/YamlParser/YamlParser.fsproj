@@ -41,6 +41,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="RegexDSL.fs" />
+    <Compile Include="RepresentationGraph.fs" />
     <Compile Include="YamlParser.fs" />
     <None Include="TestFolding.fsx" />
     <None Include="TestLab.fsx" />
