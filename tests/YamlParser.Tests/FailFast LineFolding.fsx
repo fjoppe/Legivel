@@ -6,6 +6,7 @@ open System.Text.RegularExpressions
 #I "."
 #r @"bin\Debug\YamlParser.dll"
 
+open RegexDSL
 open YamlParse
 
 

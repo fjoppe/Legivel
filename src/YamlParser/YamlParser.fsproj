@@ -43,9 +43,7 @@
     <Compile Include="RegexDSL.fs" />
     <Compile Include="RepresentationGraph.fs" />
     <Compile Include="YamlParser.fs" />
-    <None Include="TestFolding.fsx" />
     <None Include="TestLab.fsx" />
-    <None Include="TestScalar.fsx" />
     <None Include="TestMonad.fsx" />
     <None Include="YamlParserTest.fsx" />
     <None Include="YamlParserTest2.fsx" />

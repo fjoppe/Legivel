@@ -49,6 +49,8 @@
     <None Include="paket.references" />
     <Content Include="App.config" />
     <Compile Include="TestScalars.fs" />
+    <None Include="FailFast Scalar.fsx" />
+    <None Include="FailFast LineFolding.fsx" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>

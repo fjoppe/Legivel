@@ -8,6 +8,8 @@ open System.Text.RegularExpressions
 
 open YamlParse
 
+//    Core Schema:  http://www.yaml.org/spec/1.2/spec.html#id2804923
+
 IntegerGlobalTag.Canonical "5"
 IntegerGlobalTag.Canonical "0b101"
 IntegerGlobalTag.Canonical "017"
@@ -34,4 +36,3 @@ FloatGlobalTag.Canonical ".inf"
 FloatGlobalTag.Canonical "-.inf"
 FloatGlobalTag.Canonical ".nan"
 
-//    Core Schema:  http://www.yaml.org/spec/1.2/spec.html#id2804923
