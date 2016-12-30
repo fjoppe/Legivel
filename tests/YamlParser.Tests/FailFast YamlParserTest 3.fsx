@@ -6,6 +6,7 @@ open System.Text.RegularExpressions
 #I "."
 #r @"bin\Debug\YamlParser.dll"
 
+open RegexDSL
 open YamlParse
 
 
@@ -135,17 +136,22 @@ YamlParse "- simple\n- text\n- [ testing, one, two, three ]"
 YamlParse "- [ testing, one, two, three ]"
 YamlParse "- { testing: 0, one: 1, two: 2, three : 3 }"
 
-let str = "{\n  \"adjacent\":value,\n  \"readable\": value,\n  \"empty\":\n}"
-let ps2 = ((((ParseState.Create "").SetChomping ``Clip``).SetStyleContext ``Block-key``).SetIndent 0)
-let mt =  (|Regex2|_|) ((RGP "\\{") + ZOM(engine.``s-separate`` ps2)) str
+//let str = "{\n\"adjacent\":value,\n  \"readable\": value,\n  \"empty\":\n}"
+//let ps2 = ((((ParseState.Create "").SetChomping ``Clip``).SetStyleContext ``Block-key``).SetIndent 0)
+//let mt =  (|Regex2|_|) ((RGP "\\{") + ZOM(engine.``s-separate`` ps2)) str
+
+//let rm = System.Text.RegularExpressions.Regex.Match("\n\"adjacent\"", "[ ]+|.^", System.Text.RegularExpressions.RegexOptions.Multiline)
+//rm.Value
 
 //
 //let str2 = "\"adjacent\":value,\n\"readable\": value,\n\"empty\":\n}"
 //let (b3,m3,r3) =  (HasMatches(str2, RGS((RGP "\"") + GRP(engine.``nb-double-text`` ps2) + (RGP "\""))))
 
 
+YamlParse "{\"adjacent\":value, \"readable\": value,  \"empty\":}"
 YamlParse "{\n\"adjacent\":value,\n\"readable\": value,\n\"empty\":\n}"
-YamlParse "{\n  \"adjacent\":value,\n  \"readable\": value,\n\"empty\":\n}"
+YamlParse "{\nadjacent: value,\n readable : value,\n empty :\n}"
+//YamlParse "{\n  \"adjacent\":value,\n  \"readable\": value,\n\"empty\":\n}"
 
 
 //  Line folding

@@ -49,8 +49,16 @@
     <None Include="paket.references" />
     <Content Include="App.config" />
     <Compile Include="TestScalars.fs" />
+    <Compile Include="TestMultiLineStrings.fs" />
     <None Include="FailFast Scalar.fsx" />
     <None Include="FailFast LineFolding.fsx" />
+    <None Include="FailFast RegxDSL.fsx" />
+    <None Include="FailFast MonadTest.fsx" />
+    <None Include="FailFast YamlParserTest 1 - dead.fsx" />
+    <None Include="FailFast YamlParserTest 2  - dead.fsx" />
+    <None Include="FailFast YamlParserTest 3.fsx" />
+    <None Include="nlog.fsx" />
+    <Content Include="nlog.config" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>

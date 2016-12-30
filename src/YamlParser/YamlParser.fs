@@ -17,7 +17,7 @@ type Context = ``Block-out`` | ``Block-in`` | ``Flow-out`` | ``Flow-in`` | ``Blo
 
 type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 
-let ``start-of-line`` = RGP "\n" ||| RGP "^"
+let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
 
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
 let MappingGlobalTag =  Tag.Create(Global, Mapping, "tag:yaml.org,2002:map", "!!map")
@@ -250,7 +250,7 @@ type FlowCollectionStyles() =
                         let c = c.SetTag(t)
                         Some(c, prs)
                     |   _ -> None
-                |   (fase, _, _)    -> Some(NullScalarNode, prs)   //  ``e-scalar``
+                |   (false, _, _)    -> Some(NullScalarNode, prs)   //  ``e-scalar``
             |   None    -> None
 
     member this.``content with optional properties`` (``follow up func``: ParsFuncSig) ps =
@@ -265,7 +265,7 @@ type FlowCollectionStyles() =
                         let c = c.SetTag(t)
                         Some(c, prs)
                     |   _ -> None
-                |   (fase, _, _)    -> Some(NullScalarNode, prs)   //  ``e-scalar``
+                |   (false, _, _)    -> Some(NullScalarNode, prs)   //  ``e-scalar``
             |   None    -> ``follow up func`` ps
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
@@ -501,7 +501,7 @@ type FlowCollectionStyles() =
     member this.``s-indent(<=n)`` ps = Range(RGP this.``s-space``, 0, ps.n)  (* Where m ≤ n *)
 
     //  [66]    http://www.yaml.org/spec/1.2/spec.html#s-separate-in-line
-    member this.``s-separate-in-line`` = OOM(this.``s-white``) ||| ``start-of-line``
+    member this.``s-separate-in-line`` = OOM(this.``s-white``) // ||| ``start-of-line``
 
     //  [67]    http://www.yaml.org/spec/1.2/spec.html#s-line-prefix(n,c)
     member this.``s-line-prefix`` ps =
@@ -653,8 +653,8 @@ type FlowCollectionStyles() =
         |   (true, mt, frs) -> 
             match (HasMatches(frs, (this.``ns-anchor-name``))) with
             |   (true, mt, frs2) -> Some((ps.GetAnchor mt), ps.SetRestString frs2)
-            |   (fase, _, _)    -> None            
-        |   (fase, _, _)    -> None
+            |   (false, _, _)    -> None            
+        |   (false, _, _)    -> None
 
     //  [105]   http://www.yaml.org/spec/1.2/spec.html#e-scalar
     member this.``e-scalar`` = RGP String.Empty     // we'll see if this works..
@@ -847,7 +847,7 @@ type FlowCollectionStyles() =
     //  [140]   http://www.yaml.org/spec/1.2/spec.html#c-flow-mapping(n,c)
     member this.``c-flow-mapping`` ps : ParseFuncSingleResult =
         logger.Trace  "c-flow-mapping"
-        match (HasMatches(ps.InputString, RGS((RGP "\\{") + ZOM(this.``s-separate`` ps)))) with
+        match (HasMatches(ps.InputString, RGS((RGP "\\{") + OPT(this.``s-separate`` ps)))) with
         |   (true, mt, frs) -> 
             let prs = ps.SetRestString frs
             let prs, mappings =
@@ -858,8 +858,8 @@ type FlowCollectionStyles() =
             |   (true, mt, frs2) -> 
                 let prs2 = prs.SetRestString frs2
                 Some(mappings, prs2)
-            |   (fase, _, _)    -> raise (ParseException(sprintf "Expected '}' at \"%s\"" (prs.InputString.Substring(6))))
-        |   (fase, _, _)    -> None
+            |   (false, _, _)    -> raise (ParseException(sprintf "Expected '}' at \"%s\"" (prs.InputString.Substring(6))))
+        |   (false, _, _)    -> None
             
     //  [141]   http://www.yaml.org/spec/1.2/spec.html#ns-s-flow-map-entries(n,c)
     member this.``ns-s-flow-map-entries`` ps : ParseFuncListResult =
@@ -869,7 +869,7 @@ type FlowCollectionStyles() =
             |   Parse(this.``ns-flow-map-entry``) (ck, cv, prs) ->
                 let lst = (ck, cv) :: lst
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
-                match (HasMatches(prs.InputString, (RGP ",") + ZOM(this.``s-separate`` prs))) with 
+                match (HasMatches(prs.InputString, (RGP ",") + OPT(this.``s-separate`` prs))) with 
                 |   (true, mt, frs) ->  
                     ``ns-s-flow-map-entries`` (prs.SetRestString frs) lst
                 |   (false, _,_)    -> Some(CreateMapNode(lst |> List.rev), prs)
@@ -933,8 +933,8 @@ type FlowCollectionStyles() =
                 match (prs) with
                 |   Parse(this.``ns-flow-node``) (c, rs) -> Some(c, rs)
                 |   _ -> None
-            |   (fase, _, _)    -> Some(NullScalarNode, ps.SetRestString frs)   //  ``e-node``
-        |   (fase, _, _)    -> None
+            |   (false, _, _)    -> Some(NullScalarNode, ps.SetRestString frs)   //  ``e-node``
+        |   (false, _, _)    -> None
 
     //  [148]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-json-key-entry(n,c)
     member this.``c-ns-flow-map-json-key-entry`` ps =
@@ -957,7 +957,7 @@ type FlowCollectionStyles() =
             match (prs) with
             |   Parse(this.``ns-flow-node``) (c, prs2) -> Some(c, prs2)
             |   _ -> Some(NullScalarNode, prs)  //  ``e-node``
-        |   (fase, _, _)    -> None
+        |   (false, _, _)    -> None
 
     //  [150]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair(n,c)
     member this.``ns-flow-pair`` ps : ParseFuncMappedResult =
@@ -1026,7 +1026,7 @@ type FlowCollectionStyles() =
         logger.Trace  "ns-flow-yaml-content"
         match (HasMatches(ps.InputString, RGS(this.``ns-plain`` ps))) with
         |   (true, mt, frs) -> Some(MapScalar(mt), ps.SetRestString frs)
-        |   (fase, _, _)    -> None
+        |   (false, _, _)    -> None
 
     //  [157]   http://www.yaml.org/spec/1.2/spec.html#c-flow-json-content(n,c)
     member this.``c-flow-json-content`` ps : ParseFuncSingleResult =

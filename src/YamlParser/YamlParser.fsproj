@@ -43,12 +43,6 @@
     <Compile Include="RegexDSL.fs" />
     <Compile Include="RepresentationGraph.fs" />
     <Compile Include="YamlParser.fs" />
-    <None Include="TestLab.fsx" />
-    <None Include="TestMonad.fsx" />
-    <None Include="YamlParserTest.fsx" />
-    <None Include="YamlParserTest2.fsx" />
-    <None Include="YamlParserTest3.fsx" />
-    <None Include="nlog.fsx" />
     <None Include="paket.references" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />

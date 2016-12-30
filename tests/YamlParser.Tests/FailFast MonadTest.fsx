@@ -39,9 +39,6 @@ type EitherMonad2<'a>(context : 'a) =
         |   None    -> nw
         |   Some v  -> Some v
 
-//    [<CustomOperation("context")>]
-//    member this.Context ((ct, pv)) = ct
-
 
 let OneOf2 = EitherMonad2(0)
 
@@ -52,7 +49,6 @@ let (r2 : Option<int>) = OneOf2.Parse 2 {
         either (fa1)
         setcontext 3
         either (fa2)
-//        pintf "%A" context
         ifneiter (Some 2)
     }
 
