@@ -158,6 +158,7 @@ YamlParse "{\nadjacent: value,\n readable : value,\n empty :\n}"
 YamlParse ">-\n  trimmed\n  \n \n\n  as\n  space"
 YamlParse ">\n  foo \n \n  \t bar\n\n  baz\n"
 YamlParse "\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n" 
+YamlParse "folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content"
 
 
 //  Comments
