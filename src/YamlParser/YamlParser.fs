@@ -106,28 +106,6 @@ let FloatGlobalTag =
         )
     )
 
-//    FloatGlobalTag.Canonical "81.23"
-//    FloatGlobalTag.Canonical "0.008123"
-//    FloatGlobalTag.Canonical "1.008123"
-//    FloatGlobalTag.Canonical "0.8123"
-//FloatGlobalTag.Canonical "0o7"
-//Regex.Matches("0o7", FloatGlobalTag.Regex)
-
-//
-//    float("+0.8123e+002") = float("81.23")
-//    float("+0.8123e-002") = float("0.008123")
-//    float("+0.1008123e+001") = float("1.008123")
-//    float("0.8123") = float("+0.8123e+000")
-//
-//    FloatGlobalTag.Canonical "190:20:30.15"
-//    float("+0.68523015e+006") = float("685230.15")
-
-//    FloatGlobalTag.Canonical ".inf"
-//    FloatGlobalTag.Canonical "-.inf"
-//    FloatGlobalTag.Canonical ".nan"
-
-//    Core Schema:  http://www.yaml.org/spec/1.2/spec.html#id2804923
-
 
 let MapScalar s =
     match s with
@@ -182,9 +160,6 @@ type ParseState = {
             { LineNumber = 0; InputString = s; n=0; m=0; c=``Block-out``; t=``Clip``; Anchors = Map.empty}
 
 
-
-
-
 let stringPosition (s:string) =
     s.Substring(0, 10)
 
@@ -194,25 +169,16 @@ let restString i o =
     |   Some(c, ors) -> ors.InputString
 
 
-//let s = "[ a , b]"
-//let p = RGS((RGP "\\[") + OPT(``s-separate`` 0 ``Flow-in``))
-//let groups = Regex.Match(s, RGS(p)).Groups
-//[ for g in groups -> g.Value ]
-//
-//HasMatches(s, RGS((RGP "\\[") + OPT(``s-separate`` 0 ``Flow-in``)))
-//Match(s, (RGP "\\[") + OPT(``s-separate`` 0 ``Flow-in``))
-//Regex.Matches(s, RGS(p)).Count
-
-//  Flow Collection styles: http://www.yaml.org/spec/1.2/spec.html#id2790088
-
 type ParseFuncSingleResult = (Node * ParseState) option         //  returns parsed node, if possible
 type ParseFuncListResult = (Node * ParseState) option           //  returns parsed node, if possible
 type ParseFuncMappedResult = (Node * Node * ParseState) option  //  returns parsed key-value pair, if possible
 type ParsFuncSig = (ParseState -> ParseFuncSingleResult)
 
 type BlockFoldPrevType = EmptyAfterFolded | Empty | Indented | TextLine
+type FlowFoldPrevType = Empty | TextLine
 
-type FlowCollectionStyles() =
+
+type Yaml12Parser() =
     let logger = LogManager.GetCurrentClassLogger()
 
     //  Utility functions
@@ -267,6 +233,104 @@ type FlowCollectionStyles() =
                     |   _ -> None
                 |   (false, _, _)    -> Some(NullScalarNode, prs)   //  ``e-scalar``
             |   None    -> ``follow up func`` ps
+
+    member this.``block fold lines`` ps (strlst: string list) =
+        let ws2 = GRP(ZOM(this.``s-white``)) + GRP(ZOM(this.``ns-char``))
+        let rec doFold prev (res:StringBuilder)  (lst: string list) =
+            match lst with
+            |   []  -> 
+                match prev with
+                | BlockFoldPrevType.Empty | BlockFoldPrevType.EmptyAfterFolded   -> res.ToString()
+                | _ -> if res.ToString().EndsWith("\n") then res.Remove(res.Length-1,1).ToString() else res.ToString()
+            |   curr :: tail ->
+                match curr with
+                |   Regex2(ws2) mt -> 
+                    let standardContentAppedAndContinue mode (res:StringBuilder) = doFold mode (res.Append(curr.Substring(ps.n)).Append("\n")) tail
+                    logger.Trace(sprintf "%s" (res.ToString().Replace("\n","\\n")))
+                    let (w, c) = mt.ge2
+                    if c = "" then
+                        if w.Length > ps.n then standardContentAppedAndContinue Indented res
+                        else
+                            match prev with
+                            | BlockFoldPrevType.Empty | BlockFoldPrevType.Indented | BlockFoldPrevType.EmptyAfterFolded  -> doFold BlockFoldPrevType.Empty (res.Append("\n")) tail
+                            | BlockFoldPrevType.TextLine          -> doFold EmptyAfterFolded (res)   tail
+                    else
+                        if w.Length < ps.n then raise (ParseException(sprintf "Incorrect indentation at: '%s'" curr))
+                        else 
+                            if w.Length > ps.n then
+                                match prev with
+                                | BlockFoldPrevType.Empty 
+                                | BlockFoldPrevType.Indented 
+                                | BlockFoldPrevType.TextLine          -> standardContentAppedAndContinue BlockFoldPrevType.Indented res
+                                | BlockFoldPrevType.EmptyAfterFolded  -> standardContentAppedAndContinue Indented (res.Append("\n"))
+                            else    //  w.Length = n 
+                                match prev with
+                                | BlockFoldPrevType.Empty 
+                                | BlockFoldPrevType.Indented 
+                                | BlockFoldPrevType.EmptyAfterFolded  -> standardContentAppedAndContinue BlockFoldPrevType.TextLine res
+                                | BlockFoldPrevType.TextLine          ->
+                                    let res = if res.ToString().EndsWith("\n") then res.Remove(res.Length-1,1).Append(" ") else res
+                                    doFold BlockFoldPrevType.TextLine (res.Append(curr.Substring(ps.n)).Append("\n") ) tail
+                |   _ -> raise (ParseException(sprintf "Incorrect pattern: '%s'" curr))
+        let stripAll lst = lst |> List.rev |> List.skipWhile(fun s -> String.IsNullOrWhiteSpace(s)) |> List.rev
+        match ps.t with
+        | ``Strip`` -> strlst |> stripAll |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+        | ``Clip``  -> if (String.IsNullOrWhiteSpace(List.last strlst)) then 
+                            List.append (strlst |> stripAll) [""] |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+                        else 
+                            strlst |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+        | ``Keep``  -> strlst |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+
+    member this.``flow fold lines`` (convert:string -> string) ps str =
+        let rec doFold fst prev (res : string) (lst: string list) =
+            match lst with
+            |   []  -> 
+                let res = if res.EndsWith("\n") then res.Remove(res.Length-1) else res
+                match (prev) with
+                |   FlowFoldPrevType.Empty  -> res + " "
+                |   FlowFoldPrevType.TextLine -> res.ToString()
+            |   curr :: tail ->
+                let currStr = 
+                    (if fst then curr.TrimEnd() 
+                    else if tail.Length = 0 then curr.TrimStart()
+                    else curr.Trim()) + "\n"
+
+                let currStr = (convert currStr)
+                let currType = 
+                    if Regex.IsMatch(currStr, RGS(this.``l-empty`` ps)) then 
+                        if fst then FlowFoldPrevType.TextLine else FlowFoldPrevType.Empty
+                    else FlowFoldPrevType.TextLine
+
+                logger .Trace(sprintf "%s\t\t<-%s" (res.ToString().Replace("\n","\\n")) (currStr.Replace("\n","\\n")))
+
+                match (prev) with
+                |   FlowFoldPrevType.Empty  -> doFold false currType (res+currStr) tail
+                |   FlowFoldPrevType.TextLine -> 
+                    let res = 
+                        if res.EndsWith("\n") then
+                            match currType with
+                            |   FlowFoldPrevType.Empty -> res.Remove(res.Length-1)
+                            |   FlowFoldPrevType.TextLine -> res.Remove(res.Length-1) + " "
+                        else res
+                    doFold false currType (res+currStr) tail
+        doFold true FlowFoldPrevType.Empty "" str
+
+    member this.``double quote flowfold lines`` ps str =
+        let convertEscaped (str:string) = 
+            let SandR =
+                // prevent any collision with other escaped chars
+                str.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries) 
+                |>  List.ofArray
+                |>  List.map(fun s -> s.Replace("\\\n", ""))
+                |>  List.map(fun s -> s.Replace("\\ ", " "))
+                |>  List.map(fun s -> s.Replace("\\\t", "\t"))
+                |>  List.map(fun s -> s.Replace("\\\"", "\""))
+            String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
+        this.``flow fold lines`` convertEscaped ps str
+
+    member this.``single quote flowfold lines`` ps str =
+        let convertEscaped (str:string) = str.Replace("''", "'")
+        this.``flow fold lines`` convertEscaped ps str
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
     member this.``c-printable`` = 
@@ -670,11 +734,16 @@ type FlowCollectionStyles() =
 
     //  [109]   http://www.yaml.org/spec/1.2/spec.html#c-double-quoted(n,c)
     member this.``c-double-quoted`` ps : ParseFuncSingleResult = 
+
         logger.Trace  "c-double-quoted"
         let patt = RGS((RGP "\"") + GRP(this.``nb-double-text`` ps) + (RGP "\""))
         match ps.InputString with 
         |   Regex(patt)  [full; content] ->
-            let n = MapScalar(content.Replace("\"\"", "\""))
+            let n = 
+                content 
+                |> this.``split by linefeed``
+                |> this.``double quote flowfold lines`` ps
+                |> MapScalar
             let prs = ps.Advance full
             Some(n, prs)
         |   _ -> None
@@ -1205,48 +1274,7 @@ type FlowCollectionStyles() =
     //  [174]   http://www.yaml.org/spec/1.2/spec.html#c-l+folded(n)
     member this.``c-l+folded`` ps =
         logger.Trace  "c-l+folded"
-        let foldLines ps (strlst: string list) =
-            let ws2 = GRP(ZOM(this.``s-white``)) + GRP(ZOM(this.``ns-char``))
-            let rec doFold prev (res:StringBuilder)  (lst: string list) =
-                match lst with
-                |   []  -> 
-                    match prev with
-                    | Empty | EmptyAfterFolded   -> res.ToString()
-                    | _ -> if res.ToString().EndsWith("\n") then res.Remove(res.Length-1,1).ToString() else res.ToString()
-                |   curr :: tail ->
-                    match curr with
-                    |   Regex2(ws2) mt -> 
-                        let standardContentAppedAndContinue mode (res:StringBuilder) = doFold mode (res.Append(curr.Substring(ps.n)).Append("\n")) tail
-                        logger.Trace(sprintf "%s" (res.ToString().Replace("\n","\\n")))
-                        let (w, c) = mt.ge2
-                        if c = "" then
-                            if w.Length > ps.n then standardContentAppedAndContinue Indented res
-                            else
-                                match prev with
-                                | Empty | Indented | EmptyAfterFolded  -> doFold Empty (res.Append("\n")) tail
-                                | TextLine          -> doFold EmptyAfterFolded (res)   tail
-                        else
-                            if w.Length < ps.n then raise (ParseException(sprintf "Incorrect indentation at: '%s'" curr))
-                            else 
-                                if w.Length > ps.n then
-                                    match prev with
-                                    | Empty | Indented | TextLine          -> standardContentAppedAndContinue Indented res
-                                    | EmptyAfterFolded  -> standardContentAppedAndContinue Indented (res.Append("\n"))
-                                else    //  w.Length = n 
-                                    match prev with
-                                    | Empty | Indented | EmptyAfterFolded  -> standardContentAppedAndContinue TextLine res
-                                    | TextLine          ->
-                                        let res = if res.ToString().EndsWith("\n") then res.Remove(res.Length-1,1).Append(" ") else res
-                                        doFold TextLine (res.Append(curr.Substring(ps.n)).Append("\n") ) tail
-                    |   _ -> raise (ParseException(sprintf "Incorrect pattern: '%s'" curr))
-            let stripAll lst = lst |> List.rev |> List.skipWhile(fun s -> String.IsNullOrWhiteSpace(s)) |> List.rev
-            match ps.t with
-            | ``Strip`` -> strlst |> stripAll |> doFold Empty (new StringBuilder())
-            | ``Clip``  -> if (String.IsNullOrWhiteSpace(List.last strlst)) then 
-                                List.append (strlst |> stripAll) [""] |> doFold Empty (new StringBuilder())
-                           else 
-                                strlst |> doFold Empty (new StringBuilder())
-            | ``Keep``  -> strlst |> doFold Empty (new StringBuilder())
+
 
         match (HasMatches(ps.InputString, RGP ">")) with
         | (false, _, _)   ->  None
@@ -1273,8 +1301,7 @@ type FlowCollectionStyles() =
 
             match (``folded-content`` (prs2.SetIndent (prs2.n+m))) with
             |   Some(ms, ps2) ->  
-                let split = ms |> this.``split by linefeed`` 
-                let s = split |> foldLines (ps2)
+                let s = ms |> this.``split by linefeed`` |> this.``block fold lines`` (ps2)
                 Some(s, ps2)
             |   None  -> None
 

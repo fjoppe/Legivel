@@ -11,7 +11,7 @@ open YamlParse
 
 
 //  Tests
-let engine = FlowCollectionStyles()
+let engine = Yaml12Parser()
 
 
 let ``c-flow-json-node`` s =

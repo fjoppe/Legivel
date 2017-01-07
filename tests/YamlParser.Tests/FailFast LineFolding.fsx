@@ -11,11 +11,11 @@ open YamlParse
 
 
 //  Tests
-let engine = FlowCollectionStyles()
+let engine = Yaml12Parser()
 
 type PrevType = EmptyFolded | Empty | Indented | Normal
 
-let ``flow fold lines`` str =
+let ``dquote flow fold lines`` str =
     let ws2 = GRP(ZOM(engine.``s-white``)) + GRP(ZOM(engine.``ns-char``))
     let linefold (res:StringBuilder) = if res.ToString().EndsWith("\n") then res.Remove(res.Length-1,1).Append(" ") else res
     let rec doFold fst prev (res:StringBuilder) (lst: string list) =
@@ -45,7 +45,7 @@ let ``flow fold lines`` str =
     doFold true Empty (StringBuilder()) str
 
 
-let ``flow fold lines2`` ps str =
+let ``dquote flow fold lines2`` ps str =
     let rec doFold fst prev (res : string) (lst: string list) =
         match lst with
         |   []  -> 
@@ -59,8 +59,15 @@ let ``flow fold lines2`` ps str =
                 (if fst then curr.TrimEnd() 
                 else if tail.Length = 0 then curr.TrimStart()
                 else curr.Trim()) + "\n"
-
-            //let currStr = if tail.Length = 0 && currStr = "\n" then " \n" else currStr
+            let currStr = 
+                let SandR =
+                    currStr.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries)
+                    |>  List.ofArray
+                    |>  List.map(fun s -> s.Replace("\\\n", ""))
+                    |>  List.map(fun s -> s.Replace("\\ ", " "))
+                    |>  List.map(fun s -> s.Replace("\\\t", "\t"))
+                    |>  List.map(fun s -> s.Replace("\\\"", "\""))
+                String.Join("\\", SandR)    // "\\" in dquote st is escaped, and here it is directly converted to "\"
 
             let currType = 
                 if Regex.IsMatch(currStr, RGS(engine.``l-empty`` ps)) then 
@@ -87,7 +94,7 @@ let ``flow fold lines2`` ps str =
 
 let ``flow fold`` ps ms =
     let split = ms |> engine.``split by linefeed`` 
-    split |> ``flow fold lines2`` ps
+    split |> ``dquote flow fold lines2`` ps
 
 
 //let foldlines2 n c str =
@@ -244,7 +251,6 @@ let getps =
 
 
 ``flow fold`` getps  " 1st non-empty\n\n 2nd non-empty \t3rd non-empty "
-
 ``flow fold`` getps "\n  foo \n \n  \t bar\n\n  baz\n"
 ``flow fold`` getps "folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content"
 

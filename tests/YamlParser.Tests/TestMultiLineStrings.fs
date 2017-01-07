@@ -5,7 +5,7 @@ open RepresentationGraph
 open NUnit.Framework
 open System
 
-let engine = FlowCollectionStyles()
+let engine = Yaml12Parser()
 
 
 let ``s-l+block-node`` s = 
@@ -28,9 +28,13 @@ let ``Test Block Folding with indent``() =
     Assert.AreEqual("foo \n\n\t bar\n\nbaz\n", ``s-l+block-node`` ">\n  foo \n \n  \t bar\n\n  baz\n")
 
 
-//[<Test>]
-//let ``Test Flow Folding``() =
-//    Assert.AreEqual(" foo\nbar\nbaz ", ``s-l+block-node`` "\"\n  foo \n \n  \t bar\n\n  baz\n\"")
+[<Test>]
+let ``Test Double Quote Flow Folding - Simple``() =
+    Assert.AreEqual(" foo\nbar\nbaz ", ``s-l+block-node`` "\"\n  foo \n \n  \t bar\n\n  baz\n\"")
+
+[<Test>]
+let ``Test Double Quote Flow Folding - Escaped``() =
+    Assert.AreEqual("folded to a space,\nto a line feed, or \t \tnon-content", ``s-l+block-node`` "\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"")
 
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2796251
