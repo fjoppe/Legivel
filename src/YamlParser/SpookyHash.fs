@@ -5,7 +5,7 @@
 //http://burtleburtle.net/bob/c/SpookyV2.cpp
 open System
 
-let ALLOW_UNALIGNED_READS = true
+//let ALLOW_UNALIGNED_READS = true
 
 // number of uint64's in internal state
 let sc_numVars = 12
@@ -29,6 +29,7 @@ let sc_const = 16045690984833335023UL // 0xdeadbeefdeadbeef
 let getUInt64 index bytes =
     let source = bytes |> Array.skip(index * 8) |> Array.take(8) 
     BitConverter.ToUInt64(source, 0)
+
 let getUInt32 index bytes =
     let source = bytes |> Array.skip(index * 4) |> Array.take(4) 
     BitConverter.ToUInt32(source, 0)
@@ -37,7 +38,6 @@ let byteArrayToUInt64Array (bytes:byte array) =
     [0 .. (bytes.Length/8)]
     |> List.map(fun i -> getUInt64 i bytes)
     |> Array.ofList
-
 
 //
 // left rotate a 64-bit value by k bytes
@@ -363,12 +363,6 @@ let ShortEnd((h0:uint64), (h1:uint64), (h2:uint64), (h3:uint64)) =
 
 let Short (message:byte array) (hash1:UInt64) (hash2:UInt64) =
     let length = message.Length
-//    let getUInt64 index bytes =
-//        let source = bytes |> Array.skip(index * 8) |> Array.take(8)
-//        BitConverter.ToUInt64(source, 0)
-//    let getUInt32 index bytes =
-//        let source = bytes |> Array.skip(index * 4) |> Array.take(4)
-//        BitConverter.ToUInt32(source, 0)
 
     let rec mixitLowerThan16 ((a:uint64), (b:uint64), (c:uint64), (d:uint64)) length (remain:byte array) =
         match length with
