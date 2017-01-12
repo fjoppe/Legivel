@@ -316,7 +316,7 @@ type Yaml12Parser() =
         doFold true FlowFoldPrevType.Empty "" str
 
     member this.``double quote flowfold lines`` ps str =
-        let convertEscaped (str:string) = 
+        let convertDQuoteEscapedMultiLine (str:string) = 
             let SandR =
                 // prevent any collision with other escaped chars
                 str.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries) 
@@ -326,11 +326,11 @@ type Yaml12Parser() =
                 |>  List.map(fun s -> s.Replace("\\\t", "\t"))
                 |>  List.map(fun s -> s.Replace("\\\"", "\""))
             String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
-        this.``flow fold lines`` convertEscaped ps str
+        this.``flow fold lines`` convertDQuoteEscapedMultiLine ps str
 
     member this.``single quote flowfold lines`` ps str =
-        let convertEscaped (str:string) = str.Replace("''", "'")
-        this.``flow fold lines`` convertEscaped ps str
+        let convertSQuoteEscapedMultiLine (str:string) = str.Replace("''", "'")
+        this.``flow fold lines`` convertSQuoteEscapedMultiLine ps str
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
     member this.``c-printable`` = 
@@ -734,16 +734,30 @@ type Yaml12Parser() =
 
     //  [109]   http://www.yaml.org/spec/1.2/spec.html#c-double-quoted(n,c)
     member this.``c-double-quoted`` ps : ParseFuncSingleResult = 
+        let convertDQuoteEscapedSingleLine (str:string) = 
+            let SandR =
+                // prevent any collision with other escaped chars
+                str.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries) 
+                |>  List.ofArray
+                |>  List.map(fun s -> s.Replace("\\\"", "\""))
+            String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
 
         logger.Trace  "c-double-quoted"
         let patt = RGS((RGP "\"") + GRP(this.``nb-double-text`` ps) + (RGP "\""))
         match ps.InputString with 
         |   Regex(patt)  [full; content] ->
             let n = 
-                content 
-                |> this.``split by linefeed``
-                |> this.``double quote flowfold lines`` ps
-                |> MapScalar
+                match ps.c with
+                |  ``Flow-out`` |  ``Flow-in`` ->   //  multiline
+                    content 
+                    |> this.``split by linefeed``
+                    |> this.``double quote flowfold lines`` ps
+                    |> MapScalar
+                |   ``Block-key`` | ``Flow-key`` -> //  single line
+                    content 
+                    |> convertDQuoteEscapedSingleLine
+                    |> MapScalar
+                | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
             let prs = ps.Advance full
             Some(n, prs)
         |   _ -> None
@@ -789,11 +803,23 @@ type Yaml12Parser() =
 
     //  [120]   http://www.yaml.org/spec/1.2/spec.html#c-single-quoted(n,c)
     member this.``c-single-quoted`` ps : ParseFuncSingleResult = 
+        let convertSQuoteEscapedSingleLine (str:string) = str.Replace("''", "'")
         logger.Trace  "c-single-quoted"
-        let patt = RGS((RGP "\'") + GRP(this.``nb-single-text`` ps) + (RGP "\'"))
+        let patt = RGS((RGP "'") + GRP(this.``nb-single-text`` ps) + (RGP "'"))
         match ps.InputString with
         |   Regex(patt)  [full; content] ->
-            let n = MapScalar(content.Replace("''", "'"))
+            let n = 
+                match ps.c with
+                |  ``Flow-out`` |  ``Flow-in`` ->   //  multiline
+                    content 
+                    |> this.``split by linefeed``
+                    |> this.``single quote flowfold lines`` ps
+                    |> MapScalar
+                |   ``Block-key`` | ``Flow-key`` -> //  single line
+                    content 
+                    |> convertSQuoteEscapedSingleLine
+                    |> MapScalar
+                | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
             let prs = ps.Advance full
             Some(n, prs)
         |   _ -> None
@@ -815,7 +841,9 @@ type Yaml12Parser() =
     member this.``nb-ns-single-in-line`` = ZOM(ZOM(this.``s-white``) + this.``ns-single-char``)
 
     //  [124]   http://www.yaml.org/spec/1.2/spec.html#s-single-next-line(n)
-    member this.``s-single-next-line`` ps = OPT((this.``s-flow-folded`` ps) + ZOM(this.``ns-single-char`` + this.``nb-ns-single-in-line``) + ZOM(this.``s-white``))
+    member this.``s-single-next-line`` ps = //  note, spec is recursive, below is an attempt to rewrite recursive regex 
+        ZOM((this.``s-flow-folded`` ps) + this.``ns-single-char`` + this.``nb-ns-single-in-line``) + (this.``s-flow-folded`` ps) |||
+        OOM((this.``s-flow-folded`` ps) + this.``ns-single-char`` + this.``nb-ns-single-in-line``) + ZOM(this.``s-white``)        
 
     //  [125]   http://www.yaml.org/spec/1.2/spec.html#nb-single-multi-line(n)
     member this.``nb-single-multi-line`` ps = this.``nb-ns-single-in-line`` + ((this.``s-single-next-line`` ps) ||| ZOM(this.``s-white``))
@@ -1274,8 +1302,6 @@ type Yaml12Parser() =
     //  [174]   http://www.yaml.org/spec/1.2/spec.html#c-l+folded(n)
     member this.``c-l+folded`` ps =
         logger.Trace  "c-l+folded"
-
-
         match (HasMatches(ps.InputString, RGP ">")) with
         | (false, _, _)   ->  None
         | (true, mt, frs) ->

@@ -1,4 +1,4 @@
-﻿module TestMultiLineStrings
+﻿module TestStringScalars
 
 open YamlParse
 open RepresentationGraph
@@ -28,9 +28,19 @@ let ``Test Block Folding with indent``() =
     Assert.AreEqual("foo \n\n\t bar\n\nbaz\n", ``s-l+block-node`` ">\n  foo \n \n  \t bar\n\n  baz\n")
 
 
+//  Double quote strings
+
 [<Test>]
-let ``Test Double Quote Flow Folding - Simple``() =
+let ``Test Double Quoted Single Line - Simple``() =
+    Assert.AreEqual("my simple string", ``s-l+block-node`` "\"my simple string\"")
+
+[<Test>]
+let ``Test Double Quote Flow Folding - Simple 1``() =
     Assert.AreEqual(" foo\nbar\nbaz ", ``s-l+block-node`` "\"\n  foo \n \n  \t bar\n\n  baz\n\"")
+
+[<Test>]
+let ``Test Double Quote Flow Folding - Simple 2``() =
+    Assert.AreEqual(" 1st non-empty\n2nd non-empty 3rd non-empty ", ``s-l+block-node`` "\" 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty \"")
 
 [<Test>]
 let ``Test Double Quote Flow Folding - Escaped``() =
@@ -42,4 +52,16 @@ let ``Test Double Quote Flow Folding - Escaped``() =
 let ``Test Folded Style``() =
     Assert.AreEqual("\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n", ``s-l+block-node`` ">\n\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n")
 
+//  Single Quoted strings
+[<Test>]
+let ``Test Single Quoted Single Line - Simple``() =
+    Assert.AreEqual("my simple string", ``s-l+block-node`` "'my simple string'")
+
+[<Test>]
+let ``Test Single Quoted Single Line - Escaped``() =
+    Assert.AreEqual("here's to \"quotes\"", ``s-l+block-node`` "'here''s to \"quotes\"'")
+
+[<Test>]
+let ``Test Single Quote Flow Folding - Simple``() =
+    Assert.AreEqual(" 1st non-empty\n2nd non-empty 3rd non-empty ", ``s-l+block-node`` "' 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty '")
 

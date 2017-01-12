@@ -149,8 +149,8 @@ YamlParse "- { testing: 0, one: 1, two: 2, three : 3 }"
 
 
 YamlParse "{\"adjacent\":value, \"readable\": value,  \"empty\":}"
-YamlParse "{\n\"adjacent\":value,\n\"readable\": value,\n\"empty\":\n}"
-YamlParse "{\nadjacent: value,\n readable : value,\n empty :\n}"
+//YamlParse "{\n\"adjacent\":value,\n\"readable\": value,\n\"empty\":\n}"
+//YamlParse "{\nadjacent: value,\n readable : value,\n empty :\n}"
 //YamlParse "{\n  \"adjacent\":value,\n  \"readable\": value,\n\"empty\":\n}"
 
 
