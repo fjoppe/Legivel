@@ -1,11 +1,13 @@
 ﻿module SpookyHash
 
-//http://burtleburtle.net/bob/hash/spooky.html
-//http://burtleburtle.net/bob/c/SpookyV2.h
-//http://burtleburtle.net/bob/c/SpookyV2.cpp
-open System
+//  Based on Rob Jenkins code:
+//  http://burtleburtle.net/bob/hash/spooky.html
+//  http://burtleburtle.net/bob/c/SpookyV2.h
+//  http://burtleburtle.net/bob/c/SpookyV2.cpp
+//
+//  Note that this code does not support partial hashing
 
-//let ALLOW_UNALIGNED_READS = true
+open System
 
 // number of uint64's in internal state
 let sc_numVars = 12
@@ -35,7 +37,7 @@ let getUInt32 index bytes =
     BitConverter.ToUInt32(source, 0)
 
 let byteArrayToUInt64Array (bytes:byte array) =
-    [0 .. (bytes.Length/8)]
+    [0 .. ((bytes.Length-1)/8)]
     |> List.map(fun i -> getUInt64 i bytes)
     |> Array.ofList
 
@@ -469,7 +471,12 @@ let Hash128 (message:byte array) (hash1:UInt64) (hash2:UInt64) =
         let mixValues = mixLoop (byteArrayToUInt64Array mainData) mixValues
 
         let remainData = 
-            Array.init sc_blockSize (fun i -> if i < remainder.Length then remainder.[i] else (byte 0))
+            Array.init sc_blockSize (fun i -> 
+                if i < remainder.Length then remainder.[i] 
+                else
+                    if i = (sc_blockSize-1) then byte(remainder.Length)
+                    else (byte 0)
+            )
             |> byteArrayToUInt64Array
 
         let (h0, h1, _, _, _, _, _, _, _, _, _, _) = End remainData mixValues

@@ -81,6 +81,7 @@ let ``Test SpookyHash Values``() =
     |> List.zip [0 .. 511]
     |> List.iter(fun (i, e) -> 
         let message = Array.init i (fun i -> byte(i + 128))
-        printf "%d: %s\n" i e
+        let log = sprintf "Iteration: %d, Expected: %s" i e
+        printfn "%s" log
         Assert.AreEqual(e, Hash32 message 0u |> sprintf "0x%08x", (sprintf "Iteration: %d" i))
     )

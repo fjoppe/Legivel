@@ -14,11 +14,14 @@ open SpookyHash
 let message0 = Array.init 0 (fun i -> byte(i + 128))
 let message1 = Array.init 1 (fun i -> byte(i + 128))
 let message2 = Array.init 2 (fun i -> byte(i + 128))
-
+let message192 = Array.init 192 (fun i -> byte(i + 128))
+let message193 = Array.init 193 (fun i -> byte(i + 128))
 
 Hash32 message0 0u |> sprintf "0x%x" = "0x6bf50919"
 Hash32 message1 0u |> sprintf "0x%x" = "0x70de1d26"
 Hash32 message2 0u |> sprintf "0x%x" = "0xa2b37298"
+Hash32 message192 0u |> sprintf "0x%x" = "0xa2b37298"
+Hash32 message193 0u |> sprintf "0x%x" = "0x2d05114c"
 
 
 let expected = 
