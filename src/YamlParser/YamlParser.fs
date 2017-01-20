@@ -7,6 +7,8 @@ open System.Text.RegularExpressions
 open NLog
 open NLog.FSharp
 open System.Diagnostics
+open YamlParser.Internals
+open YamlParser.Internals.ParserMonads
 
 exception ParseException of string
 
@@ -108,18 +110,34 @@ let FloatGlobalTag =
 
 
 let MapScalar s =
+    let nh = lazy(NodeHash.Create s)
     match s with
-    |   Regex (NullGlobalTag.Regex)     _ -> ScalarNode(NodeData<string>.Create NullGlobalTag s)
-    |   Regex (BooleanGlobalTag.Regex)  _ -> ScalarNode(NodeData<string>.Create BooleanGlobalTag s)
-    |   Regex (IntegerGlobalTag.Regex)  _ -> ScalarNode(NodeData<string>.Create IntegerGlobalTag s)
-    |   Regex (FloatGlobalTag.Regex)    _ -> ScalarNode(NodeData<string>.Create FloatGlobalTag s)
-    |   _ -> ScalarNode(NodeData<string>.Create StringGlobalTag s)
+    |   Regex (NullGlobalTag.Regex)     _ -> ScalarNode(NodeData<string>.Create NullGlobalTag s nh)
+    |   Regex (BooleanGlobalTag.Regex)  _ -> ScalarNode(NodeData<string>.Create BooleanGlobalTag s nh)
+    |   Regex (IntegerGlobalTag.Regex)  _ -> ScalarNode(NodeData<string>.Create IntegerGlobalTag s nh)
+    |   Regex (FloatGlobalTag.Regex)    _ -> ScalarNode(NodeData<string>.Create FloatGlobalTag s nh)
+    |   _ -> ScalarNode(NodeData<string>.Create StringGlobalTag s nh)
 
-let NullScalarNode = ScalarNode(NodeData<string>.Create NullGlobalTag "")
+let NullScalarNode = 
+    ScalarNode(NodeData<string>.Create NullGlobalTag "" (lazy(NodeHash.Create "")))
 
-let CreateMapNode d = MapNode(NodeData<(Node*Node) list>.Create MappingGlobalTag d)
+let CreateMapNode d = 
+    MapNode(NodeData<(Node*Node) list>.Create MappingGlobalTag d 
+        (lazy(d 
+              |> List.map(fun (k,_) -> k.Hash.Value)
+              |> List.sort
+              |> NodeHash.Merge)
+        )
+    )
 
-let CreateSeqNode d = SeqNode(NodeData<Node list>.Create SequenceGlobalTag d)
+let CreateSeqNode d = 
+    SeqNode(NodeData<Node list>.Create SequenceGlobalTag d
+        (lazy(d 
+              |> List.map(fun e -> e.Hash.Value)
+              |> List.sort
+              |> NodeHash.Merge)
+        )
+    )
 
 
 type ParseState = {
@@ -156,8 +174,15 @@ type ParseState = {
 
         member this.SetChomping tn = { this with t = tn }
 
+        member this.OneOf with get() = EitherBuilder(this)
+
         static member Create s =
             { LineNumber = 0; InputString = s; n=0; m=0; c=``Block-out``; t=``Clip``; Anchors = Map.empty}
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module ParseState = 
+    let OneOf (ps:ParseState) = ps.OneOf
+    let SetStyleContext cn (ps:ParseState) = ps.SetStyleContext cn
 
 
 let stringPosition (s:string) =
@@ -1162,11 +1187,17 @@ type Yaml12Parser() =
     //  [161]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-node(n,c)
     member this.``ns-flow-node`` ps : ParseFuncSingleResult =
         logger.Trace  "ns-flow-node"
-        match (ps) with
-        |   Parse(this.``c-ns-alias-node``)     (c, prs) -> Some(c, prs)
-        |   Parse(this.``ns-flow-content``)     (c, prs) -> Some(c, prs)
-        |   Parse(this.``content with properties`` this.``ns-flow-content``)  (c, prs) -> Some(c, prs)
-        |   _ -> None
+        ps.OneOf {
+            either (this.``c-ns-alias-node``)
+            either (this.``ns-flow-content``)
+            either (this.``content with properties`` this.``ns-flow-content``)
+            ifneiter (None)
+        }
+//        match (ps) with
+//        |   Parse(this.``c-ns-alias-node``)     (c, prs) -> Some(c, prs)
+//        |   Parse(this.``ns-flow-content``)     (c, prs) -> Some(c, prs)
+//        |   Parse(this.``content with properties`` this.``ns-flow-content``)  (c, prs) -> Some(c, prs)
+//        |   _ -> None
 
     //  [162]   http://www.yaml.org/spec/1.2/spec.html#c-b-block-header(m,t)
     member this.``c-b-block-header`` ps = 
@@ -1499,11 +1530,11 @@ type Yaml12Parser() =
     //  [193]   http://www.yaml.org/spec/1.2/spec.html#ns-s-block-map-implicit-key
     member this.``ns-s-block-map-implicit-key`` ps = 
         logger.Trace  "ns-s-block-map-implicit-key"
-        let prs = ps.SetStyleContext ``Block-key``
-        match prs with
-        |   Parse(this.``c-s-implicit-json-key``)   v -> Some(v)
-        |   Parse(this.``ns-s-implicit-yaml-key``)  v -> Some(v)
-        |   _ -> None
+        (ps |> ParseState.SetStyleContext ``Block-key`` |> ParseState.OneOf) {
+            either (this.``c-s-implicit-json-key``)
+            either (this.``ns-s-implicit-yaml-key``)
+            ifneiter (None)
+        }
 
     //  [194]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-implicit-value(n)
     member this.``c-l-block-map-implicit-value`` (ps:ParseState) : ParseFuncSingleResult=
@@ -1539,12 +1570,13 @@ type Yaml12Parser() =
         |   _ ->    None
 
     //  [196]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-node(n,c)
-    member this.``s-l+block-node`` ps : ParseFuncSingleResult =
+    member this.``s-l+block-node`` (ps:ParseState) : ParseFuncSingleResult =
         logger.Trace  "s-l+block-node"
-        match (ps) with
-        |   Parse(this.``s-l+block-in-block``) value -> Some(value)
-        |   Parse(this.``s-l+flow-in-block``)  value -> Some(value)
-        |   _ -> None
+        ps.OneOf {
+            either (this.``s-l+block-in-block``)
+            either (this.``s-l+flow-in-block``)
+            ifneiter (None)
+        }
 
     //  [197]   http://www.yaml.org/spec/1.2/spec.html#s-l+flow-in-block(n)
     member this.``s-l+flow-in-block`` (ps:ParseState) : ParseFuncSingleResult =
@@ -1563,12 +1595,13 @@ type Yaml12Parser() =
         |   (false, _, _)   -> None
 
     //  [198]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-in-block(n,c)
-    member this.``s-l+block-in-block`` ps : ParseFuncSingleResult =
+    member this.``s-l+block-in-block`` (ps:ParseState) : ParseFuncSingleResult =
         logger.Trace  "s-l+block-in-block"
-        match (ps) with
-        |   Parse(this.``s-l+block-scalar``)     value -> Some(value)
-        |   Parse(this.``s-l+block-collection``) value -> Some(value)
-        |   _ -> None
+        ps.OneOf {
+            either (this.``s-l+block-scalar``)
+            either (this.``s-l+block-collection``)
+            ifneiter (None)
+        }
 
     //  [199]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-scalar(n,c)
     member this.``s-l+block-scalar`` ps : ParseFuncSingleResult =

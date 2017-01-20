@@ -39,14 +39,16 @@ type Tag = {
 
         member this.Canonical s = this.canonFn s
         
+open YamlParser.Internals
 
 type NodeData<'T> = {
         Tag  : Tag
         Data : 'T
+        Hash : Lazy<NodeHash>
     }
     with
-        static member Create t d =
-            { Tag = t; Data = d}
+        static member Create t d h =
+            { Tag = t; Data = d; Hash = h}
 
         member this.SetTag t = 
             { this with Tag = t}
@@ -59,12 +61,22 @@ type Node =
         member this.Indent l =
             [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
 
+        member this.Hash 
+            with get() =
+                match this with
+                |   SeqNode n       -> n.Hash
+                |   MapNode n       -> n.Hash
+                |   ScalarNode n    -> n.Hash
+
         member this.ToCanonical l =
             match this with
             |   SeqNode n ->
                 let ind0 = this.Indent l
                 let head = sprintf "%s%s [\n" (ind0) (n.Tag.Short)
-                let content = n.Data |> List.fold(fun s ni -> s + (sprintf "%s,\n" (ni.ToCanonical(l+1)))) ""
+                let content = 
+                    n.Data
+                    |> List.sortBy(fun n -> n.Hash.Value)
+                    |> List.fold(fun s ni -> s + (sprintf "%s,\n" (ni.ToCanonical(l+1)))) ""
                 let tail = sprintf "%s]\n" ind0
                 sprintf "%s%s%s" head content tail
             |   MapNode n -> 
@@ -73,6 +85,7 @@ type Node =
                 let head = sprintf "%s%s {\n" (ind0) (n.Tag.Short)
                 let content = 
                     n.Data 
+                    |> List.sortBy(fun (k,_) -> k.Hash.Value)
                     |> List.fold(
                         fun s (k,v) -> 
                             let kc = k.ToCanonical(l+1)
@@ -99,7 +112,6 @@ type Node =
                 |   SeqNode n       -> n.Tag
                 |   MapNode n       -> n.Tag
                 |   ScalarNode n    -> n.Tag
-
 
 type Legend = {
         YamlVersion : string

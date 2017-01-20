@@ -4,10 +4,11 @@ open YamlParse
 open RepresentationGraph
 open NUnit.Framework
 open System
+open System.Diagnostics
 
 let engine = Yaml12Parser()
 
-
+[<DebuggerStepThrough>]
 let ``s-l+block-node`` s = 
     let ps = ParseState.Create s
     let ps = ps.SetIndent -1

@@ -43,8 +43,10 @@
     <Compile Include="SpookyHash.fsi" />
     <Compile Include="SpookyHash.fs" />
     <Compile Include="RegexDSL.fs" />
+    <Compile Include="Internals.fs" />
     <Compile Include="RepresentationGraph.fs" />
     <Compile Include="YamlParser.fs" />
+    <Compile Include="YamlPath.fs" />
     <None Include="paket.references" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />

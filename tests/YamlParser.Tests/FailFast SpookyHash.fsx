@@ -102,4 +102,9 @@ expected.Split([|","|], StringSplitOptions.RemoveEmptyEntries)
 |> List.zip [0 .. 511]
 
 
+let myString = "Hello World"
+let msg = System.Text.Encoding.Unicode.GetBytes(myString)
+
+Hash128 msg 0UL 0UL
+
 

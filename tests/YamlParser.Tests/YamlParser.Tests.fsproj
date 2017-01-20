@@ -51,6 +51,7 @@
     <Compile Include="TestSpookyHash.fs" />
     <Compile Include="TestScalars.fs" />
     <Compile Include="TestStringScalars.fs" />
+    <Compile Include="TestStuctures.fs" />
     <None Include="FailFast Scalar.fsx" />
     <None Include="FailFast LineFolding.fsx" />
     <None Include="FailFast RegxDSL.fsx" />
@@ -58,7 +59,8 @@
     <None Include="FailFast YamlParserTest 1 - dead.fsx" />
     <None Include="FailFast YamlParserTest 2  - dead.fsx" />
     <None Include="FailFast YamlParserTest 3.fsx" />
-    <None Include="FailFast - SpookyHash.fsx" />
+    <None Include="FailFast SpookyHash.fsx" />
+    <None Include="FailFast YamlPath.fsx" />
     <None Include="nlog.fsx" />
     <Content Include="nlog.config" />
   </ItemGroup>
