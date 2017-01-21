@@ -74,7 +74,7 @@ type MappingEvaluation =
     |   AllKeys
     |   GivenKey of string    //  should be any node type, so this is just for start
     |   AllValues
-//    |   MappedValue
+    |   MappedValueForKey of string
     with
         member private this.ScalarSelect node sel =
             match node with
@@ -85,18 +85,18 @@ type MappingEvaluation =
             nodes 
             |> List.filter (fun node ->
                 match (this, node) with
-                |   (AllKeys,       (MapNode _)) -> true
-                |   ((GivenKey sel),(MapNode data)) ->  data.Data |> List.exists (fun (k,v) -> this.ScalarSelect k sel)
-                |   (AllValues,     (MapNode _)) -> true
-//                |   (MappedValue,   (MapNode _)) -> true
+                |   (AllKeys,               (MapNode _)) -> true
+                |   ((GivenKey sel),        (MapNode data)) ->  data.Data |> List.exists (fun (k,_) -> this.ScalarSelect k sel)
+                |   (AllValues,             (MapNode _)) -> true
+                |   (MappedValueForKey sel, (MapNode data)) ->  data.Data |> List.exists (fun (k,_) -> this.ScalarSelect k sel)
                 |   _ -> false
             )
             |> List.map (fun node ->
                 match (this, node) with
-                |   (AllKeys,       (MapNode data)) -> data.Data |> List.map(fun (k,v) -> k) 
-                |   ((GivenKey sel),(MapNode data)) -> data.Data |> List.map(fun (k,v) -> k) |> List.filter (fun k -> this.ScalarSelect k sel)
-                |   (AllValues,     (MapNode data)) -> data.Data |> List.map(fun (k,v) -> v)
-//                |   (MappedValue,   (MapNode data)) -> data.Data |> List.filter (fun (k, v) -> this.ScalarSelect k sel) |> List.map(fun (k,v) -> v) |> List.filter (fun v -> this.ScalarSelect v sel)
+                |   (AllKeys,               (MapNode data)) -> data.Data |> List.map(fun (k,_) -> k) 
+                |   ((GivenKey sel),        (MapNode data)) -> data.Data |> List.map(fun (k,_) -> k) |> List.filter (fun k -> this.ScalarSelect k sel)
+                |   (AllValues,             (MapNode data)) -> data.Data |> List.map(fun (_,v) -> v)
+                |   (MappedValueForKey sel, (MapNode data)) -> data.Data |> List.filter (fun (k, _) -> this.ScalarSelect k sel) |> List.map(fun (_,v) -> v)
                 |   _ -> []
             )
             |> List.collect (fun v -> v)
@@ -148,11 +148,13 @@ type YamlPath = private {
 
             let parseEvals s =
                 match s with
-                | Regex(@"^#'([\s\d\w]+)'$")      [scalarValue] -> Val(LiteralScalar scalarValue)
-                | Regex(@"^#$")                 _               -> Val(AnyScalar)
-                | Regex(@"^\{\}$")              _               -> Map(AllKeys)
-                | Regex(@"^\{#'([\s\d\w]+)'\}$")  [scalarValue] -> Map(GivenKey scalarValue)
-                | Regex(@"^\[\]$")              _               -> Seq(SeqValues)
+                | Regex(@"^#'([\s\d\w]+)'$")        [scalarValue]   -> Val(LiteralScalar scalarValue)
+                | Regex(@"^#$")                     _               -> Val(AnyScalar)
+                | Regex(@"^\{\}$")                  _               -> Map(AllKeys)
+                | Regex(@"^\{\}\?$")                _               -> Map(AllValues)
+                | Regex(@"^\{#'([\s\d\w]+)'\}$")    [scalarValue]   -> Map(GivenKey scalarValue)
+                | Regex(@"^\{#'([\s\d\w]+)'\}\?$")  [scalarValue]   -> Map(MappedValueForKey scalarValue)
+                | Regex(@"^\[\]$")              _                   -> Seq(SeqValues)
                 | _  -> raise (YamlPathException (sprintf "Unsupported construct: %s" s))
 
             let evals = 

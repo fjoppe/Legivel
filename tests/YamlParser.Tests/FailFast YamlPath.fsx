@@ -35,7 +35,7 @@ let YamlParse s =
 
 let ToScalar n = 
     match n with
-    |   Some(ScalarNode nd) -> nd.Data
+    |   Some([ScalarNode nd]) -> nd.Data
     |   _ -> raise (Exception "Is no scalar")
 
 let pth = YamlPath.Create "//#'scalar'"
