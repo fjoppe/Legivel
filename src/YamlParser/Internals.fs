@@ -1,5 +1,6 @@
 ﻿namespace YamlParser.Internals
 
+
 open System
 open SpookyHash
 
@@ -48,7 +49,7 @@ type NodeHash = private {
 module NodeHash = 
     let Create s = NodeHash.Create s
     let Merge nhl = NodeHash.Merge nhl
-
+    
 
 module ParserMonads =
     open System.Diagnostics
@@ -58,17 +59,18 @@ module ParserMonads =
         member this.Yield (item : 'c) : 'b * Option<'a> = (context, None)
 
         [<CustomOperation("setcontext")>]
-        member this.SetContext ((ct, pv), nw) = (nw, pv)
+        member this.SetContext (((ct:'b), pv), nw) = (nw, pv)
 
         [<CustomOperation("either")>]
-        member this.Either ((ct, pv), nw) =
+        member this.Either (((ct:'b), pv), nw) =
             match pv with
-            |   None    -> (ct, nw <| ct)
+            |   None    -> (ct, nw ct)
             |   Some v  -> (ct, Some v)
 
         [<CustomOperation("ifneiter")>]
-        member this.IfNeither ((ct, pv), nw) = 
+        member this.IfNeither (((ct:'b), pv), nw) = 
             match pv with
             |   None    -> nw
             |   Some v  -> Some v
+
 
