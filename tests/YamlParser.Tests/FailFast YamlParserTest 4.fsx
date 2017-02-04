@@ -35,17 +35,20 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let YamlParse s =
     try
-        let rs = (``s-l+block-node`` s).Value |> fst
+        let pr = (``s-l+block-node`` s).Value 
+        let tr = pr |> snd
+        let short (s:string) = if s.Length > 10 then s.Substring(0, 10) else s
+        tr.TraceSuccess |> List.rev  |> List.iter(fun (s,ps) -> printfn "%s\t\"%s\"" s (short (ps.InputString.Replace("\n","\\n"))))
+        let rs = pr |> fst
         printfn "%s" (rs.ToCanonical(0))
     with
     | e -> printfn "%A" e
 
 
+//``s-l+block-collection`` "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
 YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
-
-``s-l+block-collection`` "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-
 YamlParse "  hr:  # Home runs\n     65\n"
 
+YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n"
