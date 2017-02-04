@@ -142,5 +142,6 @@ let ``Test Map with inline Comments - Sunnny Day Simple``() =
 //[<Test>]
 //let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
 //    let pth = YamlPath.Create "//{#'key'}?"
-//    YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+//    let yml = YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+//    Assert.AreEqual("hr", yml |> pth.Select |> ToScalar)
 

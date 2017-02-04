@@ -591,7 +591,7 @@ type Yaml12Parser() =
     member this.``s-indent(<=n)`` ps = Range(RGP this.``s-space``, 0, ps.n)  (* Where m ≤ n *)
 
     //  [66]    http://www.yaml.org/spec/1.2/spec.html#s-separate-in-line
-    member this.``s-separate-in-line`` = OOM(this.``s-white``) // ||| ``start-of-line``
+    member this.``s-separate-in-line`` = OOM(this.``s-white``) ||| ``start-of-line``
 
     //  [67]    http://www.yaml.org/spec/1.2/spec.html#s-line-prefix(n,c)
     member this.``s-line-prefix`` ps =
