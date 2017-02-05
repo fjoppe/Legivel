@@ -185,13 +185,23 @@ module ParseState =
     let inline OneOf (ps:ParseState) = EitherBuilder(ps)
     let SetStyleContext cn (ps:ParseState) = ps.SetStyleContext cn
     let SetIndent nn (ps:ParseState) = ps.SetIndent nn
+    let SetSubIndent mn (ps:ParseState) = ps.SetSubIndent mn
 
-    let AddSuccess str ps pso = pso |> Option.map(fun (any,prs) -> any, { prs with TraceSuccess = (str, ps) :: prs.TraceSuccess })
-    let AddSuccess2 str ps pso = pso |> Option.map(fun (any1,any2,prs) -> any1,any2, { prs with TraceSuccess = (str, ps) :: prs.TraceSuccess })
-        
+    let asc (prs, str, ps) =  { prs with TraceSuccess = (str, ps) :: prs.TraceSuccess }
+    let AddSuccess str ps pso = pso |> Option.map(fun (any,prs) -> any, asc (prs, str, ps))
+    let AddSuccess2 str ps pso = pso |> Option.map(fun (any1,any2,prs) -> any1,any2, asc (prs, str, ps))
+
+    let renv (prt, ps) =
+        prt 
+        |> SetStyleContext (ps.c)
+        |> SetIndent (ps.n)
+        |> SetSubIndent (ps.m)
+    let ResetEnv ps pso = pso |> Option.map(fun (any, prt) -> (any, (renv(prt,ps))))
+    let ResetEnv2 ps pso = pso |> Option.map(fun (any1, any2, prt) -> (any1, any2, (renv(prt,ps))))
+
 
 let stringPosition (s:string) =
-    s.Substring(0, 10)
+    if s.Length > 10 then s.Substring(0, 10) else s
 
 let restString i o =
     match o with 
@@ -236,7 +246,7 @@ type Yaml12Parser() =
         let icp = GRP(ZOM(RGP this.``s-space``)) + OOM(this.``ns-char``)
         match ps.InputString with
         | Regex2(icp) mt -> (mt.ge1.Length - ps.n)
-        | _-> raise (ParseException(sprintf "Cannot detect indentation at '%s'" (stringPosition ps.InputString)))
+        | _-> -1 // raise (ParseException(sprintf "Cannot detect indentation at '%s'" (stringPosition ps.InputString)))
         
 
     member this.``content with properties`` (``follow up func``: ParsFuncSig) ps =
@@ -955,7 +965,7 @@ type Yaml12Parser() =
                 match (HasMatches(prs.InputString, (RGP "\\]"))) with
                 |  (true, mt, frs) ->  Some((CreateSeqNode []),(ps.SetRestString frs))
                 |  (false, _,_)    -> raise (ParseException(sprintf "Expected ']' at \"%s\"" (prs.InputString)))
-//        |> Option.map(fun (any, prt) -> any, (prt |> ParseState.SetStyleContext (ps.c)) )
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-flow-sequence" ps        
                 
     //  [138]   http://www.yaml.org/spec/1.2/spec.html#ns-s-flow-seq-entries(n,c)
@@ -999,7 +1009,7 @@ type Yaml12Parser() =
                 Some(mappings, prs2)
             |   (false, _, _)    -> raise (ParseException(sprintf "Expected '}' at \"%s\"" (prs.InputString.Substring(6))))
         |   (false, _, _)    -> None
-//        |> Option.map(fun (any, prt) -> any, (prt |> ParseState.SetStyleContext (ps.c)) )
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-flow-mapping" ps       
             
     //  [141]   http://www.yaml.org/spec/1.2/spec.html#ns-s-flow-map-entries(n,c)
@@ -1147,6 +1157,7 @@ type Yaml12Parser() =
             |   Parse(this.``c-ns-flow-map-separate-value``) (cv, prs2) -> Some(ck, cv, prs2)
             |   _ ->    None
         |   _ -> None
+        |> ParseState.ResetEnv2 ps
         |> ParseState.AddSuccess2 "ns-flow-pair-yaml-key-entry" ps
 
     //  [153]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-pair-json-key-entry(n,c)
@@ -1158,6 +1169,7 @@ type Yaml12Parser() =
             |   Some(cv, prs2) -> Some(ck, cv, prs2)
             |   None -> None
         |   None -> None
+        |> ParseState.ResetEnv2 ps
         |> ParseState.AddSuccess2 "c-ns-flow-pair-json-key-entry" ps
 
     //  [154]   http://www.yaml.org/spec/1.2/spec.html#ns-s-implicit-yaml-key(c)
@@ -1206,8 +1218,8 @@ type Yaml12Parser() =
     member this.``ns-flow-content`` (ps:ParseState) : ParseFuncSingleResult =
         logger "ns-flow-content" ps
         ps.OneOf {
-            either (this.``c-flow-json-content``)
             either (this.``ns-flow-yaml-content``)
+            either (this.``c-flow-json-content``)
             ifneiter (None)
         }
         |> ParseState.AddSuccess  "ns-flow-content" ps
@@ -1406,6 +1418,7 @@ type Yaml12Parser() =
                 let s = ms |> this.``split by linefeed`` |> this.``block fold lines`` (ps2)
                 Some(s, ps2)
             |   None  -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-l+folded" ps 
 
     //  [175]   http://www.yaml.org/spec/1.2/spec.html#s-nb-folded-text(n)
@@ -1453,6 +1466,7 @@ type Yaml12Parser() =
                     |   _ -> contentOrNone
                 |   (false, _, _) -> contentOrNone 
             ``l+block-sequence`` ps []
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "l+block-sequence" ps
 
     //  [184]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-seq-entry(n)
@@ -1464,6 +1478,7 @@ type Yaml12Parser() =
             let prs = prs.SetStyleContext ``Block-in``
             this.``s-l+block-indented`` prs
         |   (false, _, _) -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-l-block-seq-entry" ps
 
     //  [185]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-indented(n,c)
@@ -1481,6 +1496,7 @@ type Yaml12Parser() =
                     Some(NullScalarNode , prs2))
             }
         |   (false, _, _) -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "s-l+block-indented" ps
 
     //  [186]   http://www.yaml.org/spec/1.2/spec.html#ns-l-compact-sequence(n)
@@ -1520,6 +1536,7 @@ type Yaml12Parser() =
                     |   None            ->  contentOrNone
                 |   (false, _, _) -> contentOrNone
             ``l+block-mapping`` ps []
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "l+block-mapping" ps
 
     //  [188]   http://www.yaml.org/spec/1.2/spec.html#ns-l-block-map-entry(n)
@@ -1555,6 +1572,7 @@ type Yaml12Parser() =
             let prs = prs.SetStyleContext ``Block-out``
             this.``s-l+block-indented`` prs
         |   (false, _, _) -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-l-block-map-explicit-key" ps
 
     //  [191]   http://www.yaml.org/spec/1.2/spec.html#l-block-map-explicit-value(n)
@@ -1566,6 +1584,7 @@ type Yaml12Parser() =
             let prs = prs.SetStyleContext ``Block-out``
             this.``s-l+block-indented`` prs
         |   (false, _, _) -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "l-block-map-explicit-value" ps
 
     //  [192]   http://www.yaml.org/spec/1.2/spec.html#ns-l-block-map-implicit-entry(n)
@@ -1591,6 +1610,7 @@ type Yaml12Parser() =
             either (this.``ns-s-implicit-yaml-key``)
             ifneiter (None)
         }
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "ns-s-block-map-implicit-key" ps
 
     //  [194]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-implicit-value(n)
@@ -1603,10 +1623,11 @@ type Yaml12Parser() =
             match (prs) with
             |   Parse(this.``s-l+block-node``)  (c, prs2) -> Some(c, prs2)
             |   _ ->
-                match (HasMatches(ps.InputString, RGS((this.``e-node`` +  this.``s-l-comments``)))) with
+                match (HasMatches(prs.InputString, RGS((this.``e-node`` +  this.``s-l-comments``)))) with
                 |   (true, mt, frs2) -> Some(NullScalarNode, prs.SetRestString frs2)
                 |   (false, _, _) -> None
         |   (false, _, _) -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-l-block-map-implicit-value" ps
 
     //  [195]   http://www.yaml.org/spec/1.2/spec.html#ns-l-compact-mapping(n)
@@ -1653,6 +1674,7 @@ type Yaml12Parser() =
                 |   (false, _, _) -> None
             |   _ -> None
         |   (false, _, _)   -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "s-l+flow-in-block" ps
 
     //  [198]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-in-block(n,c)
@@ -1684,6 +1706,7 @@ type Yaml12Parser() =
             |   Parse(this.``content with optional properties`` ``literal or folded``) value -> Some(value)
             |   _ -> None
         |   (false, _, _) -> None
+        |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "s-l+block-scalar" ps
 
     //  [200]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-collection(n,c)

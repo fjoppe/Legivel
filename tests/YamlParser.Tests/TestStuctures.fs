@@ -139,6 +139,15 @@ let ``Test Map with inline Comments - Sunnny Day Simple``() =
     Assert.AreEqual("value", YamlParse "key:    # Comment\n  value" |> pth.Select |> ToScalar)
     Assert.AreEqual("value", YamlParse "key:    # Comment\n        # lines\n  value\n\n" |> pth.Select |> ToScalar)
 
+[<Test>]
+let ``Test Map Null : Null - Sunnny Day Simple``() =
+    let ptk = YamlPath.Create "//{#''}"
+    let ptv = YamlPath.Create "//{#''}?"
+    let yml = YamlParse ":"
+    Assert.AreEqual("!!null", yml |> ptk.Select |> ToScalarTag)
+    Assert.AreEqual("!!null", yml |> ptv.Select |> ToScalarTag)
+ 
+
 //[<Test>]
 //let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
 //    let pth = YamlPath.Create "//{#'key'}?"

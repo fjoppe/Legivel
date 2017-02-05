@@ -152,8 +152,8 @@ type YamlPath = private {
                 | Regex(@"^#$")                     _               -> Val(AnyScalar)
                 | Regex(@"^\{\}$")                  _               -> Map(AllKeys)
                 | Regex(@"^\{\}\?$")                _               -> Map(AllValues)
-                | Regex(@"^\{#'([\s\d\w]+)'\}$")    [scalarValue]   -> Map(GivenKey scalarValue)
-                | Regex(@"^\{#'([\s\d\w]+)'\}\?$")  [scalarValue]   -> Map(MappedValueForKey scalarValue)
+                | Regex(@"^\{#'([\s\d\w]*)'\}$")    [scalarValue]   -> Map(GivenKey scalarValue)
+                | Regex(@"^\{#'([\s\d\w]*)'\}\?$")  [scalarValue]   -> Map(MappedValueForKey scalarValue)
                 | Regex(@"^\[\]$")              _                   -> Seq(SeqValues)
                 | _  -> raise (YamlPathException (sprintf "Unsupported construct: %s" s))
 

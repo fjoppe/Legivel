@@ -47,8 +47,15 @@ let YamlParse s =
 
 //``s-l+block-collection`` "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
+YamlParse "a:\n key: value\n"
+YamlParse "plain key: in-line value\n: # Both empty\n\"quoted key\":- entry"
+
+//YamlParse ":"
+
 YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
-YamlParse "  hr:  # Home runs\n     65\n"
+YamlParse "  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
-YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n"
+YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+
+
