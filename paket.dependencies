@@ -1,9 +1,11 @@
 source https://nuget.org/api/v2
 
 nuget FSharp.Core redirects: force
+nuget fsunit
 nuget NLog
 nuget NLog.Fsharp
 nuget NUnit
+nuget NUnit.ConsoleRunner
 
 group Build
   source https://nuget.org/api/v2

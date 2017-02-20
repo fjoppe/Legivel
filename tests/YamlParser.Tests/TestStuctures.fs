@@ -2,8 +2,6 @@
 
 open NUnit.Framework
 open System
-open System.Diagnostics
-open RegexDSL
 open YamlParser
 open YamlParse
 open RepresentationGraph
