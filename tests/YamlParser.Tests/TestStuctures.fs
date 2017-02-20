@@ -148,9 +148,26 @@ let ``Test Map Null : Null - Sunnny Day Simple``() =
     Assert.AreEqual("!!null", yml |> ptv.Select |> ToScalarTag)
  
 
-//[<Test>]
-//let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
-//    let pth = YamlPath.Create "//{#'key'}?"
-//    let yml = YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-//    Assert.AreEqual("hr", yml |> pth.Select |> ToScalar)
+[<Test>]
+let ``Test Map key : Map - Sunnny Day Simple``() =
+    let pt1 = YamlPath.Create "//{#'mainkey'}"
+    let pt2 = YamlPath.Create "//{#'mainkey'}?/{#'key'}?"
+    let yml = YamlParse "mainkey:\n key: value\n"
+    Assert.AreEqual("mainkey", yml |> pt1.Select |> ToScalar)
+    Assert.AreEqual("value", yml |> pt2.Select |> ToScalar)
 
+
+[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2780810
+let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
+    let yml = YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+    let pt1 = YamlPath.Create "//{}/{#'first'}?"
+    Assert.AreEqual("Sammy", yml |> pt1.Select |> ToScalar)
+
+    let pt2 = YamlPath.Create "//{}/{#'last'}?"
+    Assert.AreEqual("Sosa", yml |> pt2.Select |> ToScalar)
+
+    let pt3 = YamlPath.Create "//{}?/{#'hr'}?"
+    Assert.AreEqual("65", yml |> pt3.Select |> ToScalar)
+
+    let pt4 = YamlPath.Create "//{}?/{#'avg'}?"
+    Assert.AreEqual("0.278", yml |> pt4.Select |> ToScalar)

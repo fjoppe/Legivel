@@ -1531,6 +1531,7 @@ type Yaml12Parser() =
                     else Some(CreateMapNode (List.rev acc), ps)
                 match (HasMatches(ps.InputString, RGS((this.``s-indent(n)`` (ps.FullIndented))))) with
                 |   (true, mt, frs) -> 
+                    let ps = ps.SetRestString frs
                     match (this.``ns-l-block-map-entry`` (ps.FullIndented)) with
                     |   Some(ck, cv, prs)    ->  ``l+block-mapping`` prs ((ck,cv) :: acc)
                     |   None            ->  contentOrNone
@@ -1722,13 +1723,20 @@ type Yaml12Parser() =
             |   Parse(this.``l+block-mapping``)                                value -> Some(value)
             |   _ -> None
             
-        match HasMatches(psp1.InputString, RGS(this.``s-separate`` psp1)) with
-        |   (true, mt, frs) -> 
-            let prs = psp1.SetRestString frs
-            match prs with
-            |   Parse(this.``content with optional properties`` ``seq or map``) value -> Some(value)
-            |   _ -> None
-        |   (false, _, _) -> None
+        let ``optional spaced content with properties`` ps =
+            match HasMatches(ps.InputString, RGS(this.``s-separate`` ps)) with
+            |   (true, mt, frs) -> 
+                let prs = ps.SetRestString frs
+                match prs with
+                |   Parse(this.``content with optional properties`` ``seq or map``) value -> Some(value)
+                |   _ -> None
+            |   (false, _, _) -> None
+
+        psp1.OneOf {
+            either (``optional spaced content with properties``)
+            either (``seq or map``)
+            ifneiter None
+        }
         |> ParseState.AddSuccess "s-l+block-collection" ps
 
     //  [201]   http://www.yaml.org/spec/1.2/spec.html#seq-spaces(n,c)
