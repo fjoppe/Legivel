@@ -4,9 +4,10 @@
 open System
 open SpookyHash
 open NUnit.Framework
+open FsUnit
 
 [<Test>]
-let ``Test SpookyHash Values``() =
+let ``Test 512 SpookyHash Values``() =
     let expected = 
         "0x6bf50919,0x70de1d26,0xa2b37298,0x35bc5fbf,0x8223b279,0x5bcb315e,0x53fe88a1,0xf9f1a233,
           0xee193982,0x54f86f29,0xc8772d36,0x9ed60886,0x5f23d1da,0x1ed9f474,0xf2ef0c89,0x83ec01f9,
@@ -82,6 +83,5 @@ let ``Test SpookyHash Values``() =
     |> List.iter(fun (i, e) -> 
         let message = Array.init i (fun i -> byte(i + 128))
         let log = sprintf "Iteration: %d, Expected: %s" i e
-        printfn "%s" log
-        Assert.AreEqual(e, Hash32 message 0u |> sprintf "0x%08x", (sprintf "Iteration: %d" i))
+        Hash32 message 0u |> sprintf "0x%08x" |> should equal e
     )

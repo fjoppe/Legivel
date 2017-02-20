@@ -4,13 +4,11 @@ open NUnit.Framework
 open System
 open YamlParser
 open YamlParse
+open FsUnit
 open RepresentationGraph
 
-
-let engine = Yaml12Parser()
-
-
 let YamlParse s =
+    let engine = Yaml12Parser()
     let ``s-l+block-node`` s = 
         let ps = ParseState.Create s
         let ps = ps.SetIndent -1
@@ -40,132 +38,124 @@ let ToScalarTag n =
 [<Test>]
 let ``Test Scalars at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//#'scalar'"
-    Assert.AreEqual(None, YamlParse "\"not found\"" |> pth.Select)
-    Assert.AreEqual("scalar", YamlParse "\"scalar\""    |> pth.Select |> ToScalar)
-    Assert.AreEqual("scalar", YamlParse "'scalar'"      |> pth.Select |> ToScalar)
-    Assert.AreEqual("scalar", YamlParse "scalar"        |> pth.Select |> ToScalar)
 
+    YamlParse "\"not found\"" |> pth.Select |> should equal None
+    YamlParse "\"scalar\""    |> pth.Select |> ToScalar |> should equal "scalar"
+    YamlParse "'scalar'"      |> pth.Select |> ToScalar |> should equal "scalar"
+    YamlParse "scalar"        |> pth.Select |> ToScalar |> should equal "scalar"
 
 [<Test>]
 let ``Test Scalars at Root Level - Rainy Day Simple``() =
     let pth = YamlPath.Create "//#'scalar'"
-    Assert.AreEqual(None, YamlParse "[a, b]"        |> pth.Select)
-    Assert.AreEqual(None, YamlParse "{a: b}"        |> pth.Select)
-
+    YamlParse "[a, b]" |> pth.Select |> should equal None 
+    YamlParse "{a: b}" |> pth.Select |> should equal None 
 
 [<Test>]
 let ``Test Seq at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//[]/#'a'"
-    Assert.AreEqual("a", YamlParse "[ a, b ]" |> pth.Select |> ToScalar)
-
+    YamlParse "[ a, b ]" |> pth.Select |> ToScalar |> should equal "a"
     
 [<Test>]
 let ``Test Seq at Root Level - Rainy Day Simple``() =
     let pth = YamlPath.Create "//[]/#'a'"
-    Assert.AreEqual(None, YamlParse "[ not, found ]" |> pth.Select)
-
+    YamlParse "[ not, found ]" |> pth.Select |> should equal None 
 
 [<Test>]
 let ``Test Map key at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//{#'a'}"
-    Assert.AreEqual("a", YamlParse "{ a: b }" |> pth.Select |> ToScalar)
-
+    YamlParse "{ a: b }" |> pth.Select |> ToScalar |> should equal "a"
 
 [<Test>]
 let ``Test Map value at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//{#'a'}?"
-    Assert.AreEqual("b", YamlParse "{ a: b }" |> pth.Select |> ToScalar)
-
+    YamlParse "{ a: b }" |> pth.Select |> ToScalar |> should equal "b" 
 
 [<Test>]
 let ``Test Map key at Root Level - Rainy Day Simple``() =
     let pth = YamlPath.Create "//{#'a'}"
-    Assert.AreEqual(None, YamlParse "[ a, b ]" |> pth.Select)
-    Assert.AreEqual(None, YamlParse "a" |> pth.Select)
-
+    YamlParse "[ a, b ]" |> pth.Select |> should equal None
+    YamlParse "a" |> pth.Select |> should equal None
 
 [<Test>]
 let ``Test Hybrid Seq with Seq at Root Level - Sunnny Day Simple``() =
     let yml = YamlParse "- simple\n- text\n- [ testing, one, two, three ]"
 
     let pth1 = YamlPath.Create "//[]/#'simple'"
-    Assert.AreEqual("simple", yml |> pth1.Select |> ToScalar)
+    yml |> pth1.Select |> ToScalar |> should equal "simple"
 
     let pth2 = YamlPath.Create "//[]/#'text'"
-    Assert.AreEqual("text", yml |> pth2.Select |> ToScalar)
+    yml |> pth2.Select |> ToScalar |> should equal "text"
 
     let pth3 = YamlPath.Create "//[]/[]/#'one'"
-    Assert.AreEqual("one", yml |> pth3.Select |> ToScalar)
-
+    yml |> pth3.Select |> ToScalar |> should equal "one"
 
 [<Test>]
 let ``Test Hybrid Seq with Map at Root Level - Sunnny Day Simple``() =
     let yml = YamlParse "- simple\n- text\n- { testing: 0, one: 1, two: 2, three : 3 }"
 
     let pth1 = YamlPath.Create "//[]/#'simple'"
-    Assert.AreEqual("simple", yml |> pth1.Select |> ToScalar)
+    yml |> pth1.Select |> ToScalar |> should equal "simple"
 
     let pth2 = YamlPath.Create "//[]/#'text'"
-    Assert.AreEqual("text", yml |> pth2.Select |> ToScalar)
+    yml |> pth2.Select |> ToScalar |> should equal "text"
 
     let pth3 = YamlPath.Create "//[]/{#'one'}"
-    Assert.AreEqual("one", yml |> pth3.Select |> ToScalar)
+    yml |> pth3.Select |> ToScalar |> should equal "one"
 
     let pth4 = YamlPath.Create "//[]/{#'three'}?"
-    Assert.AreEqual("3", yml |> pth4.Select |> ToScalar)
-
+    yml |> pth4.Select |> ToScalar |>  should equal "3"
 
 [<Test>]
 let ``Test Map Hybrid Notation - Sunnny Day Simple``() =
     let yml = YamlParse "{\"adjacent\":value1, \"readable\": value2,  \"empty\":}"
 
     let pth = YamlPath.Create "//{#'adjacent'}?"
-    Assert.AreEqual("!!str", yml |> pth.Select |> ToScalarTag)
-    Assert.AreEqual("value1", yml |> pth.Select |> ToScalar)
+    yml |> pth.Select |> ToScalarTag  |>  should equal "!!str"
+    yml |> pth.Select |> ToScalar |>  should equal "value1"
 
     let pth = YamlPath.Create "//{#'readable'}?"
-    Assert.AreEqual("!!str", yml |> pth.Select |> ToScalarTag)
-    Assert.AreEqual("value2", yml |> pth.Select |> ToScalar)
+    yml |> pth.Select |> ToScalarTag |> should equal "!!str"
+    yml |> pth.Select |> ToScalar |> should equal "value2"
 
     let pth = YamlPath.Create "//{#'empty'}?"
-    Assert.AreEqual("!!null", yml |> pth.Select |> ToScalarTag)
+    yml |> pth.Select |> ToScalarTag |> should equal "!!null"
 
 [<Test>]
 let ``Test Map with inline Comments - Sunnny Day Simple``() =
     let pth = YamlPath.Create "//{#'key'}?"
-
-    Assert.AreEqual("value", YamlParse "key:    # Comment\n  value" |> pth.Select |> ToScalar)
-    Assert.AreEqual("value", YamlParse "key:    # Comment\n        # lines\n  value\n\n" |> pth.Select |> ToScalar)
+    YamlParse "key:    # Comment\n  value" |> pth.Select |> ToScalar |> should equal "value"
+    YamlParse "key:    # Comment\n        # lines\n  value\n\n" |> pth.Select |> ToScalar |> should equal "value"
 
 [<Test>]
 let ``Test Map Null : Null - Sunnny Day Simple``() =
     let ptk = YamlPath.Create "//{#''}"
     let ptv = YamlPath.Create "//{#''}?"
     let yml = YamlParse ":"
-    Assert.AreEqual("!!null", yml |> ptk.Select |> ToScalarTag)
-    Assert.AreEqual("!!null", yml |> ptv.Select |> ToScalarTag)
- 
+    yml |> ptk.Select |> ToScalarTag |> should equal "!!null"
+    yml |> ptv.Select |> ToScalarTag |> should equal "!!null"
 
 [<Test>]
 let ``Test Map key : Map - Sunnny Day Simple``() =
     let pt1 = YamlPath.Create "//{#'mainkey'}"
     let pt2 = YamlPath.Create "//{#'mainkey'}?/{#'key'}?"
     let yml = YamlParse "mainkey:\n key: value\n"
-    Assert.AreEqual("mainkey", yml |> pt1.Select |> ToScalar)
-    Assert.AreEqual("value", yml |> pt2.Select |> ToScalar)
 
+    yml |> pt1.Select |> ToScalar |> should equal "mainkey"
+    yml |> pt2.Select |> ToScalar |> should equal "value"
 
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2780810
 let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
     let yml = YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+
     let pt1 = YamlPath.Create "//{}/{#'first'}?"
-    Assert.AreEqual("Sammy", yml |> pt1.Select |> ToScalar)
+    yml |> pt1.Select |> ToScalar  |> should equal "Sammy"
 
     let pt2 = YamlPath.Create "//{}/{#'last'}?"
-    Assert.AreEqual("Sosa", yml |> pt2.Select |> ToScalar)
+    yml |> pt2.Select |> ToScalar |> should equal "Sosa"
 
     let pt3 = YamlPath.Create "//{}?/{#'hr'}?"
-    Assert.AreEqual("65", yml |> pt3.Select |> ToScalar)
+    yml |> pt3.Select |> ToScalar |> should equal "65"
 
     let pt4 = YamlPath.Create "//{}?/{#'avg'}?"
-    Assert.AreEqual("0.278", yml |> pt4.Select |> ToScalar)
+    yml |> pt4.Select |> ToScalar |> should equal "0.278"
+
