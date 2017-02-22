@@ -52,14 +52,16 @@ let YamlParse s =
 //YamlParse "plain key: in-line value\n: # Both empty\n\"quoted key\":- entry"
 
 //YamlParse ":"
+//
+//YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+//
+//YamlParse "  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+//
+//YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
-YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+//  http://www.yaml.org/spec/1.2/spec.html#id2797382
+//YamlParse "block sequence:\n  - one\n  - two : three\n"
 
-YamlParse "  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-
-YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-
-YamlParse "block sequence:\n  - one\n  - two : three\n"
-
-
+//  http://www.yaml.org/spec/1.2/spec.html#id2787109
+YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
 

@@ -159,3 +159,29 @@ let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
     let pt4 = YamlPath.Create "//{}?/{#'avg'}?"
     yml |> pt4.Select |> ToScalar |> should equal "0.278"
 
+[<Test>]
+let ``Test Map indented implicit entries - Sunnny Day Simple``() =
+    let yml = YamlParse "  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+    let pt3 = YamlPath.Create "//{#'hr'}?"
+    yml |> pt3.Select |> ToScalar |> should equal "65"
+
+    let pt4 = YamlPath.Create "//{#'avg'}?"
+    yml |> pt4.Select |> ToScalar |> should equal "0.278"
+
+[<Test>]
+let ``Test Map indented implicit entries and comments - Sunnny Day Simple``() =
+    let yml = YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+    let pt3 = YamlPath.Create "//{#'hr'}?"
+    yml |> pt3.Select |> ToScalar |> should equal "65"
+
+    let pt4 = YamlPath.Create "//{#'avg'}?"
+    yml |> pt4.Select |> ToScalar |> should equal "0.278"
+
+[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2797382
+let ``Test Map implicit entries with indenteseq value - Sunnny Day Simple``() =
+    let yml = YamlParse "block sequence:\n  - one\n  - two : three\n"
+    let pt3 = YamlPath.Create "//{#'block sequence'}?/[]/#'one'"
+    yml |> pt3.Select |> ToScalar |> should equal "one"
+
+    let pt4 = YamlPath.Create "//{#'block sequence'}?/[]/#'two'"
+    yml |> pt4.Select |> ToScalar |> should equal "two"

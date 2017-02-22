@@ -24,7 +24,7 @@ type Tag = {
                 Kind = kind; 
                 Uri = uri; 
                 Short = short; 
-                Regex = sprintf "^(%s)$" rgx
+                Regex = sprintf "\\A(%s)\\Z" rgx
                 canonFn = canon
             }
 
@@ -58,7 +58,7 @@ type Node =
     | MapNode of NodeData<(Node*Node) list>
     | ScalarNode of NodeData<string>
     with
-        member this.Indent l =
+        member private this.Indent l =
             [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
 
         member this.Hash 

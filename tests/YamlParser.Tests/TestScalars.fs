@@ -3,6 +3,16 @@ module TestScalars
 open YamlParse
 open NUnit.Framework
 open FsUnit
+open RepresentationGraph
+open System
+
+let ToScalar n = 
+    match n with
+    |   ScalarNode nd -> nd.Data
+    |   _ -> raise (Exception "Is no scalar")
+
+let GetNodeTagUri (n:Node) = n.NodeTag.Uri
+   
 
 [<Test>]
 let ``Test Canonical Integers - Simple``() =
@@ -54,3 +64,80 @@ let ``Test Canonical Floats - Specials``() =
     FloatGlobalTag.Canonical "-.inf" |> should equal "-.inf"
     FloatGlobalTag.Canonical ".nan"  |> should equal ".nan"
 
+[<Test>]
+let ``Test MapScalar Null - Sunny Day``() =
+    ["null"; "NULL"; "Null"]
+    |> List.iter(fun input ->
+        let node = MapScalar input
+        node         |> ToScalar      |> should equal input
+        node         |> GetNodeTagUri |> should equal NullGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test MapScalar Null - Rainy Day``() =
+    [
+        "null and more text"
+        "null\nand more text"
+    ]
+    |> List.iter(fun input ->
+        let faultyNode = MapScalar input
+        faultyNode |> ToScalar      |> should equal input
+        faultyNode |> GetNodeTagUri |> should equal StringGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test MapScalar Bool - Sunny Day``() =
+    [
+        "yes";"no";"y";"n";"Y";"N";"Yes";"No";"YES";"NO";
+        "true";"false";"True";"False";"TRUE";"FALSE";
+        "on";"off";"On";"Off";"ON";"OFF"
+    ]
+    |> List.iter(fun input ->
+        let node = MapScalar input
+        node        |> ToScalar      |> should equal input
+        node        |> GetNodeTagUri |> should equal BooleanGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test MapScalar Bool - Rainy Day``() =
+    [
+        "true and more text"
+        "true\nand more text"
+    ]
+    |> List.iter(fun input ->
+        let faultyNode = MapScalar input
+        faultyNode |> ToScalar      |> should equal input
+        faultyNode |> GetNodeTagUri |> should equal StringGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test MapScalar Intgeger - Sunny Day``() =
+    [
+        "1"; "100"; "1000"
+        "-1"; "-100"; "-1000"
+        "+1"; "+100"; "+1000"
+        "0b1"; "0b100"; "0b1000"
+        "-0b1"; "-0b100"; "-0b1000"
+        "+0b1"; "+0b100"; "+0b1000"
+        "0x1"; "0x100"; "1000"
+        "-0x1"; "-0x100"; "-0x1000"
+        "+0x1"; "+0x100"; "+0x1000"
+        "190:20:30"
+    ]
+    |> List.iter(fun input ->
+        let node = MapScalar input
+        node         |> ToScalar      |> should equal input
+        node         |> GetNodeTagUri |> should equal IntegerGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test MapScalar Integer - Rainy Day``() =
+    [
+        "100 and more text"
+        "100\nand more text"
+    ]
+    |> List.iter(fun input ->
+        let faultyNode = MapScalar input
+        faultyNode |> ToScalar      |> should equal input
+        faultyNode |> GetNodeTagUri |> should equal StringGlobalTag.Uri
+    )

@@ -2,11 +2,8 @@
 
 open System
 open System.Text
-open System.IO
 open System.Text.RegularExpressions
 open NLog
-open NLog.FSharp
-open System.Diagnostics
 open YamlParser.Internals
 open YamlParser.Internals.ParserMonads
 
@@ -224,7 +221,7 @@ type Yaml12Parser() =
     let logger s ps =
         let logger = LogManager.GetCurrentClassLogger()
         let str = if ps.InputString.Length > 10 then ps.InputString.Substring(0, 10) else ps.InputString
-        logger.Trace(sprintf "%s\t\"%s\"" s (str.Replace("\n","\\n")))
+        logger.Trace(sprintf "%s\t\"%s\" i:%d c:%A" s (str.Replace("\n","\\n")) (ps.n) (ps.c)) 
 
     //  Utility functions
     member this.``split by linefeed`` s = 
@@ -1175,8 +1172,9 @@ type Yaml12Parser() =
     //  [154]   http://www.yaml.org/spec/1.2/spec.html#ns-s-implicit-yaml-key(c)
     member this.``ns-s-implicit-yaml-key`` (ps:ParseState) : ParseFuncSingleResult =
         logger "ns-s-implicit-yaml-key" ps
-        let ``n/a`` = 0
-        match (ps.SetIndent ``n/a``) with
+//        let ``n/a`` = 0
+//        let ps = ps.SetIndent ``n/a``
+        match (ps) with
         |   Parse(this.``ns-flow-yaml-node``) (ck, prs) -> 
             let prs = prs.SetRestString(SkipIfMatch prs.InputString (OPT(this.``s-separate-in-line``)))
             Some(ck, prs)
@@ -1186,8 +1184,9 @@ type Yaml12Parser() =
     //  [155]   http://www.yaml.org/spec/1.2/spec.html#c-s-implicit-json-key(c)
     member this.``c-s-implicit-json-key`` (ps:ParseState) : ParseFuncSingleResult = (* At most 1024 characters altogether *)
         logger "c-s-implicit-json-key" ps
-        let ``n/a`` = 0
-        match (ps.SetIndent ``n/a``) with
+//        let ``n/a`` = 0
+//        let ps = ps.SetIndent ``n/a``
+        match (ps) with
         |   Parse(this.``c-flow-json-node``)    (c, prs) -> 
             let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
             Some(c, prs)
@@ -1394,6 +1393,7 @@ type Yaml12Parser() =
         | (false, _, _)   ->  None
         | (true, mt, frs) ->
             let ``folded-content`` (ps:ParseState) =
+                let ps = if ps.n < 0 then ps.SetIndent 0 else ps
                 let p = this.``l-folded-content`` (ps.FullIndented)
                 match ps.InputString  with
                 |   Regex2(p)  m -> Some(m.ge1, ps.SetRestString m.Rest)
@@ -1401,7 +1401,7 @@ type Yaml12Parser() =
             
             let prs = ps.SetRestString frs
             let (pm, prs2) = (this.``c-b-block-header`` prs)
-
+            
             let m = match pm with
                     |   Some(m) -> m
                     |   None    ->
@@ -1460,7 +1460,7 @@ type Yaml12Parser() =
                     else Some(CreateSeqNode (List.rev acc), ps)
                 match HasMatches(ps.InputString, RGS((this.``s-indent(n)`` (ps.FullIndented)))) with
                 |   (true, mt, frs) -> 
-                    let prs = ps.SetRestString frs
+                    let ps = ps.SetRestString frs
                     match (this.``c-l-block-seq-entry`` ps.FullIndented) with
                     |   Some(c, prs2) -> ``l+block-sequence`` (prs2.InputString  |> ps.SetRestString) (c :: acc)
                     |   _ -> contentOrNone
@@ -1693,6 +1693,7 @@ type Yaml12Parser() =
         logger "s-l+block-scalar" ps
         let psp1 = ps.SetIndent (ps.n + 1)
         let ``literal or folded`` (ps:ParseState) =
+            let ps = ps.SetIndent (ps.n-1)
             let mapScalar (s, prs) = (MapScalar(s), prs)
             ps.OneOf {
                 either   (this.``c-l+literal`` >> Option.map mapScalar)
@@ -1728,7 +1729,7 @@ type Yaml12Parser() =
             |   (true, mt, frs) -> 
                 let prs = ps.SetRestString frs
                 match prs with
-                |   Parse(this.``content with optional properties`` ``seq or map``) value -> Some(value)
+                |   Parse(this.``content with properties`` ``seq or map``) value -> Some(value)
                 |   _ -> None
             |   (false, _, _) -> None
 
