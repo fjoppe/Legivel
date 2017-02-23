@@ -178,10 +178,25 @@ let ``Test Map indented implicit entries and comments - Sunnny Day Simple``() =
     yml |> pt4.Select |> ToScalar |> should equal "0.278"
 
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2797382
-let ``Test Map implicit entries with indenteseq value - Sunnny Day Simple``() =
+let ``Test Map implicit entries with indented seq value - Sunnny Day Simple``() =
     let yml = YamlParse "block sequence:\n  - one\n  - two : three\n"
-    let pt3 = YamlPath.Create "//{#'block sequence'}?/[]/#'one'"
-    yml |> pt3.Select |> ToScalar |> should equal "one"
+    let pt1 = YamlPath.Create "//{#'block sequence'}?/[]/#'one'"
+    yml |> pt1.Select |> ToScalar |> should equal "one"
 
-    let pt4 = YamlPath.Create "//{#'block sequence'}?/[]/#'two'"
-    yml |> pt4.Select |> ToScalar |> should equal "two"
+    let pt2 = YamlPath.Create "//{#'block sequence'}?/[]/#'two'"
+    yml |> pt2.Select |> ToScalar |> should equal "two"
+
+[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787109
+let ``Test Map Double Quoted style - Sunnny Day Simple``() =
+    let yml = YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
+    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
+    yml |> pt.Select |> ToScalar |> should equal "value"
+
+[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2788496
+let ``Test Map Single Quoted style - Sunnny Day Simple``() =
+    let yml = YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
+    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
+    yml |> pt.Select |> ToScalar |> should equal "value"
+
+
+    

@@ -63,5 +63,7 @@ let YamlParse s =
 //YamlParse "block sequence:\n  - one\n  - two : three\n"
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2787109
-YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
+//YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
 
+//  http://www.yaml.org/spec/1.2/spec.html#id2788496
+YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"

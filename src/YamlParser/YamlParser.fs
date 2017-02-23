@@ -961,7 +961,7 @@ type Yaml12Parser() =
             |   _ ->
                 match (HasMatches(prs.InputString, (RGP "\\]"))) with
                 |  (true, mt, frs) ->  Some((CreateSeqNode []),(ps.SetRestString frs))
-                |  (false, _,_)    -> raise (ParseException(sprintf "Expected ']' at \"%s\"" (prs.InputString)))
+                |  (false, _,_)    -> None // raise (ParseException(sprintf "Expected ']' at \"%s\"" (prs.InputString)))
         |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-flow-sequence" ps        
                 
@@ -977,7 +977,9 @@ type Yaml12Parser() =
                 |   (true, mt, frs) ->  
                     ``ns-s-flow-seq-entries`` (prs.SetRestString frs) lst
                 |   (false, _,_)    -> Some(CreateSeqNode(lst |> List.rev), (prs.SetRestString rs))
-            |   _ -> None   // empty sequence
+            |   _ -> 
+                if lst.Length = 0 then None   // empty sequence
+                else Some(CreateSeqNode(lst |> List.rev), ps)
         ``ns-s-flow-seq-entries`` ps []
         |> ParseState.AddSuccess "ns-s-flow-seq-entries" ps        
 

@@ -43,12 +43,12 @@ let ``Test Double Quote Flow Folding - Simple 1``() =
 let ``Test Double Quote Flow Folding - Simple 2``() =
     YamlParse "\" 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty \"" |> should equal " 1st non-empty\n2nd non-empty 3rd non-empty " 
 
-[<Test>]
+[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787745
 let ``Test Double Quote Flow Folding - Escaped``() =
     YamlParse "\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"" |> should equal "folded to a space,\nto a line feed, or \t \tnon-content"
 
-//  http://www.yaml.org/spec/1.2/spec.html#id2796251
-[<Test>]
+
+[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2796251
 let ``Test Folded Style``() =
     YamlParse ">\n\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n" |> should equal "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n" 
 
