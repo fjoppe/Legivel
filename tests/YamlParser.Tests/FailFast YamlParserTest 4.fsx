@@ -66,4 +66,14 @@ let YamlParse s =
 //YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2788496
-YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
+//YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
+//
+//YamlParse "
+//Mark McGwire: {hr: 65, avg: 0.278}
+//Sammy Sosa: {
+//    hr: 63,
+//    avg: 0.288
+//  }"
+
+
+

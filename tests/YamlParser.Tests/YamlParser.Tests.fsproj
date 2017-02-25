@@ -47,6 +47,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Content Include="App.config" />
+    <Compile Include="Chapter2Tests.fs" />
     <Compile Include="TestSpookyHash.fs" />
     <Compile Include="TestScalars.fs" />
     <Compile Include="TestStringScalars.fs" />

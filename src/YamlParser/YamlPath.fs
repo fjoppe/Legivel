@@ -148,13 +148,13 @@ type YamlPath = private {
 
             let parseEvals s =
                 match s with
-                | Regex(@"^#'([\s\d\w]+)'$")        [scalarValue]   -> Val(LiteralScalar scalarValue)
-                | Regex(@"^#$")                     _               -> Val(AnyScalar)
-                | Regex(@"^\{\}$")                  _               -> Map(AllKeys)
-                | Regex(@"^\{\}\?$")                _               -> Map(AllValues)
-                | Regex(@"^\{#'([\s\d\w]*)'\}$")    [scalarValue]   -> Map(GivenKey scalarValue)
-                | Regex(@"^\{#'([\s\d\w]*)'\}\?$")  [scalarValue]   -> Map(MappedValueForKey scalarValue)
-                | Regex(@"^\[\]$")              _                   -> Seq(SeqValues)
+                | Regex(@"^#'([\s\d\w.]+)'$")        [scalarValue]   -> Val(LiteralScalar scalarValue)
+                | Regex(@"^#$")                      _               -> Val(AnyScalar)
+                | Regex(@"^\{\}$")                   _               -> Map(AllKeys)
+                | Regex(@"^\{\}\?$")                 _               -> Map(AllValues)
+                | Regex(@"^\{#'([\s\d\w.]*)'\}$")    [scalarValue]   -> Map(GivenKey scalarValue)
+                | Regex(@"^\{#'([\s\d\w.]*)'\}\?$")  [scalarValue]   -> Map(MappedValueForKey scalarValue)
+                | Regex(@"^\[\]$")               _                   -> Seq(SeqValues)
                 | _  -> raise (YamlPathException (sprintf "Unsupported construct: %s" s))
 
             let evals = 
@@ -175,13 +175,10 @@ type YamlPath = private {
             this.Evaluation
             |>  List.fold(fun n e ->
                 match n with
-                |   Some (nodeList) -> e.filter nodeList
+                |   Some (nodeList) -> 
+                    e.filter nodeList
                 |   None -> None
             ) (Some [nd])
-//            |> function
-//               | Some(SeqNode(nd),_)  -> if nd.Data.Length = 0 then None else (Some nd.Data.Head)
-//               | Some(n,_)  -> Some(n)
-//               | None       -> None
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module YamlPath =

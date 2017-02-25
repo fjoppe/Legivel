@@ -961,7 +961,7 @@ type Yaml12Parser() =
             |   _ ->
                 match (HasMatches(prs.InputString, (RGP "\\]"))) with
                 |  (true, mt, frs) ->  Some((CreateSeqNode []),(ps.SetRestString frs))
-                |  (false, _,_)    -> None // raise (ParseException(sprintf "Expected ']' at \"%s\"" (prs.InputString)))
+                |  (false, _,_)    -> None
         |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-flow-sequence" ps        
                 
@@ -996,18 +996,18 @@ type Yaml12Parser() =
     member this.``c-flow-mapping`` (ps:ParseState) : ParseFuncSingleResult =
         logger "c-flow-mapping" ps
         match (HasMatches(ps.InputString, RGS((RGP "\\{") + OPT(this.``s-separate`` ps)))) with
+        |   (false, _, _)    -> None
         |   (true, mt, frs) -> 
             let prs = ps.SetRestString frs
-            let prs, mappings =
-                match (prs.SetStyleContext(this.``in-flow`` prs)) with
-                |   Parse(this.``ns-s-flow-map-entries``) (c, prs2) -> (prs2, c)
-                |   _ -> (prs, CreateMapNode [])
-            match (HasMatches(prs.InputString, (RGP "\\}"))) with
-            |   (true, mt, frs2) -> 
-                let prs2 = prs.SetRestString frs2
-                Some(mappings, prs2)
-            |   (false, _, _)    -> raise (ParseException(sprintf "Expected '}' at \"%s\"" (prs.InputString.Substring(6))))
-        |   (false, _, _)    -> None
+            match (prs.SetStyleContext(this.``in-flow`` prs)) with
+            |   Parse(this.``ns-s-flow-map-entries``) (c, prs2) -> 
+                match (HasMatches(prs2.InputString, (RGP "\\}"))) with
+                |   (true, mt, frs2) -> Some(c, prs2.SetRestString frs2)
+                |   (false, _, _)    -> raise (ParseException(sprintf "Expected '}' at \"%s\"" (prs2.InputString.Substring(6))))
+            |   _ -> 
+                match (HasMatches(prs.InputString, (RGP "\\}"))) with
+                |   (true, mt, frs2) -> Some(CreateMapNode [], ps.SetRestString frs2)
+                |   (false, _, _)    -> None
         |> ParseState.ResetEnv ps
         |> ParseState.AddSuccess "c-flow-mapping" ps       
             
@@ -1034,7 +1034,6 @@ type Yaml12Parser() =
             match (HasMatches(ps.InputString, RGP "\\?" + (this.``s-separate`` ps))) with
             | (false, _, _) ->  None
             | (true, m, inputrs)  -> this.``ns-flow-map-explicit-entry`` (ps.SetRestString inputrs)
-
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-map-implicit-entry``)
