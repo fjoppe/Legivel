@@ -17,6 +17,7 @@ type Context = ``Block-out`` | ``Block-in`` | ``Flow-out`` | ``Flow-in`` | ``Blo
 type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 
 let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
+let ``end-of-file`` = RGP "\\z"
 
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
 let MappingGlobalTag =  Tag.Create(Global, Mapping, "tag:yaml.org,2002:map", "!!map")
@@ -180,6 +181,16 @@ type ParseState = {
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module ParseState = 
     let inline OneOf (ps:ParseState) = EitherBuilder(ps)
+    let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
+        match (HasMatches(ps.InputString, patt)) with
+        |   (true, _, rest) -> ps.SetRestString rest |> postAdvanceFunc
+        |   (false, _, _)    -> None
+
+    let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
+        match (HasMatches(ps.InputString, patt)) with
+        |   (true, mt, rest) -> ps.SetRestString rest |> parseFunc mt
+        |   (false, _, _)    -> None
+
     let SetStyleContext cn (ps:ParseState) = ps.SetStyleContext cn
     let SetIndent nn (ps:ParseState) = ps.SetIndent nn
     let SetSubIndent mn (ps:ParseState) = ps.SetSubIndent mn
@@ -215,6 +226,7 @@ type ParsFuncSig = (ParseState -> ParseFuncSingleResult)
 type BlockFoldPrevType = EmptyAfterFolded | Empty | Indented | TextLine
 type FlowFoldPrevType = Empty | TextLine
 
+type Directives = YAML of string | TAG of string*string | RESERVED of string list
 
 type Yaml12Parser() =
 
@@ -384,7 +396,7 @@ type Yaml12Parser() =
     member ths.``nb-json`` = RGO "\u0009\u0020-\uffff"
 
     //  [3] http://www.yaml.org/spec/1.2/spec.html#c-byte-order-mark
-    member this.``c-byte-order-mark`` = "\ufeff"
+    member this.``c-byte-order-mark`` = RGP "\ufeff"
 
     //  [4] http://www.yaml.org/spec/1.2/spec.html#c-sequence-entry
     member this.``c-sequence-entry`` = "-"
@@ -671,8 +683,19 @@ type Yaml12Parser() =
     member this.``s-separate-lines`` ps = (this.``s-l-comments`` + (this.``s-flow-line-prefix`` ps)) ||| this.``s-separate-in-line``
 
     //  [82]    http://www.yaml.org/spec/1.2/spec.html#l-directive
-    member this.``l-directive`` = 
-        (RGP "%") + (this.``ns-yaml-directive`` ||| this.``ns-tag-directive`` ||| this.``ns-reserved-directive``) + this.``s-l-comments``
+    member this.``l-directive`` (ps:ParseState) : (Directives * ParseState) option = 
+        ps 
+        |> ParseState.``Match and Advance`` (RGP "%") (fun prs ->
+            match prs.InputString with
+            |   Regex2(this.``ns-yaml-directive``)  mt    -> Some(YAML(mt.ge1), ps.SetRestString mt.Rest)
+            |   Regex2(this.``ns-tag-directive``)   mt    -> Some(TAG(mt.ge2),  ps.SetRestString mt.Rest)
+            |   Regex2(this.``ns-reserved-directive``) mt -> Some(RESERVED(mt.Groups), ps.SetRestString mt.Rest)
+            |   _   -> None
+        )
+        |> Option.bind(fun (t,prs) ->
+            prs |> ParseState.``Match and Advance`` (this.``s-l-comments``) (fun prs2 -> Some(t,prs2))
+        )
+
 
     //  [83]    http://www.yaml.org/spec/1.2/spec.html#ns-reserved-directive
     member this.``ns-reserved-directive`` = 
@@ -685,14 +708,14 @@ type Yaml12Parser() =
     member this.``ns-directive-parameter`` = OOM(this.``ns-char``)
 
     //  [86]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-directive
-    member this.``ns-yaml-directive`` = RGP("YAML") + this.``s-separate-in-line`` + this.``ns-yaml-version``
+    member this.``ns-yaml-directive`` = RGP("YAML") + this.``s-separate-in-line`` + GRP(this.``ns-yaml-version``)
 
     //  [87]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-version
     member this.``ns-yaml-version`` = OOM(this.``ns-dec-digit``) + RGP("\\.") + OOM(this.``ns-dec-digit``)
 
     //  [88]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-directive
     member this.``ns-tag-directive`` = 
-        (RGP "TAG") + this.``s-separate-in-line`` + this.``c-tag-handle`` + this.``s-separate-in-line`` + this.``ns-tag-prefix``
+        (RGP "TAG") + this.``s-separate-in-line`` + GRP(this.``c-tag-handle``) + this.``s-separate-in-line`` + GRP(this.``ns-tag-prefix``)
 
     //  [89]    http://www.yaml.org/spec/1.2/spec.html#c-tag-handle
     member this.``c-tag-handle`` = this.``c-named-tag-handle`` ||| this.``c-secondary-tag-handle`` ||| this.``c-primary-tag-handle``
@@ -755,12 +778,10 @@ type Yaml12Parser() =
     //  [104]   http://www.yaml.org/spec/1.2/spec.html#c-ns-alias-node
     member this.``c-ns-alias-node`` ps : ParseFuncSingleResult =
         logger "c-ns-alias-node" ps
-        match (HasMatches(ps.InputString, (RGP "\\*"))) with
-        |   (true, mt, frs) -> 
-            match (HasMatches(frs, (this.``ns-anchor-name``))) with
-            |   (true, mt, frs2) -> Some((ps.GetAnchor mt), ps.SetRestString frs2)
-            |   (false, _, _)    -> None            
-        |   (false, _, _)    -> None
+        ps |> ParseState.``Match and Advance`` (RGP "\\*") (fun prs ->
+            prs |> ParseState.``Match and Parse`` (this.``ns-anchor-name``) (fun mt prs2 ->
+                Some((ps.GetAnchor mt), prs2)
+        ))
         |> ParseState.AddSuccess "c-ns-alias-node" ps
 
     //  [105]   http://www.yaml.org/spec/1.2/spec.html#e-scalar
@@ -949,7 +970,7 @@ type Yaml12Parser() =
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
     member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncSingleResult=
         logger "c-flow-sequence" ps
-        match (HasMatches(ps.InputString, RGS((RGP "\\[") + OPT(this.``s-separate`` ps)))) with
+        match (HasMatches(ps.InputString, ((RGP "\\[") + OPT(this.``s-separate`` ps)))) with
         | (false, _, _) ->  None
         | (true, m, inputrs)  -> 
             let prs = ps.SetRestString inputrs
@@ -1747,4 +1768,49 @@ type Yaml12Parser() =
         |   ``Block-out``   ->  ps.SetIndent (ps.n-1)
         |   ``Block-in``    ->  ps
         |   _ ->    raise (ParseException "Case is not supported")
+
+    //  [202]   http://www.yaml.org/spec/1.2/spec.html#l-document-prefix
+    member this.``l-document-prefix`` = OPT(this.``c-byte-order-mark``) + ZOM(this.``l-comment``)
+
+    //  [203]   http://www.yaml.org/spec/1.2/spec.html#c-directives-end
+    member this.``c-directives-end`` = RGP "---"
+
+    //  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
+    member this.``c-document-end`` = RGP "\.\.\."
+
+    //  [205]   http://www.yaml.org/spec/1.2/spec.html#l-document-suffix
+    member this.``l-document-suffix`` = this.``c-document-end`` + this.``s-l-comments``
+
+    //  [206]   http://www.yaml.org/spec/1.2/spec.html#c-forbidden
+    member this.``c-forbidden`` =
+        ``start-of-line`` + ( this.``c-directives-end`` ||| this.``c-document-end``) +
+        (this.``b-char`` ||| this.``s-white`` ||| ``end-of-file``)
+
+    //  [207]   http://www.yaml.org/spec/1.2/spec.html#l-bare-document
+    member this.``l-bare-document`` (ps:ParseState) : ParseFuncSingleResult = 
+        logger "l-bare-document" ps
+        ps 
+        |> ParseState.SetIndent -1
+        |> ParseState.SetStyleContext ``Block-in``
+        |> this.``s-l+block-node`` (* Excluding c-forbidden content *)
+        |> ParseState.AddSuccess  "l-bare-document" ps
+
+    //  [208]   http://www.yaml.org/spec/1.2/spec.html#l-explicit-document
+    member this.``l-explicit-document`` (ps:ParseState) =
+        ps |> ParseState.``Match and Advance`` (this.``c-directives-end``) (fun prs ->
+            prs.OneOf {
+                either(this.``l-bare-document``)
+                ifneiter (
+                    let prs2 = prs.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
+                    Some(NullScalarNode , prs2))
+            })
+
+    //  [209]   http://www.yaml.org/spec/1.2/spec.html#l-directive-document
+    member this.``l-directive-document`` (ps:ParseState) = 
+        let rec readDirectives ps acc =
+            match ( this.``l-directive`` ps) with
+            |   Some(d, psr) -> readDirectives psr (d::acc)
+            |   None         -> (ps, acc)
+        let (psr,dir) = readDirectives ps []
+        this.``l-explicit-document`` psr
 

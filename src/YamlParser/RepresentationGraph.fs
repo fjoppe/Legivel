@@ -24,7 +24,7 @@ type Tag = {
                 Kind = kind; 
                 Uri = uri; 
                 Short = short; 
-                Regex = sprintf "\\A(%s)\\Z" rgx
+                Regex = sprintf "\\A(%s)\\z" rgx
                 canonFn = canon
             }
 
