@@ -45,6 +45,7 @@
     <Compile Include="RegexDSL.fs" />
     <Compile Include="Internals.fs" />
     <Compile Include="RepresentationGraph.fs" />
+    <Compile Include="TagResolution.fs" />
     <Compile Include="YamlParser.fs" />
     <Compile Include="YamlPath.fs" />
     <None Include="paket.references" />

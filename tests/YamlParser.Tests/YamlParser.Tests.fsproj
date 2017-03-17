@@ -50,6 +50,7 @@
     <Compile Include="Chapter2Tests.fs" />
     <Compile Include="TestSpookyHash.fs" />
     <Compile Include="TestScalars.fs" />
+    <Compile Include="TestSchema.fs" />
     <Compile Include="TestStringScalars.fs" />
     <Compile Include="TestStuctures.fs" />
     <None Include="FailFast Scalar.fsx" />

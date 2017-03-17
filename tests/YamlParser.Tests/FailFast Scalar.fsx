@@ -36,3 +36,8 @@ FloatGlobalTag.Canonical ".inf"
 FloatGlobalTag.Canonical "-.inf"
 FloatGlobalTag.Canonical ".nan"
 
+let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
+
+digitToValue '3'
+digitToValue 'A'
+

@@ -1,45 +1,40 @@
 ﻿module RepresentationGraph
 
-type TagScope =
-    | Global
-    | Local
-
-type TagKind = 
+type NodeKind = 
     | Mapping
     | Sequence
     | Scalar
 
 type Tag = {
-        Scope   : TagScope
-        Kind    : TagKind
+        Kind    : NodeKind
         Uri     : string
         Short   : string
         Regex   : string
         canonFn : string -> string
     }
     with
-        static member Create (scope, kind, uri, short, rgx, canon) =
+        static member Create (kind, uri, short, rgx, canon) =
             { 
-                Scope = scope; 
-                Kind = kind; 
+                Kind = kind;
                 Uri = uri; 
                 Short = short; 
                 Regex = sprintf "\\A(%s)\\z" rgx
                 canonFn = canon
             }
 
-        static member Create (scope, kind, uri, short, rgx) =
-            Tag.Create (scope, kind, uri, short, rgx, fun s -> s)
+        static member Create (kind, uri, short, rgx) =
+            Tag.Create (kind, uri, short, rgx, fun s -> s)
 
-        static member Create (scope, kind, uri, short) =
-            Tag.Create (scope, kind, uri, short, ".*", fun s -> s)
+        static member Create (kind, uri, short) =
+            Tag.Create (kind, uri, short, ".*", fun s -> s)
 
-        static member Create (scope, kind, uri) =
-            Tag.Create (scope, kind, uri, uri, ".*", fun s -> s)
+        static member Create (kind, uri) =
+            Tag.Create (kind, uri, uri, ".*", fun s -> s)
 
         member this.Canonical s = this.canonFn s
         
 open YamlParser.Internals
+
 
 type NodeData<'T> = {
         Tag  : Tag

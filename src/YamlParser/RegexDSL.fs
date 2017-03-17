@@ -187,7 +187,7 @@ let ``value or zero`` sv =
     |   None    -> 0
 
 
-//[<DebuggerStepThrough>]
+[<DebuggerStepThrough>]
 let (|Regex|_|) pattern input =
     let m = Regex.Match(input, pattern, RegexOptions.Multiline)
     if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
