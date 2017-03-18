@@ -41,18 +41,18 @@ let clearTrailingZeros (s:string) =
     String.Join("", cleared)
 
 
-module Common =
+module internal Common =
     let NonSpecificTagQT k = Tag.Create(k, "!", "")
     let NonSpecificTagQM k = Tag.Create(k, "?", "")
 
 
-module Failsafe =
+module internal Failsafe =
     let MappingGlobalTag =  Tag.Create(Mapping, "tag:yaml.org,2002:map", "!!map")
     let SequenceGlobalTag = Tag.Create(Sequence, "tag:yaml.org,2002:seq", "!!seq")
     let StringGlobalTag =   Tag.Create(Scalar, "tag:yaml.org,2002:str", "!!str")
 
 
-module JSON =
+module internal JSON =
     let NullGlobalTag =
         Tag.Create(Scalar, "tag:yaml.org,2002:null", "!!null", "null",
             (fun s -> 
@@ -78,7 +78,7 @@ module JSON =
             "[-]?(0|[1-9][0-9]*)",
             (fun s ->
                 match s with
-                | Regex "^([-+])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
+                | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
             )
         )
@@ -89,16 +89,16 @@ module JSON =
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
-                | Regex "^([-+])?(0|[1-9][0-9]*)?(?:\.([0-9]*))?(?:[eE]([-+])([0-9]+))?$" [sign; mantissa; prec; esign; exp] ->
+                | Regex "^([-])?(0|[1-9][0-9]*)?(?:\.([0-9]*))?(?:[eE]([-+])([0-9]+))?$" [sign; mantissa; prec; esign; exp] ->
                     let canExp = int(esign + "0" + exp) + (mantissa.Length)
-                    let canSign = canonicalSign sign
                     let fullMantissa = clearTrailingZeros (mantissa + prec)
+                    let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
                     sprintf "%s0.%se%+04d" canSign fullMantissa canExp
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
             )
         )
 
-module YamlCore =
+module internal YamlCore =
     let NullGlobalTag =
         Tag.Create(Scalar, "tag:yaml.org,2002:null", "!!null", "~|null|Null|NULL|^$",
             (fun s -> 
@@ -142,26 +142,15 @@ module YamlCore =
 
     let FloatGlobalTag = 
         Tag.Create(Scalar, "tag:yaml.org,2002:float", "!!float",
-            "[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
+            "[-+]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
-                | Regex "^([-+])?(0*)([1-9][0-9_]*)?\.(0*)([1-9][0-9.]*)(?:[eE]([-+])([0-9]+))?$" [sign; zmantissa; mantissa; zprec; prec; esign; exp] ->
-                    let cleanMantissa = mantissa.Replace("_","")
-                    let expCorrection, canMantissa = 
-                        match cleanMantissa.Length with
-                        | 0 -> (-zprec.Length, "")
-                        | _ -> (cleanMantissa.Length,  cleanMantissa + zprec)
-                    let canExp = int(esign + "0" + exp) + expCorrection
-                    let canSign = canonicalSign sign
-                    sprintf "%s0.%s%se%+04d" canSign canMantissa prec canExp
-                | Regex "^([-+]?)((?:[0-9][0-9_]*)(?::[0-5]?[0-9])+)\.([0-9_]*)$"  [sign; mantissa; prec] -> 
-                    let ps = mantissa.Replace("_","").Split([|":"|], StringSplitOptions.RemoveEmptyEntries)
-                    let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
-                    let canSign = canonicalSign sign
-                    let canMantissa = ic.ToString()
-                    let canExp = canMantissa.Length
-                    sprintf "%s0.%s%se%+04d" canSign canMantissa (prec.Replace("_","")) canExp
+                | Regex "^([-+])?(0|[1-9][0-9]*)?(?:\.([0-9]*))?(?:[eE]([-+])([0-9]+))?$" [sign; mantissa; prec; esign; exp] ->
+                    let canExp = int(esign + "0" + exp) + (mantissa.Length)
+                    let fullMantissa = clearTrailingZeros (mantissa + prec)
+                    let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
+                    sprintf "%s0.%se%+04d" canSign fullMantissa canExp
                 | Regex "^([-+]?)\.(?:inf|Inf|INF)$" [sign] ->
                     let canSign = canonicalSign sign
                     sprintf "%s.inf" canSign
@@ -171,7 +160,7 @@ module YamlCore =
         )
 
 
-module YamlExtended =
+module internal YamlExtended =
     let BooleanGlobalTag = 
         Tag.Create(Scalar, "tag:yaml.org,2002:bool", "!!bool",
             "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
@@ -245,7 +234,6 @@ module YamlExtended =
         )
 
 
-
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
 let FailsafeSchema =
     let TagResolution : TagResolutionFunc = fun nst -> 
@@ -277,12 +265,11 @@ let JSONSchema =
             |   MapNode _ -> Some Failsafe.MappingGlobalTag
             |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
             |   ScalarNode data -> 
-                match data.Data with
-                |   Regex (JSON.NullGlobalTag.Regex)     _ -> Some JSON.NullGlobalTag
-                |   Regex (JSON.BooleanGlobalTag.Regex)  _ -> Some JSON.BooleanGlobalTag
-                |   Regex (JSON.IntegerGlobalTag.Regex)  _ -> Some JSON.IntegerGlobalTag
-                |   Regex (JSON.FloatGlobalTag.Regex)    _ -> Some JSON.FloatGlobalTag
-                |   _ -> raise (TagResolutionException (sprintf "Unrecognized type for: %s" data.Data))
+                [JSON.NullGlobalTag; JSON.BooleanGlobalTag;JSON.IntegerGlobalTag;JSON.FloatGlobalTag]
+                |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
+                |> function
+                |   Some v  -> Some v
+                |   None    -> raise (TagResolutionException (sprintf "Unrecognized type for: %s" data.Data))
         |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
     {
         GlobalTags = 
@@ -292,4 +279,31 @@ let JSONSchema =
             ]
         TagResolution = TagResolution
     }
-   
+
+let YamlCoreSchema =
+    let TagResolution : TagResolutionFunc = fun nst -> 
+        match nst.NonSpecificTag with
+        |   "!" ->
+            match nst.NodeKind with
+            |   Mapping  -> Some Failsafe.MappingGlobalTag
+            |   Sequence -> Some Failsafe.SequenceGlobalTag
+            |   Scalar   -> Some Failsafe.StringGlobalTag
+        |   "?" ->  
+            match nst.Content with
+            |   MapNode _ -> Some Failsafe.MappingGlobalTag
+            |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
+            |   ScalarNode data -> 
+                [YamlCore.NullGlobalTag; YamlCore.BooleanGlobalTag;YamlCore.IntegerGlobalTag;YamlCore.FloatGlobalTag]
+                |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
+                |> function
+                |   Some v -> Some v
+                |   None -> Some (Failsafe.StringGlobalTag)
+        |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
+    {
+        GlobalTags = 
+            [
+                Failsafe.MappingGlobalTag.Uri; Failsafe.SequenceGlobalTag.Uri; Failsafe.StringGlobalTag.Uri
+                YamlCore.NullGlobalTag.Uri; YamlCore.BooleanGlobalTag.Uri; YamlCore.IntegerGlobalTag.Uri; YamlCore.FloatGlobalTag.Uri
+            ]
+        TagResolution = TagResolution
+    }

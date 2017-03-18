@@ -160,6 +160,13 @@ let Match(s, p) =
     else
         [ for g in mt -> g.Value ] //   |> List.tail
 
+/// Returns whether pattern p matches on string s
+//[<DebuggerStepThrough>]
+let IsMatch(s, p) = 
+    let ml = Match(s, p)
+    ml.Length > 0
+   
+
 /// Checks for matches of pattern p in string s.
 /// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
 [<DebuggerStepThrough>]
