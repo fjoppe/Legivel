@@ -6,6 +6,8 @@ open System.Text.RegularExpressions
 open NLog
 open YamlParser.Internals
 open YamlParser.Internals.ParserMonads
+open TagResolution
+
 
 exception ParseException of string
 
@@ -20,13 +22,13 @@ let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
 let ``end-of-file`` = RGP "\\z"
 
 ////    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
-let MappingGlobalTag =  Tag.Create(Mapping, "tag:yaml.org,2002:map", "!!map")
-let SequenceGlobalTag =  Tag.Create(Sequence, "tag:yaml.org,2002:seq", "!!seq")
-let StringGlobalTag = Tag.Create(Scalar, "tag:yaml.org,2002:str", "!!str")
+let MappingGlobalTag =  Tag.Create("tag:yaml.org,2002:map", "!!map")
+let SequenceGlobalTag =  Tag.Create("tag:yaml.org,2002:seq", "!!seq")
+let StringGlobalTag = Tag.Create("tag:yaml.org,2002:str", "!!str")
 
 //    Json schema:  http://www.yaml.org/spec/1.2/spec.html#id2803231
 let NullGlobalTag =
-    Tag.Create(Scalar, "tag:yaml.org,2002:null", "!!null", "~|null|Null|NULL",
+    Tag.Create("tag:yaml.org,2002:null", "!!null", "~|null|Null|NULL",
         (fun s -> 
                 match s with
                 | Regex "~|null|Null|NULL" _ -> "~"
@@ -35,7 +37,7 @@ let NullGlobalTag =
     )
 
 let BooleanGlobalTag = 
-    Tag.Create(Scalar, "tag:yaml.org,2002:bool", "!!bool",
+    Tag.Create("tag:yaml.org,2002:bool", "!!bool",
         "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
         (fun s -> 
             match s with
@@ -46,7 +48,7 @@ let BooleanGlobalTag =
     )
 
 let IntegerGlobalTag = 
-    Tag.Create(Scalar, "tag:yaml.org,2002:int", "!!int",
+    Tag.Create("tag:yaml.org,2002:int", "!!int",
         "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
         (fun s ->
             // used for both digit and hex conversion
@@ -77,7 +79,7 @@ let IntegerGlobalTag =
     )
 
 let FloatGlobalTag = 
-    Tag.Create(Scalar, "tag:yaml.org,2002:float", "!!float",
+    Tag.Create("tag:yaml.org,2002:float", "!!float",
         "[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
         (fun s -> 
             let canonicalSign sign = if sign = "-" then "-" else "+"
@@ -119,6 +121,10 @@ let MapScalar s =
 let NullScalarNode = 
     ScalarNode(NodeData<string>.Create NullGlobalTag "" (lazy(NodeHash.Create "")))
 
+let CreateScalarNode tag d = 
+    ScalarNode(NodeData<Node>.Create tag d (lazy(NodeHash.Create d)))
+
+
 let CreateMapNode d = 
     MapNode(NodeData<(Node*Node) list>.Create MappingGlobalTag d 
         (lazy(d 
@@ -146,16 +152,32 @@ type ParseMessage =
 
 
 type ParseState = {
+        /// Current document line number
         LineNumber  : int
+        /// String to parse (or what's left of it)
         InputString : string
+        /// Current Indentation
         n           : int
+        /// Current Sub-Indentation, nested under ParseState.n
         m           : int
+        /// Documented context
         c           : Context
+        /// Chomping type 
         t           : Chomping
+        /// Document anchors
         Anchors     : Map<string, Node>
-        TraceSuccess: (string*ParseState) list
+        /// Parsing messages (warns/errors)
         Messages    : ParseMessage list
+        /// Document directives
         Directives  : Directive list
+        /// Tag Shorthands
+        TagShorthands : Map<string,string>
+        /// Global Tag Schema
+        GlobalTagSchema : Schema
+        /// Local Tag Schema
+        LocalTagSchema : Schema option
+        /// (dev only) - Trace of success parses
+        TraceSuccess: (string*ParseState) list
     }
     with
         member this.SetRestString s = { this with InputString = s}
@@ -191,9 +213,10 @@ type ParseState = {
 
         member this.AddDirective d = {this with Directives = d:: this.Directives}
 
-        static member Create s = {
-                LineNumber = 0; InputString = s; n=0; m=0; c=``Block-out``; t=``Clip``; 
-                Anchors = Map.empty; TraceSuccess = []; Messages=[]; Directives=[]
+        static member Create inputStr schema = {
+                LineNumber = 0; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
+                Anchors = Map.empty; TraceSuccess = []; Messages=[]; Directives=[]; TagShorthands = Map.empty
+                GlobalTagSchema = schema; LocalTagSchema = None
             }
 
 exception DocumentException of ParseState
@@ -241,9 +264,8 @@ let restString i o =
 
 
 type ParseFuncSingleResult = (Node * ParseState) option         //  returns parsed node, if possible
-type ParseFuncListResult = (Node * ParseState) option           //  returns parsed node, if possible
 type ParseFuncMappedResult = (Node * Node * ParseState) option  //  returns parsed key-value pair, if possible
-type ParsFuncSig = (ParseState -> ParseFuncSingleResult)
+type ParseFuncSignature = (ParseState -> ParseFuncSingleResult)
 
 
 type BlockFoldPrevType = EmptyAfterFolded | Empty | Indented | TextLine
@@ -279,7 +301,7 @@ type Yaml12Parser() =
         | _-> -1 // raise (ParseException(sprintf "Cannot detect indentation at '%s'" (stringPosition ps.InputString)))
         
 
-    member this.``content with properties`` (``follow up func``: ParsFuncSig) ps =
+    member this.``content with properties`` (``follow up func``: ParseFuncSignature) ps =
             match (this.``c-ns-properties`` ps) with
             |   Some(prs, tag, anchor) -> 
                 match (HasMatches(prs.InputString, (this.``s-separate`` prs))) with
@@ -287,14 +309,14 @@ type Yaml12Parser() =
                     let prs = prs.SetRestString frs2
                     match (prs) with
                     |   Parse(``follow up func``) (c, prs) -> 
-                        let t = Tag.Create(c.NodeTag.Kind, tag)
+                        let t = Tag.Create(tag)
                         let c = c.SetTag(t)
                         Some(c, prs)
                     |   _ -> None
                 |   (false, _, _)    -> Some(NullScalarNode, prs)   //  ``e-scalar``
             |   None    -> None
 
-    member this.``content with optional properties`` (``follow up func``: ParsFuncSig) ps =
+    member this.``content with optional properties`` (``follow up func``: ParseFuncSignature) ps =
             match (this.``c-ns-properties`` ps) with
             |   Some(prs, tag, anchor) -> 
                 match (HasMatches(prs.InputString, (this.``s-separate`` prs))) with
@@ -302,7 +324,7 @@ type Yaml12Parser() =
                     let prs = prs.SetRestString frs2
                     match (prs) with
                     |   Parse(``follow up func``) (c, prs) -> 
-                        let t = Tag.Create(c.NodeTag.Kind, tag)
+                        let t = Tag.Create(tag)
                         let c = c.SetTag(t)
                         Some(c, prs)
                     |   _ -> None
@@ -1068,7 +1090,7 @@ type Yaml12Parser() =
         |> ParseState.AddSuccessSR "c-flow-mapping" ps       
             
     //  [141]   http://www.yaml.org/spec/1.2/spec.html#ns-s-flow-map-entries(n,c)
-    member this.``ns-s-flow-map-entries`` (ps:ParseState) : ParseFuncListResult =
+    member this.``ns-s-flow-map-entries`` (ps:ParseState) : ParseFuncSingleResult =
         logger "ns-s-flow-map-entries" ps
         let rec ``ns-s-flow-map-entries`` (ps:ParseState) (lst:(Node*Node) list) : ParseFuncSingleResult =
             match (ps) with

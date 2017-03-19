@@ -6,11 +6,12 @@ open YamlParser
 open YamlParse
 open FsUnit
 open RepresentationGraph
+open TagResolution
 
 let YamlParse s =
     let engine = Yaml12Parser()
     let ``s-l+block-node`` s = 
-        let ps = ParseState.Create s
+        let ps = ParseState.Create s YamlCoreSchema
         let ps = ps.SetIndent -1
         let ps = ps.SetSubIndent 0
         let ps = ps.SetStyleContext ``Block-in``

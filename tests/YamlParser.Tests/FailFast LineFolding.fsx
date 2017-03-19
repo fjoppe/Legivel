@@ -8,7 +8,7 @@ open System.Text.RegularExpressions
 
 open RegexDSL
 open YamlParse
-
+open TagResolution
 
 //  Tests
 let engine = Yaml12Parser()
@@ -243,7 +243,7 @@ let ``block fold`` n c ms =
 ``block fold`` 1 ``Clip`` "\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n" = "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
 
 let getps =
-    let ps = ParseState.Create ""
+    let ps = ParseState.Create "" YamlCoreSchema
     let ps = ps.SetIndent 0
     let ps = ps.SetSubIndent 0
     let ps = ps.SetStyleContext ``Block-in``

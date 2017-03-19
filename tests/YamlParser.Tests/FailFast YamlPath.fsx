@@ -2,6 +2,7 @@
 open System.Text
 open System.IO
 open System.Text.RegularExpressions
+open TagResolution
 
 #I "."
 #r @"bin\Debug\YamlParser.dll"
@@ -18,7 +19,7 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let YamlParse s =
     let ``s-l+block-node`` s = 
-        let ps = ParseState.Create s
+        let ps = ParseState.Create s YamlCoreSchema
         let ps = ps.SetIndent -1
         let ps = ps.SetSubIndent 0
         let ps = ps.SetStyleContext ``Block-in``

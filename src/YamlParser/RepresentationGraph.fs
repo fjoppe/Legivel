@@ -6,30 +6,28 @@ type NodeKind =
     | Scalar
 
 type Tag = {
-        Kind    : NodeKind
         Uri     : string
         Short   : string
         Regex   : string
         canonFn : string -> string
     }
     with
-        static member Create (kind, uri, short, rgx, canon) =
+        static member Create (uri, short, rgx, canon) =
             { 
-                Kind = kind;
                 Uri = uri; 
                 Short = short; 
                 Regex = sprintf "\\A(%s)\\z" rgx
                 canonFn = canon
             }
 
-        static member Create (kind, uri, short, rgx) =
-            Tag.Create (kind, uri, short, rgx, fun s -> s)
+        static member Create (uri, short, rgx) =
+            Tag.Create (uri, short, rgx, fun s -> s)
 
-        static member Create (kind, uri, short) =
-            Tag.Create (kind, uri, short, ".*", fun s -> s)
+        static member Create (uri, short) =
+            Tag.Create (uri, short, ".*", fun s -> s)
 
-        static member Create (kind, uri) =
-            Tag.Create (kind, uri, uri, ".*", fun s -> s)
+        static member Create (uri) =
+            Tag.Create (uri, uri, ".*", fun s -> s)
 
         member this.Canonical s = this.canonFn s
         
@@ -107,6 +105,13 @@ type Node =
                 |   SeqNode n       -> n.Tag
                 |   MapNode n       -> n.Tag
                 |   ScalarNode n    -> n.Tag
+
+        member this.Kind
+            with get() =
+                match this with
+                |   SeqNode _       -> Sequence
+                |   MapNode _       -> Mapping
+                |   ScalarNode _    -> Scalar
 
 type Legend = {
         YamlVersion : string

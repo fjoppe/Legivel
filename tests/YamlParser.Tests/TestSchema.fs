@@ -30,12 +30,12 @@ let ``Test JSON Schema Tags``() =
 [<Test>]
 let ``Test JSON TagResolution``() =
     let tagResolveScalar s =
-        let nst = TagResolution.Common.NonSpecificTagQM Scalar
+        let nst = TagResolution.Common.NonSpecificTagQM 
         let makeScalar s =
             let nh = lazy(NodeHash.Create s)
             ScalarNode(NodeData<string>.Create nst s nh)
         let scalar = makeScalar s
-        TagResolutionInfo.Create (scalar.NodeTag.Uri) ([]) (scalar) (scalar.NodeTag.Kind)
+        TagResolutionInfo.Create (scalar.NodeTag.Uri) ([]) (scalar) (scalar.Kind)
         |> JSONSchema.TagResolution 
 
     tagResolveScalar "null" 
@@ -65,9 +65,8 @@ let ``Test JSON TagResolution``() =
 
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2805712
 let ``Test Yaml Core Schema Tags``() =
-    ["null"; "NULL"; "Null"]
+    ["null"; "NULL"; "Null"; ""; "~" ]
     |> List.iter(fun i -> YamlCore.NullGlobalTag.canonFn i |> should equal "null")
-
 
     ["true";"True";"TRUE"]
     |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> should equal "true")
@@ -92,15 +91,15 @@ let ``Test Yaml Core Schema Tags``() =
 [<Test>]
 let ``Test YamlCore TagResolution``() =
     let tagResolveScalar s =
-        let nst = TagResolution.Common.NonSpecificTagQM Scalar
+        let nst = TagResolution.Common.NonSpecificTagQM
         let makeScalar s =
             let nh = lazy(NodeHash.Create s)
             ScalarNode(NodeData<string>.Create nst s nh)
         let scalar = makeScalar s
-        TagResolutionInfo.Create (scalar.NodeTag.Uri) ([]) (scalar) (scalar.NodeTag.Kind)
+        TagResolutionInfo.Create (scalar.NodeTag.Uri) ([]) (scalar) (scalar.Kind)
         |> YamlCoreSchema.TagResolution 
 
-    ["null"; "NULL"; "Null"]
+    ["null"; "NULL"; "Null"; ""; "~" ]
     |> List.iter(fun s ->
         tagResolveScalar s |> Option.map(fun e -> (e.Uri |> should equal (YamlCore.NullGlobalTag.Uri)); e) |> Option.isSome |> should equal true
     )

@@ -6,11 +6,13 @@ open NUnit.Framework
 open System
 open System.Diagnostics
 open FsUnit
+open TagResolution
+
 
 [<DebuggerStepThrough>]
 let YamlParse s = 
     let engine = Yaml12Parser()
-    let ps = ParseState.Create s
+    let ps = ParseState.Create s YamlCoreSchema
     let ps = ps.SetIndent -1
     let ps = ps.SetSubIndent 0
     let ps = ps.SetStyleContext ``Block-in``

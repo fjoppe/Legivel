@@ -27,7 +27,7 @@ type Schema = {
 }
     
 
-let clearTrailingZeros (s:string) = 
+let private clearTrailingZeros (s:string) = 
     let charList = 
         s.ToCharArray()
         |> List.ofArray 
@@ -40,21 +40,20 @@ let clearTrailingZeros (s:string) =
         )
     String.Join("", cleared)
 
-
 module internal Common =
-    let NonSpecificTagQT k = Tag.Create(k, "!", "")
-    let NonSpecificTagQM k = Tag.Create(k, "?", "")
+    let NonSpecificTagQT = Tag.Create("!", "")
+    let NonSpecificTagQM = Tag.Create("?", "")
 
 
 module internal Failsafe =
-    let MappingGlobalTag =  Tag.Create(Mapping, "tag:yaml.org,2002:map", "!!map")
-    let SequenceGlobalTag = Tag.Create(Sequence, "tag:yaml.org,2002:seq", "!!seq")
-    let StringGlobalTag =   Tag.Create(Scalar, "tag:yaml.org,2002:str", "!!str")
+    let MappingGlobalTag =  Tag.Create("tag:yaml.org,2002:map", "!!map")
+    let SequenceGlobalTag = Tag.Create("tag:yaml.org,2002:seq", "!!seq")
+    let StringGlobalTag =   Tag.Create("tag:yaml.org,2002:str", "!!str")
 
 
 module internal JSON =
     let NullGlobalTag =
-        Tag.Create(Scalar, "tag:yaml.org,2002:null", "!!null", "null",
+        Tag.Create("tag:yaml.org,2002:null", "!!null", "null",
             (fun s -> 
                     match s with
                     | Regex "null" _ -> "null"
@@ -63,7 +62,7 @@ module internal JSON =
         )
 
     let BooleanGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:bool", "!!bool",
+        Tag.Create("tag:yaml.org,2002:bool", "!!bool",
             "true|false",
             (fun s -> 
                 match s with
@@ -74,7 +73,7 @@ module internal JSON =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:int", "!!int",
+        Tag.Create("tag:yaml.org,2002:int", "!!int",
             "[-]?(0|[1-9][0-9]*)",
             (fun s ->
                 match s with
@@ -84,7 +83,7 @@ module internal JSON =
         )
 
     let FloatGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:float", "!!float",
+        Tag.Create("tag:yaml.org,2002:float", "!!float",
             "[-]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
@@ -100,7 +99,7 @@ module internal JSON =
 
 module internal YamlCore =
     let NullGlobalTag =
-        Tag.Create(Scalar, "tag:yaml.org,2002:null", "!!null", "~|null|Null|NULL|^$",
+        Tag.Create("tag:yaml.org,2002:null", "!!null", "~|null|Null|NULL|^$",
             (fun s -> 
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> "null"
@@ -109,7 +108,7 @@ module internal YamlCore =
         )
 
     let BooleanGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:bool", "!!bool",
+        Tag.Create("tag:yaml.org,2002:bool", "!!bool",
             "true|True|TRUE|false|False|FALSE",
             (fun s -> 
                 match s with
@@ -120,7 +119,7 @@ module internal YamlCore =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:int", "!!int",
+        Tag.Create("tag:yaml.org,2002:int", "!!int",
             "0o[0-7]+|[-+]?([0-9]+)|0x[0-9a-fA-F]+",
             (fun s ->
                 // used for both digit and hex conversion
@@ -141,7 +140,7 @@ module internal YamlCore =
         )
 
     let FloatGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:float", "!!float",
+        Tag.Create("tag:yaml.org,2002:float", "!!float",
             "[-+]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
@@ -162,7 +161,7 @@ module internal YamlCore =
 
 module internal YamlExtended =
     let BooleanGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:bool", "!!bool",
+        Tag.Create("tag:yaml.org,2002:bool", "!!bool",
             "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
             (fun s -> 
                 match s with
@@ -173,7 +172,7 @@ module internal YamlExtended =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:int", "!!int",
+        Tag.Create("tag:yaml.org,2002:int", "!!int",
             "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
             (fun s ->
                 // used for both digit and hex conversion
@@ -204,7 +203,7 @@ module internal YamlExtended =
         )
 
     let FloatGlobalTag = 
-        Tag.Create(Scalar, "tag:yaml.org,2002:float", "!!float",
+        Tag.Create("tag:yaml.org,2002:float", "!!float",
             "[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"

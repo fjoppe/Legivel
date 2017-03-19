@@ -2,6 +2,7 @@
 open System.Text
 open System.IO
 open System.Text.RegularExpressions
+open TagResolution
 
 #I "."
 #r @"bin\Debug\YamlParser.dll"
@@ -15,7 +16,7 @@ let engine = Yaml12Parser()
 
 
 let ``c-flow-json-node`` s =
-    let ps = ParseState.Create s
+    let ps = ParseState.Create s YamlCoreSchema
     let ps = ps.SetStyleContext ``Flow-key``
     let d1 = engine.``c-flow-json-node`` ps
     let n1 = fst(d1.Value)

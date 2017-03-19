@@ -2,6 +2,7 @@
 open System.Text
 open System.IO
 open System.Text.RegularExpressions
+open TagResolution
 
 #I "."
 #r @"bin\Debug\YamlParser.dll"
@@ -14,7 +15,7 @@ open YamlParse
 let engine = Yaml12Parser()
 
 let ``s-l+block-node`` s = 
-    let ps = ParseState.Create s
+    let ps = ParseState.Create s YamlCoreSchema
     let ps = ps.SetIndent -1
     let ps = ps.SetSubIndent 0
     let ps = ps.SetStyleContext ``Block-in``
@@ -23,7 +24,7 @@ let ``s-l+block-node`` s =
 
 
 let ``s-l+block-collection`` s = 
-    let ps = ParseState.Create s
+    let ps = ParseState.Create s YamlCoreSchema
     let ps = ps.SetIndent 0
     let ps = ps.SetSubIndent 0
     let ps = ps.SetStyleContext ``Block-in``
