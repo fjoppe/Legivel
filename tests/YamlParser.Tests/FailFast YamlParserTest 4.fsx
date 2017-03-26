@@ -1,18 +1,19 @@
-﻿open System
-open System.Text
-open System.IO
-open System.Text.RegularExpressions
-open TagResolution
+﻿#I __SOURCE_DIRECTORY__ 
+#I "../../packages"
 
-#I "."
-#r @"bin\Debug\YamlParser.dll"
+#r @"bin/Debug/YamlParser.dll"
+#r @"NLog/lib/net45/NLog.dll"
 
-open RegexDSL
 open YamlParse
-
+open TagResolution
+open Deserialization
+open NLog
 
 //  Tests
-let engine = Yaml12Parser()
+let logger = LogManager.GetLogger("*")
+
+let engine = Yaml12Parser(fun s -> logger.Trace(s))
+
 
 let ``s-l+block-node`` s = 
     let ps = ParseState.Create s YamlCoreSchema
@@ -42,39 +43,40 @@ let YamlParse s =
         let short (s:string) = if s.Length > 10 then s.Substring(0, 10) else s
         tr.TraceSuccess  |> List.iter(fun (s,ps) -> printfn "%s\t\"%s\"" s (short (ps.InputString.Replace("\n","\\n"))))
         let rs = pr |> fst
-        printfn "%s" (rs.ToCanonical(0))
+        let ps = pr |> snd
+        printfn "%s" (Deserialize rs (ps.TagShorthands))
     with
     | e -> printfn "%A" e
 
 
 
-//YamlParse "a:\n key: value\n"
-//
-//YamlParse "plain key: in-line value\n: # Both empty\n\"quoted key\":- entry"
+YamlParse "a:\n key: value\n"
 
-//YamlParse ":"
-//
-//YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-//
-//YamlParse "  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-//
-//YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+YamlParse "plain key: in-line value\n: # Both empty\n\"quoted key\":- entry"
+
+YamlParse ":"
+
+YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+
+YamlParse "  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+
+YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2797382
-//YamlParse "block sequence:\n  - one\n  - two : three\n"
+YamlParse "block sequence:\n  - one\n  - two : three\n"
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2787109
-//YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
+YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2788496
-//YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
-//
-//YamlParse "
-//Mark McGwire: {hr: 65, avg: 0.278}
-//Sammy Sosa: {
-//    hr: 63,
-//    avg: 0.288
-//  }"
+YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
+
+YamlParse "
+Mark McGwire: {hr: 65, avg: 0.278}
+Sammy Sosa: {
+    hr: 63,
+    avg: 0.288
+  }"
 
 
 

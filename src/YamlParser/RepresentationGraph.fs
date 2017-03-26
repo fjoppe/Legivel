@@ -7,30 +7,24 @@ type NodeKind =
 
 type Tag = {
         Uri     : string
-        Short   : string
         Regex   : string
         canonFn : string -> string
     }
     with
-        static member Create (uri, short, rgx, canon) =
+        static member Create (uri, rgx, canon) =
             { 
                 Uri = uri; 
-                Short = short; 
                 Regex = sprintf "\\A(%s)\\z" rgx
                 canonFn = canon
             }
 
-        static member Create (uri, short, rgx) =
-            Tag.Create (uri, short, rgx, fun s -> s)
+        static member Create (uri, rgx) = Tag.Create (uri, rgx, fun s -> s)
 
-        static member Create (uri, short) =
-            Tag.Create (uri, short, ".*", fun s -> s)
-
-        static member Create (uri) =
-            Tag.Create (uri, uri, ".*", fun s -> s)
+        static member Create (uri) = Tag.Create (uri, ".*", fun s -> s)
 
         member this.Canonical s = this.canonFn s
-        
+
+
 open YamlParser.Internals
 
 
@@ -51,47 +45,12 @@ type Node =
     | MapNode of NodeData<(Node*Node) list>
     | ScalarNode of NodeData<string>
     with
-        member private this.Indent l =
-            [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
-
         member this.Hash 
             with get() =
                 match this with
                 |   SeqNode n       -> n.Hash
                 |   MapNode n       -> n.Hash
                 |   ScalarNode n    -> n.Hash
-
-        member this.ToCanonical l =
-            match this with
-            |   SeqNode n ->
-                let ind0 = this.Indent l
-                let head = sprintf "%s%s [\n" (ind0) (n.Tag.Short)
-                let content = 
-                    n.Data
-                    |> List.sortBy(fun n -> n.Hash.Value)
-                    |> List.fold(fun s ni -> s + (sprintf "%s,\n" (ni.ToCanonical(l+1)))) ""
-                let tail = sprintf "%s]\n" ind0
-                sprintf "%s%s%s" head content tail
-            |   MapNode n -> 
-                let ind0 = this.Indent l
-                let ind1 = this.Indent (l+1)
-                let head = sprintf "%s%s {\n" (ind0) (n.Tag.Short)
-                let content = 
-                    n.Data 
-                    |> List.sortBy(fun (k,_) -> k.Hash.Value)
-                    |> List.fold(
-                        fun s (k,v) -> 
-                            let kc = k.ToCanonical(l+1)
-                            let vc = v.ToCanonical(l+1)
-                            match (k,v) with
-                            |   (ScalarNode(_),ScalarNode(_))   -> s + sprintf "%s? %s\t: %s,\n" ind1 kc vc
-                            |   _ -> s + sprintf "%s? %s\n%s: %s,\n" ind1 kc ind1 vc
-                        ) ""
-                let tail = sprintf "%s}\n" ind0
-                sprintf "%s%s%s" head content tail
-            |   ScalarNode n ->
-                let ind0 = this.Indent l
-                sprintf "%s%s \"%s\"" ind0 (n.Tag.Short) (n.Data)
         
         member this.SetTag t = 
             match this with

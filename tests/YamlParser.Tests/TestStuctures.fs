@@ -7,6 +7,7 @@ open YamlParse
 open FsUnit
 open RepresentationGraph
 open TagResolution
+open Deserialization
 
 let YamlParse s =
     let engine = Yaml12Parser()
@@ -20,7 +21,8 @@ let YamlParse s =
     try
         let rs = (``s-l+block-node`` s)
         let rsp = rs.Value |> fst
-        printfn "%s" (rsp.ToCanonical(0))
+        let ps = rs.Value |> snd
+        printfn "%s" (Deserialize rsp (ps.TagShorthands))
         rsp
     with
     | e -> printfn "%A" e; raise e
@@ -33,7 +35,7 @@ let ToScalar n =
 
 let ToScalarTag n = 
     match n with
-    |   Some([ScalarNode nd]) -> nd.Tag.Short
+    |   Some([ScalarNode nd]) -> nd.Tag.Uri
     |   _ -> raise (Exception "Is no scalar")
 
 [<Test>]
@@ -111,15 +113,15 @@ let ``Test Map Hybrid Notation - Sunnny Day Simple``() =
     let yml = YamlParse "{\"adjacent\":value1, \"readable\": value2,  \"empty\":}"
 
     let pth = YamlPath.Create "//{#'adjacent'}?"
-    yml |> pth.Select |> ToScalarTag  |>  should equal "!!str"
+    yml |> pth.Select |> ToScalarTag  |>  should equal TagResolution.Failsafe.StringGlobalTag.Uri
     yml |> pth.Select |> ToScalar |>  should equal "value1"
 
     let pth = YamlPath.Create "//{#'readable'}?"
-    yml |> pth.Select |> ToScalarTag |> should equal "!!str"
+    yml |> pth.Select |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
     yml |> pth.Select |> ToScalar |> should equal "value2"
 
     let pth = YamlPath.Create "//{#'empty'}?"
-    yml |> pth.Select |> ToScalarTag |> should equal "!!null"
+    yml |> pth.Select |> ToScalarTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
 
 [<Test>]
 let ``Test Map with inline Comments - Sunnny Day Simple``() =
@@ -132,8 +134,8 @@ let ``Test Map Null : Null - Sunnny Day Simple``() =
     let ptk = YamlPath.Create "//{#''}"
     let ptv = YamlPath.Create "//{#''}?"
     let yml = YamlParse ":"
-    yml |> ptk.Select |> ToScalarTag |> should equal "!!null"
-    yml |> ptv.Select |> ToScalarTag |> should equal "!!null"
+    yml |> ptk.Select |> ToScalarTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
+    yml |> ptv.Select |> ToScalarTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
 
 [<Test>]
 let ``Test Map key : Map - Sunnny Day Simple``() =

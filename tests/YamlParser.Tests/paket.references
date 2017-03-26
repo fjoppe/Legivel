@@ -1,3 +1,5 @@
 FSharp.Core
 NUnit
 FsUnit
+NLog
+NLog.FSharp

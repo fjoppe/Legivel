@@ -11,6 +11,7 @@ open YamlParse
 open FsUnit
 open RepresentationGraph
 open TagResolution
+open Deserialization
 
 let YamlParse s =
     let engine = Yaml12Parser()
@@ -20,11 +21,12 @@ let YamlParse s =
         let ps = ps.SetSubIndent 0
         let ps = ps.SetStyleContext ``Block-in``
         let d = engine.``s-l+block-node`` ps 
-        d
+        d 
     try
-        let rs = (``s-l+block-node`` s)
+        let rs  = (``s-l+block-node`` s)
         let rsp = rs.Value |> fst
-        printfn "%s" (rsp.ToCanonical(0))
+        let ps = rs.Value |> snd
+        printfn "%s" (Deserialize rsp (ps.TagShorthands))
         rsp
     with
     | e -> printfn "%A" e; raise e
@@ -37,7 +39,7 @@ let ToScalar n =
 
 let ToScalarTag n = 
     match n with
-    |   Some([ScalarNode nd]) -> nd.Tag.Short
+    |   Some([ScalarNode nd]) -> nd.Tag.Uri
     |   _ -> raise (Exception "Is no scalar")
 
 

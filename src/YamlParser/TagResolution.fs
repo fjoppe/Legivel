@@ -10,7 +10,7 @@ exception TagResolutionException of string
 
 type TagResolutionInfo = {
         NonSpecificTag  : string
-        Path            : string list
+        Path            : Node list
         Content         : Node
         NodeKind        : NodeKind
     }
@@ -21,11 +21,21 @@ type TagResolutionInfo = {
 
 type TagResolutionFunc = (TagResolutionInfo -> Tag option)
 
-type Schema = {
-    GlobalTags      : string list
+
+type GlobalTagSchema = {
+    GlobalTags      : Tag list
     TagResolution   : TagResolutionFunc
 }
-    
+
+
+type TagShorthand = {
+        ShortHand : string
+        MappedTagUri : string
+    }
+    with
+        static member Create short full = { ShortHand = short; MappedTagUri = full}
+        static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagUri = "tag:yaml.org,2002:"}
+
 
 let private clearTrailingZeros (s:string) = 
     let charList = 
@@ -40,20 +50,20 @@ let private clearTrailingZeros (s:string) =
         )
     String.Join("", cleared)
 
-module internal Common =
+module internal NonSpecific =
     let NonSpecificTagQT = Tag.Create("!", "")
     let NonSpecificTagQM = Tag.Create("?", "")
 
 
 module internal Failsafe =
-    let MappingGlobalTag =  Tag.Create("tag:yaml.org,2002:map", "!!map")
-    let SequenceGlobalTag = Tag.Create("tag:yaml.org,2002:seq", "!!seq")
-    let StringGlobalTag =   Tag.Create("tag:yaml.org,2002:str", "!!str")
+    let MappingGlobalTag =  Tag.Create("tag:yaml.org,2002:map")
+    let SequenceGlobalTag = Tag.Create("tag:yaml.org,2002:seq")
+    let StringGlobalTag =   Tag.Create("tag:yaml.org,2002:str")
 
 
 module internal JSON =
     let NullGlobalTag =
-        Tag.Create("tag:yaml.org,2002:null", "!!null", "null",
+        Tag.Create("tag:yaml.org,2002:null", "null",
             (fun s -> 
                     match s with
                     | Regex "null" _ -> "null"
@@ -62,8 +72,7 @@ module internal JSON =
         )
 
     let BooleanGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:bool", "!!bool",
-            "true|false",
+        Tag.Create("tag:yaml.org,2002:bool", "true|false",
             (fun s -> 
                 match s with
                 | Regex "true" _ -> "true"
@@ -73,8 +82,7 @@ module internal JSON =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:int", "!!int",
-            "[-]?(0|[1-9][0-9]*)",
+        Tag.Create("tag:yaml.org,2002:int", "[-]?(0|[1-9][0-9]*)",
             (fun s ->
                 match s with
                 | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
@@ -83,8 +91,7 @@ module internal JSON =
         )
 
     let FloatGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:float", "!!float",
-            "[-]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?",
+        Tag.Create("tag:yaml.org,2002:float", "[-]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
@@ -99,7 +106,7 @@ module internal JSON =
 
 module internal YamlCore =
     let NullGlobalTag =
-        Tag.Create("tag:yaml.org,2002:null", "!!null", "~|null|Null|NULL|^$",
+        Tag.Create("tag:yaml.org,2002:null", "~|null|Null|NULL|^$",
             (fun s -> 
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> "null"
@@ -108,8 +115,7 @@ module internal YamlCore =
         )
 
     let BooleanGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:bool", "!!bool",
-            "true|True|TRUE|false|False|FALSE",
+        Tag.Create("tag:yaml.org,2002:bool", "true|True|TRUE|false|False|FALSE",
             (fun s -> 
                 match s with
                 | Regex "true|True|TRUE"    _ -> "true"
@@ -119,8 +125,7 @@ module internal YamlCore =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:int", "!!int",
-            "0o[0-7]+|[-+]?([0-9]+)|0x[0-9a-fA-F]+",
+        Tag.Create("tag:yaml.org,2002:int", "0o[0-7]+|[-+]?([0-9]+)|0x[0-9a-fA-F]+",
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
@@ -140,8 +145,7 @@ module internal YamlCore =
         )
 
     let FloatGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:float", "!!float",
-            "[-+]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
+        Tag.Create("tag:yaml.org,2002:float", "[-+]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
@@ -161,8 +165,7 @@ module internal YamlCore =
 
 module internal YamlExtended =
     let BooleanGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:bool", "!!bool",
-            "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
+        Tag.Create("tag:yaml.org,2002:bool", "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
             (fun s -> 
                 match s with
                 | Regex "y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON" _ -> "true"
@@ -172,8 +175,7 @@ module internal YamlExtended =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:int", "!!int",
-            "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
+        Tag.Create("tag:yaml.org,2002:int", "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
@@ -203,8 +205,7 @@ module internal YamlExtended =
         )
 
     let FloatGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:float", "!!float",
-            "[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
+        Tag.Create("tag:yaml.org,2002:float", "[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
@@ -245,7 +246,7 @@ let FailsafeSchema =
             |   Scalar   -> Some Failsafe.StringGlobalTag
         |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
     {
-        GlobalTags = [Failsafe.MappingGlobalTag.Uri; Failsafe.SequenceGlobalTag.Uri; Failsafe.StringGlobalTag.Uri]
+        GlobalTags = [Failsafe.MappingGlobalTag; Failsafe.SequenceGlobalTag; Failsafe.StringGlobalTag]
         TagResolution = TagResolution
     }
 
@@ -273,8 +274,8 @@ let JSONSchema =
     {
         GlobalTags = 
             [
-                Failsafe.MappingGlobalTag.Uri; Failsafe.SequenceGlobalTag.Uri; Failsafe.StringGlobalTag.Uri
-                JSON.NullGlobalTag.Uri; JSON.BooleanGlobalTag.Uri; JSON.IntegerGlobalTag.Uri; JSON.FloatGlobalTag.Uri
+                Failsafe.MappingGlobalTag; Failsafe.SequenceGlobalTag; Failsafe.StringGlobalTag
+                JSON.NullGlobalTag; JSON.BooleanGlobalTag; JSON.IntegerGlobalTag; JSON.FloatGlobalTag
             ]
         TagResolution = TagResolution
     }
@@ -301,8 +302,8 @@ let YamlCoreSchema =
     {
         GlobalTags = 
             [
-                Failsafe.MappingGlobalTag.Uri; Failsafe.SequenceGlobalTag.Uri; Failsafe.StringGlobalTag.Uri
-                YamlCore.NullGlobalTag.Uri; YamlCore.BooleanGlobalTag.Uri; YamlCore.IntegerGlobalTag.Uri; YamlCore.FloatGlobalTag.Uri
+                Failsafe.MappingGlobalTag; Failsafe.SequenceGlobalTag; Failsafe.StringGlobalTag
+                YamlCore.NullGlobalTag; YamlCore.BooleanGlobalTag; YamlCore.IntegerGlobalTag; YamlCore.FloatGlobalTag
             ]
         TagResolution = TagResolution
     }
