@@ -15,22 +15,24 @@ open Deserialization
 
 let YamlParse s =
     let engine = Yaml12Parser()
-    let ``s-l+block-node`` s = 
-        let ps = ParseState.Create s YamlCoreSchema
-        let ps = ps.SetIndent -1
-        let ps = ps.SetSubIndent 0
-        let ps = ps.SetStyleContext ``Block-in``
-        let d = engine.``s-l+block-node`` ps 
-        d 
     try
-        let rs  = (``s-l+block-node`` s)
-        let rsp = rs.Value |> fst
-        let ps = rs.Value |> snd
-        printfn "%s" (Deserialize rsp (ps.TagShorthands))
-        rsp
+        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
+        let (nodes, ps) = pr
+        let node = nodes.Head
+        printfn "%s" (Deserialize node (ps.TagShorthands))
+        node
     with
     | e -> printfn "%A" e; raise e
 
+let YamlParseList s =
+    let engine = Yaml12Parser()
+    try
+        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
+        let (nodes, ps) = pr
+        nodes |> List.iter(fun node -> printfn "%s" (Deserialize node (ps.TagShorthands)))
+        nodes
+    with
+    | e -> printfn "%A" e; raise e
 
 let ToScalar n = 
     match n with
@@ -148,4 +150,39 @@ Sammy Sosa: {
         let pth = YamlPath.Create ypath
         yml |> pth.Select |> ToScalar |> should equal v
     )
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760493")>]
+let ``Example 2.7. Two Documents in a Stream (each with a leading comment)``() =
+    let yml = YamlParseList "
+# Ranking of 1998 home runs
+---
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey
+
+# Team ranking
+---
+- Chicago Cubs
+- St Louis Cardinals
+"
+    yml.Length |> should equal 2
+
+    let [yml1; yml2] = yml 
+
+    ["Mark McGwire"; "Sammy Sosa"; "Ken Griffey"]
+    |> List.iter(fun e -> 
+        let ypath = (sprintf "//[]/#'%s'" e)
+        let pth = YamlPath.Create ypath
+        yml1 |> pth.Select |> ToScalar |> should equal e
+    )
+    
+    ["Chicago Cubs"; "St Louis Cardinals"]
+    |> List.iter(fun e -> 
+        let ypath = (sprintf "//[]/#'%s'" e)
+        let pth = YamlPath.Create ypath
+        yml2 |> pth.Select |> ToScalar |> should equal e
+    )
+
+
 

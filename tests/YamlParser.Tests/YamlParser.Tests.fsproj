@@ -62,6 +62,7 @@
     <None Include="FailFast YamlParserTest 2  - dead.fsx" />
     <None Include="FailFast YamlParserTest 3.fsx" />
     <None Include="FailFast YamlParserTest 4.fsx" />
+    <None Include="FailFast YamlParserTest 5.fsx" />
     <None Include="FailFast SpookyHash.fsx" />
     <None Include="FailFast YamlPath.fsx" />
     <None Include="nlog.fsx" />

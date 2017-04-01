@@ -67,7 +67,7 @@ module ParserMonads =
             |   None    -> (ct, nw ct)
             |   Some v  -> (ct, Some v)
 
-        [<CustomOperation("ifneiter")>]
+        [<CustomOperation("ifneither")>]
         member this.IfNeither (((ct:'b), pv), nw) = 
             match pv with
             |   None    -> nw
