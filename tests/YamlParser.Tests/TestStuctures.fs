@@ -186,8 +186,8 @@ let ``Test Map implicit entries with indented seq value - Sunnny Day Simple``() 
     let pt1 = YamlPath.Create "//{#'block sequence'}?/[]/#'one'"
     yml |> pt1.Select |> ToScalar |> should equal "one"
 
-    let pt2 = YamlPath.Create "//{#'block sequence'}?/[]/#'two'"
-    yml |> pt2.Select |> ToScalar |> should equal "two"
+    let pt2 = YamlPath.Create "//{#'block sequence'}?/[]/{#'two'}?"
+    yml |> pt2.Select |> ToScalar |> should equal "three"
 
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787109
 let ``Test Map Double Quoted style - Sunnny Day Simple``() =

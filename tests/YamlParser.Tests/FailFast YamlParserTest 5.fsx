@@ -65,14 +65,17 @@ rbi:
   - Ken Griffey
 "
 
+YamlParse  "block sequence:\n  - one\n  - two : three\n"
+
 YamlParse "
 ? - Detroit Tigers
   - Chicago cubs
 :
   - 2001-07-23
-
 ? [ New York Yankees,
     Atlanta Braves ]
 : [ 2001-07-02, 2001-08-12,
     2001-08-14 ]
 "
+
+

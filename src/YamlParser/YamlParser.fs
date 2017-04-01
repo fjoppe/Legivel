@@ -998,19 +998,17 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
     member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncSingleResult=
         logger "c-flow-sequence" ps
-        match (HasMatches(ps.InputString, ((RGP "\\[") + OPT(this.``s-separate`` ps)))) with
-        | (false, _, _) ->  None
-        | (true, m, inputrs)  -> 
-            let prs = ps.SetRestString inputrs
+        ps |> ParseState.``Match and Advance`` ((RGP "\\[") + OPT(this.``s-separate`` ps)) (fun prs ->
             match (prs.SetStyleContext(this.``in-flow`` prs)) with
             |   Parse(this.``ns-s-flow-seq-entries``) (c, prs2) ->  
                 match (HasMatches(prs2.InputString, (RGP "\\]"))) with
                 |  (true, mt, frs)  -> Some(c, prs2.SetRestString frs)
-                |  (false, _,_)    -> raise (ParseException(sprintf "Expected ']' at \"%s\"" (prs2.InputString)))
+                |  (false, _,_)    -> None
             |   _ ->
                 match (HasMatches(prs.InputString, (RGP "\\]"))) with
                 |  (true, mt, frs) ->  CreateSeqNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag (ps.SetRestString frs) |> Some
                 |  (false, _,_)    -> None
+        )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "c-flow-sequence" ps        
                 
@@ -1023,8 +1021,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let lst = entry :: lst
                 let rs = SkipIfMatch (prs.InputString) (OPT(this.``s-separate`` prs))
                 match (HasMatches(rs, (RGP ",") + OPT(this.``s-separate`` prs))) with 
-                |   (true, mt, frs) ->  
-                    ``ns-s-flow-seq-entries`` (prs.SetRestString frs) lst
+                |   (true, mt, frs) -> ``ns-s-flow-seq-entries`` (prs.SetRestString frs) lst
                 |   (false, _,_)    -> CreateSeqNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag (prs.SetRestString rs) |> Some
             |   _ -> 
                 if lst.Length = 0 then None   // empty sequence
@@ -1538,6 +1535,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [185]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-indented(n,c)
     member this.``s-l+block-indented`` ps =
         logger "s-l+block-indented" ps
+
+        let m = (ps.n) + (this.``auto detect indent in line`` ps)
+        let m = if m<0 then 0 else m
+        let ps = ps.SetSubIndent m
 
         match HasMatches(ps.InputString, RGS((this.``s-indent(n)`` (ps.SetIndent ps.m)))) with
         |   (true, mt, frs) -> 

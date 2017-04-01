@@ -46,7 +46,7 @@ exception YamlPathException of string
     //a/b/c => 
         c works on the selection of b
         b works on the selection of a
-        / on mapping gives its value
+        / on mapping works on selected key or value
         / on filtered seq, works on filtered subset
 *)
 

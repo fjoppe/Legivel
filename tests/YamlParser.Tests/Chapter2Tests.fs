@@ -282,3 +282,9 @@ let ``Example 2.11. Mapping between Sequences``() =
     2001-08-14 ]
 "
     yml.Length |> should equal 1
+
+//    let p1 = YamlPath.Create "//{}/[]/#'Detroit Tigers'"
+//    let p2 = YamlPath.Create "//{}?/[]/#'2001-07-02'"
+
+//    yml.Head |> p1.Select |> ToScalar |> should equal "Detroit Tigers"
+//    yml.Head |> p2.Select |> ToScalar |> should equal "2001-07-02"
