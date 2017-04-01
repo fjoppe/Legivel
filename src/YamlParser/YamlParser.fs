@@ -103,10 +103,14 @@ type ParseState = {
     with
         member this.SetRestString s = { this with InputString = s}
         member this.AddAnchor s n = 
-            let a = 
-                if this.Anchors.ContainsKey s then this.Anchors.Remove(s).Add(s, n)
-                else this.Anchors.Remove(s).Add(s, n)
-            {this with Anchors = a}
+//            let a = 
+//                if this.Anchors.ContainsKey s then this.Anchors.Remove(s).Add(s, n)
+//                else this.Anchors.Remove(s).Add(s, n)
+            {this with Anchors = this.Anchors.Add(s, n)}
+
+        member this.AddAnchors al =
+            let newAchors = al |> Map.fold(fun (s:Map<string,Node>) k v -> s.Add(k, v)) this.Anchors
+            {this with Anchors = newAchors}
 
         member this.GetAnchor s =
             if this.Anchors.ContainsKey s then this.Anchors.[s]
@@ -178,7 +182,7 @@ module ParseState =
 
     let AddMessage m (ps:ParseState) = ps.AddMessage m
     let AddDirective d (ps:ParseState) = ps.AddDirective d
-
+    let AddAnchorsFrom (prs:ParseState) (ps:ParseState) = ps.AddAnchors prs.Anchors 
 
 let stringPosition (s:string) =
     if s.Length > 10 then s.Substring(0, 10) else s
@@ -203,11 +207,18 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     let logger s ps =
         let str = if ps.InputString.Length > 10 then ps.InputString.Substring(0, 10) else ps.InputString
-        sprintf "%s\t\"%s\" i:%d c:%A" s (str.Replace("\n","\\n")) (ps.n) (ps.c) |> loggingFunction
+        sprintf "%s\t\"%s\" i:%d c:%A &a:%d" s (str.Replace("\n","\\n")) (ps.n) (ps.c) (ps.Anchors.Count) |> loggingFunction
 
     new() = Yaml12Parser(fun _ -> ())
 
     //  Utility functions
+    member private this.break sr =
+        sr |> Option.map (fun (n,ps) ->
+            logger "break" ps
+            (n,ps)
+        )
+        
+
     member this.``split by linefeed`` s = 
         Regex.Split(s, this.``b-as-line-feed``.ToString()) |> List.ofArray
 
@@ -229,6 +240,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | Regex2(icp) mt -> (mt.ge1.Length - ps.n)
         | _-> -1 // raise (ParseException(sprintf "Cannot detect indentation at '%s'" (stringPosition ps.InputString)))
 
+
+    member this.AddAnchor anchor c (ps:ParseState) = if anchor<> "" then (ps.AddAnchor anchor c) else ps
+
+    member this.AddTag tag (c:Node) = if tag<>"" then c.SetTag(Tag.Create(tag)) else c
+
+
     member this.``content with properties`` (``follow up func``: ParseFuncSignature) ps =
         match (this.``c-ns-properties`` ps) with
         |   Some(prs, tag, anchor) -> 
@@ -237,9 +254,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs = prs.SetRestString frs2
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
-                    let t = Tag.Create(tag)
-                    let c = c.SetTag(t)
-                    Some(c, prs)
+                    let prs = this.AddAnchor anchor c prs
+                    let c = this.AddTag tag c
+                    this.ResolveTag prs c |> Some
                 |   _ -> None
             |   (false, _, _)    -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
         |   None    -> None
@@ -252,9 +269,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs = prs.SetRestString frs2
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
-                    let t = Tag.Create(tag)
-                    let c = c.SetTag(t)
-                    Some(c, prs)
+                    let prs = this.AddAnchor anchor c prs
+                    let c = this.AddTag tag c
+                    this.ResolveTag prs c |> Some
                 |   _ -> None
             |   (false, _, _)    -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
         |   None    -> ``follow up func`` ps
@@ -1496,7 +1513,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   (true, mt, frs) -> 
                     let ps = ps.SetRestString frs
                     match (this.``c-l-block-seq-entry`` ps.FullIndented) with
-                    |   Some(c, prs2) -> ``l+block-sequence`` (prs2.InputString  |> ps.SetRestString) (c :: acc)
+                    |   Some(c, prs2) -> ``l+block-sequence`` prs2 (c :: acc)
                     |   _ -> contentOrNone
                 |   (false, _, _) -> contentOrNone 
             ``l+block-sequence`` ps []
@@ -1521,13 +1538,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [185]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-indented(n,c)
     member this.``s-l+block-indented`` ps =
         logger "s-l+block-indented" ps
+
         match HasMatches(ps.InputString, RGS((this.``s-indent(n)`` (ps.SetIndent ps.m)))) with
         |   (true, mt, frs) -> 
-            let prs = ps.SetRestString frs
-            (prs |> ParseState.SetIndent (prs.n+1+prs.m) |> ParseState.OneOf) {
+            let prs = ps |> ParseState.SetRestString frs |> ParseState.SetIndent (ps.n+1+ps.m) |> ParseState.SetSubIndent 0
+            (prs |> ParseState.OneOf) {
                 either (this.``ns-l-compact-sequence``)
                 either (this.``ns-l-compact-mapping``)
-                either (this.``s-l+block-node``)
+                either (fun _ -> this.``s-l+block-node`` prs)
                 ifneither (
                     let prs2 = prs.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
                     Some(this.ResolvedNullNode prs2, prs2))
@@ -1606,7 +1624,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [190]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-explicit-key(n)
     member this.``c-l-block-map-explicit-key`` ps : ParseFuncSingleResult =
         logger "c-l-block-map-explicit-key" ps
-        match HasMatches(ps.InputString, RGS(RGP("\\?"))) with
+        match HasMatches(ps.InputString, RGP("\\?")) with
         |   (true, mt, frs) -> 
             let prs = ps.SetRestString frs
             let prs = prs.SetStyleContext ``Block-out``
@@ -1692,7 +1710,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [196]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-node(n,c)
     member this.``s-l+block-node`` (ps:ParseState) : ParseFuncSingleResult =
         logger "s-l+block-node" ps
-        ps.OneOf {
+        (ps |> ParseState.OneOf) {
             either (this.``s-l+block-in-block``)
             either (this.``s-l+flow-in-block``)
             ifneither (None)
@@ -1711,7 +1729,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Parse(this.``ns-flow-node``) (c, prs2) -> 
                 match (HasMatches(prs2.InputString, RGS(this.``s-l-comments``))) with
                 |   (true, mt, frs2) -> Some(c, prs2.SetRestString frs2)
-                |   (false, _, _) -> None
+                |   (false, _, _) -> Some(c, prs2) 
             |   _ -> None
         |   (false, _, _)   -> None
         |> ParseState.ResetEnvSR ps
@@ -1862,26 +1880,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let rec successorDoc (ps:ParseState, nodes) =
                 if ps.InputString.Length > 0 then
                     (ps |> ParseState.OneOf) {
-                        either (
-                            ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (fun ps ->
-                                ps
-                                |> this.``l-any-document``
-                                |> toEmptyOrSingletonList ps
-                                |> Some)
-                        )
-                        either (
-                            ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (fun ps ->
-                                ps
-                                |> this.``l-explicit-document``
-                                |> toEmptyOrSingletonList ps
-                                |> Some)
-                        )
+                        either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (this.``l-any-document``))
+                        either (ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (this.``l-explicit-document``))
                         ifneither None
                     }
                     |>  function
-                        |   Some (ps2, n) -> successorDoc (ps2, (nodes @ n))
-                        |   None          -> 
-                            (ps |> ParseState.AddMessage (Error "Cannot parse document."), nodes)
+                        |   Some (n, ps2) -> successorDoc (ps2, (n :: nodes))
+                        |   None          -> (ps |> ParseState.AddMessage (Error "Cannot parse document."), nodes)
                 else
                     (ps, nodes)
 
@@ -1891,7 +1896,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |>  successorDoc
             |>  Some
         )
-        |> Option.map (fun (ps, nodes) -> (nodes, ps))
+        |> Option.map (fun (ps, nodes) -> (nodes |> List.rev, ps))
 
 
 

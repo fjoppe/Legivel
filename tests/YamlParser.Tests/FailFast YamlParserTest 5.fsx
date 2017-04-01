@@ -30,7 +30,7 @@ let YamlParseList s =
     try
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
         let (nodes, ps) = pr
-        nodes |> List.iter(fun node -> printfn "%s" (Deserialize node (ps.TagShorthands)))
+        nodes |> List.iter(fun node -> printfn "%s\n---" (Deserialize node (ps.TagShorthands)))
         nodes
     with
     | e -> printfn "%A" e; raise e
@@ -54,3 +54,25 @@ YamlParseList "
 "
 
 
+YamlParse "
+---
+hr:
+  - Mark McGwire
+  # Following node labeled SS
+  - &SS Sammy Sosa
+rbi:
+  - *SS # Subsequent occurrence
+  - Ken Griffey
+"
+
+YamlParse "
+? - Detroit Tigers
+  - Chicago cubs
+:
+  - 2001-07-23
+
+? [ New York Yankees,
+    Atlanta Braves ]
+: [ 2001-07-02, 2001-08-12,
+    2001-08-14 ]
+"

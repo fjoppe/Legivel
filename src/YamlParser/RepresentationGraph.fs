@@ -1,5 +1,8 @@
 ﻿module RepresentationGraph
 
+open System.Diagnostics
+open YamlParser.Internals
+
 type NodeKind = 
     | Mapping
     | Sequence
@@ -24,10 +27,6 @@ type Tag = {
 
         member this.Canonical s = this.canonFn s
 
-
-open YamlParser.Internals
-
-
 type NodeData<'T> = {
         Tag  : Tag
         Data : 'T
@@ -40,6 +39,7 @@ type NodeData<'T> = {
         member this.SetTag t = 
             { this with Tag = t}
 
+[<DebuggerDisplay("{this.DebuggerInfo}")>]
 type Node =
     | SeqNode of NodeData<Node list>
     | MapNode of NodeData<(Node*Node) list>
@@ -71,6 +71,14 @@ type Node =
                 |   SeqNode _       -> Sequence
                 |   MapNode _       -> Mapping
                 |   ScalarNode _    -> Scalar
+
+        member this.DebuggerInfo 
+            with get() =
+                match this with
+                |   SeqNode d       -> sprintf "<%s>[..], length=%d" d.Tag.Uri d.Data.Length
+                |   MapNode d       -> sprintf "<%s>{..}, length=%d" d.Tag.Uri d.Data.Length
+                |   ScalarNode d    -> sprintf "<%s>\"%s\"" d.Tag.Uri d.Data
+
 
 type Legend = {
         YamlVersion : string

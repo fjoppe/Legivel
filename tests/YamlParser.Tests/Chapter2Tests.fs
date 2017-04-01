@@ -1,7 +1,7 @@
 ﻿module Chapter2Tests
 
 (*
-    Testing examples from chapte 2: http://www.yaml.org/spec/1.2/spec.html#Preview
+    Testing examples from chapter 2: http://www.yaml.org/spec/1.2/spec.html#Preview
 *)
 
 open NUnit.Framework
@@ -38,6 +38,12 @@ let ToScalar n =
     match n with
     |   Some([ScalarNode nd]) -> nd.Data
     |   _ -> raise (Exception "Is no scalar")
+
+let ToSequence n =
+    match n with
+    |   Some([SeqNode nd]) -> nd.Data
+    |   _ -> raise (Exception "Is no seq")
+    
 
 let ToScalarTag n = 
     match n with
@@ -151,7 +157,6 @@ Sammy Sosa: {
         yml |> pth.Select |> ToScalar |> should equal v
     )
 
-
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760493")>]
 let ``Example 2.7. Two Documents in a Stream (each with a leading comment)``() =
     let yml = YamlParseList "
@@ -184,5 +189,96 @@ let ``Example 2.7. Two Documents in a Stream (each with a leading comment)``() =
         yml2 |> pth.Select |> ToScalar |> should equal e
     )
 
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760519")>]
+let ``Example 2.8.  Play by Play Feed from a Game``() =
+    let yml = YamlParseList "
+---
+time: 20:03:20
+player: Sammy Sosa
+action: strike (miss)
+...
+---
+time: 20:03:47
+player: Sammy Sosa
+action: grand slam
+...
+"
+    yml.Length |> should equal 2
+
+    let [yml1; yml2] = yml 
+
+    [("time", "20:03:20"); ("player", "Sammy Sosa");("action", "strike (miss)")]
+    |> List.iter(fun (k,v) -> 
+        let ypath = (sprintf "//{#'%s'}?" k)
+        let pth = YamlPath.Create ypath
+        yml1 |> pth.Select |> ToScalar |> should equal v
+    )
+
+    [("time", "20:03:47"); ("player", "Sammy Sosa");("action", "grand slam")]
+    |> List.iter(fun (k,v) -> 
+        let ypath = (sprintf "//{#'%s'}?" k)
+        let pth = YamlPath.Create ypath
+        yml2 |> pth.Select |> ToScalar |> should equal v
+    )
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760633")>]
+let ``Example 2.9.  Single Document with Two Comments``() =
+    let yml = YamlParseList "
+---
+hr: # 1998 hr ranking
+  - Mark McGwire
+  - Sammy Sosa
+rbi:
+  # 1998 rbi ranking
+  - Sammy Sosa
+  - Ken Griffey
+"
+    yml.Length |> should equal 1
+
+    [("hr", "Mark McGwire", 2); ("rbi", "Sammy Sosa", 2)]
+    |> List.iter(fun (k,v,c) -> 
+        let p1 = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        let p2 = YamlPath.Create (sprintf "//{#'%s'}?/[]/#'%s'" k v)
+
+        yml.Head |> p1.Select |> ToSequence |> fun s -> s.Length |> should equal c
+        yml.Head |> p2.Select |> ToScalar |> should equal v
+    )
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760658")>]
+let ``Example 2.10.  Node for “Sammy Sosa” appears twice in this document``() =
+    let yml = YamlParseList "
+---
+hr:
+  - Mark McGwire
+  # Following node labeled SS
+  - &SS Sammy Sosa
+rbi:
+  - *SS # Subsequent occurrence
+  - Ken Griffey
+"
+    yml.Length |> should equal 1
+
+    [("hr", "Sammy Sosa", 2); ("rbi", "Sammy Sosa", 2)]
+    |> List.iter(fun (k,v,c) -> 
+        let p1 = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        let p2 = YamlPath.Create (sprintf "//{#'%s'}?/[]/#'%s'" k v)
+
+        yml.Head |> p1.Select |> ToSequence |> fun s -> s.Length |> should equal c
+        yml.Head |> p2.Select |> ToScalar |> should equal v
+    )
 
 
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760799")>]
+let ``Example 2.11. Mapping between Sequences``() =
+    let yml = YamlParseList "
+? - Detroit Tigers
+  - Chicago cubs
+:
+  - 2001-07-23
+
+? [ New York Yankees,
+    Atlanta Braves ]
+: [ 2001-07-02, 2001-08-12,
+    2001-08-14 ]
+"
+    yml.Length |> should equal 1
