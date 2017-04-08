@@ -364,7 +364,111 @@ tie-fighter: '|\\-*-/|'
     [
         ("unicode", "Sosa did fine.\u263A")
         ("control", "\b1998\t1999\t2000\n") 
-        ("hex esc", "\r\n is \r\n")
+        ("hex esc", "\n is \n")
+        ("single", "\"Howdy!\" he cried.")
+        ("quoted", " # Not a 'comment'.")
+        ("tie-fighter", "|\\-*-/|")
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761268")>]
+let ``Example 2.18. Multi-line Flow Scalars``() =
+    let yml = YamlParse "
+plain:
+  This unquoted scalar
+  spans many lines.
+
+quoted: \"So does this
+  quoted scalar.\\n\"
+"
+    [
+        ("plain", "This unquoted scalar spans many lines.")
+        ("quoted", "So does this quoted scalar.\n") 
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761509")>]
+let ``Example 2.19. Integers``() =
+    let yml = YamlParse "
+canonical: 12345
+decimal: +12345
+octal: 0o14
+hexadecimal: 0xC
+"
+    [
+        ("canonical", "12345")
+        ("decimal", "+12345") 
+        ("octal", "0o14") 
+        ("hexadecimal", "0xC") 
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761530")>]
+let ``Example 2.20. Floating Point``() =
+    let yml = YamlParse "
+canonical: 1.23015e+3
+exponential: 12.3015e+02
+fixed: 1230.15
+negative infinity: -.inf
+not a number: .NaN
+"
+    [
+        ("canonical", "1.23015e+3")
+        ("exponential", "12.3015e+02") 
+        ("fixed", "1230.15") 
+        ("negative infinity", "-.inf") 
+        ("not a number", ".NaN") 
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761552")>]
+let ``Example 2.21. Miscellaneous``() =
+    let yml = YamlParse "
+null:
+booleans: [ true, false ]
+string: '012345'
+"
+    [
+        ("null", "")
+        ("string", "012345") 
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+    let p = YamlPath.Create "//{#'booleans'}?/[]/#'true'"
+    yml |> p.Select |> ToScalar |> should equal "true"
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761573")>]
+let ``Example 2.22. Timestamps``() =
+    let yml = YamlParse "
+canonical: 2001-12-15T02:59:43.1Z
+iso8601: 2001-12-14t21:59:43.10-05:00
+spaced: 2001-12-14 21:59:43.10 -5
+date: 2002-12-14
+"
+    [
+        ("canonical", "2001-12-15T02:59:43.1Z")
+        ("iso8601", "2001-12-14t21:59:43.10-05:00") 
+        ("spaced", "2001-12-14 21:59:43.10 -5") 
+        ("date", "2002-12-14") 
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)

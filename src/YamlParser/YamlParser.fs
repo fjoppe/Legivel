@@ -8,6 +8,7 @@ open YamlParser.Internals.ParserMonads
 open TagResolution
 open RegexDSL
 open RepresentationGraph
+open System.Diagnostics
 
 
 exception ParseException of string
@@ -103,9 +104,6 @@ type ParseState = {
     with
         member this.SetRestString s = { this with InputString = s}
         member this.AddAnchor s n = 
-//            let a = 
-//                if this.Anchors.ContainsKey s then this.Anchors.Remove(s).Add(s, n)
-//                else this.Anchors.Remove(s).Add(s, n)
             {this with Anchors = this.Anchors.Add(s, n)}
 
         member this.AddAnchors al =
@@ -117,6 +115,8 @@ type ParseState = {
             else raise (ParseException (sprintf "Referenced anchor '%s' is unknown in line %d" s this.LineNumber))
         
         member this.Advance m = this.SetRestString (Advance(m, this.InputString))
+
+        member this.Advance m = this.SetRestString (Advance(RGS(m), this.InputString))
 
         member this.SkipIfMatch p = this.SetRestString(SkipIfMatch (this.InputString) p)
 
@@ -203,6 +203,17 @@ type BlockFoldPrevType = EmptyAfterFolded | Empty | Indented | TextLine
 type FlowFoldPrevType = Empty | TextLine
 
 
+[<DebuggerStepThrough>]
+let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
+    let m = Regex.Match(ps.InputString, RGS(pattern), RegexOptions.Multiline)
+    if m.Success then 
+        let lst = [ for g in m.Groups -> g.Value ]
+        let fullMatch = lst |> List.head
+        let rest = Advance(fullMatch, ps.InputString)
+        let groups = lst |> List.tail
+        Some(MatchResult.Create fullMatch rest groups, ps.SetRestString rest)
+    else None
+
 type Yaml12Parser(loggingFunction:string->unit) =
 
     let logger s ps =
@@ -249,31 +260,29 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``content with properties`` (``follow up func``: ParseFuncSignature) ps =
         match (this.``c-ns-properties`` ps) with
         |   Some(prs, tag, anchor) -> 
-            match (HasMatches(prs.InputString, (this.``s-separate`` prs))) with
-            |   (true, mt, frs2) -> 
-                let prs = prs.SetRestString frs2
+            match prs with
+            |   Regex3(this.``s-separate`` prs) (mt, prs) -> 
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
                     let prs = this.AddAnchor anchor c prs
                     let c = this.AddTag tag c
                     this.ResolveTag prs c |> Some
                 |   _ -> None
-            |   (false, _, _)    -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
+            |   _  -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
         |   None    -> None
 
     member this.``content with optional properties`` (``follow up func``: ParseFuncSignature) ps =
         match (this.``c-ns-properties`` ps) with
         |   Some(prs, tag, anchor) -> 
-            match (HasMatches(prs.InputString, (this.``s-separate`` prs))) with
-            |   (true, mt, frs2) -> 
-                let prs = prs.SetRestString frs2
+            match prs with
+            |   Regex3(this.``s-separate`` prs) (mt, prs)  -> 
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
                     let prs = this.AddAnchor anchor c prs
                     let c = this.AddTag tag c
                     this.ResolveTag prs c |> Some
                 |   _ -> None
-            |   (false, _, _)    -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
+            |  _ -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
         |   None    -> ``follow up func`` ps
 
     member this.``block fold lines`` ps (strlst: string list) =
@@ -363,19 +372,22 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 // prevent any collision with other escaped chars
                 str.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries) 
                 |>  List.ofArray
+                |>  List.map(DecodeEncodedUnicodeCharacters)
+                |>  List.map(DecodeEncodedHexCharacters)
+                |>  List.map(DecodeEncodedEscapedCharacters)
                 |>  List.map(fun s -> s.Replace("\\\n", ""))
-                |>  List.map(fun s -> s.Replace("\\n", "\n"))
-                |>  List.map(fun s -> s.Replace("\\ ", " "))
-                |>  List.map(fun s -> s.Replace("\\t", "\t"))
-                |>  List.map(fun s -> s.Replace("\\b", "\b"))
-                |>  List.map(fun s -> s.Replace("\\\"", "\""))
-                |>  List.map(DecodeEncodedNonAsciiCharacters)
+                |>  List.map(fun s -> s.Replace("\x0d\x0a", "\n"))
             String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
         this.``flow fold lines`` convertDQuoteEscapedMultiLine ps str
 
     member this.``single quote flowfold lines`` ps str =
-        let convertSQuoteEscapedMultiLine (str:string) = str.Replace("''", "'")
+        let convertSQuoteEscapedMultiLine (str:string) = 
+            str.Replace("''", "'").Replace("\x0d\x0a", "\n")
         this.``flow fold lines`` convertSQuoteEscapedMultiLine ps str
+
+    member this.``plain flow fold lines`` ps str =
+        let convertPrainEscapedMultiLine (str:string) = str.Replace("\x0d\x0a", "\n")
+        this.``flow fold lines`` convertPrainEscapedMultiLine ps str
 
     member this.ResolveTag (ps:ParseState) (node:Node) =
         let isTagInList t l = l |> List.tryFind(fun e -> e.Uri = t.Uri) |> Option.isSome
@@ -1004,13 +1016,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps |> ParseState.``Match and Advance`` ((RGP "\\[") + OPT(this.``s-separate`` ps)) (fun prs ->
             match (prs.SetStyleContext(this.``in-flow`` prs)) with
             |   Parse(this.``ns-s-flow-seq-entries``) (c, prs2) ->  
-                match (HasMatches(prs2.InputString, (RGP "\\]"))) with
-                |  (true, mt, frs)  -> Some(c, prs2.SetRestString frs)
-                |  (false, _,_)    -> None
+                prs2 |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> Some (c, psx) ) 
             |   _ ->
-                match (HasMatches(prs.InputString, (RGP "\\]"))) with
-                |  (true, mt, frs) ->  CreateSeqNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag (ps.SetRestString frs) |> Some
-                |  (false, _,_)    -> None
+                prs |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> 
+                    CreateSeqNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag psx |> Some)
         )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "c-flow-sequence" ps        
@@ -1045,19 +1054,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [140]   http://www.yaml.org/spec/1.2/spec.html#c-flow-mapping(n,c)
     member this.``c-flow-mapping`` (ps:ParseState) : ParseFuncSingleResult =
         logger "c-flow-mapping" ps
-        match (HasMatches(ps.InputString, RGS((RGP "\\{") + OPT(this.``s-separate`` ps)))) with
-        |   (false, _, _)    -> None
-        |   (true, mt, frs) -> 
-            let prs = ps.SetRestString frs
+        ps |> ParseState.``Match and Advance`` ((RGP "\\{") + OPT(this.``s-separate`` ps)) (fun prs ->
             match (prs.SetStyleContext(this.``in-flow`` prs)) with
             |   Parse(this.``ns-s-flow-map-entries``) (c, prs2) -> 
-                match (HasMatches(prs2.InputString, (RGP "\\}"))) with
-                |   (true, mt, frs2) -> Some(c, prs2.SetRestString frs2)
-                |   (false, _, _)    -> raise (ParseException(sprintf "Expected '}' at \"%s\"" (prs2.InputString.Substring(6))))
+                prs2 |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> Some(c, prs2))
             |   _ -> 
-                match (HasMatches(prs.InputString, (RGP "\\}"))) with
-                |   (true, mt, frs2) -> CreateMapNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag (ps.SetRestString frs2) |> Some
-                |   (false, _, _)    -> None
+                prs |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag prs2 |> Some)
+        )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "c-flow-mapping" ps       
             
@@ -1081,9 +1084,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-flow-map-entry`` (ps:ParseState) : ParseFuncMappedResult =
         logger "ns-flow-map-entry" ps
         let ``ns-flow-map-explicit-entry`` ps = 
-            match (HasMatches(ps.InputString, RGP "\\?" + (this.``s-separate`` ps))) with
-            | (false, _, _) ->  None
-            | (true, m, inputrs)  -> this.``ns-flow-map-explicit-entry`` (ps.SetRestString inputrs)
+            ps |> ParseState.``Match and Advance`` (RGP "\\?" + (this.``s-separate`` ps)) (fun prs -> this.``ns-flow-map-explicit-entry`` prs)
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-map-implicit-entry``)
@@ -1133,16 +1134,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [147]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-separate-value(n,c)
     member this.``c-ns-flow-map-separate-value`` (ps:ParseState) : ParseFuncSingleResult =
         logger "c-ns-flow-map-separate-value" ps
-        match (HasMatches(ps.InputString, (RGP ":") + NOT(this.``ns-plain-safe`` ps) )) with
-        |   (true, mt, frs) -> 
-            match (HasMatches(frs, (this.``s-separate`` ps))) with
-            |   (true, mt, frs2) -> 
-                let prs = ps.SetRestString frs2
-                match (prs) with
-                |   Parse(this.``ns-flow-node``) (c, rs) -> Some(c, rs)
-                |   _ -> None
-            |   (false, _, _)    -> PlainEmptyNode |> this.ResolveTag (ps.SetRestString frs) |> Some   //  ``e-node``
-        |   (false, _, _)    -> None
+        ps |> ParseState.``Match and Advance`` (RGP ":") (fun prs ->
+            if IsMatch(prs.InputString, (this.``ns-plain-safe`` prs)) then None
+            else
+                match prs with
+                |   Regex3(this.``s-separate`` prs) (_, prs) -> this.``ns-flow-node`` prs
+                |   _ -> PlainEmptyNode |> this.ResolveTag prs |> Some   //  ``e-node``
+        )
         |> ParseState.AddSuccessSR "c-ns-flow-map-separate-value" ps     
 
     //  [148]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-json-key-entry(n,c)
@@ -1160,23 +1158,19 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [149]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-adjacent-value(n,c)
     member this.``c-ns-flow-map-adjacent-value`` (ps:ParseState) =
         logger "c-ns-flow-map-adjacent-value" ps
-        match (HasMatches(ps.InputString, (RGP ":"))) with
-        |   (true, mt, frs) -> 
-            let prs = ps.SetRestString frs
+        ps |> ParseState.``Match and Advance`` (RGP ":") (fun prs ->
             let prs = prs.SkipIfMatch (OPT(this.``s-separate`` ps))
             match (prs) with
             |   Parse(this.``ns-flow-node``) (c, prs2) -> Some(c, prs2)
-            |   _ -> Some(this.ResolvedNullNode prs, prs)  //  ``e-node``
-        |   (false, _, _)    -> None
+            |   _ -> Some(this.ResolvedNullNode prs, prs)  //  ``e-node``        
+        )
         |> ParseState.AddSuccessSR "c-ns-flow-map-adjacent-value" ps
 
     //  [150]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair(n,c)
     member this.``ns-flow-pair`` (ps:ParseState) : ParseFuncMappedResult =
         logger "ns-flow-pair" ps
         let ``ns-flow-map-explicit-entry`` (ps:ParseState) = 
-            match (HasMatches(ps.InputString, RGP "\\?" + (this.``s-separate`` ps))) with
-            | (false, _, _) ->  None
-            | (true, m, inputrs)  -> this.``ns-flow-map-explicit-entry`` (ps.SetRestString inputrs)
+            ps |> ParseState.``Match and Advance`` (RGP "\\?" + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-pair-entry``)
@@ -1247,9 +1241,23 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [156]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-yaml-content(n,c)
     member this.``ns-flow-yaml-content`` (ps:ParseState) : ParseFuncSingleResult = 
         logger "ns-flow-yaml-content" ps
-        match (HasMatches(ps.InputString, RGS(this.``ns-plain`` ps))) with
-        |   (true, mt, frs) -> CreateScalarNode (NonSpecific.NonSpecificTagQM) (mt) |> this.ResolveTag (ps.SetRestString frs) |> Some
-        |   (false, _, _)    -> None
+        match ps with
+        |   Regex3(this.``ns-plain`` ps) (mt, prs) -> 
+            match prs.c with
+            | ``Flow-out``  | ``Flow-in``   ->
+                mt.FullMatch
+                |> this.``split by linefeed``
+                |> this.``plain flow fold lines`` prs
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQM) 
+                |> this.ResolveTag prs 
+                |> Some
+            | ``Block-key`` | ``Flow-key``  -> 
+                mt.FullMatch
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQM) 
+                |> this.ResolveTag prs 
+                |> Some
+
+        |   _ -> None
         |> ParseState.AddSuccessSR  "ns-flow-yaml-content" ps
 
     //  [157]   http://www.yaml.org/spec/1.2/spec.html#c-flow-json-content(n,c)

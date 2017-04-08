@@ -214,12 +214,39 @@ let (|Regex2|_|) (pattern:RGXType) input =
         Some(MatchResult.Create fullMatch rest groups)
     else None
 
-let DecodeEncodedNonAsciiCharacters value =
-        Regex.Replace(
-            value,
-            @"\\u(?<Value>[a-zA-Z0-9]{4})",
-            (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
+let DecodeEncodedUnicodeCharacters value =
+    Regex.Replace(value,
+        @"\\u(?<Value>[a-zA-Z0-9]{4})",
+        (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
 
+let DecodeEncodedHexCharacters value =
+    Regex.Replace(value,
+        @"\\x(?<Value>[a-fA-F0-9]{2})",
+        (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
+    
+let DecodeEncodedEscapedCharacters value =
+    Regex.Replace(value,
+        @"\\(?<Value>[0abtnvfre ""/N_LP])",
+        (fun (m:Match) -> 
+            match (m.Groups.["Value"].Value) with
+            |   "0" -> "\0"
+            |   "a" -> "\a"
+            |   "b" -> "\b"
+            |   "t" -> "\t"
+            |   "n" -> "\n"
+            |   "v" -> "\v"
+            |   "f" -> "\f"
+            |   "r" -> "\r"
+            |   "e" -> "\x1b"
+            |   " " -> " "
+            |   "\"" -> "\""
+            |   "/" -> "\x2f"
+            |   "N" -> "\u0085"
+            |   "_" -> "\u00a0"
+            |   "L" -> "\u2028"
+            |   "P" -> "\u2029"
+            | _ -> sprintf "\\%s" m.Groups.["Value"].Value
+        ))
 
 [<DebuggerStepThrough>]
 let (|Parse|_|) func ps = func ps
