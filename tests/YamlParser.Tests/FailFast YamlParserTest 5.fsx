@@ -78,4 +78,9 @@ YamlParse "
     2001-08-14 ]
 "
 
+YamlParse "
+# ASCII Art
+--- |
+  \//||\/||
+  // ||  ||__"
 

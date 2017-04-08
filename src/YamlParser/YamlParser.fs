@@ -364,9 +364,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 str.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries) 
                 |>  List.ofArray
                 |>  List.map(fun s -> s.Replace("\\\n", ""))
+                |>  List.map(fun s -> s.Replace("\\n", "\n"))
                 |>  List.map(fun s -> s.Replace("\\ ", " "))
-                |>  List.map(fun s -> s.Replace("\\\t", "\t"))
+                |>  List.map(fun s -> s.Replace("\\t", "\t"))
+                |>  List.map(fun s -> s.Replace("\\b", "\b"))
                 |>  List.map(fun s -> s.Replace("\\\"", "\""))
+                |>  List.map(DecodeEncodedNonAsciiCharacters)
             String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
         this.``flow fold lines`` convertDQuoteEscapedMultiLine ps str
 
@@ -1397,6 +1400,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | (false, _, _)   ->  None
         | (true, mt, frs) ->
             let ``literal-content`` (ps:ParseState) =
+                let ps = if ps.n < 0 then (ps.SetIndent 0) else ps
                 let p = this.``l-literal-content`` ps
                 match ps.InputString  with
                 |   Regex2(p)  m -> Some(m.ge1, ps.SetRestString m.Rest)

@@ -4,6 +4,9 @@ open System.Diagnostics
 open System.Text
 open System.IO
 open System.Text.RegularExpressions
+open System
+open System.Globalization
+
 
 exception RegexException of string
 
@@ -210,6 +213,12 @@ let (|Regex2|_|) (pattern:RGXType) input =
         let groups = lst |> List.tail
         Some(MatchResult.Create fullMatch rest groups)
     else None
+
+let DecodeEncodedNonAsciiCharacters value =
+        Regex.Replace(
+            value,
+            @"\\u(?<Value>[a-zA-Z0-9]{4})",
+            (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
 
 
 [<DebuggerStepThrough>]

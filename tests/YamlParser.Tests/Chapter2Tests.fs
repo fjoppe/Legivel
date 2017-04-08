@@ -283,8 +283,90 @@ let ``Example 2.11. Mapping between Sequences``() =
 "
     yml.Length |> should equal 1
 
+    //  TODO: extend YamlPath to query above structure
 //    let p1 = YamlPath.Create "//{}/[]/#'Detroit Tigers'"
 //    let p2 = YamlPath.Create "//{}?/[]/#'2001-07-02'"
 
 //    yml.Head |> p1.Select |> ToScalar |> should equal "Detroit Tigers"
 //    yml.Head |> p2.Select |> ToScalar |> should equal "2001-07-02"
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761008")>]
+let ``Example 2.13.  In literals, newlines are preserved``() =
+    let yml = YamlParse "
+# ASCII Art
+--- |
+  \//||\/||
+  // ||  ||__"
+
+    Some([yml]) |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761032")>]
+let ``Example 2.14.  In the folded scalars, newlines become spaces``() =
+    let yml = YamlParse "
+--- >
+  Mark McGwire's
+  year was crippled
+  by a knee injury."
+
+    Some([yml]) |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ToScalar |> should equal "Mark McGwire's year was crippled by a knee injury."
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761056")>]
+let ``Example 2.15.  Folded newlines are preserved for "more indented" and blank lines``() =
+    let yml = YamlParse "
+>
+ Sammy Sosa completed another
+ fine season with great stats.
+
+   63 Home Runs
+   0.288 Batting Average
+
+ What a year!"
+
+    Some([yml]) |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ToScalar |> should equal "Sammy Sosa completed another fine season with great stats.\n\n  63 Home Runs\n  0.288 Batting Average\n\nWhat a year!"
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761056")>]
+let ``Example 2.16.  Indentation determines scope``() =
+    let yml = YamlParse "
+name: Mark McGwire
+accomplishment: >
+  Mark set a major league
+  home run record in 1998.
+stats: |
+  65 Home Runs
+  0.278 Batting Average"
+
+    [
+        ("name", "Mark McGwire")
+        ("accomplishment", "Mark set a major league home run record in 1998.\n") // TODO: not sure about this last \n
+        ("stats", "65 Home Runs\n0.278 Batting Average")
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761245")>]
+let ``Example 2.17. Quoted Scalars``() =
+    let yml = YamlParse "
+unicode: \"Sosa did fine.\\u263A\"
+control: \"\\b1998\\t1999\\t2000\\n\"
+hex esc: \"\\x0d\\x0a is \\r\\n\"
+
+single: '\"Howdy!\" he cried.'
+quoted: ' # Not a ''comment''.'
+tie-fighter: '|\\-*-/|'
+"
+    [
+        ("unicode", "Sosa did fine.\u263A")
+        ("control", "\b1998\t1999\t2000\n") 
+        ("hex esc", "\r\n is \r\n")
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
