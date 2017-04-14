@@ -23,6 +23,11 @@ let YamlParse s =
         let (nodes, ps) = pr
         let node = nodes.Head
         printfn "%s" (Deserialize node (ps.TagShorthands))
+        ps.Messages |> List.iter(fun i -> 
+            match i with
+            |   Error t -> printfn "ERROR: %s" t
+            |   Warn  t -> printfn "Warning: %s" t
+        )
     with
     | e -> printfn "%A" e
 
@@ -83,4 +88,20 @@ YamlParse "
 --- |
   \//||\/||
   // ||  ||__"
+
+YamlParse "
+---
+not-date: !!str 2002-04-28
+
+picture: !!binary |
+ R0lGODlhDAAMAIQAAP//9/X
+ 17unp5WZmZgAAAOfn515eXv
+ Pz7Y6OjuDg4J+fn5OTk6enp
+ 56enmleECcgggoBADs=
+
+application specific tag: !something |
+ The semantics of the tag
+ above may be different for
+ different documents.
+"
 

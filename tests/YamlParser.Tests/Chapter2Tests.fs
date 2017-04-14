@@ -474,3 +474,30 @@ date: 2002-12-14
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
     )
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761694")>]
+let ``Example 2.23. Various Explicit Tags``() =
+    let yml = YamlParse "
+---
+not-date: !!str 2002-04-28
+
+picture: !!binary |
+ R0lGODlhDAAMAIQAAP//9/X
+ 17unp5WZmZgAAAOfn515eXv
+ Pz7Y6OjuDg4J+fn5OTk6enp
+ 56enmleECcgggoBADs=
+
+application specific tag: !something |
+ The semantics of the tag
+ above may be different for
+ different documents.
+"
+    [
+        ("not-date", "2002-04-28")
+        ("picture", "R0lGODlhDAAMAIQAAP//9/X 17unp5WZmZgAAAOfn515eXv Pz7Y6OjuDg4J+fn5OTk6enp 56enmleECcgggoBADs=") 
+        ("application specific tag", "The semantics of the tag above may be different for different documents.") 
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )

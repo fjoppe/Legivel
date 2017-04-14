@@ -23,7 +23,7 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
                 n.Data
                 |> List.sortBy(fun n -> n.Hash.Value)
                 |> List.fold(fun s ni -> s + (sprintf "%s,\n" (convertToString ni (l+1)))) ""
-            let tail = sprintf "%s]\n" ind0
+            let tail = sprintf "%s]" ind0
             sprintf "%s%s%s" head content tail
         |   MapNode n -> 
             let ind0 = indent l
@@ -40,7 +40,7 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
                         |   (ScalarNode(_),ScalarNode(_))   -> s + sprintf "%s? %s\t: %s,\n" ind1 kc vc
                         |   _ -> s + sprintf "%s? %s\n%s: %s,\n" ind1 kc ind1 vc
                     ) ""
-            let tail = sprintf "%s}\n" ind0
+            let tail = sprintf "%s}" ind0
             sprintf "%s%s%s" head content tail
         |   ScalarNode n ->
             let ind0 = indent l

@@ -17,6 +17,7 @@ exception ParseException of string
 type Context = ``Block-out`` | ``Block-in`` | ``Flow-out`` | ``Flow-in`` | ``Block-key`` | ``Flow-key``
 type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 
+type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHandSecondary of string | ShortHandPrimary of string | NonSpecificQT | NonSpecificQM | Empty
 
 let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
 let ``end-of-file`` = RGP "\\z"
@@ -265,10 +266,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
                     let prs = this.AddAnchor anchor c prs
-                    let c = this.AddTag tag c
-                    this.ResolveTag prs c |> Some
+//                    let c = this.AddTag tag c
+                    this.ResolveTag prs tag c |> Some
                 |   _ -> None
-            |   _  -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
+            |   _  -> Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode)   //  ``e-scalar``
         |   None    -> None
 
     member this.``content with optional properties`` (``follow up func``: ParseFuncSignature) ps =
@@ -279,10 +280,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
                     let prs = this.AddAnchor anchor c prs
-                    let c = this.AddTag tag c
-                    this.ResolveTag prs c |> Some
+//                    let c = this.AddTag tag c
+                    this.ResolveTag prs tag c |> Some
                 |   _ -> None
-            |  _ -> Some(this.ResolveTag prs PlainEmptyNode)   //  ``e-scalar``
+            |  _ -> Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode )   //  ``e-scalar``
         |   None    -> ``follow up func`` ps
 
     member this.``block fold lines`` ps (strlst: string list) =
@@ -389,25 +390,38 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let convertPrainEscapedMultiLine (str:string) = str.Replace("\x0d\x0a", "\n")
         this.``flow fold lines`` convertPrainEscapedMultiLine ps str
 
-    member this.ResolveTag (ps:ParseState) (node:Node) =
-        let isTagInList t l = l |> List.tryFind(fun e -> e.Uri = t.Uri) |> Option.isSome
-        let tag = node.NodeTag 
-        let isNonSpecificTag = [NonSpecific.NonSpecificTagQM; NonSpecific.NonSpecificTagQT] |> isTagInList tag
-
-        if isNonSpecificTag then
-            TagResolutionInfo.Create (tag.Uri) (ps.NodePath) (node) (node.Kind) 
+    member this.ResolveTag (ps:ParseState) tag (node:Node)  =
+        let ResolveNonSpecificTag nst = 
+            TagResolutionInfo.Create nst (ps.NodePath) (node) (node.Kind)
             |> ps.GlobalTagSchema.TagResolution
             |> function
             |   Some t -> (node.SetTag t, ps)
-            |   None -> (node, ps |> ParseState.AddMessage (Error (sprintf "Cannot resolve tag: %s" tag.Uri)))
-        else
-            let isGlobalTag = ps.GlobalTagSchema.GlobalTags |> isTagInList tag
-            if isGlobalTag then
-                (node, ps)
-            else    // extend for local tags
-                (node, ps |> ParseState.AddMessage (Error (sprintf "Unrecognized tag: %s" tag.Uri)))
+            |   None -> (node, ps |> ParseState.AddMessage (Error (sprintf "Cannot resolve secondary tag: %s" nst)))
 
-    member this.ResolvedNullNode (ps:ParseState) = PlainEmptyNode |> this.ResolveTag ps |> fst
+        let ResolveLocalTag tag sub =
+            //  TODO implement local tags
+            (node.SetTag (Tag.Create sub), ps.AddMessage (Error (sprintf "'%s' - local Tags are currently not supported" tag)))
+
+        let ResolveTagShortHand name sub =
+            ps.TagShorthands 
+            |> List.tryFind(fun tsh -> tsh.ShortHand = name) 
+            |> Option.bind(fun tsh -> 
+                ps.GlobalTagSchema.GlobalTags
+                |> List.tryFind(fun t -> t.Uri = (tsh.MappedTagUri+sub)))
+            |>  function
+                |   Some t  -> (node.SetTag t, ps)
+                |   None    -> (node, ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub)))
+
+        match tag with
+        |   NonSpecificQM   -> ResolveNonSpecificTag "?"
+        |   NonSpecificQT   -> ResolveNonSpecificTag "!"
+        |   ShortHandPrimary sub -> ResolveLocalTag ("!"+sub) sub
+        |   ShortHandSecondary sub  -> ResolveTagShortHand "!!" sub
+        |   ShortHandNamed (name, sub)  -> ResolveTagShortHand name sub
+        |   Verbatim name   -> ResolveLocalTag (sprintf "!<%s>" name) name
+        |   TagKind.Empty   -> (node,ps)
+
+    member this.ResolvedNullNode (ps:ParseState) =  this.ResolveTag ps NonSpecificQM PlainEmptyNode |> fst
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
     member this.``c-printable`` = 
@@ -776,26 +790,45 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-global-tag-prefix`` = this.``ns-tag-char`` + ZOM(this.``ns-uri-char``)
 
     //  [96]    http://www.yaml.org/spec/1.2/spec.html#c-ns-properties(n,c)
-    member this.``c-ns-properties`` ps : (ParseState * string * string) option =
+    member this.``c-ns-properties`` ps : (ParseState * TagKind * string) option =
         logger "c-ns-properties" ps
         let ``tag anchor`` = GRP(this.``c-ns-tag-property``) + OPT((this.``s-separate`` ps) + GRP(this.``c-ns-anchor-property``))
         let ``anchor tag`` = GRP(this.``c-ns-anchor-property``) + OPT((this.``s-separate`` ps) + GRP(this.``c-ns-tag-property``))
+        let classifyTag t =
+            if t = "" then TagKind.Empty
+            else
+                let verbatim = this.``c-verbatim-tag``
+                let shorthandNamed = GRP(this.``c-named-tag-handle``) + GRP(OOM(this.``ns-tag-char``))
+                let shorthandSecondary = this.``c-secondary-tag-handle`` + GRP(OOM(this.``ns-tag-char``))
+                let shorthandPrimary = this.``c-primary-tag-handle``+ GRP(OOM(this.``ns-tag-char``))
+                match t with
+                |   Regex2(verbatim) mr -> Verbatim mr.ge1
+                |   Regex2(shorthandNamed) mr -> ShortHandNamed  mr.ge2
+                |   Regex2(shorthandSecondary) mr -> ShortHandSecondary  mr.ge1
+                |   Regex2(shorthandPrimary) mr -> ShortHandPrimary mr.ge1
+                |   Regex2(this.``c-non-specific-tag``) mr -> NonSpecificQT
+                |   _ -> raise (ParseException "Unexpected Tag format")
+
         match (ps.InputString) with
         |   Regex2(``tag anchor``) mt -> 
             let (tag, anchor) = mt.ge2
+            let classifiedTag = classifyTag tag
             let prs = ps.SetRestString (SkipIfMatch (ps.InputString) ``tag anchor``)
-            Some(prs, tag, anchor.Substring(1))
+            let anchor = if anchor<>"" then anchor.Substring(1) else anchor
+            Some(prs, classifiedTag, anchor)
         |   Regex2(``anchor tag``) mt -> 
             let (anchor, tag) = mt.ge2
+            let classifiedTag = classifyTag tag
             let prs = ps.SetRestString (SkipIfMatch (ps.InputString) ``anchor tag``)
-            Some(prs, tag, anchor.Substring(1))
+            let anchor = if anchor<>"" then anchor.Substring(1) else anchor
+            Some(prs, classifiedTag, anchor)
         |   _ -> None
 
     //  [97]    http://www.yaml.org/spec/1.2/spec.html#c-ns-tag-property
     member this.``c-ns-tag-property`` = this.``c-verbatim-tag`` ||| this.``c-ns-shorthand-tag`` ||| this.``c-non-specific-tag``
 
     //  [98]    http://www.yaml.org/spec/1.2/spec.html#c-verbatim-tag
-    member this.``c-verbatim-tag`` = (RGP "!<") + OOM(this.``ns-uri-char``) + (RGP ">") 
+    member this.``c-verbatim-tag`` = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">") 
 
     //  [99]    http://www.yaml.org/spec/1.2/spec.html#c-ns-shorthand-tag
     member this.``c-ns-shorthand-tag`` = this.``c-tag-handle`` + OOM(this.``ns-tag-char``)
@@ -854,13 +887,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> this.``split by linefeed``
                     |> this.``double quote flowfold lines`` ps
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQT)
-                    |> this.ResolveTag ps
+                    |> this.ResolveTag ps NonSpecificQT
                     |> fst
                 |   ``Block-key`` | ``Flow-key`` -> //  single line
                     content 
                     |> convertDQuoteEscapedSingleLine
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQT)
-                    |> this.ResolveTag ps
+                    |> this.ResolveTag ps NonSpecificQT
                     |> fst
                 | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
             let prs = ps.Advance full
@@ -921,12 +954,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> this.``split by linefeed``
                     |> this.``single quote flowfold lines`` ps
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQT)
-                    |> this.ResolveTag ps |> fst
+                    |> this.ResolveTag ps NonSpecificQT |> fst
                 |   ``Block-key`` | ``Flow-key`` -> //  single line
                     content 
                     |> convertSQuoteEscapedSingleLine
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQT)
-                    |> this.ResolveTag ps |> fst
+                    |> this.ResolveTag ps NonSpecificQT |> fst
                 | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
             let prs = ps.Advance full
             Some(n, prs)
@@ -1019,7 +1052,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 prs2 |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> Some (c, psx) ) 
             |   _ ->
                 prs |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> 
-                    CreateSeqNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag psx |> Some)
+                    CreateSeqNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag psx NonSpecificQT |> Some)
         )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "c-flow-sequence" ps        
@@ -1034,10 +1067,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let rs = SkipIfMatch (prs.InputString) (OPT(this.``s-separate`` prs))
                 match (HasMatches(rs, (RGP ",") + OPT(this.``s-separate`` prs))) with 
                 |   (true, mt, frs) -> ``ns-s-flow-seq-entries`` (prs.SetRestString frs) lst
-                |   (false, _,_)    -> CreateSeqNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag (prs.SetRestString rs) |> Some
+                |   (false, _,_)    -> CreateSeqNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag (prs.SetRestString rs) NonSpecificQT |> Some
             |   _ -> 
                 if lst.Length = 0 then None   // empty sequence
-                else CreateSeqNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag ps |> Some
+                else CreateSeqNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag ps NonSpecificQT |> Some
         ``ns-s-flow-seq-entries`` ps []
         |> ParseState.AddSuccessSR "ns-s-flow-seq-entries" ps        
 
@@ -1046,7 +1079,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-flow-seq-entry" ps
         match ps with
         |   Parse(this.``ns-flow-pair``) (ck, cv, prs) -> 
-            CreateMapNode (NonSpecific.NonSpecificTagQT) [(ck,cv)] |> this.ResolveTag prs |> Some
+            CreateMapNode (NonSpecific.NonSpecificTagQT) [(ck,cv)] |> this.ResolveTag prs NonSpecificQT |> Some
         |   Parse(this.``ns-flow-node``) (c, prs) -> Some(c, prs)
         |   _ -> None
         |> ParseState.AddSuccessSR "ns-flow-seq-entry"  ps
@@ -1059,7 +1092,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Parse(this.``ns-s-flow-map-entries``) (c, prs2) -> 
                 prs2 |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> Some(c, prs2))
             |   _ -> 
-                prs |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag prs2 |> Some)
+                prs |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQT) [] |> this.ResolveTag prs2 NonSpecificQT |> Some)
         )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "c-flow-mapping" ps       
@@ -1075,7 +1108,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match (HasMatches(prs.InputString, (RGP ",") + OPT(this.``s-separate`` prs))) with 
                 |   (true, mt, frs) ->  
                     ``ns-s-flow-map-entries`` (prs.SetRestString frs) lst
-                |   (false, _,_)    -> CreateMapNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag prs |> Some
+                |   (false, _,_)    -> CreateMapNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag prs NonSpecificQT |> Some
             |   _ -> None   // empty sequence
         ``ns-s-flow-map-entries`` ps []
         |> ParseState.AddSuccessSR "ns-s-flow-map-entries" ps        
@@ -1139,7 +1172,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             else
                 match prs with
                 |   Regex3(this.``s-separate`` prs) (_, prs) -> this.``ns-flow-node`` prs
-                |   _ -> PlainEmptyNode |> this.ResolveTag prs |> Some   //  ``e-node``
+                |   _ -> PlainEmptyNode |> this.ResolveTag prs NonSpecificQM |> Some   //  ``e-node``
         )
         |> ParseState.AddSuccessSR "c-ns-flow-map-separate-value" ps     
 
@@ -1249,12 +1282,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |> this.``split by linefeed``
                 |> this.``plain flow fold lines`` prs
                 |> CreateScalarNode (NonSpecific.NonSpecificTagQM) 
-                |> this.ResolveTag prs 
+                |> this.ResolveTag prs NonSpecificQM
                 |> Some
             | ``Block-key`` | ``Flow-key``  -> 
                 mt.FullMatch
                 |> CreateScalarNode (NonSpecific.NonSpecificTagQM) 
-                |> this.ResolveTag prs 
+                |> this.ResolveTag prs NonSpecificQM
                 |> Some
 
         |   _ -> None
@@ -1517,7 +1550,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let rec ``l+block-sequence`` ps (acc: Node list) =
                 let contentOrNone = 
                     if (acc.Length = 0) then None
-                    else CreateSeqNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag ps |> Some
+                    else CreateSeqNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag ps NonSpecificQT |> Some
                 match HasMatches(ps.InputString, RGS((this.``s-indent(n)`` (ps.FullIndented)))) with
                 |   (true, mt, frs) -> 
                     let ps = ps.SetRestString frs
@@ -1573,7 +1606,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let rec ``ns-l-compact-sequence`` ps (acc: Node list) =
             let contentOrNone = 
                 if (acc.Length = 0) then None
-                else CreateSeqNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag ps |> Some
+                else CreateSeqNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag ps NonSpecificQT |> Some
             match HasMatches(ps.InputString, RGS((this.``s-indent(n)`` ps))) with
             |   (true, mt, frs) -> 
                 let prs = ps.SetRestString frs
@@ -1596,7 +1629,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let rec ``l+block-mapping`` ps (acc:(Node*Node) list) = 
                 let contentOrNone = 
                     if (acc.Length = 0) then None
-                    else CreateMapNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag ps |> Some
+                    else CreateMapNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag ps NonSpecificQT |> Some
                 match (HasMatches(ps.InputString, RGS((this.``s-indent(n)`` (ps.FullIndented))))) with
                 |   (true, mt, frs) -> 
                     let ps = ps.SetRestString frs
@@ -1669,7 +1702,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Parse(this.``ns-s-block-map-implicit-key``) (ck, prs1) -> matchValue(ck, prs1)
         |   _   ->
             match HasMatches(ps.InputString, RGS(this.``e-node``)) with
-            |   (true, mt, frs) -> matchValue (this.ResolveTag (ps.SetRestString frs) PlainEmptyNode)
+            |   (true, mt, frs) -> matchValue (this.ResolveTag (ps.SetRestString frs) NonSpecificQM PlainEmptyNode)
             |   _ -> None
         |> ParseState.AddSuccessMR "ns-l-block-map-implicit-entry" ps
 
@@ -1695,7 +1728,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Parse(this.``s-l+block-node``)  (c, prs2) -> Some(c, prs2)
             |   _ ->
                 match (HasMatches(prs.InputString, RGS((this.``e-node`` +  this.``s-l-comments``)))) with
-                |   (true, mt, frs2) -> Some(this.ResolveTag (prs.SetRestString frs2) PlainEmptyNode)
+                |   (true, mt, frs2) -> Some(this.ResolveTag (prs.SetRestString frs2) NonSpecificQM PlainEmptyNode)
                 |   (false, _, _) -> None
         |   (false, _, _) -> None
         |> ParseState.ResetEnvSR ps
@@ -1707,7 +1740,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let rec ``ns-l-compact-mapping`` ps (acc: (Node * Node) list) =
             let contentOrNone = 
                 if (acc.Length = 0) then None
-                else CreateMapNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag  ps |> Some
+                else CreateMapNode (NonSpecific.NonSpecificTagQT) (List.rev acc) |> this.ResolveTag  ps NonSpecificQT |> Some
             match HasMatches(ps.InputString, RGS((this.``s-indent(n)`` ps))) with
             |   (true, mt, frs) -> 
                 let prs = ps.SetRestString frs
@@ -1764,7 +1797,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let psp1 = ps.SetIndent (ps.n + 1)
         let ``literal or folded`` (ps:ParseState) =
             let ps = ps.SetIndent (ps.n-1)
-            let mapScalar (s, prs) = CreateScalarNode (NonSpecific.NonSpecificTagQT)(s) |> this.ResolveTag prs
+            let mapScalar (s, prs) = CreateScalarNode (NonSpecific.NonSpecificTagQT)(s) |> this.ResolveTag prs NonSpecificQT
             ps.OneOf {
                 either   (this.``c-l+literal`` >> Option.map mapScalar)
                 either   (this.``c-l+folded``  >> Option.map mapScalar)
@@ -1852,7 +1885,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 either(this.``l-bare-document``)
                 ifneither (
                     let prs2 = prs.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
-                    Some(this.ResolveTag prs2 PlainEmptyNode))
+                    Some(this.ResolveTag prs2 NonSpecificQM PlainEmptyNode))
             }
         )
         |> ParseState.AddSuccessSR "l-explicit-document" ps
