@@ -22,13 +22,13 @@ let YamlParse s =
     |   _ -> raise (Exception "Not scalar data")
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2779048
-[<Test>]
-let ``Test Simple Line folding``() =
-    YamlParse ">-\n  trimmed\n  \n \n\n  as\n  space" |> should equal "trimmed\n\n\nas space"
+//[<Test>]
+//let ``Test Simple Line folding``() =
+//    YamlParse ">-\n  trimmed\n  \n \n\n  as\n  space" |> should equal "trimmed\n\n\nas space"
 
-[<Test>]
-let ``Test Block Folding with indent``() =
-    YamlParse ">\n  foo \n \n  \t bar\n\n  baz\n" |> should equal "foo \n\n\t bar\n\nbaz\n"
+//[<Test>]
+//let ``Test Block Folding with indent``() =
+//    YamlParse ">\n  foo \n \n  \t bar\n\n  baz\n" |> should equal "foo \n\n\t bar\n\nbaz\n"
 
 
 //  Double quote strings
@@ -37,9 +37,9 @@ let ``Test Block Folding with indent``() =
 let ``Test Double Quoted Single Line - Simple``() =
     YamlParse "\"my simple string\"" |> should equal "my simple string"
 
-[<Test>]
-let ``Test Double Quote Flow Folding - Simple 1``() =
-    YamlParse "\"\n  foo \n \n  \t bar\n\n  baz\n\"" |> should equal " foo\nbar\nbaz "
+//[<Test>]
+//let ``Test Double Quote Flow Folding - Simple 1``() =
+//    YamlParse "\"\n  foo \n \n  \t bar\n\n  baz\n\"" |> should equal " foo\nbar\nbaz "
 
 [<Test>]
 let ``Test Double Quote Flow Folding - Simple 2``() =

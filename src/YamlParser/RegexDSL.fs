@@ -216,8 +216,8 @@ let (|Regex2|_|) (pattern:RGXType) input =
 
 let DecodeEncodedUnicodeCharacters value =
     Regex.Replace(value,
-        @"\\u(?<Value>[a-zA-Z0-9]{4})",
-        (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
+        @"(\\u(?<Value>[a-zA-Z0-9]{4}))|(\\U(?<Value>[a-zA-Z0-9]{8}))",
+        (fun (m:Match) -> (char(Int64.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
 
 let DecodeEncodedHexCharacters value =
     Regex.Replace(value,
@@ -229,7 +229,7 @@ let DecodeEncodedEscapedCharacters value =
         @"\\(?<Value>[0abtnvfre ""/N_LP])",
         (fun (m:Match) -> 
             match (m.Groups.["Value"].Value) with
-            |   "0" -> "\0"
+            |   "0" -> "\x00"
             |   "a" -> "\a"
             |   "b" -> "\b"
             |   "t" -> "\t"

@@ -146,21 +146,21 @@ let ``Test Map key : Map - Sunnny Day Simple``() =
     yml |> pt1.Select |> ToScalar |> should equal "mainkey"
     yml |> pt2.Select |> ToScalar |> should equal "value"
 
-[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2780810
-let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
-    let yml = YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-
-    let pt1 = YamlPath.Create "//{}/{#'first'}?"
-    yml |> pt1.Select |> ToScalar  |> should equal "Sammy"
-
-    let pt2 = YamlPath.Create "//{}/{#'last'}?"
-    yml |> pt2.Select |> ToScalar |> should equal "Sosa"
-
-    let pt3 = YamlPath.Create "//{}?/{#'hr'}?"
-    yml |> pt3.Select |> ToScalar |> should equal "65"
-
-    let pt4 = YamlPath.Create "//{}?/{#'avg'}?"
-    yml |> pt4.Select |> ToScalar |> should equal "0.278"
+//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2780810
+//let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
+//    let yml = YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
+//
+//    let pt1 = YamlPath.Create "//{}/{#'first'}?"
+//    yml |> pt1.Select |> ToScalar  |> should equal "Sammy"
+//
+//    let pt2 = YamlPath.Create "//{}/{#'last'}?"
+//    yml |> pt2.Select |> ToScalar |> should equal "Sosa"
+//
+//    let pt3 = YamlPath.Create "//{}?/{#'hr'}?"
+//    yml |> pt3.Select |> ToScalar |> should equal "65"
+//
+//    let pt4 = YamlPath.Create "//{}?/{#'avg'}?"
+//    yml |> pt4.Select |> ToScalar |> should equal "0.278"
 
 [<Test>]
 let ``Test Map indented implicit entries - Sunnny Day Simple``() =

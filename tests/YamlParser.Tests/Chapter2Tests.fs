@@ -5,51 +5,9 @@
 *)
 
 open NUnit.Framework
-open System
-open YamlParser
-open YamlParse
 open FsUnit
-open RepresentationGraph
-open TagResolution
-open Deserialization
-
-let YamlParse s =
-    let engine = Yaml12Parser()
-    try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
-        let (nodes, ps) = pr
-        let node = nodes.Head
-        printfn "%s" (Deserialize node (ps.TagShorthands))
-        node
-    with
-    | e -> printfn "%A" e; raise e
-
-let YamlParseList s =
-    let engine = Yaml12Parser()
-    try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
-        let (nodes, ps) = pr
-        nodes |> List.iter(fun node -> printfn "%s" (Deserialize node (ps.TagShorthands)))
-        nodes
-    with
-    | e -> printfn "%A" e; raise e
-
-let ToScalar n = 
-    match n with
-    |   Some([ScalarNode nd]) -> nd.Data
-    |   _ -> raise (Exception "Is no scalar")
-
-let ToSequence n =
-    match n with
-    |   Some([SeqNode nd]) -> nd.Data
-    |   _ -> raise (Exception "Is no seq")
-    
-
-let ToScalarTag n = 
-    match n with
-    |   Some([ScalarNode nd]) -> nd.Tag.Uri
-    |   _ -> raise (Exception "Is no scalar")
-
+open TestUtils
+open YamlParser
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760118")>]
 let ``Example 2.1.  Sequence of Scalars``() =
@@ -475,6 +433,7 @@ date: 2002-12-14
         yml |> p.Select |> ToScalar |> should equal v
     )
 
+[<Ignore "TODO: Add support for local tags, and extend global schema">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761694")>]
 let ``Example 2.23. Various Explicit Tags``() =
     let yml = YamlParse "
@@ -494,10 +453,172 @@ application specific tag: !something |
 "
     [
         ("not-date", "2002-04-28")
-        ("picture", "R0lGODlhDAAMAIQAAP//9/X 17unp5WZmZgAAAOfn515eXv Pz7Y6OjuDg4J+fn5OTk6enp 56enmleECcgggoBADs=") 
-        ("application specific tag", "The semantics of the tag above may be different for different documents.") 
+        // TODO: "picture" needs to become real binary
+        ("picture", "R0lGODlhDAAMAIQAAP//9/X\n17unp5WZmZgAAAOfn515eXv\nPz7Y6OjuDg4J+fn5OTk6enp\n56enmleECcgggoBADs=\n")
+        //  TODO: real test with local tag "!something"
+        ("application specific tag", "The semantics of the tag\nabove may be different for\ndifferent documents.\n") 
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
     )
+
+[<Ignore "TODO: Better support for global tags">]
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761719")>]
+let ``Example 2.24. Global Tags``() =
+    let yml = YamlParse "
+%TAG ! tag:clarkevans.com,2002:
+--- !shape
+  # Use the ! handle for presenting
+  # tag:clarkevans.com,2002:circle
+- !circle
+  center: &ORIGIN {x: 73, y: 129}
+  radius: 7
+- !line
+  start: *ORIGIN
+  finish: { x: 89, y: 102 }
+- !label
+  start: *ORIGIN
+  color: 0xFFEEBB
+  text: Pretty vector drawing.
+"
+    [
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+[<Ignore "TODO: This runs, but add support for !!set">]
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761758")>]
+let ``Example 2.25. Unordered Sets``() =
+    let yml = YamlParse "
+# Sets are represented as a
+# Mapping where each key is
+# associated with a null value
+--- !!set
+? Mark McGwire
+? Sammy Sosa
+? Ken Griff
+"
+    [
+        ("Mark McGwire", "")
+        ("Sammy Sosa", "")
+        ("Ken Griff", "") 
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+[<Ignore "TODO: This runs, but add support for !!omap, need to read nesten map in seq with yamlpath">]
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761780")>]
+let ``Example 2.26. Ordered Mappings``() =
+    let yml = YamlParse "
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+--- !!omap
+- Mark McGwire: 65
+- Sammy Sosa: 63
+- Ken Griffy: 58
+"
+    [
+        ("Mark McGwire", "65")
+        ("Sammy Sosa", "63")
+        ("Ken Griff", "58") 
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+
+[<Ignore "TODO: Needs complete fixing">]
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761823")>]
+let ``Example 2.27. Invoice``() =
+    let yml = YamlParse "
+--- !<tag:clarkevans.com,2002:invoice>
+invoice: 34843
+date   : 2001-01-23
+bill-to: &id001
+    given  : Chris
+    family : Dumars
+    address:
+        lines: |
+            458 Walkman Dr.
+            Suite #292
+        city    : Royal Oak
+        state   : MI
+        postal  : 48046
+ship-to: *id001
+product:
+    - sku         : BL394D
+      quantity    : 4
+      description : Basketball
+      price       : 450.00
+    - sku         : BL4438H
+      quantity    : 1
+      description : Super Hoop
+      price       : 2392.00
+tax  : 251.42
+total: 4443.52
+comments:
+    Late afternoon is best.
+    Backup contact is Nancy
+    Billsmer @ 338-4338.
+"
+    [
+        ("invoice", "34843")
+        ("total", "4443.52")
+    ]
+    |> List.iter(fun (k,v) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        yml |> p.Select |> ToScalar |> should equal v
+    )
+
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761866")>]
+let ``Example 2.28. Log File``() =
+    let yml = YamlParseList "
+---
+Time: 2001-11-23 15:01:42 -5
+User: ed
+Warning:
+  This is an error message
+  for the log file
+---
+Time: 2001-11-23 15:02:31 -5
+User: ed
+Warning:
+  A slightly different error
+  message.
+---
+Date: 2001-11-23 15:03:17 -5
+User: ed
+Fatal:
+  Unknown variable \"bar\"
+Stack:
+  - file: TopClass.py
+    line: 23
+    code: |
+      x = MoreObject(\"345\n\")
+  - file: MoreClass.py
+    line: 58
+    code: |-
+      foo = bar
+"
+    yml.Length |> should equal 3
+
+    yml
+    |> List.iter(fun (y) ->
+        let p = YamlPath.Create (sprintf "//{#'User'}?")
+        y |> p.Select |> ToScalar |> should equal "ed"
+    )
+
+    yml
+    |> List.zip [("Time","2001-11-23 15:01:42 -5"); ("Time","2001-11-23 15:02:31 -5");("Date","2001-11-23 15:03:17 -5")]
+    |> List.iter(fun ((k,v),y) ->
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        y |> p.Select |> ToScalar |> should equal v
+    )
+
