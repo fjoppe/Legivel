@@ -33,7 +33,7 @@ type TagShorthand = {
         MappedTagUri : string
     }
     with
-        static member Create short full = { ShortHand = short; MappedTagUri = full}
+        static member Create (short, full) = { ShortHand = short; MappedTagUri = full}
         static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagUri = "tag:yaml.org,2002:"}
 
 
@@ -53,6 +53,7 @@ let private clearTrailingZeros (s:string) =
 module internal NonSpecific =
     let NonSpecificTagQT = Tag.Create("!", "")
     let NonSpecificTagQM = Tag.Create("?", "")
+    let UnresolvedTag = Tag.Create("?", "unresolved")
 
 
 module internal Failsafe =

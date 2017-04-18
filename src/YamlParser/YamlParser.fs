@@ -140,6 +140,8 @@ type ParseState = {
 
         member this.AddDirective d = {this with Directives = d:: this.Directives}
 
+        member this.AddTagShortHand ts = { this with TagShorthands = (ts :: (this.TagShorthands |> List.filter(fun ol -> ts.ShortHand <> ol.ShortHand))) }
+
         static member Create inputStr schema = {
                 LineNumber = 0; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
                 Anchors = Map.empty; TraceSuccess = []; Messages=[]; Directives=[]; 
@@ -184,6 +186,7 @@ module ParseState =
     let AddMessage m (ps:ParseState) = ps.AddMessage m
     let AddDirective d (ps:ParseState) = ps.AddDirective d
     let AddAnchorsFrom (prs:ParseState) (ps:ParseState) = ps.AddAnchors prs.Anchors 
+    let AddTagShortHand ts (ps:ParseState)  = ps.AddTagShortHand ts
 
 let stringPosition (s:string) =
     if s.Length > 10 then s.Substring(0, 10) else s
@@ -266,7 +269,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
                     let prs = this.AddAnchor anchor c prs
-//                    let c = this.AddTag tag c
                     this.ResolveTag prs tag c |> Some
                 |   _ -> None
             |   _  -> Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode)   //  ``e-scalar``
@@ -280,7 +282,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match (prs) with
                 |   Parse(``follow up func``) (c, prs) -> 
                     let prs = this.AddAnchor anchor c prs
-//                    let c = this.AddTag tag c
                     this.ResolveTag prs tag c |> Some
                 |   _ -> None
             |  _ -> Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode )   //  ``e-scalar``
@@ -410,7 +411,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |> List.tryFind(fun t -> t.Uri = (tsh.MappedTagUri+sub)))
             |>  function
                 |   Some t  -> (node.SetTag t, ps)
-                |   None    -> (node, ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub)))
+                |   None    -> (node.SetTag NonSpecific.UnresolvedTag, ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub)))
 
         match tag with
         |   NonSpecificQM   -> ResolveNonSpecificTag "?"
@@ -720,7 +721,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``s-separate-lines`` ps = (this.``s-l-comments`` + (this.``s-flow-line-prefix`` ps)) ||| this.``s-separate-in-line``
 
     //  [82]    http://www.yaml.org/spec/1.2/spec.html#l-directive
-    member this.``l-directive`` (ps:ParseState) : (Directive * ParseState) option = 
+    member this.``l-directive`` (ps:ParseState) : ParseState option = 
         ps 
         |> ParseState.``Match and Advance`` (RGP "%") (fun prs ->
             match prs.InputString with
@@ -740,12 +741,21 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     raise (DocumentException ps)
                 else
                     Some(YAML(mt.ge1), ps.SetRestString mt.Rest)
-            |   Regex2(this.``ns-tag-directive``)   mt    -> Some(TAG(mt.ge2),  ps.SetRestString mt.Rest)
+            |   Regex2(this.``ns-tag-directive``)   mt    -> 
+                let tg = mt.ge2 |> fst
+                let ymlcnt = ps.Directives |> List.filter(function | TAG (t,_) ->  (t=tg) | _ -> false) |> List.length
+                let ps = 
+                    if ymlcnt>0 then (ps |> ParseState.AddMessage (Error (sprintf "You can only add a tag shorthand once: %s" tg)))
+                    else ps
+                if ps.Errors >0 then
+                    raise (DocumentException ps)
+                else
+                    Some(TAG(mt.ge2),  ps.SetRestString (mt.Rest) |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
             |   Regex2(this.``ns-reserved-directive``) mt -> Some(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddMessage (Warn (sprintf "Unsupported directive: %%%s" mt.ge1)))
             |   _   -> None
         )
         |> Option.bind(fun (t,prs) ->
-            prs |> ParseState.``Match and Advance`` (this.``s-l-comments``) (fun prs2 -> Some(t,prs2))
+            prs |> ParseState.``Match and Advance`` (this.``s-l-comments``) (fun prs2 -> prs2.AddDirective t |> Some)
         )
 
     //  [83]    http://www.yaml.org/spec/1.2/spec.html#ns-reserved-directive
@@ -797,7 +807,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let classifyTag t =
             if t = "" then TagKind.Empty
             else
-                let verbatim = this.``c-verbatim-tag``
+                let verbatim = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">")
                 let shorthandNamed = GRP(this.``c-named-tag-handle``) + GRP(OOM(this.``ns-tag-char``))
                 let shorthandSecondary = this.``c-secondary-tag-handle`` + GRP(OOM(this.``ns-tag-char``))
                 let shorthandPrimary = this.``c-primary-tag-handle``+ GRP(OOM(this.``ns-tag-char``))
@@ -813,13 +823,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Regex2(``tag anchor``) mt -> 
             let (tag, anchor) = mt.ge2
             let classifiedTag = classifyTag tag
-            let prs = ps.SetRestString (SkipIfMatch (ps.InputString) ``tag anchor``)
+            let prs = ps.SetRestString (mt.Rest)
             let anchor = if anchor<>"" then anchor.Substring(1) else anchor
             Some(prs, classifiedTag, anchor)
         |   Regex2(``anchor tag``) mt -> 
             let (anchor, tag) = mt.ge2
             let classifiedTag = classifyTag tag
-            let prs = ps.SetRestString (SkipIfMatch (ps.InputString) ``anchor tag``)
+            let prs = ps.SetRestString (mt.Rest)
             let anchor = if anchor<>"" then anchor.Substring(1) else anchor
             Some(prs, classifiedTag, anchor)
         |   _ -> None
@@ -828,7 +838,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-ns-tag-property`` = this.``c-verbatim-tag`` ||| this.``c-ns-shorthand-tag`` ||| this.``c-non-specific-tag``
 
     //  [98]    http://www.yaml.org/spec/1.2/spec.html#c-verbatim-tag
-    member this.``c-verbatim-tag`` = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">") 
+    member this.``c-verbatim-tag`` = (RGP "!<") + OOM(this.``ns-uri-char``) + (RGP ">") 
 
     //  [99]    http://www.yaml.org/spec/1.2/spec.html#c-ns-shorthand-tag
     member this.``c-ns-shorthand-tag`` = this.``c-tag-handle`` + OOM(this.``ns-tag-char``)
@@ -1895,7 +1905,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l-directive-document" ps
         let rec readDirectives ps =
             match ( this.``l-directive`` ps) with
-            |   Some(d, psr) -> readDirectives (psr |> ParseState.AddDirective d)
+            |   Some psr -> readDirectives psr
             |   None         -> ps
         let psr = readDirectives ps
         this.``l-explicit-document`` psr

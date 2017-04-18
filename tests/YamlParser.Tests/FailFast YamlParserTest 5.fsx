@@ -173,3 +173,9 @@ commercial-at: @text
 grave-accent: `text
 "
 
+YamlParse "
+!!str &a1 \"foo\":
+  !!str bar
+&a2 baz : *a1
+"
+
