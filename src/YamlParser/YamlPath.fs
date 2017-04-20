@@ -140,6 +140,10 @@ type YamlPath = private {
         Evaluation : EvaluationExpression list
     }
     with
+        static member sqrx =
+            let y = Yaml12Parser()
+            y.``nb-single-one-line``
+
         static member Create (s:string) =
             let start (s:string) = 
                 if s.StartsWith("//") then (RootNode, s.Substring(2))
@@ -147,13 +151,16 @@ type YamlPath = private {
             let (root, rs) = start s
 
             let parseEvals s =
+                let plainscalar = RGS( RGP("#'") + GRP(YamlPath.sqrx)+ RGP("'")) + "$" //   "^#'(%s)'$" (YamlPath.sqrx)
+                let mapkeyscalar = RGS( RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}")) + "$" // sprintf "^\{#'(%s)'\}$" (YamlPath.sqrx)
+                let mapvaluescalar = RGS( RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}\?")) + "$" // sprintf "^\{#'(%s)'\}\?$" (YamlPath.sqrx)
                 match s with
-                | Regex(@"^#'([\s\d\w.-]+)'$")      [scalarValue]   -> Val(LiteralScalar scalarValue)
+                | Regex(plainscalar)      [_; scalarValue]   -> Val(LiteralScalar scalarValue)
                 | Regex(@"^#$")                      _               -> Val(AnyScalar)
                 | Regex(@"^\{\}$")                   _               -> Map(AllKeys)
                 | Regex(@"^\{\}\?$")                 _               -> Map(AllValues)
-                | Regex(@"^\{#'([\s\d\w.-]*)'\}$")   [scalarValue]   -> Map(GivenKey scalarValue)
-                | Regex(@"^\{#'([\s\d\w.-]*)'\}\?$") [scalarValue]   -> Map(MappedValueForKey scalarValue)
+                | Regex(mapkeyscalar)   [_; scalarValue]   -> Map(GivenKey scalarValue)
+                | Regex(mapvaluescalar) [_; scalarValue]   -> Map(MappedValueForKey scalarValue)
                 | Regex(@"^\[\]$")               _                   -> Seq(SeqValues)
                 | _  -> raise (YamlPathException (sprintf "Unsupported construct: %s" s))
 

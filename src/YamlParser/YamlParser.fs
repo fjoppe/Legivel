@@ -1119,7 +1119,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   (true, mt, frs) ->  
                     ``ns-s-flow-map-entries`` (prs.SetRestString frs) lst
                 |   (false, _,_)    -> CreateMapNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag prs NonSpecificQT |> Some
-            |   _ -> None   // empty sequence
+            |   _ -> 
+                if lst.Length = 0 then None   // empty sequence
+                else CreateMapNode (NonSpecific.NonSpecificTagQT) (lst |> List.rev) |> this.ResolveTag ps NonSpecificQT |> Some
         ``ns-s-flow-map-entries`` ps []
         |> ParseState.AddSuccessSR "ns-s-flow-map-entries" ps        
 
@@ -1180,9 +1182,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps |> ParseState.``Match and Advance`` (RGP ":") (fun prs ->
             if IsMatch(prs.InputString, (this.``ns-plain-safe`` prs)) then None
             else
-                match prs with
-                |   Regex3(this.``s-separate`` prs) (_, prs) -> this.``ns-flow-node`` prs
-                |   _ -> PlainEmptyNode |> this.ResolveTag prs NonSpecificQM |> Some   //  ``e-node``
+                prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
+                |>  function
+                    |   Some v  -> Some v
+                    |   None    -> PlainEmptyNode |> this.ResolveTag prs NonSpecificQM |> Some   //  ``e-node``
+//                match prs with
+//                |   Regex3(this.``s-separate`` prs) (_, prs2) -> this.``ns-flow-node`` prs2
+//                |   _ -> PlainEmptyNode |> this.ResolveTag prs NonSpecificQM |> Some   //  ``e-node``
         )
         |> ParseState.AddSuccessSR "c-ns-flow-map-separate-value" ps     
 

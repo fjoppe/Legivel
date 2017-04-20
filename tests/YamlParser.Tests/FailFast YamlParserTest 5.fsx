@@ -179,3 +179,41 @@ YamlParse "
 &a2 baz : *a1
 "
 
+YamlParse "
+{
+  foo : !!str,
+  !!str : bar,
+}
+"
+
+YamlParse "
+# Outside flow collection:
+- ::vector
+- \": - ()\"
+- Up, up, and away!
+- -123
+- http://example.com/foo#bar
+# Inside flow collection:
+- [ ::vector,
+  \": - ()\",
+  \"Up, up and away!\",
+  -123,
+  http://example.com/foo#bar ]
+  "
+
+
+YamlParse "
+- { one : two , three: four , }
+- {five: six,seven : eight}
+"
+  
+
+YamlParse "
+{
+unquoted : \"separate\",
+http://foo.com,
+omitted value:,
+: omitted key,
+}
+"
+

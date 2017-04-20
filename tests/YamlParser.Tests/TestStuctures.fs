@@ -123,11 +123,11 @@ let ``Test Map Hybrid Notation - Sunnny Day Simple``() =
     let pth = YamlPath.Create "//{#'empty'}?"
     yml |> pth.Select |> ToScalarTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
 
-[<Test>]
-let ``Test Map with inline Comments - Sunnny Day Simple``() =
-    let pth = YamlPath.Create "//{#'key'}?"
-    YamlParse "key:    # Comment\n  value" |> pth.Select |> ToScalar |> should equal "value"
-    YamlParse "key:    # Comment\n        # lines\n  value\n\n" |> pth.Select |> ToScalar |> should equal "value"
+//[<Test>]
+//let ``Test Map with inline Comments - Sunnny Day Simple``() =
+//    let pth = YamlPath.Create "//{#'key'}?"
+//    YamlParse "key:    # Comment\n  value" |> pth.Select |> ToScalar |> should equal "value"
+//    YamlParse "key:    # Comment\n        # lines\n  value\n\n" |> pth.Select |> ToScalar |> should equal "value"
 
 [<Test>]
 let ``Test Map Null : Null - Sunnny Day Simple``() =
@@ -189,17 +189,17 @@ let ``Test Map implicit entries with indented seq value - Sunnny Day Simple``() 
     let pt2 = YamlPath.Create "//{#'block sequence'}?/[]/{#'two'}?"
     yml |> pt2.Select |> ToScalar |> should equal "three"
 
-[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787109
-let ``Test Map Double Quoted style - Sunnny Day Simple``() =
-    let yml = YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
-    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
-    yml |> pt.Select |> ToScalar |> should equal "value"
+//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787109
+//let ``Test Map Double Quoted style - Sunnny Day Simple``() =
+//    let yml = YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
+//    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
+//    yml |> pt.Select |> ToScalar |> should equal "value"
 
-[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2788496
-let ``Test Map Single Quoted style - Sunnny Day Simple``() =
-    let yml = YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
-    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
-    yml |> pt.Select |> ToScalar |> should equal "value"
+//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2788496
+//let ``Test Map Single Quoted style - Sunnny Day Simple``() =
+//    let yml = YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
+//    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
+//    yml |> pt.Select |> ToScalar |> should equal "value"
 
 
     

@@ -40,14 +40,14 @@ let ``Test Double Quoted Single Line - Simple``() =
 //[<Test>]
 //let ``Test Double Quote Flow Folding - Simple 1``() =
 //    YamlParse "\"\n  foo \n \n  \t bar\n\n  baz\n\"" |> should equal " foo\nbar\nbaz "
+//
+//[<Test>]
+//let ``Test Double Quote Flow Folding - Simple 2``() =
+//    YamlParse "\" 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty \"" |> should equal " 1st non-empty\n2nd non-empty 3rd non-empty " 
 
-[<Test>]
-let ``Test Double Quote Flow Folding - Simple 2``() =
-    YamlParse "\" 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty \"" |> should equal " 1st non-empty\n2nd non-empty 3rd non-empty " 
-
-[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787745
-let ``Test Double Quote Flow Folding - Escaped``() =
-    YamlParse "\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"" |> should equal "folded to a space,\nto a line feed, or \t \tnon-content"
+//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787745
+//let ``Test Double Quote Flow Folding - Escaped``() =
+//    YamlParse "\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"" |> should equal "folded to a space,\nto a line feed, or \t \tnon-content"
 
 
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2796251
@@ -58,12 +58,12 @@ let ``Test Folded Style``() =
 [<Test>]
 let ``Test Single Quoted Single Line - Simple``() =
     YamlParse "'my simple string'" |> should equal "my simple string"
+//
+//[<Test>]
+//let ``Test Single Quoted Single Line - Escaped``() =
+//    YamlParse "'here''s to \"quotes\"'" |> should equal "here's to \"quotes\""
 
-[<Test>]
-let ``Test Single Quoted Single Line - Escaped``() =
-    YamlParse "'here''s to \"quotes\"'" |> should equal "here's to \"quotes\""
-
-[<Test>]
-let ``Test Single Quote Flow Folding - Simple``() =
-    YamlParse "' 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty '" |> should equal " 1st non-empty\n2nd non-empty 3rd non-empty "
+//[<Test>]
+//let ``Test Single Quote Flow Folding - Simple``() =
+//    YamlParse "' 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty '" |> should equal " 1st non-empty\n2nd non-empty 3rd non-empty "
 
