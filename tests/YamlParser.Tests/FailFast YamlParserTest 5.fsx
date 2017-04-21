@@ -179,12 +179,7 @@ YamlParse "
 &a2 baz : *a1
 "
 
-YamlParse "
-{
-  foo : !!str,
-  !!str : bar,
-}
-"
+
 
 YamlParse "
 # Outside flow collection:
@@ -215,5 +210,39 @@ http://foo.com,
 omitted value:,
 : omitted key,
 }
+"
+
+YamlParse "
+{
+  foo : !!str,
+  !!str : bar,
+}
+"
+
+
+YamlParse "
+- | # Empty header
+ literal
+- >1 # Indentation indicator
+  folded
+- |+ # Chomping indicator
+ keep
+
+- >1- # Both indicators
+  strip
+"
+
+YamlParse "
+- |
+ detected
+- >
+ 
+  
+  # detected
+- |1
+  explicit
+- >
+ \t
+ detected
 "
 

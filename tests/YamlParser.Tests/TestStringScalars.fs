@@ -50,9 +50,9 @@ let ``Test Double Quoted Single Line - Simple``() =
 //    YamlParse "\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"" |> should equal "folded to a space,\nto a line feed, or \t \tnon-content"
 
 
-[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2796251
-let ``Test Folded Style``() =
-    YamlParse ">\n\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n" |> should equal "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n" 
+//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2796251
+//let ``Test Folded Style``() =
+//    YamlParse ">\n\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n" |> should equal "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n" 
 
 //  Single Quoted strings
 [<Test>]

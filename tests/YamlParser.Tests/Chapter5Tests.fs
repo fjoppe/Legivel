@@ -140,7 +140,11 @@ let ``Example 5.11. Line Break Characters``() =
   Line break (glyphed)
 "
     yml.Length |> should equal 1
-//    let yml = yml.Head
+    let yml = yml.Head
+
+    let pth = YamlPath.Create (sprintf "//#")
+    yml |> pth.Select |> ToScalar |> should equal "Line break (no glyph)\nLine break (glyphed)\n"
+
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2775350")>]

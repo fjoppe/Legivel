@@ -260,7 +260,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     member this.AddTag tag (c:Node) = if tag<>"" then c.SetTag(Tag.Create(tag)) else c
 
-
     member this.``content with properties`` (``follow up func``: ParseFuncSignature) ps =
         match (this.``c-ns-properties`` ps) with
         |   Some(prs, tag, anchor) -> 
@@ -271,6 +270,19 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     let prs = this.AddAnchor anchor c prs
                     this.ResolveTag prs tag c |> Some
                 |   _ -> None
+            |   _  -> Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode)   //  ``e-scalar``
+        |   None    -> None
+
+    member this.``content or empty with properties`` (``follow up func``: ParseFuncSignature) ps =
+        match (this.``c-ns-properties`` ps) with
+        |   Some(prs, tag, anchor) -> 
+            match prs with
+            |   Regex3(this.``s-separate`` prs) (mt, prs) -> 
+                match (prs) with
+                |   Parse(``follow up func``) (c, prs) -> 
+                    let prs = this.AddAnchor anchor c prs
+                    this.ResolveTag prs tag c |> Some
+                |   _ -> Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode)   //  ``e-scalar`` None
             |   _  -> Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode)   //  ``e-scalar``
         |   None    -> None
 
@@ -328,10 +340,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let stripAll lst = lst |> List.rev |> List.skipWhile(fun s -> String.IsNullOrWhiteSpace(s)) |> List.rev
         match ps.t with
         | ``Strip`` -> strlst |> stripAll |> doFold BlockFoldPrevType.Empty (new StringBuilder())
-        | ``Clip``  -> if (String.IsNullOrWhiteSpace(List.last strlst)) then 
-                            List.append (strlst |> stripAll) [""] |> doFold BlockFoldPrevType.Empty (new StringBuilder())
-                        else 
-                            strlst |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+        | ``Clip``  -> 
+//            if (String.IsNullOrWhiteSpace(List.last strlst)) then 
+//                List.append (strlst |> stripAll) [""] |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+//            else 
+                strlst |> doFold BlockFoldPrevType.Empty (new StringBuilder())
         | ``Keep``  -> strlst |> doFold BlockFoldPrevType.Empty (new StringBuilder())
 
     member this.``flow fold lines`` (convert:string -> string) ps str =
@@ -1020,7 +1033,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-plain-safe-in`` = this.``ns-char`` - this.``c-flow-indicator``
 
     //  [130]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-char(c)
-    member this.``ns-plain-char`` ps = (this.``ns-plain-safe`` ps) - (RGO ":#") ||| (this.``ns-char`` + (RGP "#")) ||| (RGP ":") + (this.``ns-plain-safe`` ps)
+    member this.``ns-plain-char`` ps = (this.``ns-char`` + (RGP "#")) ||| ((this.``ns-plain-safe`` ps) - (RGO ":#")) ||| ((RGP ":") + (this.``ns-plain-safe`` ps))
 
     //  [131]   http://www.yaml.org/spec/1.2/spec.html#ns-plain(n,c)
     member this.``ns-plain`` (ps:ParseState) =
@@ -1092,6 +1105,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             CreateMapNode (NonSpecific.NonSpecificTagQT) [(ck,cv)] |> this.ResolveTag prs NonSpecificQT |> Some
         |   Parse(this.``ns-flow-node``) (c, prs) -> Some(c, prs)
         |   _ -> None
+        |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "ns-flow-seq-entry"  ps
 
     //  [140]   http://www.yaml.org/spec/1.2/spec.html#c-flow-mapping(n,c)
@@ -1186,9 +1200,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |>  function
                     |   Some v  -> Some v
                     |   None    -> PlainEmptyNode |> this.ResolveTag prs NonSpecificQM |> Some   //  ``e-node``
-//                match prs with
-//                |   Regex3(this.``s-separate`` prs) (_, prs2) -> this.``ns-flow-node`` prs2
-//                |   _ -> PlainEmptyNode |> this.ResolveTag prs NonSpecificQM |> Some   //  ``e-node``
         )
         |> ParseState.AddSuccessSR "c-ns-flow-map-separate-value" ps     
 
@@ -1337,7 +1348,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps.OneOf {
             either (this.``c-ns-alias-node``)
             either (this.``ns-flow-yaml-content``)
-            either (this.``content with properties`` this.``ns-flow-yaml-content``)
+            either (this.``content or empty with properties`` this.``ns-flow-yaml-content``)
             ifneither (None)
         }
         |> ParseState.AddSuccessSR  "ns-flow-yaml-node" ps
@@ -1357,7 +1368,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps.OneOf {
             either (this.``c-ns-alias-node``)
             either (this.``ns-flow-content``)
-            either (this.``content with properties`` this.``ns-flow-content``)
+            either (this.``content or empty with properties`` this.``ns-flow-content``)
             ifneither (None)
         }
         |> ParseState.AddSuccessSR "ns-flow-node" ps
@@ -1515,7 +1526,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |   Some(m) -> m
                     |   None    ->
                     match (``folded-content`` prs2) with
-                    |   Some(ms, prs3) ->  
+                    |   Some(ms, _) ->  
                         let split = ms |> this.``split by linefeed`` 
                         let aut = split |> this.``auto detect indent in block`` prs2.n
                         if aut < 0 then raise (ParseException "Lesser indented than expected")
@@ -1601,18 +1612,23 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let m = if m<0 then 0 else m
         let ps = ps.SetSubIndent m
 
-        match HasMatches(ps.InputString, RGS((this.``s-indent(n)`` (ps.SetIndent ps.m)))) with
-        |   (true, mt, frs) -> 
-            let prs = ps |> ParseState.SetRestString frs |> ParseState.SetIndent (ps.n+1+ps.m) |> ParseState.SetSubIndent 0
-            (prs |> ParseState.OneOf) {
-                either (this.``ns-l-compact-sequence``)
-                either (this.``ns-l-compact-mapping``)
-                either (fun _ -> this.``s-l+block-node`` prs)
-                ifneither (
-                    let prs2 = prs.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
-                    Some(this.ResolvedNullNode prs2, prs2))
-            }
-        |   (false, _, _) -> None
+        let ``indented compact`` ps =
+            ps |> ParseState.``Match and Advance`` (this.``s-indent(n)`` (ps.SetIndent ps.m)) (fun prs ->
+                let prs = prs |> ParseState.SetIndent (ps.n+1+ps.m) |> ParseState.SetSubIndent 0
+                (prs |> ParseState.OneOf) {
+                    either (this.``ns-l-compact-sequence``)
+                    either (this.``ns-l-compact-mapping``)
+                    ifneither None
+                }
+            )
+
+        (ps |> ParseState.OneOf) {
+            either (``indented compact``)
+            either (this.``s-l+block-node``)
+            ifneither (
+                let prs2 = ps.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
+                Some(this.ResolvedNullNode prs2, prs2))
+        }
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "s-l+block-indented" ps
 

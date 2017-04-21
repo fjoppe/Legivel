@@ -142,32 +142,39 @@ type YamlPath = private {
     with
         static member sqrx =
             let y = Yaml12Parser()
-            y.``nb-single-one-line``
+            let ps = ParseState.Create "" (TagResolution.FailsafeSchema)
+            y.``nb-single-multi-line`` ps
 
         static member Create (s:string) =
             let start (s:string) = 
-                if s.StartsWith("//") then (RootNode, s.Substring(2))
+                if s.StartsWith("//") then (RootNode, s.Substring(1))
                 else raise (YamlPathException "Yaml path must start with //")
             let (root, rs) = start s
 
             let parseEvals s =
-                let plainscalar = RGS( RGP("#'") + GRP(YamlPath.sqrx)+ RGP("'")) + "$" //   "^#'(%s)'$" (YamlPath.sqrx)
-                let mapkeyscalar = RGS( RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}")) + "$" // sprintf "^\{#'(%s)'\}$" (YamlPath.sqrx)
-                let mapvaluescalar = RGS( RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}\?")) + "$" // sprintf "^\{#'(%s)'\}\?$" (YamlPath.sqrx)
+                let plainscalar = RGP("#'") + GRP(YamlPath.sqrx)+ RGP("'") 
+                let mapkeyscalar = RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}") 
+                let mapvaluescalar = RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}\?") 
                 match s with
-                | Regex(plainscalar)      [_; scalarValue]   -> Val(LiteralScalar scalarValue)
-                | Regex(@"^#$")                      _               -> Val(AnyScalar)
-                | Regex(@"^\{\}$")                   _               -> Map(AllKeys)
-                | Regex(@"^\{\}\?$")                 _               -> Map(AllValues)
-                | Regex(mapkeyscalar)   [_; scalarValue]   -> Map(GivenKey scalarValue)
-                | Regex(mapvaluescalar) [_; scalarValue]   -> Map(MappedValueForKey scalarValue)
-                | Regex(@"^\[\]$")               _                   -> Seq(SeqValues)
+                |   Regex2(plainscalar)     mt -> Val(LiteralScalar (mt.ge1)),mt.Rest
+                |   Regex2(RGP("#"))        mt -> Val(AnyScalar),mt.Rest
+                |   Regex2(RGP(@"\{\}\?"))  mt -> Map(AllValues),mt.Rest
+                |   Regex2(RGP(@"\{\}"))    mt -> Map(AllKeys),mt.Rest
+                |   Regex2(mapvaluescalar)  mt -> Map(MappedValueForKey mt.ge1),mt.Rest
+                |   Regex2(mapkeyscalar)    mt -> Map(GivenKey mt.ge1),mt.Rest
+                |   Regex2(RGP(@"\[\]"))    mt -> Seq(SeqValues),mt.Rest
                 | _  -> raise (YamlPathException (sprintf "Unsupported construct: %s" s))
 
             let evals = 
-                rs.Split([|"/"|], StringSplitOptions.RemoveEmptyEntries)
-                |> List.ofArray
-                |> List.map(parseEvals)
+                let rec parseIt str evs =
+                    if str = "" then
+                        evs |> List.rev
+                    else
+                        if not(str.StartsWith "/") then raise (YamlPathException (sprintf "Invalid construct, expecting '/' but was: %s" str))
+                        let str  = str.Substring(1)
+                        let (e,r) = parseEvals str
+                        parseIt (r) (e :: evs)
+                parseIt rs []
 
             //  Validate: scalars may only appear at the end of an Ypath string
             evals |> List.rev |> List.tail |> List.iter(fun e ->

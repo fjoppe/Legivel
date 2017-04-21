@@ -54,6 +54,7 @@
     <Compile Include="Chapter5Tests.fs" />
     <Compile Include="Chapter6Tests.fs" />
     <Compile Include="Chapter7Tests.fs" />
+    <Compile Include="Chapter8Tests.fs" />
     <Compile Include="TestSpookyHash.fs" />
     <Compile Include="TestSchema.fs" />
     <Compile Include="TestStringScalars.fs" />

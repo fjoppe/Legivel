@@ -185,13 +185,19 @@ let ``Example 7.10. Plain Characters``() =
     yml.Length |> should equal 1
     let yml = yml.Head
 
-    ["::vector" ; ": - ()"; "Up, up, and away!"; "-123"; "http://example.com/foo#bar"]
+    ["::vector" ; ": - ()"; "-123"; "http://example.com/foo#bar"]
     |> List.iter(fun (v) ->
         let p1 = YamlPath.Create (sprintf "//[]/#'%s'" v)
         let p2 = YamlPath.Create (sprintf "//[]/[]/#'%s'" v)
         yml |> p1.Select |> ToScalar |> should equal v
         yml |> p2.Select |> ToScalar |> should equal v
     )
+
+    //  trip over a single comma..
+    let p1 = YamlPath.Create (sprintf "//[]/#'%s'" "Up, up, and away!")
+    let p2 = YamlPath.Create (sprintf "//[]/[]/#'%s'" "Up, up and away!")
+    yml |> p1.Select |> ToScalar |> should equal "Up, up, and away!"
+    yml |> p2.Select |> ToScalar |> should equal "Up, up and away!"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2789794")>]
@@ -416,12 +422,14 @@ let ``Example 7.21. Single Pair Implicit Entries``() =
     [
         ("YAML","separate")
         ("","empty key entry")
-        ("{}?","adjacent")
     ]
     |> List.iter(fun (k,v) ->
-        let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
+        let p = YamlPath.Create (sprintf "//[]/[]/{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
     )
+    let p = YamlPath.Create (sprintf "//[]/[]/{}?/#'adjacent'" )
+    yml |> p.Select |> ToScalar |> should equal "adjacent"
+
 
 
 [<Ignore "Check error">]
