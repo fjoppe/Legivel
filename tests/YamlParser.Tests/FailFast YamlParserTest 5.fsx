@@ -22,6 +22,7 @@ let YamlParse s =
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
         let (nodes, ps) = pr
         let node = nodes.Head
+        printfn "Total lines: %d" ps.LineNumber
         printfn "%s" (Deserialize node (ps.TagShorthands))
         ps.Messages |> List.iter(fun i -> 
             match i with
@@ -40,6 +41,19 @@ let YamlParseList s =
     with
     | e -> printfn "%A" e; raise e
 
+
+YamlParse "
+canonical: 2001-12-15T02:59:43.1Z
+iso8601: 2001-12-14t21:59:43.10-05:00
+spaced: 2001-12-14 21:59:43.10 -5
+date: 2002-12-14
+"
+
+YamlParse "
+null:
+booleans: [ true, false ]
+string: '012345'
+"
 
 YamlParse "
 !!str &a1 \"foo\":

@@ -38,7 +38,6 @@ let CreateMapNode tag d =
               |> NodeHash.Merge)
         )
     )
-    
 
 
 let CreateSeqNode tag d = 
@@ -103,9 +102,13 @@ type ParseState = {
         TraceSuccess: (string*ParseState) list
     }
     with
-        member this.SetRestString s = { this with InputString = s}
-        member this.AddAnchor s n = 
-            {this with Anchors = this.Anchors.Add(s, n)}
+        member this.CountLines s =
+            let patt = "\u000d\u000a|\u000d|\u000a" // see rule [28] ``b-break``
+            let lc = Regex.Matches(s, patt).Count    //  counts \n in a string
+            { this with LineNumber = this.LineNumber + lc}
+
+        member this.SetRestString s = { this with InputString = s }
+        member this.AddAnchor s n =  {this with Anchors = this.Anchors.Add(s, n)}
 
         member this.AddAnchors al =
             let newAchors = al |> Map.fold(fun (s:Map<string,Node>) k v -> s.Add(k, v)) this.Anchors
@@ -116,7 +119,13 @@ type ParseState = {
             else None
 //            raise (ParseException (sprintf "Referenced anchor '%s' is unknown in line %d" s this.LineNumber))
 
-        member this.SkipIfMatch p = this.SetRestString(SkipIfMatch (this.InputString) p)
+        [<DebuggerStepThrough>]
+        member this.SkipIfMatch p = 
+            match (HasMatches(this.InputString, p)) with
+            |   (true, mt,frs)  -> 
+                let res = this.SetRestString(frs)
+                res.CountLines mt
+            |   (false, _,_)    -> this
 
         member  this.SetStyleContext cn = { this with c = cn}
 
@@ -152,17 +161,8 @@ exception DocumentException of ParseState
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module ParseState = 
-    let inline OneOf (ps:ParseState) = EitherBuilder(ps)
-    let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
-        match (HasMatches(ps.InputString, patt)) with
-        |   (true, _, rest) -> ps.SetRestString rest |> postAdvanceFunc
-        |   (false, _, _)    -> None
 
-    let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
-        match (HasMatches(ps.InputString, patt)) with
-        |   (true, mt, rest) -> ps.SetRestString rest |> parseFunc mt
-        |   (false, _, _)    -> None
-
+    let CountLines s (ps:ParseState) = ps.CountLines s
     let SetStyleContext cn (ps:ParseState) = ps.SetStyleContext cn
     let SetIndent nn (ps:ParseState) = ps.SetIndent nn
     let SetSubIndent mn (ps:ParseState) = ps.SetSubIndent mn
@@ -179,21 +179,24 @@ module ParseState =
         |> SetSubIndent (ps.m)
     let ResetEnvSR ps pso = pso |> Option.map(fun (any, prt) -> (any, (renv(prt,ps))))
     let ResetEnvMR ps pso = pso |> Option.map(fun (any1, any2, prt) -> (any1, any2, (renv(prt,ps))))
+    let ResetLineCount ps = { ps with LineNumber = 0}
+
 
     let AddMessage m (ps:ParseState) = ps.AddMessage m
     let AddDirective d (ps:ParseState) = ps.AddDirective d
     let AddAnchorsFrom (prs:ParseState) (ps:ParseState) = ps.AddAnchors prs.Anchors 
     let AddTagShortHand ts (ps:ParseState)  = ps.AddTagShortHand ts
 
-let stringPosition (s:string) =
-    if s.Length > 10 then s.Substring(0, 10) else s
+    let inline OneOf (ps:ParseState) = EitherBuilder(ps)
+    let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
+        match (HasMatches(ps.InputString, patt)) with
+        |   (true, mt, rest) -> ps |> SetRestString rest |> CountLines mt |> postAdvanceFunc
+        |   (false, _, _)    -> None
 
-
-let restString i o =
-    match o with 
-    |   None         -> i
-    |   Some(c, ors) -> ors.InputString
-
+    let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
+        match (HasMatches(ps.InputString, patt)) with
+        |   (true, mt, rest) -> ps |> SetRestString rest |> CountLines mt |> parseFunc mt
+        |   (false, _, _)    -> None
 
 type ParseFuncSingleResult = (Node * ParseState) option         //  returns parsed node, if possible
 type ParseFuncMappedResult = (Node * Node * ParseState) option  //  returns parsed key-value pair, if possible
@@ -212,14 +215,14 @@ let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
         let fullMatch = lst |> List.head
         let rest = Advance(fullMatch, ps.InputString)
         let groups = lst |> List.tail
-        Some(MatchResult.Create fullMatch rest groups, ps.SetRestString rest)
+        Some(MatchResult.Create fullMatch rest groups, ps |> ParseState.CountLines fullMatch |> ParseState.SetRestString rest)
     else None
 
 type Yaml12Parser(loggingFunction:string->unit) =
 
     let logger s ps =
         let str = if ps.InputString.Length > 10 then ps.InputString.Substring(0, 10) else ps.InputString
-        sprintf "%s\t\"%s\" i:%d c:%A &a:%d" s (str.Replace("\n","\\n")) (ps.n) (ps.c) (ps.Anchors.Count) |> loggingFunction
+        sprintf "%s\t\"%s\" l:%d i:%d c:%A &a:%d" s (str.Replace("\n","\\n")) (ps.LineNumber) (ps.n) (ps.c) (ps.Anchors.Count) |> loggingFunction
 
     new() = Yaml12Parser(fun _ -> ())
 
@@ -829,17 +832,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   Regex2(this.``c-non-specific-tag``) mr -> NonSpecificQT
                 |   _ -> raise (ParseException "Unexpected Tag format")
 
-        match (ps.InputString) with
-        |   Regex2(``tag anchor``) mt -> 
+        match ps with
+        |   Regex3(``tag anchor``) (mt, prs) -> 
             let (tag, anchor) = mt.ge2
             let classifiedTag = classifyTag tag
-            let prs = ps.SetRestString (mt.Rest)
             let anchor = if anchor<>"" then anchor.Substring(1) else anchor
             Some(prs, classifiedTag, anchor)
-        |   Regex2(``anchor tag``) mt -> 
+        |   Regex3(``anchor tag``) (mt, prs) -> 
             let (anchor, tag) = mt.ge2
             let classifiedTag = classifyTag tag
-            let prs = ps.SetRestString (mt.Rest)
             let anchor = if anchor<>"" then anchor.Substring(1) else anchor
             Some(prs, classifiedTag, anchor)
         |   _ -> None
@@ -1309,7 +1310,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 //        let ps = ps.SetIndent ``n/a``
         match (ps) with
         |   Parse(this.``ns-flow-yaml-node``) (ck, prs) -> 
-            let prs = prs.SetRestString(SkipIfMatch prs.InputString (OPT(this.``s-separate-in-line``)))
+            let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
             Some(ck, prs)
         |   _ -> None
         |> ParseState.AddSuccessSR "ns-s-implicit-yaml-key" ps
@@ -1709,11 +1710,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match (prs1) with
             |   Parse(this.``l-block-map-explicit-value``) (cv, prs1) -> Some(ck, cv, prs1)
             |   _   ->
-                match HasMatches(prs1.InputString, RGS(this.``e-node``)) with
-                |   (true, _, frs) -> 
-                    let prs2 = prs1.SetRestString frs
-                    Some(ck, this.ResolvedNullNode prs2, prs2)
-                |   _ -> raise (ParseException "Cannot identify mapping value")
+                prs1 |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs2 -> Some(ck, this.ResolvedNullNode prs2, prs2))
+                |>  function
+                    |   None    ->  raise (ParseException "Cannot identify mapping value")
+                    |   v       ->  v
         |   None -> None
         |> ParseState.AddSuccessMR "c-l-block-map-explicit-entry" ps
 
@@ -1745,9 +1745,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match (ps) with
         |   Parse(this.``ns-s-block-map-implicit-key``) (ck, prs1) -> matchValue(ck, prs1)
         |   _   ->
-            match HasMatches(ps.InputString, RGS(this.``e-node``)) with
-            |   (true, mt, frs) -> matchValue (this.ResolveTag (ps.SetRestString frs) NonSpecificQM PlainEmptyNode)
-            |   _ -> None
+            ps |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs ->
+                matchValue (this.ResolveTag prs NonSpecificQM PlainEmptyNode)
+            )
         |> ParseState.AddSuccessMR "ns-l-block-map-implicit-entry" ps
 
     //  [193]   http://www.yaml.org/spec/1.2/spec.html#ns-s-block-map-implicit-key
@@ -1769,9 +1769,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match (prs) with
             |   Parse(this.``s-l+block-node``)  (c, prs2) -> Some(c, prs2)
             |   _ ->
-                match (HasMatches(prs.InputString, RGS((this.``e-node`` +  this.``s-l-comments``)))) with
-                |   (true, _, frs2) -> Some(this.ResolveTag (prs.SetRestString frs2) NonSpecificQM PlainEmptyNode)
-                |   (false, _, _) -> None        
+                prs |> ParseState.``Match and Advance`` (this.``e-node`` +  this.``s-l-comments``) (fun prs ->
+                    Some(this.ResolveTag prs NonSpecificQM PlainEmptyNode)
+                )
         )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "c-l-block-map-implicit-value" ps
@@ -1925,7 +1925,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [210]   http://www.yaml.org/spec/1.2/spec.html#l-any-document
     member this.``l-any-document`` (ps:ParseState) : ParseFuncSingleResult =
         logger "l-any-document" ps
-        ps.OneOf {
+        (ps |> ParseState.ResetLineCount |> ParseState.OneOf) {
             either(this.``l-directive-document``)
             either(this.``l-explicit-document``)
             either(this.``l-bare-document``)

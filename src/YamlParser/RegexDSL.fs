@@ -184,11 +184,11 @@ let HasMatches(s,p) =
 /// Checks for matches of pattern p in string s.
 /// If matched, returns rest-string, otherwise s.
 /// This function may be useful to skip whitespace.
-[<DebuggerStepThrough>]
-let SkipIfMatch (s:string) (p:RGXType) =
-    match (HasMatches(s, p)) with
-    |   (true, mt,frs)  -> frs
-    |   (false, _,_)    -> s
+//[<DebuggerStepThrough>]
+//let SkipIfMatch (s:string) (p:RGXType) =
+//    match (HasMatches(s, p)) with
+//    |   (true, mt,frs)  -> frs
+//    |   (false, _,_)    -> s
 
 [<DebuggerStepThrough>]
 let ``value or zero`` sv =
