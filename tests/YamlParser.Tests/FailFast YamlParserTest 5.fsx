@@ -41,23 +41,9 @@ let YamlParseList s =
     with
     | e -> printfn "%A" e; raise e
 
-
 YamlParse "
-canonical: 2001-12-15T02:59:43.1Z
-iso8601: 2001-12-14t21:59:43.10-05:00
-spaced: 2001-12-14 21:59:43.10 -5
-date: 2002-12-14
-"
-
-YamlParse "
-null:
-booleans: [ true, false ]
-string: '012345'
-"
-
-YamlParse "
-!!str &a1 \"foo\":
-  !!str bar
-&a2 baz : *a1
+%TAG !yaml! tag:yaml.org,2002:
+---
+!yaml!str \"foo\"
 "
 

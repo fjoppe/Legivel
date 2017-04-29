@@ -49,7 +49,12 @@ type NodeHash = private {
 module NodeHash = 
     let Create s = NodeHash.Create s
     let Merge nhl = NodeHash.Merge nhl
-    
+
+module Option =
+    let ifnone f v  = 
+        match v with
+        |   None    -> f
+        |   x       -> x
 
 module ParserMonads =
     open System.Diagnostics

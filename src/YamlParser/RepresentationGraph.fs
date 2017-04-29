@@ -10,22 +10,25 @@ type NodeKind =
 
 type Tag = {
         Uri     : string
+        Kind    : NodeKind
         Regex   : string
         canonFn : string -> string
     }
     with
-        static member Create (uri, rgx, canon) =
+        static member Create (uri, nk, rgx, canon) =
             { 
                 Uri = uri; 
+                Kind = nk;
                 Regex = sprintf "\\A(%s)\\z" rgx
                 canonFn = canon
             }
 
-        static member Create (uri, rgx) = Tag.Create (uri, rgx, fun s -> s)
+        static member Create (uri, nk, rgx) = Tag.Create (uri, nk, rgx, fun s -> s)
 
-        static member Create (uri) = Tag.Create (uri, ".*", fun s -> s)
+        static member Create (uri, nk) = Tag.Create (uri, nk, ".*", fun s -> s)
 
         member this.Canonical s = this.canonFn s
+
 
 type NodeData<'T> = {
         Tag  : Tag

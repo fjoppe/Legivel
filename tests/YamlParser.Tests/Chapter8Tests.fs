@@ -478,12 +478,13 @@ folded:
   >1
  value
 "
+
     yml.Length |> should equal 1
     let yml = yml.Head
 
     [
-        ("literal","value")
-        ("folded","value")
+        ("literal","value\n")   // in the example, the '\n' is missing 
+        ("folded","value\n")    // in the example, the '\n' is missing 
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
