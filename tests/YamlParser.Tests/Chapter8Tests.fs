@@ -156,7 +156,7 @@ keep: |+
         ("keep","\n")
     ]
     |> List.iter(fun (k,v) ->
-        let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
     )
 

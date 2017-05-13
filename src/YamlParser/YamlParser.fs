@@ -239,13 +239,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     member this.``auto detect indent in block`` n (slst: string list) = 
         let ``match indented content`` s = 
-            let icp = GRP(ZOM(RGP this.``s-space``)) + OOM(this.``ns-char``)
+            let icp = GRP(OOM(RGP this.``s-space``)) + OOM(this.``ns-char``)
             match s with
             | Regex2(icp) mt -> Some(mt.ge1.Length - n)
             | _-> None
         slst
         |> List.tryPick(``match indented content``)
-        |> function
+        |>  function
             | Some v -> v 
             | None   -> 0
 
@@ -1464,19 +1464,19 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let trimIndent pst (slist: string list) =
             let skipIndent s = 
-                if IsMatch(s, RGS(this.``s-indent(n)`` pst)) then s.Substring(pst.n)
-                else failwith (sprintf "Problem with indentation: %s" s)
+                match s with
+                |   Regex(RGS(this.``s-indent(n)`` pst))    _ -> s.Substring(pst.n)
+                |   Regex(RGS(this.``s-indent(<n)`` pst))   _ -> ""
+                |   _ -> failwith (sprintf "Problem with indentation: %s" s)
             let unIndent s = if s <> "" then skipIndent s else s
 
             let ``l-empty`` = RGSF((this.``s-line-prefix`` (pst.SetStyleContext ``Block-in``)) ||| (this.``s-indent(<n)`` pst))
             let ``l-literaltext`` = RGSF((this.``s-indent(n)`` pst) + OOM(this.``nb-char``))
 
             let trimTail sin sout =
-                printfn "trimTail"
                 match sin with
                 |   []  -> sout |> List.rev
-                |   h :: rest ->
-                    printfn "cl: '%s'" h
+                |   h :: _ ->
                     let patt = this.``l-chomped-empty`` pst + RGP("\\z")
                     if (h="") || IsMatch(h, patt) then sout |> List.rev
                     else raise (ParseException (sprintf "Unexpected characters"))
@@ -1486,7 +1486,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match sin with
                 |   []  -> sout |> List.rev
                 |   h :: rest ->
-                    printfn "cl: '%s'" h
                     if (h="") then 
                         trimMain rest (unIndent h :: sout)
                     else
@@ -1496,7 +1495,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         |   _ -> trimTail sin sout
 
             let rec trimHead sin sout =
-                printfn "trimHead"
                 match sin with
                 |   []  -> sout |> List.rev
                 |   h :: rest ->
@@ -1513,7 +1511,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         ps |> ParseState.``Match and Advance`` (RGP "\\|") (fun prs ->
             let ``literal-content`` (ps:ParseState) =
-                let ps = if ps.n < 0 then (ps.SetIndent 0) else ps
+                let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
                 let p = this.``l-literal-content`` ps
                 match ps.InputString  with
                 |   Regex2(p)  m -> Some(m.ge1, ps.SetRestString m.Rest)
@@ -1561,14 +1559,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "c-l+folded" ps
         ps |> ParseState.``Match and Advance`` (RGP ">") (fun prs ->
             let ``folded-content`` (ps:ParseState) =
-                let ps = if ps.n < 0 then ps.SetIndent 0 else ps
+                let ps = if ps.n < 1 then ps.SetIndent 1 else ps
                 let patt = this.``l-folded-content`` (ps.FullIndented)
                 match ps with
                 |   Regex3(patt)  (m,p) -> Some(m.ge1, p)
                 |   _ -> None
             
             let (pm, prs2) = (this.``c-b-block-header`` prs)
-            
             let m = match pm with
                     |   Some(m) -> m
                     |   None    ->
