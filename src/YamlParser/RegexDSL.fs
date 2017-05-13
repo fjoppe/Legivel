@@ -131,8 +131,11 @@ let RGO c = OneInSet(OneInSet.Create c)
 /// Exclude Set regex pattern, eg: NOT(RGO("a-zA-Z")) := [^a-zA-Z]
 let NOT (c:RGXType) = c.Not
 
-/// Regex ToString
+/// Regex ToString - match from string start
 let RGS p = sprintf "\\A(%O)" p
+
+/// Regex ToString - full string match
+let RGSF p = sprintf "\\A(%O)\\z" p
 
 /// Creates Regex group, eg GRP(RGP("abc")) := (abc)
 let GRP p = Group(p)
@@ -164,7 +167,7 @@ let Match(s, p) =
         [ for g in mt -> g.Value ] //   |> List.tail
 
 /// Returns whether pattern p matches on string s
-//[<DebuggerStepThrough>]
+[<DebuggerStepThrough>]
 let IsMatch(s, p) = 
     let ml = Match(s, p)
     ml.Length > 0

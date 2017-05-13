@@ -34,7 +34,7 @@ let ``Example 8.1. Block Scalar Header``() =
 
 
 
-[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2793888")>]
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2794311")>]
 let ``Example 8.2. Block Indentation Indicator``() =
     let yml = YamlParseList "
 - |
@@ -95,7 +95,7 @@ keep: |+
         ("keep","text\n")
     ]
     |> List.iter(fun (k,v) ->
-        let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
     )
 
@@ -132,7 +132,7 @@ keep: |+
         ("keep","# text\n")
     ]
     |> List.iter(fun (k,v) ->
-        let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
+        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
     )
 

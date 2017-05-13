@@ -61,6 +61,7 @@
     <Compile Include="TestStuctures.fs" />
     <None Include="FailFast Scalar.fsx" />
     <None Include="FailFast LineFolding.fsx" />
+    <None Include="FailFast LineFolding2.fsx" />
     <None Include="FailFast RegxDSL.fsx" />
     <None Include="FailFast MonadTest.fsx" />
     <None Include="FailFast YamlParserTest 1 - dead.fsx" />

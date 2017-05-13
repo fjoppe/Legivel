@@ -256,106 +256,77 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | _-> -1 // raise (ParseException(sprintf "Cannot detect indentation at '%s'" (stringPosition ps.InputString)))
 
 
-    member this.AddAnchor anchor c (ps:ParseState) = if anchor<> "" then (ps.AddAnchor anchor c) else ps
-
-
     member this.``content with properties2`` (``follow up func``: ParseFuncSignature) ps =
+        let addAnchor anchor c (ps:ParseState) = if anchor<> "" then (ps.AddAnchor anchor c) else ps
         match (this.``c-ns-properties`` ps) with
         |   Some(prs, tag, anchor) -> 
             prs 
             |> ``follow up func``
             |>  Option.bind(fun (c, prs) ->
-                let prs = this.AddAnchor anchor c prs
+                let prs = addAnchor anchor c prs
                 this.ResolveTag prs tag c
             )
         |   None    -> None
 
-    member this.``content with properties`` (``follow up func``: ParseFuncSignature) ps =
-        match (this.``c-ns-properties`` ps) with
-        |   Some(prs, tag, anchor) -> 
-            match prs with
-            |   Regex3(this.``s-separate`` prs) (mt, prs) -> 
-                match (prs) with
-                |   Parse(``follow up func``) (c, prs) -> 
-                    let prs = this.AddAnchor anchor c prs
-                    this.ResolveTag prs tag c
-                |   _ -> None
-            |   _  -> this.ResolveTag prs NonSpecificQM PlainEmptyNode   //  ``e-scalar``
-        |   None    -> None
 
-    member this.``content or empty with properties`` (``follow up func``: ParseFuncSignature) ps =
-        match (this.``c-ns-properties`` ps) with
-        |   Some(prs, tag, anchor) -> 
-            match prs with
-            |   Regex3(this.``s-separate`` prs) (mt, prs) -> 
-                match (prs) with
-                |   Parse(``follow up func``) (c, prs) -> 
-                    let prs = this.AddAnchor anchor c prs
-                    this.ResolveTag prs tag c
-                |   _ -> this.ResolveTag prs NonSpecificQM PlainEmptyNode   //  ``e-scalar`` None
-            |   _  -> this.ResolveTag prs NonSpecificQM PlainEmptyNode   //  ``e-scalar``
-        |   None    -> None
+    member this.``join lines`` (strlst:string list) = String.Join("\n", strlst)
 
-    member this.``content with optional properties`` (``follow up func``: ParseFuncSignature) ps =
-        match (this.``c-ns-properties`` ps) with
-        |   Some(prs, tag, anchor) -> 
-            match prs with
-            |   Regex3(this.``s-separate`` prs) (mt, prs)  -> 
-                match (prs) with
-                |   Parse(``follow up func``) (c, prs) -> 
-                    let prs = this.AddAnchor anchor c prs
-                    this.ResolveTag prs tag c 
-                |   _ -> None
-            |  _ -> this.ResolveTag prs NonSpecificQM PlainEmptyNode  //  ``e-scalar``
-        |   None    -> ``follow up func`` ps
 
-    member this.``block fold lines`` ps (strlst: string list) =
-        let ws2 = GRP(ZOM(this.``s-white``)) + GRP(ZOM(this.``ns-char``))
-        let rec doFold prev (res:StringBuilder)  (lst: string list) =
-            match lst with
-            |   []  -> 
-                match prev with
-                | BlockFoldPrevType.Empty | BlockFoldPrevType.EmptyAfterFolded   -> res.ToString()
-                | _ -> if res.ToString().EndsWith("\n") then res.Remove(res.Length-1,1).ToString() else res.ToString()
-            |   curr :: tail ->
-                match curr with
-                |   Regex2(ws2) mt -> 
-                    let standardContentAppedAndContinue mode (res:StringBuilder) = doFold mode (res.Append(curr.Substring(ps.n)).Append("\n")) tail
-                    logger (sprintf "%s" (res.ToString().Replace("\n","\\n"))) ps
-                    let (w, c) = mt.ge2
-                    if c = "" then
-                        if w.Length > ps.n then standardContentAppedAndContinue Indented res
-                        else
-                            match prev with
-                            | BlockFoldPrevType.Empty | BlockFoldPrevType.Indented | BlockFoldPrevType.EmptyAfterFolded  -> doFold BlockFoldPrevType.Empty (res.Append("\n")) tail
-                            | BlockFoldPrevType.TextLine          -> doFold EmptyAfterFolded (res)   tail
-                    else
-                        if w.Length < ps.n then raise (ParseException(sprintf "Incorrect indentation at: '%s'" curr))
-                        else 
-                            if w.Length > ps.n then
-                                match prev with
-                                | BlockFoldPrevType.Empty 
-                                | BlockFoldPrevType.Indented 
-                                | BlockFoldPrevType.TextLine          -> standardContentAppedAndContinue BlockFoldPrevType.Indented res
-                                | BlockFoldPrevType.EmptyAfterFolded  -> standardContentAppedAndContinue Indented (res.Append("\n"))
-                            else    //  w.Length = n 
-                                match prev with
-                                | BlockFoldPrevType.Empty 
-                                | BlockFoldPrevType.Indented 
-                                | BlockFoldPrevType.EmptyAfterFolded  -> standardContentAppedAndContinue BlockFoldPrevType.TextLine res
-                                | BlockFoldPrevType.TextLine          ->
-                                    let res = if res.ToString().EndsWith("\n") then res.Remove(res.Length-1,1).Append(" ") else res
-                                    doFold BlockFoldPrevType.TextLine (res.Append(curr.Substring(ps.n)).Append("\n") ) tail
-                |   _ -> raise (ParseException(sprintf "Incorrect pattern: '%s'" curr))
+    member this.``chomp lines`` ps strlst =
         let stripAll lst = lst |> List.rev |> List.skipWhile(fun s -> String.IsNullOrWhiteSpace(s)) |> List.rev
         match ps.t with
-        | ``Strip`` -> strlst |> stripAll |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+        | ``Strip`` -> strlst |> stripAll
         | ``Clip``  -> 
-//            if (String.IsNullOrWhiteSpace(List.last strlst)) then 
-//                List.append (strlst |> stripAll) [""] |> doFold BlockFoldPrevType.Empty (new StringBuilder())
-//            else 
-                strlst |> doFold BlockFoldPrevType.Empty (new StringBuilder())
-        | ``Keep``  -> strlst |> doFold BlockFoldPrevType.Empty (new StringBuilder())
+            if (String.IsNullOrWhiteSpace(List.last strlst)) then 
+                List.append (strlst |> stripAll) [""] 
+            else 
+                strlst 
+        | ``Keep``  -> strlst 
+
+
+    member this.``block fold lines`` ps (strlst: string list) =
+        let IsTrimmable s = IsMatch(s, RGSF((this.``s-line-prefix`` ps) ||| (this.``s-indent(<n)`` ps)))
+        let IsSpacedText s = IsMatch(s, RGSF(this.``s-nb-spaced-text`` ps))
+
+        let skipIndent s = 
+            if IsMatch(s, RGS(this.``s-indent(n)`` ps)) then s.Substring(ps.n)
+            else raise (ParseException "Problem with indentation")
+        let unIndent s = if s <> "" then skipIndent s else s
+
+        let rec trimLines inLines outLines noFold =
+            let result nf = 
+                if nf then 
+                    inLines, outLines
+                else
+                    inLines, outLines |> List.tail
+            
+            match inLines with
+            |   []          -> result noFold
+            |   h :: rest   ->
+                if IsTrimmable h then
+                    trimLines rest (h.Trim() :: outLines) noFold
+                else    // non empty
+                    result (noFold || IsSpacedText h)
+
+        let rec foldEverything inLines outLines folded =
+            match inLines with
+            |   []          -> outLines |> List.rev
+            |   h :: rest   ->
+                if IsTrimmable h then
+                    let (inl, outl) = trimLines inLines outLines (outLines.Length = 0 || IsSpacedText outLines.Head || rest.Length = 0)
+                    foldEverything inl outl true
+                else    // non empty
+                    if outLines.Length = 0 then
+                        foldEverything rest (h :: outLines) false
+                    else
+                        let prev = List.head outLines
+                        if not(IsSpacedText h) && not(folded) && prev <> "" then
+                            let foldedout = prev + " " + (skipIndent h) :: List.tail outLines
+                            foldEverything rest foldedout false
+                        else
+                           foldEverything rest (h :: outLines) false
+        foldEverything strlst [] false |> List.map(fun s -> unIndent s)
+
 
     member this.``flow fold lines`` (convert:string -> string) ps str =
         let rec doFold fst prev (res : string) (lst: string list) =
@@ -1485,35 +1456,60 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l-keep-empty`` ps = ZOM(this.``l-empty`` (ps.SetStyleContext ``Block-in``)) + OPT(this.``l-trail-comments`` ps)
 
     //  [169]   http://www.yaml.org/spec/1.2/spec.html#l-trail-comments(n)
-    member this.``l-trail-comments`` ps = (this.``s-indent(<n)`` ps) + this.``c-nb-comment-text`` + this.``b-comment``
+    member this.``l-trail-comments`` ps = (this.``s-indent(<n)`` ps) + this.``c-nb-comment-text`` + this.``b-comment`` + ZOM(this.``l-comment``)
 
     //  [170]   http://www.yaml.org/spec/1.2/spec.html#c-l+literal(n)
     member this.``c-l+literal`` ps = 
         logger "c-l+literal" ps
-        let trimIndent n (slst: string list) =
-            let rec processlLine n l frst (src: string list) dst =
-                let join sl = String.Join("\n", sl |> List.rev)
-                let cont v =
-                    if src.Length > 0 then processlLine n (src.Head) false (src.Tail) (v :: dst)
-                    else join (v :: dst)
-                let ws2 = GRP(ZOM(RGP this.``s-space``)) + GRP(ZOM(this.``nb-char`` - RGO(this.``s-space``)))
-                match l with
-                |   Regex2(ws2) mt -> 
-                    let (w, c) = mt.ge2
-                    if frst then
-                        if w.Length > n then 
-                            raise (ParseException "A leading all-space line must not have too many spaces")
-                        else
-                            if c = "" then cont ""
-                            else cont (l.Substring(n))
+
+        let trimIndent pst (slist: string list) =
+            let skipIndent s = 
+                if IsMatch(s, RGS(this.``s-indent(n)`` pst)) then s.Substring(pst.n)
+                else failwith (sprintf "Problem with indentation: %s" s)
+            let unIndent s = if s <> "" then skipIndent s else s
+
+            let ``l-empty`` = RGSF((this.``s-line-prefix`` (pst.SetStyleContext ``Block-in``)) ||| (this.``s-indent(<n)`` pst))
+            let ``l-literaltext`` = RGSF((this.``s-indent(n)`` pst) + OOM(this.``nb-char``))
+
+            let trimTail sin sout =
+                printfn "trimTail"
+                match sin with
+                |   []  -> sout |> List.rev
+                |   h :: rest ->
+                    printfn "cl: '%s'" h
+                    let patt = this.``l-chomped-empty`` pst + RGP("\\z")
+                    if (h="") || IsMatch(h, patt) then sout |> List.rev
+                    else raise (ParseException (sprintf "Unexpected characters"))
+
+            let rec trimMain sin sout =
+                printfn "trimMain"
+                match sin with
+                |   []  -> sout |> List.rev
+                |   h :: rest ->
+                    printfn "cl: '%s'" h
+                    if (h="") then 
+                        trimMain rest (unIndent h :: sout)
                     else
-                        if w.Length < n then 
-                            if w = "" && c = "" then cont ""
-                            else raise (ParseException "A following text line must not be less indented.")
-                        else cont (l.Substring(n))
-                | _ -> raise (ParseException (sprintf "Unexpected characters, at %s" l))
-            
-            processlLine n (slst.Head) true (slst.Tail) []
+                        match h with
+                        |   Regex(``l-empty``)       _ -> trimMain rest (unIndent h :: sout)
+                        |   Regex(``l-literaltext``) _ -> trimMain rest (unIndent h :: sout)
+                        |   _ -> trimTail sin sout
+
+            let rec trimHead sin sout =
+                printfn "trimHead"
+                match sin with
+                |   []  -> sout |> List.rev
+                |   h :: rest ->
+                    printfn "cl: '%s'" h
+                    if (h="") then
+                        trimHead rest (unIndent h :: sout)
+                    else
+                        match h with
+                        |   Regex(``l-empty``)  _ -> trimHead rest (unIndent h :: sout)
+                        //  todo: more whitespace than indent -> raise
+                        |   _ -> trimMain sin sout
+    
+            trimHead slist []
 
         ps |> ParseState.``Match and Advance`` (RGP "\\|") (fun prs ->
             let ``literal-content`` (ps:ParseState) =
@@ -1536,10 +1532,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         aut
                     |   None  -> raise (ParseException "Could not detect indentation of literal block scalar after '|'")
 
-            match (``literal-content`` (prs2.SetIndent (prs2.n+m))) with
+            match (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0)) with
             |   Some(ms, ps2) ->  
                 let split = ms |> this.``split by linefeed`` 
-                let s = split |> trimIndent (ps2.n)
+                let s = 
+                    split 
+                    |> trimIndent ps2
+                    |> this.``chomp lines`` ps2 
+                    |> this.``join lines``
                 Some(s, ps2)
             |   None  -> None        
         )
@@ -1554,7 +1554,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     
     //  [173]   http://www.yaml.org/spec/1.2/spec.html#l-literal-content(n,t)
     member this.``l-literal-content`` (ps:ParseState) = 
-        GRP(OPT((this.``l-nb-literal-text`` ps) + ZOM(this.``b-nb-literal-next`` ps) + (this.``b-chomped-last`` ps))) + (this.``l-chomped-empty`` ps)
+        GRP(OPT((this.``l-nb-literal-text`` ps) + ZOM(this.``b-nb-literal-next`` ps) + (this.``b-chomped-last`` ps)) + (this.``l-chomped-empty`` ps))
 
     //  [174]   http://www.yaml.org/spec/1.2/spec.html#c-l+folded(n)
     member this.``c-l+folded`` ps =
@@ -1580,10 +1580,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         aut
                     |   None  -> raise (ParseException "Could not detect indentation of literal block scalar after '>'")
 
-//            (``folded-content`` (prs2.SetIndent (prs2.n+m)))
             (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
             |> Option.map(fun (ms, ps2) -> 
-                let s = ms |> this.``split by linefeed`` |> this.``block fold lines`` (ps2)
+                let s = 
+                    ms 
+                    |> this.``split by linefeed`` 
+                    |> this.``block fold lines`` ps2
+                    |> this.``chomp lines`` ps2 
+                    |> this.``join lines``
                 (s, ps2)
             )
         )

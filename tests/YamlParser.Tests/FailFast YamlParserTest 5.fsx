@@ -30,7 +30,14 @@ let YamlParse s =
             |   Warn  t -> printfn "Warning: %s" t
         )
     with
-    | e -> printfn "%A" e
+    | DocumentException e -> 
+        e.Messages  |> List.iter(fun m -> 
+            match m with
+            |   Error s -> printfn "Error: %s" s
+            |   Warn  s -> printfn "Warning: %s" s
+        )
+        raise (DocumentException e)
+    | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 let YamlParseList s =
     try
@@ -39,11 +46,43 @@ let YamlParseList s =
         nodes |> List.iter(fun node -> printfn "%s\n---" (Deserialize node (ps.TagShorthands)))
         nodes
     with
-    | e -> printfn "%A" e; raise e
+    | DocumentException e -> 
+        e.Messages  |> List.iter(fun m -> 
+            match m with
+            |   Error s -> printfn "Error: %s" s
+            |   Warn  s -> printfn "Warning: %s" s
+        )
+        raise (DocumentException e)
+    | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
+
 
 YamlParse "
-%TAG !yaml! tag:yaml.org,2002:
----
-!yaml!str \"foo\"
+ # Strip
+  # Comments:
+strip: |-
+  # text
+  
+ # Clip
+  # comments:
+
+clip: |
+  # text
+ 
+ # Keep
+  # comments:
+
+keep: |+
+  # text
+
+ # Trail
+  # comments.
 "
 
+YamlParse "
+strip: |-
+  text
+clip: |
+  text
+keep: |+
+  text
+"
