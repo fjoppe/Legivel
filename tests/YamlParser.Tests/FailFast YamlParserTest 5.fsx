@@ -58,7 +58,7 @@ let YamlParseList s =
 
 YamlParse "
 plain key: in-line value
-  :  # Both empty
+: # Both empty
 \"quoted key\":
 - entry
 "

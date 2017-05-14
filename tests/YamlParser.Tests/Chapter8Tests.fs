@@ -405,7 +405,7 @@ let ``Example 8.17. Explicit Block Mapping Entries``() =
 let ``Example 8.18. Implicit Block Mapping Entries``() =
     let yml = YamlParseList "
 plain key: in-line value
-  :  # Both empty
+: # Both empty
 \"quoted key\":
 - entry
 "
