@@ -57,32 +57,9 @@ let YamlParseList s =
 
 
 YamlParse "
- # Strip
-  # Comments:
-strip: |-
-  # text
-  
- # Clip
-  # comments:
-
-clip: |
-  # text
- 
- # Keep
-  # comments:
-
-keep: |+
-  # text
-
- # Trail
-  # comments.
+plain key: in-line value
+  :  # Both empty
+\"quoted key\":
+- entry
 "
 
-YamlParse "
-strip: |-
-  text
-clip: |
-  text
-keep: |+
-  text
-"

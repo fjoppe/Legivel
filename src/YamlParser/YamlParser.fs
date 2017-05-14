@@ -904,7 +904,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.``split by linefeed``
             |> this.``double quote flowfold lines`` ps
             |> CreateScalarNode (NonSpecific.NonSpecificTagQT)
-            |> this.ResolveTag ps NonSpecificQT
+            |> this.ResolveTag prs NonSpecificQT
 
         let patt = (RGP "\"") + GRP(this.``nb-double-text`` ps) + (RGP "\"")
 
