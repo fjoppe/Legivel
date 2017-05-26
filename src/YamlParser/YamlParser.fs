@@ -9,6 +9,7 @@ open TagResolution
 open RegexDSL
 open RepresentationGraph
 open System.Diagnostics
+open System.IO
 
 
 exception ParseException of string
@@ -21,6 +22,17 @@ type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHan
 
 let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
 let ``end-of-file`` = RGP "\\z"
+
+
+let ``Read stream until stop condition`` (strm:TextReader) (stopCondition:string->bool) =
+    let rec reader acc =
+        let accRev() = acc |> List.rev
+        let str = strm.ReadLine()
+        if str = null then (accRev(), None)
+        else
+            if not(stopCondition str) then reader (str :: acc)
+            else (accRev(), Some str)
+    reader []
 
 
 let CreateScalarNode tag d = 
@@ -232,10 +244,18 @@ type Yaml12Parser(loggingFunction:string->unit) =
             logger "break" ps
             (n,ps)
         )
-        
 
     member this.``split by linefeed`` s = 
         Regex.Split(s, this.``b-as-line-feed``.ToString()) |> List.ofArray
+
+    member this.``filter plain multiline`` (strList: string list) =
+        let includedLines = 
+            strList.Tail 
+            |> Seq.ofList
+            |> Seq.takeWhile(fun s -> s = "" || s.StartsWith(" ") || s.StartsWith("\t"))
+            |> List.ofSeq
+        let rest = String.Join("\n",  strList |> List.skip (1 + includedLines.Length))
+        (strList.Head :: includedLines, rest)
 
     member this.``auto detect indent in block`` n (slst: string list) = 
         let ``match indented content`` s = 
@@ -391,25 +411,32 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> ps.GlobalTagSchema.TagResolution
             |> function
             |   Some t -> 
-                if t.Kind = node.Kind then  Some(node.SetTag t, ps)
+                if t.Kind = node.Kind then  Some(node.SetTag (Global t), ps)
                 else None
             |   None -> Some(node, ps |> ParseState.AddMessage (Error (sprintf "Cannot resolve secondary tag: %s" nst)))
 
         let ResolveLocalTag tag sub =
-            //  TODO implement local tags
-            Some(node.SetTag (Tag.Create(sub, Scalar)), ps.AddMessage (Error (sprintf "'%s' - local Tags are currently not supported" tag)))
+            Some(node.SetTag (Local (tag+sub)), ps)
 
-        let ResolveTagShortHand name sub =
+        let ResolveTagShortHand name (sub:string) : (Node * ParseState) option =
             ps.TagShorthands 
             |> List.tryFind(fun tsh -> tsh.ShortHand = name) 
-            |> Option.bind(fun tsh -> 
-                ps.GlobalTagSchema.GlobalTags
-                |> List.tryFind(fun t -> t.Uri = (tsh.MappedTagUri+sub)))
-            |>  function
-                |   Some t  -> 
-                    if (t.Kind = node.Kind) then Some(node.SetTag t, ps)
-                    else None
-                |   None    -> Some(node.SetTag NonSpecific.UnresolvedTag, ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub)))
+            |> Option.bind(fun tsh ->
+                match tsh.MappedTagUri with
+                |   Regex(RGSF(this.``ns-global-tag-prefix``)) _ -> 
+                    ps.GlobalTagSchema.GlobalTags 
+                    |> List.tryFind(fun t -> t.Uri = (tsh.MappedTagUri+sub))
+                    |> Option.bind(fun t -> if (t.Kind = node.Kind) then Some(t) else None)
+                    |> Option.map(fun e -> Global e)
+                |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Some(Local (tsh.MappedTagUri+sub))
+                |   _ -> None
+                )
+            |>  Option.map(fun e -> (node.SetTag e),ps)
+            |>  Option.ifnone (
+                let n = node.SetTag (NonSpecific.UnresolvedTag)
+                let p = ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub))
+                Some(n, p)
+                )
 
         match tag with
         |   NonSpecificQM   -> ResolveNonSpecificTag "?"
@@ -1318,8 +1345,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Regex3(this.``ns-plain`` ps) (mt, prs) -> 
             match prs.c with
             | ``Flow-out``  | ``Flow-in``   ->
-                mt.FullMatch
-                |> this.``split by linefeed``
+                let (includedLines, rest) =
+                    mt.FullMatch
+                    |> this.``split by linefeed``
+                    |> this.``filter plain multiline``
+                let prs = prs.SetRestString (sprintf "%s%s" rest (prs.InputString))
+                includedLines
                 |> this.``plain flow fold lines`` prs
                 |> CreateScalarNode (NonSpecific.NonSpecificTagQM) 
                 |> this.ResolveTag prs NonSpecificQM
@@ -1328,6 +1359,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |> CreateScalarNode (NonSpecific.NonSpecificTagQM) 
                 |> this.ResolveTag prs NonSpecificQM
         |   _ -> None
+        |> ParseState.ResetEnvSR ps 
         |> ParseState.AddSuccessSR  "ns-flow-yaml-content" ps
 
     //  [157]   http://www.yaml.org/spec/1.2/spec.html#c-flow-json-content(n,c)
@@ -1914,7 +1946,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-directives-end`` = RGP "---"
 
     //  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
-    member this.``c-document-end`` = RGP "\.\.\."
+    member this.``c-document-end`` = RGP "\\.\\.\\."
 
     //  [205]   http://www.yaml.org/spec/1.2/spec.html#l-document-suffix
     member this.``l-document-suffix`` = this.``c-document-end`` + this.``s-l-comments``
@@ -1957,6 +1989,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   None         -> ps
         let psr = readDirectives ps
         this.``l-explicit-document`` psr
+        |> Option.map(fun (n,psr) -> n, (ps.SetRestString (psr.InputString)))
         |> ParseState.AddSuccessSR "l-directive-document" ps
 
     //  [210]   http://www.yaml.org/spec/1.2/spec.html#l-any-document

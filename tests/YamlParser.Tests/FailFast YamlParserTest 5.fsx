@@ -56,10 +56,16 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-YamlParse "
-plain key: in-line value
-: # Both empty
-\"quoted key\":
-- entry
-"
+//YamlParse "
+//commercial-at: @text
+//grave-accent: `text
+//"
 
+YamlParseList "
+{
+unquoted : \"separate\",
+http://foo.com,
+omitted value:,
+: omitted key,
+}
+ "

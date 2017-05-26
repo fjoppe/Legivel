@@ -6,19 +6,23 @@ open TagResolution
 
 let Deserialize (node:Node) (shorthands:TagShorthand list) =
     let indent l = [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
-    let shortTag (lt:string) =
-        shorthands
-        |> List.tryFind(fun e -> lt.StartsWith(e.MappedTagUri)) 
-        |> function
-        |   Some mtg ->
-            let rest = lt.Substring(mtg.MappedTagUri.Length) 
-            mtg.ShortHand + rest
-        |   None -> sprintf "!<%s>" lt
+    let tagString (lt:TagKind) =
+        match lt with
+        |   Global gt  ->
+            shorthands
+            |> List.tryFind(fun e -> gt.Uri.StartsWith(e.MappedTagUri)) 
+            |> function
+            |   Some mtg ->
+                let rest = gt.Uri.Substring(mtg.MappedTagUri.Length) 
+                mtg.ShortHand + rest
+            |   None -> sprintf "!<%s>" gt.Uri
+        |   Local       s -> s
+        |   NonSpecific s -> s
     let rec convertToString n0 l =
         match n0 with
         |   SeqNode n ->
             let ind0 = indent l
-            let head = sprintf "%s %s [\n" (ind0) (shortTag n.Tag.Uri)
+            let head = sprintf "%s %s [\n" (ind0) (tagString n.Tag)
             let content = 
                 n.Data
                 |> List.sortBy(fun n -> n.Hash.Value)
@@ -28,7 +32,7 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
         |   MapNode n -> 
             let ind0 = indent l
             let ind1 = indent (l+1)
-            let head = sprintf "%s %s {\n" (ind0) (shortTag n.Tag.Uri)
+            let head = sprintf "%s %s {\n" (ind0) (tagString n.Tag)
             let content = 
                 n.Data 
                 |> List.sortBy(fun (k,_) -> k.Hash.Value)
@@ -44,6 +48,6 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
             sprintf "%s%s%s" head content tail
         |   ScalarNode n ->
             let ind0 = indent l
-            sprintf "%s %s \"%s\"" ind0 (shortTag n.Tag.Uri) (n.Data)
+            sprintf "%s %s \"%s\"" ind0 (tagString n.Tag) (n.Data)
     convertToString node 0
 

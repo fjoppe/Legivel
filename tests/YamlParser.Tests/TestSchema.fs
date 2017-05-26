@@ -35,7 +35,7 @@ let ``Test JSON TagResolution``() =
             let nh = lazy(NodeHash.Create s)
             ScalarNode(NodeData<string>.Create nst s nh)
         let scalar = makeScalar s
-        TagResolutionInfo.Create (scalar.NodeTag.Uri) ([]) (scalar) (scalar.Kind)
+        TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
         |> JSONSchema.TagResolution 
 
     tagResolveScalar "null" 
@@ -96,7 +96,7 @@ let ``Test YamlCore TagResolution``() =
             let nh = lazy(NodeHash.Create s)
             ScalarNode(NodeData<string>.Create nst s nh)
         let scalar = makeScalar s
-        TagResolutionInfo.Create (scalar.NodeTag.Uri) ([]) (scalar) (scalar.Kind)
+        TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
         |> YamlCoreSchema.TagResolution 
 
     ["null"; "NULL"; "Null"; ""; "~" ]

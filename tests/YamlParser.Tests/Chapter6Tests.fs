@@ -324,10 +324,10 @@ let ``Example 6.21. Local Tag Prefix``() =
     let [y1;y2] = yml
 
     [y1] |> Some |> ToScalar |> should equal "fluorescent"
-    [y1] |> Some |> ToScalarTag |> should equal "my-light"
+    [y1] |> Some |> ToScalarTag |> should equal "!my-light"
 
     [y2] |> Some |> ToScalar |> should equal "green"
-    [y2] |> Some |> ToScalarTag |> should equal "my-light"
+    [y2] |> Some |> ToScalarTag |> should equal "!my-light"
 
 
 //[<Ignore "Should support local tags">]

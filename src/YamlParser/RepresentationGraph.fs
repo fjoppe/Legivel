@@ -8,7 +8,7 @@ type NodeKind =
     | Sequence
     | Scalar
 
-type Tag = {
+type GlobalTag = {
         Uri     : string
         Kind    : NodeKind
         Regex   : string
@@ -23,15 +23,20 @@ type Tag = {
                 canonFn = canon
             }
 
-        static member Create (uri, nk, rgx) = Tag.Create (uri, nk, rgx, fun s -> s)
+        static member Create (uri, nk, rgx) = GlobalTag.Create (uri, nk, rgx, fun s -> s)
 
-        static member Create (uri, nk) = Tag.Create (uri, nk, ".*", fun s -> s)
+        static member Create (uri, nk) = GlobalTag.Create (uri, nk, ".*", fun s -> s)
 
         member this.Canonical s = this.canonFn s
 
 
+type TagKind =
+    |   Global      of GlobalTag
+    |   Local       of string
+    |   NonSpecific of string
+
 type NodeData<'T> = {
-        Tag  : Tag
+        Tag  : TagKind
         Data : 'T
         Hash : Lazy<NodeHash>
     }
@@ -48,6 +53,12 @@ type Node =
     | MapNode of NodeData<(Node*Node) list>
     | ScalarNode of NodeData<string>
     with
+        member private this.tagString t =
+            match t with
+            |   Global gt -> gt.Uri
+            |   Local  s  -> s
+            |   NonSpecific s -> s
+
         member this.Hash 
             with get() =
                 match this with
@@ -78,9 +89,9 @@ type Node =
         member this.DebuggerInfo 
             with get() =
                 match this with
-                |   SeqNode d       -> sprintf "<%s>[..], length=%d" d.Tag.Uri d.Data.Length
-                |   MapNode d       -> sprintf "<%s>{..}, length=%d" d.Tag.Uri d.Data.Length
-                |   ScalarNode d    -> sprintf "<%s>\"%s\"" d.Tag.Uri d.Data
+                |   SeqNode d       -> sprintf "<%s>[..], length=%d" (this.tagString d.Tag) d.Data.Length
+                |   MapNode d       -> sprintf "<%s>{..}, length=%d" (this.tagString d.Tag) d.Data.Length
+                |   ScalarNode d    -> sprintf "<%s>\"%s\"" (this.tagString d.Tag) d.Data
 
 
 type Legend = {

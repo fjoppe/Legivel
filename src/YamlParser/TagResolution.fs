@@ -19,11 +19,11 @@ type TagResolutionInfo = {
             { NonSpecificTag = nst; Path = p; Content = c; NodeKind = nk }
 
 
-type TagResolutionFunc = (TagResolutionInfo -> Tag option)
+type TagResolutionFunc = (TagResolutionInfo -> GlobalTag option)
 
 
 type GlobalTagSchema = {
-    GlobalTags      : Tag list
+    GlobalTags      : GlobalTag list
     TagResolution   : TagResolutionFunc
 }
 
@@ -51,20 +51,20 @@ let private clearTrailingZeros (s:string) =
     String.Join("", cleared)
 
 module internal NonSpecific =
-    let NonSpecificTagQT = Tag.Create("!", Scalar, "")
-    let NonSpecificTagQM = Tag.Create("?", Scalar, "")
-    let UnresolvedTag = Tag.Create("?", Scalar, "unresolved")
+    let NonSpecificTagQT = TagKind.NonSpecific "!"
+    let NonSpecificTagQM = TagKind.NonSpecific "?"
+    let UnresolvedTag = TagKind.NonSpecific "?"
 
 
 module internal Failsafe =
-    let MappingGlobalTag =  Tag.Create("tag:yaml.org,2002:map", Mapping)
-    let SequenceGlobalTag = Tag.Create("tag:yaml.org,2002:seq", Sequence)
-    let StringGlobalTag =   Tag.Create("tag:yaml.org,2002:str", Scalar)
+    let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping)
+    let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence)
+    let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar)
 
 
 module internal JSON =
     let NullGlobalTag =
-        Tag.Create("tag:yaml.org,2002:null", Scalar, "null",
+        GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "null",
             (fun s -> 
                     match s with
                     | Regex "null" _ -> "null"
@@ -73,7 +73,7 @@ module internal JSON =
         )
 
     let BooleanGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:bool", Scalar, "true|false",
+        GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "true|false",
             (fun s -> 
                 match s with
                 | Regex "true" _ -> "true"
@@ -83,7 +83,7 @@ module internal JSON =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:int", Scalar, "[-]?(0|[1-9][0-9]*)",
+        GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "[-]?(0|[1-9][0-9]*)",
             (fun s ->
                 match s with
                 | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
@@ -92,7 +92,7 @@ module internal JSON =
         )
 
     let FloatGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:float", Scalar, "[-]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?",
+        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "[-]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
@@ -107,7 +107,7 @@ module internal JSON =
 
 module internal YamlCore =
     let NullGlobalTag =
-        Tag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
+        GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
             (fun s -> 
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> "null"
@@ -116,7 +116,7 @@ module internal YamlCore =
         )
 
     let BooleanGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:bool", Scalar, "true|True|TRUE|false|False|FALSE",
+        GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "true|True|TRUE|false|False|FALSE",
             (fun s -> 
                 match s with
                 | Regex "true|True|TRUE"    _ -> "true"
@@ -126,7 +126,7 @@ module internal YamlCore =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:int", Scalar, "0o[0-7]+|[-+]?([0-9]+)|0x[0-9a-fA-F]+",
+        GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "0o[0-7]+|[-+]?([0-9]+)|0x[0-9a-fA-F]+",
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
@@ -146,7 +146,7 @@ module internal YamlCore =
         )
 
     let FloatGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:float", Scalar, "[-+]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
+        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "[-+]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
@@ -166,7 +166,7 @@ module internal YamlCore =
 
 module internal YamlExtended =
     let BooleanGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:bool", Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
+        GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
             (fun s -> 
                 match s with
                 | Regex "y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON" _ -> "true"
@@ -176,7 +176,7 @@ module internal YamlExtended =
         )
 
     let IntegerGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:int", Scalar, "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
+        GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
@@ -206,7 +206,7 @@ module internal YamlExtended =
         )
 
     let FloatGlobalTag = 
-        Tag.Create("tag:yaml.org,2002:float", Scalar, "[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
+        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
