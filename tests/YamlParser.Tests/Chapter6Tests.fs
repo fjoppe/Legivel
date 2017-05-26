@@ -330,7 +330,6 @@ let ``Example 6.21. Local Tag Prefix``() =
     [y2] |> Some |> ToScalarTag |> should equal "!my-light"
 
 
-//[<Ignore "Should support local tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2783726")>]
 let ``Example 6.22. Global Tag Prefix``() =
     let yml = YamlParseList "
@@ -340,8 +339,11 @@ let ``Example 6.22. Global Tag Prefix``() =
 - !e!foo \"bar\"
 "
     yml.Length |> should equal 1
-    yml |> Some |> ToScalar |> should equal "bar"
-    yml |> Some |> ToScalarTag |> should equal "tag:example.com,2000:app/foo"
+
+    let p = YamlPath.Create (sprintf "//[]/#'bar'")
+
+    yml.Head |> p.Select |> ToScalar |> should equal "bar"
+    yml.Head |> p.Select |> ToScalarTag |> should equal "tag:example.com,2000:app/foo"
 
 
 

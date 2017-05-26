@@ -31,9 +31,10 @@ type GlobalTag = {
 
 
 type TagKind =
-    |   Global      of GlobalTag
-    |   Local       of string
-    |   NonSpecific of string
+    |   Global       of GlobalTag
+    |   Unrecognized of GlobalTag
+    |   Local        of string
+    |   NonSpecific  of string
 
 type NodeData<'T> = {
         Tag  : TagKind

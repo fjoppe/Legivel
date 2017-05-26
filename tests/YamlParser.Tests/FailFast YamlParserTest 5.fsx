@@ -62,10 +62,8 @@ let YamlParseList s =
 //"
 
 YamlParseList "
-{
-unquoted : \"separate\",
-http://foo.com,
-omitted value:,
-: omitted key,
-}
- "
+
+%TAG !e! tag:example.com,2000:app/
+---
+- !e!foo \"bar\"
+"

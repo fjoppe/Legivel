@@ -7,8 +7,7 @@ open TagResolution
 let Deserialize (node:Node) (shorthands:TagShorthand list) =
     let indent l = [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
     let tagString (lt:TagKind) =
-        match lt with
-        |   Global gt  ->
+        let strGlobal gt =
             shorthands
             |> List.tryFind(fun e -> gt.Uri.StartsWith(e.MappedTagUri)) 
             |> function
@@ -16,6 +15,17 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
                 let rest = gt.Uri.Substring(mtg.MappedTagUri.Length) 
                 mtg.ShortHand + rest
             |   None -> sprintf "!<%s>" gt.Uri
+
+        match lt with
+        |   Global gt  -> strGlobal gt
+        |   Unrecognized gt -> strGlobal gt
+//            shorthands
+//            |> List.tryFind(fun e -> gt.Uri.StartsWith(e.MappedTagUri)) 
+//            |> function
+//            |   Some mtg ->
+//                let rest = gt.Uri.Substring(mtg.MappedTagUri.Length) 
+//                mtg.ShortHand + rest
+//            |   None -> sprintf "!<%s>" gt.Uri
         |   Local       s -> s
         |   NonSpecific s -> s
     let rec convertToString n0 l =

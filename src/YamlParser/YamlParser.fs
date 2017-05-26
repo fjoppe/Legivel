@@ -426,8 +426,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   Regex(RGSF(this.``ns-global-tag-prefix``)) _ -> 
                     ps.GlobalTagSchema.GlobalTags 
                     |> List.tryFind(fun t -> t.Uri = (tsh.MappedTagUri+sub))
-                    |> Option.bind(fun t -> if (t.Kind = node.Kind) then Some(t) else None)
-                    |> Option.map(fun e -> Global e)
+                    |>  function
+                        |   Some t  -> if (t.Kind = node.Kind) then Some(Global t) else None
+                        |   None    -> 
+                            match node.Kind with
+                            |   Scalar  -> Unrecognized (GlobalTag.Create (tsh.MappedTagUri+sub, node.Kind))
+                            |   _       -> Global (GlobalTag.Create (tsh.MappedTagUri+sub, node.Kind))
+                            |> Some
+//                    |> Option.bind(fun t -> if (t.Kind = node.Kind) then Some(t) else None)
+//                    |> Option.map(fun e -> Global e)
                 |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Some(Local (tsh.MappedTagUri+sub))
                 |   _ -> None
                 )

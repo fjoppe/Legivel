@@ -43,6 +43,7 @@ let ToScalarTag n =
     |   Some([ScalarNode nd]) -> 
         match nd.Tag with
         |   Global gt   -> gt.Uri
+        |   Unrecognized gt -> gt.Uri
         |   Local  s    -> s
         |   NonSpecific s -> s
     |   _ -> raise (Exception "Is no scalar")

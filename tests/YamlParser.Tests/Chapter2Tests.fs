@@ -433,7 +433,7 @@ date: 2002-12-14
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-[<Ignore "TODO: Add support for local tags, and extend global schema">]
+////[<Ignore "TODO: Add support for local tags, and extend global schema">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761694")>]
 let ``Example 2.23. Various Explicit Tags``() =
     let yml = YamlParse "
