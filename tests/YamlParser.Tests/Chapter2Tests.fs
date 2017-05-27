@@ -463,7 +463,7 @@ application specific tag: !something |
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-[<Ignore "TODO: Better support for global tags">]
+//[<Ignore "TODO: Better support for global tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761719")>]
 let ``Example 2.24. Global Tags``() =
     let yml = YamlParse "
@@ -483,6 +483,7 @@ let ``Example 2.24. Global Tags``() =
   text: Pretty vector drawing.
 "
     [
+        ("a","b")   // force error to make this findable
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)

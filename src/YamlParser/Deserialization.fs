@@ -9,10 +9,10 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
     let tagString (lt:TagKind) =
         let strGlobal gt =
             shorthands
-            |> List.tryFind(fun e -> gt.Uri.StartsWith(e.MappedTagUri)) 
+            |> List.tryFind(fun e -> gt.Uri.StartsWith(e.MappedTagBase)) 
             |> function
             |   Some mtg ->
-                let rest = gt.Uri.Substring(mtg.MappedTagUri.Length) 
+                let rest = gt.Uri.Substring(mtg.MappedTagBase.Length) 
                 mtg.ShortHand + rest
             |   None -> sprintf "!<%s>" gt.Uri
 

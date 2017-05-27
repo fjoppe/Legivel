@@ -30,11 +30,11 @@ type GlobalTagSchema = {
 
 type TagShorthand = {
         ShortHand : string
-        MappedTagUri : string
+        MappedTagBase : string
     }
     with
-        static member Create (short, full) = { ShortHand = short; MappedTagUri = full}
-        static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagUri = "tag:yaml.org,2002:"}
+        static member Create (short, full) = { ShortHand = short; MappedTagBase = full}
+        static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagBase = "tag:yaml.org,2002:"}
 
 
 let private clearTrailingZeros (s:string) = 

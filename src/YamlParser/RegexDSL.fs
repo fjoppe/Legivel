@@ -184,15 +184,6 @@ let HasMatches(s,p) =
     else
         (false, "",s)
 
-/// Checks for matches of pattern p in string s.
-/// If matched, returns rest-string, otherwise s.
-/// This function may be useful to skip whitespace.
-//[<DebuggerStepThrough>]
-//let SkipIfMatch (s:string) (p:RGXType) =
-//    match (HasMatches(s, p)) with
-//    |   (true, mt,frs)  -> frs
-//    |   (false, _,_)    -> s
-
 [<DebuggerStepThrough>]
 let ``value or zero`` sv =
     match sv with
@@ -225,6 +216,11 @@ let DecodeEncodedUnicodeCharacters value =
 let DecodeEncodedHexCharacters value =
     Regex.Replace(value,
         @"\\x(?<Value>[a-fA-F0-9]{2})",
+        (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
+
+let DecodeEncodedUriHexCharacters value =
+    Regex.Replace(value,
+        @"%(?<Value>[a-fA-F0-9]{2})",
         (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
     
 let DecodeEncodedEscapedCharacters value =

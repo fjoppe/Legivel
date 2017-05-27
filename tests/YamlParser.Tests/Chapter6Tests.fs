@@ -265,7 +265,7 @@ bar"
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782728")>]
 let ``Example 6.18. Primary Tag Handle``() =
-    let yml = YamlParseList "
+    let ymllst = YamlParseList "
 # Private
 !foo \"bar\"
 ...
@@ -274,14 +274,18 @@ let ``Example 6.18. Primary Tag Handle``() =
 ---
 !foo \"bar\"
 "
-    yml.Length |> should equal 2
-    let yml = yml |> List.last 
-
+    ymllst.Length |> should equal 2
+    let yml = ymllst |> List.head
     let p = YamlPath.Create (sprintf "//#'bar'")
     yml |> p.Select |> ToScalar |> should equal "bar"
+    yml |> p.Select |> ToScalarTag |> should equal "!foo"
+
+    let yml = ymllst |> List.last 
+    let p = YamlPath.Create (sprintf "//#'bar'")
+    yml |> p.Select |> ToScalar |> should equal "bar"
+    yml |> p.Select |> ToScalarTag |> should equal "tag:example.com,2000:app/foo"
 
 
-//[<Ignore "Should support local tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782940")>]
 let ``Example 6.19. Secondary Tag Handle``() =
     let yml = YamlParseList "
@@ -294,7 +298,6 @@ let ``Example 6.19. Secondary Tag Handle``() =
     yml |> Some |> ToScalarTag |> should equal "tag:example.com,2000:app/int"
 
 
-[<Ignore "Should support local tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2783195")>]
 let ``Example 6.20. Tag Handles``() =
     let yml = YamlParseList "
@@ -363,7 +366,7 @@ let ``Example 6.23. Node Properties``() =
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-[<Ignore "Check tags">]
+//[<Ignore "Check tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2784370")>]
 let ``Example 6.24. Verbatim Tags``() =
     let yml = YamlParseList "
@@ -373,11 +376,14 @@ let ``Example 6.24. Verbatim Tags``() =
     yml.Length |> should equal 1
     let yml = yml.Head
 
-    [("foo", "baz")]
-    |> List.iter(fun (k,v) ->
-        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
-    )
+    let p1 = YamlPath.Create (sprintf "//{#'foo'}")
+    yml |> p1.Select |> ToScalar |> should equal "foo"
+    yml |> p1.Select |> ToScalarTag |> should equal "tag:yaml.org,2002:str"
+
+    let p1 = YamlPath.Create (sprintf "//{#'foo'}?")
+    yml |> p1.Select |> ToScalar |> should equal "baz"
+    yml |> p1.Select |> ToScalarTag |> should equal "!bar"
+
 
 [<Ignore "Check error message">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2784444")>]
@@ -389,7 +395,7 @@ let ``Example 6.25. Invalid Verbatim Tags``() =
     yml.Length |> should equal 0
 
 
-[<Ignore "Check tags">]
+//[<Ignore "Check tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2785009")>]
 let ``Example 6.26. Tag Shorthands``() =
     let yml = YamlParseList "
@@ -402,10 +408,11 @@ let ``Example 6.26. Tag Shorthands``() =
     yml.Length |> should equal 1
     let yml = yml.Head
 
-    ["foo"; "bar"; "baz"]
-    |> List.iter(fun v ->
+    [("!local","foo"); ("tag:yaml.org,2002:str", "bar"); ("tag:example.com,2000:app/tag!","baz")]
+    |> List.iter(fun (t,v) ->
         let p = YamlPath.Create (sprintf "//[]/#'%s'" v)
         yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalarTag |> should equal t
     )
 
 

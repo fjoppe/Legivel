@@ -59,7 +59,7 @@ let ``Example 8.2. Block Indentation Indicator``() =
     )
 
 
-[<Ignore "Chec errors">]
+[<Ignore "Check errors">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2794450")>]
 let ``Example 8.3. Invalid Block Scalar Indentation Indicators``() =
     let yml = YamlParseList "
