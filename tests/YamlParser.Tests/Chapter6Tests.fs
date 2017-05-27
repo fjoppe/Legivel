@@ -230,7 +230,7 @@ let ``Example 6.14. “YAML” directive``() =
     yml |> Some |> ToScalar |> should equal "foo"
 
 
-//[<Ignore "Check warning">]
+[<Ignore "Check warning">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782032")>]
 let ``Example 6.15. Invalid Repeated YAML directive``() =
     let yml = YamlParseList "

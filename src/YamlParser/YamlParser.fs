@@ -1527,7 +1527,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     else raise (ParseException (sprintf "Unexpected characters"))
 
             let rec trimMain sin sout =
-                printfn "trimMain"
                 match sin with
                 |   []  -> sout |> List.rev
                 |   h :: rest ->
@@ -1543,7 +1542,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match sin with
                 |   []  -> sout |> List.rev
                 |   h :: rest ->
-                    printfn "cl: '%s'" h
                     if (h="") then
                         trimHead rest (unIndent h :: sout)
                     else

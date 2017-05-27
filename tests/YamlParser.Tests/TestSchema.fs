@@ -121,7 +121,6 @@ let ``Test YamlCore TagResolution``() =
         ".NAN"
     ]
     |> List.iter(fun s ->
-        System.Console.WriteLine s
         tagResolveScalar s |> Option.map(fun e -> (e.Uri |> should equal (YamlCore.FloatGlobalTag.Uri)); e) |> Option.isSome |> should equal true
     )
 

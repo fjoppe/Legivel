@@ -12,7 +12,7 @@ let YamlParse s =
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
         let (nodes, ps) = pr
         let node = nodes.Head
-        printfn "%s" (Deserialize node (ps.TagShorthands))
+        // printfn "%s" (Deserialize node (ps.TagShorthands))
         node
     with
     | e -> printfn "%A" e; raise e
@@ -22,7 +22,7 @@ let YamlParseList s =
     try
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
         let (nodes, ps) = pr
-        nodes |> List.iter(fun node -> printfn "%s" (Deserialize node (ps.TagShorthands)))
+        // nodes |> List.iter(fun node -> printfn "%s" (Deserialize node (ps.TagShorthands)))
         nodes
     with
     | e -> printfn "%A" e; raise e
