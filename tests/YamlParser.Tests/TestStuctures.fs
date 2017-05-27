@@ -1,46 +1,11 @@
 ﻿module TestStuctures
 
 open NUnit.Framework
-open System
+open TestUtils
 open YamlParser
-open YamlParse
 open FsUnit
 open RepresentationGraph
-open TagResolution
-open Deserialization
 
-let YamlParse s =
-    let engine = Yaml12Parser()
-    let ``s-l+block-node`` s = 
-        let ps = ParseState.Create s YamlCoreSchema
-        let ps = ps.SetIndent -1
-        let ps = ps.SetSubIndent 0
-        let ps = ps.SetStyleContext ``Block-in``
-        let d = engine.``s-l+block-node`` ps 
-        d
-    try
-        let rs = (``s-l+block-node`` s)
-        let rsp = rs.Value |> fst
-        let ps = rs.Value |> snd
-        printfn "%s" (Deserialize rsp (ps.TagShorthands))
-        rsp
-    with
-    | e -> printfn "%A" e; raise e
-
-
-let ToScalar n = 
-    match n with
-    |   Some([ScalarNode nd]) -> nd.Data
-    |   _ -> raise (Exception "Is no scalar")
-
-let ToScalarTag n = 
-    match n with
-    |   Some([ScalarNode nd]) ->
-        match nd.Tag with
-        |   Global gt   -> gt.Uri
-        |   Local  s    -> s
-        |   NonSpecific s -> s
-    |   _ -> raise (Exception "Is no scalar")
 
 [<Test>]
 let ``Test Scalars at Root Level - Sunny Day Simple``() =
@@ -117,15 +82,15 @@ let ``Test Map Hybrid Notation - Sunnny Day Simple``() =
     let yml = YamlParse "{\"adjacent\":value1, \"readable\": value2,  \"empty\":}"
 
     let pth = YamlPath.Create "//{#'adjacent'}?"
-    yml |> pth.Select |> ToScalarTag  |>  should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    yml |> pth.Select |> ExtractTag  |>  should equal TagResolution.Failsafe.StringGlobalTag.Uri
     yml |> pth.Select |> ToScalar |>  should equal "value1"
 
     let pth = YamlPath.Create "//{#'readable'}?"
-    yml |> pth.Select |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    yml |> pth.Select |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
     yml |> pth.Select |> ToScalar |> should equal "value2"
 
     let pth = YamlPath.Create "//{#'empty'}?"
-    yml |> pth.Select |> ToScalarTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
+    yml |> pth.Select |> ExtractTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
 
 //[<Test>]
 //let ``Test Map with inline Comments - Sunnny Day Simple``() =
@@ -138,8 +103,8 @@ let ``Test Map Null : Null - Sunnny Day Simple``() =
     let ptk = YamlPath.Create "//{#''}"
     let ptv = YamlPath.Create "//{#''}?"
     let yml = YamlParse ":"
-    yml |> ptk.Select |> ToScalarTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
-    yml |> ptv.Select |> ToScalarTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
+    yml |> ptk.Select |> ExtractTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
+    yml |> ptv.Select |> ExtractTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
 
 [<Test>]
 let ``Test Map key : Map - Sunnny Day Simple``() =

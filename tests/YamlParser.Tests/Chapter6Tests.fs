@@ -278,12 +278,12 @@ let ``Example 6.18. Primary Tag Handle``() =
     let yml = ymllst |> List.head
     let p = YamlPath.Create (sprintf "//#'bar'")
     yml |> p.Select |> ToScalar |> should equal "bar"
-    yml |> p.Select |> ToScalarTag |> should equal "!foo"
+    yml |> p.Select |> ExtractTag |> should equal "!foo"
 
     let yml = ymllst |> List.last 
     let p = YamlPath.Create (sprintf "//#'bar'")
     yml |> p.Select |> ToScalar |> should equal "bar"
-    yml |> p.Select |> ToScalarTag |> should equal "tag:example.com,2000:app/foo"
+    yml |> p.Select |> ExtractTag |> should equal "tag:example.com,2000:app/foo"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782940")>]
@@ -295,7 +295,7 @@ let ``Example 6.19. Secondary Tag Handle``() =
 "
     yml.Length |> should equal 1
     yml |> Some |> ToScalar |> should equal "1 - 3"
-    yml |> Some |> ToScalarTag |> should equal "tag:example.com,2000:app/int"
+    yml |> Some |> ExtractTag |> should equal "tag:example.com,2000:app/int"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2783195")>]
@@ -307,7 +307,7 @@ let ``Example 6.20. Tag Handles``() =
 "
     yml.Length |> should equal 1
     yml |> Some |> ToScalar |> should equal "bar"
-    yml |> Some |> ToScalarTag |> should equal "tag:example.com,2000:app/foo"
+    yml |> Some |> ExtractTag |> should equal "tag:example.com,2000:app/foo"
 
 
 //[<Ignore "Should support local tags">]
@@ -324,13 +324,14 @@ let ``Example 6.21. Local Tag Prefix``() =
 "
     yml.Length |> should equal 2
 
-    let [y1;y2] = yml
+    let yml1, yml2 = List.head yml, List.last yml 
 
-    [y1] |> Some |> ToScalar |> should equal "fluorescent"
-    [y1] |> Some |> ToScalarTag |> should equal "!my-light"
 
-    [y2] |> Some |> ToScalar |> should equal "green"
-    [y2] |> Some |> ToScalarTag |> should equal "!my-light"
+    [yml1] |> Some |> ToScalar |> should equal "fluorescent"
+    [yml1] |> Some |> ExtractTag |> should equal "!my-light"
+
+    [yml2] |> Some |> ToScalar |> should equal "green"
+    [yml2] |> Some |> ExtractTag |> should equal "!my-light"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2783726")>]
@@ -346,7 +347,7 @@ let ``Example 6.22. Global Tag Prefix``() =
     let p = YamlPath.Create (sprintf "//[]/#'bar'")
 
     yml.Head |> p.Select |> ToScalar |> should equal "bar"
-    yml.Head |> p.Select |> ToScalarTag |> should equal "tag:example.com,2000:app/foo"
+    yml.Head |> p.Select |> ExtractTag |> should equal "tag:example.com,2000:app/foo"
 
 
 
@@ -378,11 +379,11 @@ let ``Example 6.24. Verbatim Tags``() =
 
     let p1 = YamlPath.Create (sprintf "//{#'foo'}")
     yml |> p1.Select |> ToScalar |> should equal "foo"
-    yml |> p1.Select |> ToScalarTag |> should equal "tag:yaml.org,2002:str"
+    yml |> p1.Select |> ExtractTag |> should equal "tag:yaml.org,2002:str"
 
     let p1 = YamlPath.Create (sprintf "//{#'foo'}?")
     yml |> p1.Select |> ToScalar |> should equal "baz"
-    yml |> p1.Select |> ToScalarTag |> should equal "!bar"
+    yml |> p1.Select |> ExtractTag |> should equal "!bar"
 
 
 [<Ignore "Check error message">]
@@ -412,7 +413,7 @@ let ``Example 6.26. Tag Shorthands``() =
     |> List.iter(fun (t,v) ->
         let p = YamlPath.Create (sprintf "//[]/#'%s'" v)
         yml |> p.Select |> ToScalar |> should equal v
-        yml |> p.Select |> ToScalarTag |> should equal t
+        yml |> p.Select |> ExtractTag |> should equal t
     )
 
 
@@ -447,7 +448,7 @@ let ``Example 6.28. Non-Specific Tags``() =
     ]
     |> List.iter(fun (t,v) ->
         let p = YamlPath.Create (sprintf "//[]/#'%s'" v)
-        yml |> p.Select |> ToScalarTag |> should equal t
+        yml |> p.Select |> ExtractTag |> should equal t
         yml |> p.Select |> ToScalar |> should equal v
     )
 

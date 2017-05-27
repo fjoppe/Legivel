@@ -38,13 +38,17 @@ let ToSequence n =
     |   _ -> raise (Exception "Is no seq")
     
 
-let ToScalarTag n = 
-    match n with
-    |   Some([ScalarNode nd]) -> 
+let ExtractTag n = 
+    let extract nd =
         match nd.Tag with
         |   Global gt   -> gt.Uri
         |   Unrecognized gt -> gt.Uri
         |   Local  s    -> s
         |   NonSpecific s -> s
-    |   _ -> raise (Exception "Is no scalar")
+    match n with
+    |   Some([ScalarNode nd]) -> extract nd
+    |   Some([SeqNode nd]) -> extract nd
+    |   Some([MapNode nd]) -> extract nd
+    |   _ -> raise (Exception "Not recognized as single node")
+
 

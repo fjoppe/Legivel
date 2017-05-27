@@ -1,7 +1,5 @@
 ﻿namespace YamlParser
 
-open System
-open System.Text
 open RegexDSL
 open RepresentationGraph
 open YamlParse
@@ -33,6 +31,8 @@ exception YamlPathException of string
         //[:{key1}]                -> if root node is seq, then retrieve its mapping nodes which have key "key1" (Yaml seq Node list)
         //[:[]]                    -> if root node is seq, then retrieve its seq nodes, which have at least 1 element (Yaml Node list)
         //[:[:#'scalar value']]    -> if root node is seq, then retrieve its seq nodes, which contain scalar value "scalar value" (Yaml Node list)
+        //<tag:sometag>            -> filter root node on tag (ie returns None if not found)
+        //[]/<tag:sometag>         -> if root node is seq, then retrieve its seq nodes, and filter nodes with tag "tag:sometag"
 
     //      =>  root node
     #       => match any scalar
@@ -41,6 +41,7 @@ exception YamlPathException of string
     {}/     => mapping value(s)
     []      => seq
     []/     => seq values (in this case, same as [])
+    <!abc>  => match any node with tag "!abc" (you can use global and local tags)
 
     So
     //a/b/c => 
@@ -124,26 +125,60 @@ type SeqEvaluation =
                 if lst.Length = 0 then None
                 else (Some lst)
 
+type TagEvaluation =
+    |   TagValue of string
+    with
+        member this.extractTag n = 
+            let extract nd =
+                match nd.Tag with
+                |   Global gt   -> gt.Uri
+                |   Unrecognized gt -> gt.Uri
+                |   Local  s    -> s
+                |   NonSpecific s -> s
+            match n with
+            |   ScalarNode nd -> extract nd
+            |   SeqNode nd -> extract nd
+            |   MapNode nd -> extract nd
+
+        member this.filter nodes =
+            nodes 
+            |> List.filter (fun node ->
+                let nodeTag = this.extractTag node
+                let (TagValue filterTag) = this
+                nodeTag = filterTag
+            )
+            |> fun lst ->
+                if lst.Length = 0 then None
+                else (Some lst)
+
 type EvaluationExpression =
     |   Map of MappingEvaluation
     |   Seq of SeqEvaluation
     |   Val of ScalarEvaluation
+    |   Tag of TagEvaluation
     with
         member this.filter nodes =
             match (this) with
             |   Map d   -> d.filter nodes
             |   Seq d   -> d.filter nodes
             |   Val d   -> d.filter nodes
+            |   Tag d   -> d.filter nodes
 
 type YamlPath = private {
         Start      : StartingPoint
         Evaluation : EvaluationExpression list
     }
     with
-        static member sqrx =
+        static member ``single quote regex`` =
             let y = Yaml12Parser()
             let ps = ParseState.Create "" (TagResolution.FailsafeSchema)
             y.``nb-single-multi-line`` ps
+
+        static member tagrx =
+            let y = Yaml12Parser()
+//            let ps = ParseState.Create "" (TagResolution.FailsafeSchema)
+            OOM(y.``ns-uri-char``) ||| y.``c-primary-tag-handle`` + OOM(y.``ns-tag-char``)
+
 
         static member Create (s:string) =
             let start (s:string) = 
@@ -152,9 +187,10 @@ type YamlPath = private {
             let (root, rs) = start s
 
             let parseEvals s =
-                let plainscalar = RGP("#'") + GRP(YamlPath.sqrx)+ RGP("'") 
-                let mapkeyscalar = RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}") 
-                let mapvaluescalar = RGP(@"\{#'") + GRP(YamlPath.sqrx)+ RGP(@"'\}\?") 
+                let plainscalar = RGP("#'") + GRP(YamlPath.``single quote regex``)+ RGP("'") 
+                let mapkeyscalar = RGP(@"\{#'") + GRP(YamlPath.``single quote regex``)+ RGP(@"'\}") 
+                let mapvaluescalar = RGP(@"\{#'") + GRP(YamlPath.``single quote regex``)+ RGP(@"'\}\?")
+                let tagvalue = (RGP "<") + GRP(YamlPath.tagrx) + (RGP ">")
                 match s with
                 |   Regex2(plainscalar)     mt -> Val(LiteralScalar (mt.ge1)),mt.Rest
                 |   Regex2(RGP("#"))        mt -> Val(AnyScalar),mt.Rest
@@ -163,6 +199,7 @@ type YamlPath = private {
                 |   Regex2(mapvaluescalar)  mt -> Map(MappedValueForKey mt.ge1),mt.Rest
                 |   Regex2(mapkeyscalar)    mt -> Map(GivenKey mt.ge1),mt.Rest
                 |   Regex2(RGP(@"\[\]"))    mt -> Seq(SeqValues),mt.Rest
+                |   Regex2(tagvalue)        mt -> Tag(TagValue mt.ge1),mt.Rest
                 | _  -> raise (YamlPathException (sprintf "Unsupported construct: %s" s))
 
             let evals = 

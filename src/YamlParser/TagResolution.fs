@@ -7,7 +7,7 @@ open RegexDSL
 
 exception TagResolutionException of string
 
-
+[<NoEquality; NoComparison>]
 type TagResolutionInfo = {
         NonSpecificTag  : string
         Path            : Node list
@@ -22,6 +22,7 @@ type TagResolutionInfo = {
 type TagResolutionFunc = (TagResolutionInfo -> GlobalTag option)
 
 
+[<NoEquality; NoComparison>]
 type GlobalTagSchema = {
     GlobalTags      : GlobalTag list
     TagResolution   : TagResolutionFunc
@@ -210,7 +211,7 @@ module internal YamlExtended =
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
-                | Regex "^([-+])?(0*)([1-9][0-9_]*)?\.(0*)([1-9][0-9.]*)(?:[eE]([-+])([0-9]+))?$" [sign; zmantissa; mantissa; zprec; prec; esign; exp] ->
+                | Regex "^([-+])?(0*)([1-9][0-9_]*)?\.(0*)([1-9][0-9.]*)(?:[eE]([-+])([0-9]+))?$" [sign; _; mantissa; zprec; prec; esign; exp] ->
                     let cleanMantissa = mantissa.Replace("_","")
                     let expCorrection, canMantissa = 
                         match cleanMantissa.Length with

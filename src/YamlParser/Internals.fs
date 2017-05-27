@@ -56,15 +56,38 @@ module Option =
         |   None    -> f
         |   x       -> x
 
+type FallibleOption<'a,'b> =
+    |   Value of 'a
+    |   NoResult
+    |   Error of 'b
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module FallibleOption =
+    let bind o f =
+        match o with
+        |   Value v -> f v
+        |   _ -> o
+    let map o f =
+        match o with
+        |   Value v -> Value (f v)
+        |   _ -> o
+    let ifnoresult o f =
+        match o with
+        |   NoResult -> f
+        |   _ -> o
+
+    let Value v = Value v
+
+
 module ParserMonads =
     open System.Diagnostics
 
     [<DebuggerStepThrough>]
     type EitherBuilder<'a,'b,'c>(context : 'b) =
-        member this.Yield (item : 'c) : 'b * Option<'a> = (context, None)
+        member this.Yield (_ : 'c) : 'b * Option<'a> = (context, None)
 
         [<CustomOperation("setcontext")>]
-        member this.SetContext (((ct:'b), pv), nw) = (nw, pv)
+        member this.SetContext (((_:'b), pv), nw) = (nw, pv)
 
         [<CustomOperation("either")>]
         member this.Either (((ct:'b), pv), nw) =
@@ -73,7 +96,7 @@ module ParserMonads =
             |   Some v  -> (ct, Some v)
 
         [<CustomOperation("ifneither")>]
-        member this.IfNeither (((ct:'b), pv), nw) = 
+        member this.IfNeither (((_:'b), pv), nw) = 
             match pv with
             |   None    -> nw
             |   Some v  -> Some v

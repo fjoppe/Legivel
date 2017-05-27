@@ -131,7 +131,7 @@ let ``Example 2.7. Two Documents in a Stream (each with a leading comment)``() =
 "
     yml.Length |> should equal 2
 
-    let [yml1; yml2] = yml 
+    let yml1, yml2 = List.head yml, List.last yml 
 
     ["Mark McGwire"; "Sammy Sosa"; "Ken Griffey"]
     |> List.iter(fun e -> 
@@ -163,7 +163,8 @@ action: grand slam
 "
     yml.Length |> should equal 2
 
-    let [yml1; yml2] = yml 
+    let yml1, yml2 = List.head yml, List.last yml 
+
 
     [("time", "20:03:20"); ("player", "Sammy Sosa");("action", "strike (miss)")]
     |> List.iter(fun (k,v) -> 
@@ -256,7 +257,7 @@ let ``Example 2.13.  In literals, newlines are preserved``() =
   \//||\/||
   // ||  ||__"
 
-    Some([yml]) |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761032")>]
 let ``Example 2.14.  In the folded scalars, newlines become spaces``() =
@@ -266,7 +267,7 @@ let ``Example 2.14.  In the folded scalars, newlines become spaces``() =
   year was crippled
   by a knee injury."
 
-    Some([yml]) |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
     Some([yml]) |> ToScalar |> should equal "Mark McGwire's year was crippled by a knee injury."
 
 
@@ -282,7 +283,7 @@ let ``Example 2.15.  Folded newlines are preserved for "more indented" and blank
 
  What a year!"
 
-    Some([yml]) |> ToScalarTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
     Some([yml]) |> ToScalar |> should equal "Sammy Sosa completed another fine season with great stats.\n\n  63 Home Runs\n  0.288 Batting Average\n\nWhat a year!"
 
 
@@ -433,7 +434,7 @@ date: 2002-12-14
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-////[<Ignore "TODO: Add support for local tags, and extend global schema">]
+[<Ignore "TODO: Implement real binary">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761694")>]
 let ``Example 2.23. Various Explicit Tags``() =
     let yml = YamlParse "
@@ -452,18 +453,17 @@ application specific tag: !something |
  different documents.
 "
     [
-        ("not-date", "2002-04-28")
+        ("not-date", "2002-04-28", "tag:yaml.org,2002:str")
         // TODO: "picture" needs to become real binary
-        ("picture", "R0lGODlhDAAMAIQAAP//9/X\n17unp5WZmZgAAAOfn515eXv\nPz7Y6OjuDg4J+fn5OTk6enp\n56enmleECcgggoBADs=\n")
-        //  TODO: real test with local tag "!something"
-        ("application specific tag", "The semantics of the tag\nabove may be different for\ndifferent documents.\n") 
+        ("picture", "R0lGODlhDAAMAIQAAP//9/X\n17unp5WZmZgAAAOfn515eXv\nPz7Y6OjuDg4J+fn5OTk6enp\n56enmleECcgggoBADs=\n", "tag:yaml.org,2002:binary")
+        ("application specific tag", "The semantics of the tag\nabove may be different for\ndifferent documents.\n","!something") 
     ]
-    |> List.iter(fun (k,v) ->
+    |> List.iter(fun (k,v,t) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ExtractTag |> should equal t
     )
 
-//[<Ignore "TODO: Better support for global tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761719")>]
 let ``Example 2.24. Global Tags``() =
     let yml = YamlParse "
@@ -483,10 +483,22 @@ let ``Example 2.24. Global Tags``() =
   text: Pretty vector drawing.
 "
     [
-        ("a","b")   // force error to make this findable
+        ("//[]/<tag:clarkevans.com,2002:line>/{#'start'}?/{#'x'}?","73")
+        ("//[]/<tag:clarkevans.com,2002:line>/{#'start'}?/{#'y'}?","129")
+        ("//[]/<tag:clarkevans.com,2002:line>/{#'finish'}?/{#'x'}?","89")
+        ("//[]/<tag:clarkevans.com,2002:line>/{#'finish'}?/{#'y'}?","102")
+
+        ("//[]/<tag:clarkevans.com,2002:label>/{#'start'}?/{#'x'}?","73")
+        ("//[]/<tag:clarkevans.com,2002:label>/{#'start'}?/{#'y'}?","129")
+        ("//[]/<tag:clarkevans.com,2002:label>/{#'color'}?","0xFFEEBB")
+        ("//[]/<tag:clarkevans.com,2002:label>/{#'text'}?","Pretty vector drawing.")
+
+        ("//[]/<tag:clarkevans.com,2002:circle>/{#'center'}?/{#'x'}?","73")
+        ("//[]/<tag:clarkevans.com,2002:circle>/{#'center'}?/{#'y'}?","129")
+        ("//[]/<tag:clarkevans.com,2002:circle>/{#'radius'}?","7")
     ]
-    |> List.iter(fun (k,v) ->
-        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+    |> List.iter(fun (pt,v) ->
+        let p = YamlPath.Create (pt)
         yml |> p.Select |> ToScalar |> should equal v
     )
 

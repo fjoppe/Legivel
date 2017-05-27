@@ -8,6 +8,7 @@ type NodeKind =
     | Sequence
     | Scalar
 
+[<NoEquality; NoComparison>]
 type GlobalTag = {
         Uri     : string
         Kind    : NodeKind
@@ -29,13 +30,14 @@ type GlobalTag = {
 
         member this.Canonical s = this.canonFn s
 
-
+[<NoEquality; NoComparison>]
 type TagKind =
     |   Global       of GlobalTag
     |   Unrecognized of GlobalTag
     |   Local        of string
     |   NonSpecific  of string
 
+[<NoEquality; NoComparison>]
 type NodeData<'T> = {
         Tag  : TagKind
         Data : 'T
@@ -49,6 +51,7 @@ type NodeData<'T> = {
             { this with Tag = t}
 
 [<DebuggerDisplay("{this.DebuggerInfo}")>]
+[<NoEquality; NoComparison>]
 type Node =
     | SeqNode of NodeData<Node list>
     | MapNode of NodeData<(Node*Node) list>
@@ -59,6 +62,7 @@ type Node =
             |   Global gt -> gt.Uri
             |   Local  s  -> s
             |   NonSpecific s -> s
+            |   Unrecognized gt -> gt.Uri
 
         member this.Hash 
             with get() =

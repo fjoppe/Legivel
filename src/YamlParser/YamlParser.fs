@@ -1,7 +1,6 @@
 ﻿module YamlParse
 
 open System
-open System.Text
 open System.Text.RegularExpressions
 open YamlParser.Internals
 open YamlParser.Internals.ParserMonads
@@ -69,7 +68,7 @@ type ParseMessage =
     |   Warn of string
     |   Error of string 
 
-
+[<NoEquality; NoComparison>]
 type ParseState = {
         /// Current document line number
         LineNumber  : int
@@ -167,7 +166,7 @@ type ParseState = {
                 GlobalTagSchema = schema; LocalTagSchema = None; NodePath = []
             }
 
-
+[<NoEquality; NoComparison>]
 exception DocumentException of ParseState
 
 
@@ -215,7 +214,6 @@ type ParseFuncMappedResult = (Node * Node * ParseState) option  //  returns pars
 type ParseFuncSignature = (ParseState -> ParseFuncSingleResult)
 
 
-type BlockFoldPrevType = EmptyAfterFolded | Empty | Indented | TextLine
 type FlowFoldPrevType = Empty | TextLine
 
 
@@ -239,7 +237,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     new() = Yaml12Parser(fun _ -> ())
 
     //  Utility functions
-    member private this.break sr =
+    member private this.debugbreak sr =
         sr |> Option.map (fun (n,ps) ->
             logger "break" ps
             (n,ps)
@@ -276,7 +274,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | _-> -1 // raise (ParseException(sprintf "Cannot detect indentation at '%s'" (stringPosition ps.InputString)))
 
 
-    member this.``content with properties2`` (``follow up func``: ParseFuncSignature) ps =
+    member this.``content with properties`` (``follow up func``: ParseFuncSignature) ps =
         let addAnchor anchor c (ps:ParseState) = if anchor<> "" then (ps.AddAnchor anchor c) else ps
         match (this.``c-ns-properties`` ps) with
         |   Some(prs, tag, anchor) -> 
@@ -315,10 +313,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let rec trimLines inLines outLines noFold =
             let result nf = 
-                if nf then 
-                    inLines, outLines
-                else
-                    inLines, outLines |> List.tail
+                match nf with
+                |   true    -> inLines, outLines
+                |   false   -> inLines, outLines |> List.tail
             
             match inLines with
             |   []          -> result noFold
@@ -857,7 +854,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   Regex2(shorthandNamed) mr -> ShortHandNamed  mr.ge2
                 |   Regex2(shorthandSecondary) mr -> ShortHandSecondary  mr.ge1
                 |   Regex2(shorthandPrimary) mr -> ShortHandPrimary mr.ge1
-                |   Regex2(this.``c-non-specific-tag``) mr -> NonSpecificQT
+                |   Regex2(this.``c-non-specific-tag``) _ -> NonSpecificQT
                 |   _ -> raise (ParseException "Unexpected Tag format")
 
         match ps with
@@ -1373,6 +1370,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 mt.FullMatch
                 |> CreateScalarNode (NonSpecific.NonSpecificTagQM) 
                 |> this.ResolveTag prs NonSpecificQM
+            | _              -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
         |   _ -> None
         |> ParseState.ResetEnvSR ps 
         |> ParseState.AddSuccessSR  "ns-flow-yaml-content" ps
@@ -1410,7 +1408,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps.OneOf {
             either (this.``c-ns-alias-node``)
             either (this.``ns-flow-yaml-content``)
-            either (this.``content with properties2`` ``ns-flow-yaml-content``)
+            either (this.``content with properties`` ``ns-flow-yaml-content``)
             ifneither (None)
         }
         |> ParseState.AddSuccessSR  "ns-flow-yaml-node" ps
@@ -1422,7 +1420,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``c-flow-json-content``)
         ps.OneOf {
             either (this.``c-flow-json-content``)
-            either (this.``content with properties2`` ``c-flow-json-content``)
+            either (this.``content with properties`` ``c-flow-json-content``)
             ifneither (None)
         }
         |> ParseState.AddSuccessSR "c-flow-json-node" ps
@@ -1437,7 +1435,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps.OneOf {
             either (this.``c-ns-alias-node``)
             either (this.``ns-flow-content``)
-            either (this.``content with properties2`` ``ns-flow-content``)
+            either (this.``content with properties`` ``ns-flow-content``)
             ifneither (None)
         }
         |> ParseState.AddSuccessSR "ns-flow-node" ps
@@ -1709,11 +1707,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let ``indented compact`` ps =
             ps |> ParseState.``Match and Advance`` (this.``s-indent(n)`` (ps.SetIndent ps.m)) (fun prs ->
                 let prs = prs |> ParseState.SetIndent (ps.n+1+ps.m) |> ParseState.SetSubIndent 0
-                (prs |> ParseState.OneOf) {
-                    either (this.``ns-l-compact-sequence``)
-                    either (this.``ns-l-compact-mapping``)
-                    ifneither None
-                }
+                (prs |> ParseState.OneOf) 
+                    {
+                        either (this.``ns-l-compact-sequence``)
+                        either (this.``ns-l-compact-mapping``)
+                        ifneither None
+                    }
             )
 
         (ps |> ParseState.OneOf) {
@@ -1905,20 +1904,22 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let psp1 = ps.SetIndent (ps.n + 1)
             psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
                 let mapScalar (s, prs) = CreateScalarNode (NonSpecific.NonSpecificTagQT) (s), prs // |> this.ResolveTag prs NonSpecificQT
-                (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf) {
-                    either   (this.``c-l+literal`` >> Option.map mapScalar)
-                    either   (this.``c-l+folded``  >> Option.map mapScalar)
-                    ifneither None
-                }
+                (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
+                    {
+                        either   (this.``c-l+literal`` >> Option.map mapScalar)
+                        either   (this.``c-l+folded``  >> Option.map mapScalar)
+                        ifneither None
+                    }
             )
         psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
             let mapScalar (s, prs) = CreateScalarNode (NonSpecific.NonSpecificTagQT) (s) |> this.ResolveTag prs NonSpecificQT
-            (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf) {
-                either(this.``content with properties2`` ``literal or folded``)
-                either   (this.``c-l+literal`` >> Option.bind mapScalar)
-                either   (this.``c-l+folded``  >> Option.bind mapScalar)
-                ifneither None
-            }
+            (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
+                {
+                    either(this.``content with properties`` ``literal or folded``)
+                    either   (this.``c-l+literal`` >> Option.bind mapScalar)
+                    either   (this.``c-l+folded``  >> Option.bind mapScalar)
+                    ifneither None
+                }
         )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "s-l+block-scalar" ps
@@ -1938,7 +1939,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             }
             
         let ``optional spaced content with properties`` ps =
-            ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``content with properties2`` ``seq or map``)
+            ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``content with properties`` ``seq or map``)
 
         psp1.OneOf {
             either (``optional spaced content with properties``)

@@ -1,12 +1,11 @@
 ﻿module RegexDSL
 
 open System.Diagnostics
-open System.Text
-open System.IO
 open System.Text.RegularExpressions
 open System
 open System.Globalization
 
+#nowarn "52" // "value has been copied to ensure the original is not mutated"
 
 exception RegexException of string
 
@@ -41,7 +40,7 @@ type OneInSet =
         {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not}
     static member (+) (r1:OneInSet, r2:OneInSet) =
         {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not}
-    static member (+) (r1:OneInSet, r2:Plain) =
+    static member (+) (_:OneInSet, _:Plain) =
         raise (RegexException "not supported")
 
     static member Create r =
