@@ -56,14 +56,8 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-//YamlParse "
-//commercial-at: @text
-//grave-accent: `text
-//"
-
 YamlParseList "
-
-%TAG !e! tag:example.com,2000:app/
----
-- !e!foo \"bar\"
+!!str &a1 \"foo\":
+  !!str bar
+&a2 baz : *a1
 "

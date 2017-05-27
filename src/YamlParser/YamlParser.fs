@@ -421,29 +421,26 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let ResolveTagShortHand name (sub:string) : (Node * ParseState) option =
             ps.TagShorthands 
             |> List.tryFind(fun tsh -> tsh.ShortHand = name) 
-            |> Option.bind(fun tsh ->
-                match tsh.MappedTagUri with
-                |   Regex(RGSF(this.``ns-global-tag-prefix``)) _ -> 
-                    ps.GlobalTagSchema.GlobalTags 
-                    |> List.tryFind(fun t -> t.Uri = (tsh.MappedTagUri+sub))
-                    |>  function
-                        |   Some t  -> if (t.Kind = node.Kind) then Some(Global t) else None
-                        |   None    -> 
-                            match node.Kind with
-                            |   Scalar  -> Unrecognized (GlobalTag.Create (tsh.MappedTagUri+sub, node.Kind))
-                            |   _       -> Global (GlobalTag.Create (tsh.MappedTagUri+sub, node.Kind))
-                            |> Some
-//                    |> Option.bind(fun t -> if (t.Kind = node.Kind) then Some(t) else None)
-//                    |> Option.map(fun e -> Global e)
-                |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Some(Local (tsh.MappedTagUri+sub))
-                |   _ -> None
-                )
-            |>  Option.map(fun e -> (node.SetTag e),ps)
-            |>  Option.ifnone (
-                let n = node.SetTag (NonSpecific.UnresolvedTag)
-                let p = ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub))
-                Some(n, p)
-                )
+            |>  function
+                | Some tsh ->
+                    match tsh.MappedTagUri with
+                    |   Regex(RGSF(this.``ns-global-tag-prefix``)) _ -> 
+                        ps.GlobalTagSchema.GlobalTags 
+                        |> List.tryFind(fun t -> t.Uri = (tsh.MappedTagUri+sub))
+                        |>  function
+                            |   Some t  -> if (t.Kind = node.Kind) then Some(Global t) else None
+                            |   None    -> 
+                                match node.Kind with
+                                |   Scalar  -> Unrecognized (GlobalTag.Create (tsh.MappedTagUri+sub, node.Kind))
+                                |   _       -> Global (GlobalTag.Create (tsh.MappedTagUri+sub, node.Kind))
+                                |> Some
+                    |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Some(Local (tsh.MappedTagUri+sub))
+                    |   _ -> None
+                    |>  Option.map(fun e -> (node.SetTag e),ps)
+                | None ->
+                    let n = node.SetTag (NonSpecific.UnresolvedTag)
+                    let p = ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub))
+                    Some(n, p)
 
         match tag with
         |   NonSpecificQM   -> ResolveNonSpecificTag "?"
