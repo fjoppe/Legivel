@@ -163,7 +163,7 @@ let Match(s, p) =
     if mt.Count = 0 then 
         []
     else
-        [ for g in mt -> g.Value ] //   |> List.tail
+        [ for g in mt -> g.Value ]
 
 /// Returns whether pattern p matches on string s
 [<DebuggerStepThrough>]
@@ -182,13 +182,6 @@ let HasMatches(s,p) =
         (true, m0, Advance(m0, s))
     else
         (false, "",s)
-
-[<DebuggerStepThrough>]
-let ``value or zero`` sv =
-    match sv with
-    |   Some(v) -> v
-    |   None    -> 0
-
 
 [<DebuggerStepThrough>]
 let (|Regex|_|) pattern input =
@@ -246,8 +239,6 @@ let DecodeEncodedEscapedCharacters value =
             | _ -> sprintf "\\%s" m.Groups.["Value"].Value
         ))
 
-[<DebuggerStepThrough>]
-let (|Parse|_|) func ps = func ps
 [<DebuggerStepThrough>]
 let (|Eval|_|)  func x = func x
 

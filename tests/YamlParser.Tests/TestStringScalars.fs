@@ -17,7 +17,7 @@ let YamlParse s =
     let ps = ps.SetSubIndent 0
     let ps = ps.SetStyleContext ``Block-in``
     let d = engine.``s-l+block-node`` ps 
-    match (fst(d.Value)) with
+    match (fst(d.Data)) with
     |   ScalarNode  node -> node.Data
     |   _ -> raise (Exception "Not scalar data")
 

@@ -1,6 +1,5 @@
 ﻿namespace YamlParser.Internals
 
-
 open System
 open SpookyHash
 
@@ -50,31 +49,35 @@ module NodeHash =
     let Create s = NodeHash.Create s
     let Merge nhl = NodeHash.Merge nhl
 
-module Option =
-    let ifnone f v  = 
-        match v with
-        |   None    -> f
-        |   x       -> x
 
 type FallibleOption<'a,'b> =
     |   Value of 'a
     |   NoResult
-    |   Error of 'b
+    |   ErrorResult of 'b
+    member this.Data 
+        with get() =
+            match this with
+            |   Value v -> v
+            |   _ -> failwith "This instance has no value"
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module FallibleOption =
-    let bind o f =
+    let bind<'a,'b,'c> (f:'a -> FallibleOption<'b,'c>) o =
         match o with
         |   Value v -> f v
-        |   _ -> o
-    let map o f =
+        |   NoResult -> NoResult
+        |   ErrorResult e -> ErrorResult e
+    let map<'a,'b,'c> (f:'a -> 'b) (o:FallibleOption<'a,'c>) =
         match o with
         |   Value v -> Value (f v)
-        |   _ -> o
-    let ifnoresult o f =
+        |   NoResult -> NoResult
+        |   ErrorResult e -> ErrorResult e
+
+    let ifnoresult<'a,'b,'c> f (o:FallibleOption<'a,'c>) =
         match o with
-        |   NoResult -> f
-        |   _ -> o
+        |   NoResult    -> f
+        |   Value v     -> Value v
+        |   ErrorResult e -> ErrorResult e
 
     let Value v = Value v
 
@@ -83,23 +86,25 @@ module ParserMonads =
     open System.Diagnostics
 
     [<DebuggerStepThrough>]
-    type EitherBuilder<'a,'b,'c>(context : 'b) =
-        member this.Yield (_ : 'c) : 'b * Option<'a> = (context, None)
+    type EitherBuilder<'a,'b,'c,'d>(context : 'c, addErr:'c->'b->'c) =
+        member this.Yield (_ : 'd) : 'c * FallibleOption<'a,'b> = (context, NoResult)
 
         [<CustomOperation("setcontext")>]
-        member this.SetContext (((_:'b), pv), nw) = (nw, pv)
+        member this.SetContext (((_:'c), pv), nw) = (nw, pv)
 
         [<CustomOperation("either")>]
-        member this.Either (((ct:'b), pv), nw) =
+        member this.Either (((ct:'c), pv), nw) =
             match pv with
-            |   None    -> (ct, nw ct)
-            |   Some v  -> (ct, Some v)
+            |   Value v  -> (ct, Value v)
+            |   NoResult -> (ct, nw ct)
+            |   ErrorResult e -> (ct, nw (addErr ct e))
 
         [<CustomOperation("ifneither")>]
-        member this.IfNeither (((_:'b), pv), nw) = 
+        member this.IfNeither (((_:'c), pv), nw) = 
             match pv with
-            |   None    -> nw
-            |   Some v  -> Some v
+            |   NoResult  -> nw
+            |   x -> x
+                
 
         
         
