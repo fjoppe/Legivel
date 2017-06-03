@@ -97,13 +97,16 @@ module ParserMonads =
             match pv with
             |   Value v  -> (ct, Value v)
             |   NoResult -> (ct, nw ct)
-            |   ErrorResult e -> (ct, nw (addErr ct e))
+            |   ErrorResult e -> 
+                let ctn = addErr ct e
+                (ctn, nw ctn)
 
         [<CustomOperation("ifneither")>]
-        member this.IfNeither (((_:'c), pv), nw) = 
+        member this.IfNeither (((ct:'c), pv), nw) = 
             match pv with
-            |   NoResult  -> nw
-            |   x -> x
+            |   NoResult      -> (ct,nw)
+            |   Value v       -> (ct, Value v)
+            |   ErrorResult e -> (ct, ErrorResult e)
                 
 
         

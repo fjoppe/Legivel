@@ -61,11 +61,17 @@ let CreateSeqNode tag d =
 
 type Directive = YAML of string | TAG of string*string | RESERVED of string list
 
-type ParseMessage = 
-    |   Warn of string
-    |   Error of string 
+type ParseMessage = {
+        Warn  : string list 
+        Error : string list
+    }
+    with
+        static member Create() = {Warn = [];Error=[]}
+        member this.AddError s = {this with Error = s :: this.Error}
+        member this.AddWarning s = {this with Warn = s :: this.Warn}
 
-type ErrorMessage = string
+
+type ErrorMessage = string list
 
 [<NoEquality; NoComparison>]
 type ParseState = {
@@ -91,7 +97,7 @@ type ParseState = {
         Anchors     : Map<string, Node>
         
         /// Parsing messages (warns/errors)
-        Messages    : ParseMessage list
+        Messages    : ParseMessage
         
         /// Document directives
         Directives  : Directive list
@@ -112,7 +118,7 @@ type ParseState = {
         TraceSuccess: (string*ParseState) list
     }
     with
-        static member AddErrorMessage (ps:ParseState) s = ps.AddMessage (Error s)
+        static member AddErrorMessageDel (ps:ParseState) sl = (sl |> List.fold(fun (p:ParseState) s -> p.AddErrorMessage s) ps)
         member this.CountLines s =
             let patt = "\u000d\u000a|\u000d|\u000a" // see rule [28] ``b-break``
             let lc = Regex.Matches(s, patt).Count    //  counts \n in a string
@@ -148,12 +154,13 @@ type ParseState = {
 
         member this.SetChomping tn = { this with t = tn }
 
-        member inline this.OneOf with get() = EitherBuilder(this, ParseState.AddErrorMessage)
+        member inline this.OneOf with get() = EitherBuilder(this, ParseState.AddErrorMessageDel)
 
-        member this.AddMessage m = {this with Messages = m :: this.Messages}
+        member this.AddErrorMessage s = {this with Messages = this.Messages.AddError s}
+        member this.AddWarningMessage s = {this with Messages = this.Messages.AddWarning s}
 
-        member this.Errors   with get() = this.Messages |> List.filter(function | Error _ -> true | _ -> false) |> List.length
-        member this.Warnings with get() = this.Messages |> List.filter(function | Warn  _ -> true | _ -> false) |> List.length
+        member this.Errors   with get() = this.Messages.Error |> List.length
+        member this.Warnings with get() = this.Messages.Error |> List.length
 
         member this.AddDirective d = {this with Directives = d:: this.Directives}
 
@@ -161,7 +168,7 @@ type ParseState = {
 
         static member Create inputStr schema = {
                 LineNumber = 0; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
-                Anchors = Map.empty; TraceSuccess = []; Messages=[]; Directives=[]; 
+                Anchors = Map.empty; TraceSuccess = []; Messages=ParseMessage.Create(); Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
                 GlobalTagSchema = schema; LocalTagSchema = None; NodePath = []
             }
@@ -190,14 +197,55 @@ module ParseState =
     let ResetEnvSR ps pso = pso |> FallibleOption.map(fun (any, prt) -> (any, (renv(prt,ps))))
     let ResetEnvMR ps pso = pso |> FallibleOption.map(fun (any1, any2, prt) -> (any1, any2, (renv(prt,ps))))
     let ResetLineCount ps = { ps with LineNumber = 0}
+    let PreserveErrorsSR ps (ct,pso) = 
+        let inErrors = ps.Messages.Error  |> List.sort
+        let outErrors = ct.Messages.Error |> List.sort
+        let newErrors() = outErrors |> List.filter(fun e1 -> not(inErrors |> List.exists(fun e2 -> e1 = e2)))
+        pso |> 
+        function 
+        |   Value (n,p) -> Value (n,p)  //  errors already preserved in p
+        |   NoResult    -> 
+            if inErrors = outErrors then NoResult
+            else 
+                if inErrors.Length > outErrors.Length then 
+                    // Assumption: error decreasement only occurs in a "pso = Value v" situation, thus not this case.
+                    // Error decrease only happens when an error is cancelled. 
+                    //  When something cannot be parsed in one context it may register an erroro (ie single line mode),
+                    //  but when it can be parsed in another context (ie multiline mode), the previous registered error is cancelled.
+                    raise (ParseException "Unexpected error, losing errors,this needs reassement")
+                else 
+                    ErrorResult (newErrors())
+        |   ErrorResult e -> ErrorResult(newErrors() @ e)
 
-    let AddMessage m (ps:ParseState) = ps.AddMessage m
-    let AddErrorMessage m (ps:ParseState) = ParseState.AddErrorMessage ps m 
+    let PreserveErrorsMR ps (ct,pso) = 
+        let inErrors = ps.Messages.Error  |> List.sort
+        let outErrors = ct.Messages.Error |> List.sort
+        let newErrors() = outErrors |> List.filter(fun e1 -> not(inErrors |> List.exists(fun e2 -> e1 = e2)))
+        pso |> 
+        function 
+        |   Value (n1,n2,p) -> Value (n1,n2,p)  //  errors already preserved in p
+        |   NoResult    -> 
+            if inErrors = outErrors then NoResult
+            else 
+                if inErrors.Length > outErrors.Length then 
+                    // Assumption: error decreasement only occurs in a "pso = Value v" situation, thus not this case.
+                    // Error decrease only happens when an error is cancelled. 
+                    //  When something cannot be parsed in one context it may register an erroro (ie single line mode),
+                    //  but when it can be parsed in another context (ie multiline mode), the previous registered error is cancelled.
+                    raise (ParseException "Unexpected error, losing errors,this needs reassement")
+                else 
+                    ErrorResult (newErrors())
+        |   ErrorResult e -> ErrorResult(newErrors() @ e)
+
+    let AddErrorMessage m (ps:ParseState) = ps.AddErrorMessage m
+    let AddWarningMessage m (ps:ParseState) = ps.AddWarningMessage m
+
+    let AddErrorMessageDel m (ps:ParseState) = ParseState.AddErrorMessageDel ps m 
     let AddDirective d (ps:ParseState) = ps.AddDirective d
     let AddAnchorsFrom (prs:ParseState) (ps:ParseState) = ps.AddAnchors prs.Anchors 
     let AddTagShortHand ts (ps:ParseState)  = ps.AddTagShortHand ts
 
-    let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessage)
+    let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel)
     let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.InputString, patt)) with
         |   (true, mt, rest) -> ps |> SetRestString rest |> CountLines mt |> postAdvanceFunc
@@ -410,7 +458,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Some t -> 
                 if t.Kind = node.Kind then  Value(node.SetTag (Global t), ps)
                 else NoResult
-            |   None -> Value(node, ps |> ParseState.AddMessage (Error (sprintf "Cannot resolve secondary tag: %s" nst)))
+            |   None -> Value(node, ps |> ParseState.AddErrorMessage (sprintf "Cannot resolve secondary tag: %s" nst))
 
         let ResolveLocalTag tag =
             Value(node.SetTag (Local tag), ps)
@@ -445,7 +493,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 | Some tsh -> ResolveShorthand tsh sub
                 | None ->
                     let n = node.SetTag (NonSpecific.UnresolvedTag)
-                    let p = ps.AddMessage (Error (sprintf "Cannot resolve shorthand '%s%s'" name sub))
+                    let p = ps.AddErrorMessage (sprintf "Cannot resolve shorthand '%s%s'" name sub)
                     Value(n, p)
 
         match tag with
@@ -766,14 +814,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Regex2(this.``ns-yaml-directive``)  mt    -> 
                 let ps = 
                     match (mt.ge1.Split('.') |> List.ofArray) with
-                    | [a;b] when a="1" && b<"2" -> ps |> ParseState.AddMessage (Warn (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
+                    | [a;b] when a="1" && b<"2" -> ps |> ParseState.AddWarningMessage (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1)
                     | [a;b] when a="1" && b="2" -> ps
-                    | [a;b] when a="1" && b>"2" -> ps |> ParseState.AddMessage (Warn (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
-                    | [a;_] when a>"1"          -> ps |> ParseState.AddMessage (Error (sprintf "YAML %s document cannot be parsed, only YAML 1.2 is supported" mt.ge1))
-                    | _                         -> ps |> ParseState.AddMessage (Error (sprintf "Illegal directive: %%YAML %s, document cannot be parsed" mt.ge1))
+                    | [a;b] when a="1" && b>"2" -> ps |> ParseState.AddWarningMessage (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1)
+                    | [a;_] when a>"1"          -> ps |> ParseState.AddErrorMessage (sprintf "YAML %s document cannot be parsed, only YAML 1.2 is supported" mt.ge1)
+                    | _                         -> ps |> ParseState.AddErrorMessage (sprintf "Illegal directive: %%YAML %s, document cannot be parsed" mt.ge1)
                 let ymlcnt = ps.Directives |> List.filter(function | YAML _ -> true | _ -> false) |> List.length
                 let ps = 
-                    if ymlcnt>0 then (ps |> ParseState.AddMessage (Error "The YAML directive must only be given at most once per document."))
+                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage "The YAML directive must only be given at most once per document.")
                     else ps
                 if ps.Errors >0 then
                     raise (DocumentException ps)
@@ -783,13 +831,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let tg = mt.ge2 |> fst
                 let ymlcnt = ps.Directives |> List.filter(function | TAG (t,_) ->  (t=tg) | _ -> false) |> List.length
                 let ps = 
-                    if ymlcnt>0 then (ps |> ParseState.AddMessage (Error (sprintf "You can only add a tag shorthand once: %s" tg)))
+                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (sprintf "You can only add a tag shorthand once: %s" tg))
                     else ps
                 if ps.Errors >0 then
                     raise (DocumentException ps)
                 else
                     Value(TAG(mt.ge2),  ps.SetRestString (mt.Rest) |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
-            |   Regex2(this.``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddMessage (Warn (sprintf "Unsupported directive: %%%s" mt.ge1)))
+            |   Regex2(this.``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (sprintf "Unsupported directive: %%%s" mt.ge1))
             |   _   -> NoResult
         )
         |> FallibleOption.bind(fun (t,prs) ->
@@ -927,7 +975,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |>  List.map(DecodeEncodedUnicodeCharacters)
                 |>  List.map(DecodeEncodedHexCharacters)
                 |>  List.map(DecodeEncodedEscapedCharacters)
-//                |>  List.map(fun s -> s.Replace("\\\n", ""))
                 |>  List.map(fun s -> s.Replace("\x0d\x0a", "\n"))
                 |>  List.map(fun s -> s.Replace("\\\"", "\""))
             String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
@@ -950,7 +997,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match ps with
         |   Regex3(patt)    (mt,prs) ->
             let content = mt.ge1
-//            let n = 
             match ps.c with
             |  ``Flow-out`` |  ``Flow-in`` ->   //  multiline
                 let lines = content |> this.``split by linefeed`` |> List.length
@@ -961,7 +1007,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _  ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
-//            Some(n, prs)
         |   _ -> NoResult
         |> ParseState.AddSuccessSR "c-double-quoted" ps        
 
@@ -1025,7 +1070,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match ps with
         |   Regex3(patt)    (mt,prs) ->
             let content = mt.ge1
-//            let n = 
             match ps.c with
             |  ``Flow-out`` |  ``Flow-in`` ->   //  multiline
                 let lines = content |> this.``split by linefeed`` |> List.length
@@ -1036,7 +1080,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
-//            Some(n, prs)
         |   _ -> NoResult
         |> ParseState.AddSuccessSR "c-single-quoted" ps        
 
@@ -1159,6 +1202,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either(this.``ns-flow-node``)
             ifneither(NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "ns-flow-seq-entry"  ps
 
@@ -1204,6 +1248,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``ns-flow-map-implicit-entry``)
             ifneither (NoResult)        
         }
+        |> ParseState.PreserveErrorsMR ps
         |> ParseState.AddSuccessMR "ns-flow-map-entry" ps        
 
     //  [143]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-explicit-entry(n,c)
@@ -1223,6 +1268,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``c-ns-flow-map-json-key-entry``)
             ifneither (NoResult)        
         }
+        |> ParseState.PreserveErrorsMR ps
         |> ParseState.AddSuccessMR "ns-flow-map-implicit-entry" ps        
 
     //  [145]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-yaml-key-entry(n,c)
@@ -1291,6 +1337,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``ns-flow-pair-entry``)
             ifneither (NoResult)        
         }
+        |> ParseState.PreserveErrorsMR ps
         |> ParseState.AddSuccessMR "ns-flow-pair" ps
 
     //  [151]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair-entry(n,c)
@@ -1302,6 +1349,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``c-ns-flow-pair-json-key-entry``)
             ifneither (NoResult)        
         }
+        |> ParseState.PreserveErrorsMR ps
         |> ParseState.AddSuccessMR "ns-flow-pair-entry" ps
 
     //  [152]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair-yaml-key-entry(n,c)
@@ -1390,6 +1438,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``c-flow-sequence``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR  "c-flow-json-content" ps
         
     //  [158]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-content(n,c)
@@ -1400,6 +1449,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``c-flow-json-content``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR  "ns-flow-content" ps
 
     //  [159]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-yaml-node(n,c)
@@ -1416,6 +1466,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``content with properties`` ``ns-flow-yaml-content``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR  "ns-flow-yaml-node" ps
 
     //  [160]   http://www.yaml.org/spec/1.2/spec.html#c-flow-json-node(n,c)
@@ -1428,6 +1479,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``content with properties`` ``c-flow-json-content``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR "c-flow-json-node" ps
     
     //  [161]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-node(n,c)
@@ -1443,6 +1495,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``content with properties`` ``ns-flow-content``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR "ns-flow-node" ps
 
     //  [162]   http://www.yaml.org/spec/1.2/spec.html#c-b-block-header(m,t)
@@ -1710,6 +1763,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         either (this.``ns-l-compact-mapping``)
                         ifneither NoResult
                     }
+                    |> ParseState.PreserveErrorsSR ps
             )
 
         (ps |> ParseState.OneOf) {
@@ -1719,6 +1773,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs2 = ps.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
                 Value(this.ResolvedNullNode prs2, prs2))
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "s-l+block-indented" ps
 
@@ -1769,6 +1824,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``ns-l-block-map-implicit-entry``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsMR ps
         |> ParseState.AddSuccessMR "ns-l-block-map-entry" ps
 
     //  [189]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-explicit-entry(n)
@@ -1829,6 +1885,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``ns-s-implicit-yaml-key``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "ns-s-block-map-implicit-key" ps
 
@@ -1873,6 +1930,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``s-l+flow-in-block``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR  "s-l+block-node" ps
 
     //  [197]   http://www.yaml.org/spec/1.2/spec.html#s-l+flow-in-block(n)
@@ -1895,6 +1953,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (this.``s-l+block-collection``)
             ifneither (NoResult)
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR "s-l+block-in-block" ps
 
     //  [199]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-scalar(n,c)
@@ -1911,6 +1970,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         either   (this.``c-l+folded``  >> FallibleOption.map mapScalar)
                         ifneither NoResult
                     }
+                    |> ParseState.PreserveErrorsSR ps
             )
         psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
             let mapScalar (s, prs) = CreateScalarNode (NonSpecific.NonSpecificTagQT) (s) |> this.ResolveTag prs NonSpecificQT
@@ -1921,6 +1981,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     either   (this.``c-l+folded``  >> FallibleOption.bind mapScalar)
                     ifneither NoResult
                 }
+                |> ParseState.PreserveErrorsSR ps
+
         )
         |> ParseState.ResetEnvSR ps
         |> ParseState.AddSuccessSR "s-l+block-scalar" ps
@@ -1938,6 +2000,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 either (this.``l+block-mapping``)
                 ifneither(NoResult)
             }
+            |> ParseState.PreserveErrorsSR ps
             
         let ``optional spaced content with properties`` ps =
             ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``content with properties`` ``seq or map``)
@@ -1947,6 +2010,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either (``seq or map``)
             ifneither NoResult
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR "s-l+block-collection" ps
 
     //  [201]   http://www.yaml.org/spec/1.2/spec.html#seq-spaces(n,c)
@@ -1994,6 +2058,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     this.ResolveTag prs2 NonSpecificQM PlainEmptyNode
                 )
             }
+            |> ParseState.PreserveErrorsSR ps
         )
         |> ParseState.AddSuccessSR "l-explicit-document" ps
 
@@ -2004,7 +2069,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match (this.``l-directive`` ps) with
             |   Value psr   -> readDirectives psr
             |   NoResult    -> ps
-            |   ErrorResult e -> ps |> ParseState.AddErrorMessage e
+            |   ErrorResult el -> (el |> List.fold(fun ps e -> ps |> ParseState.AddErrorMessage e) ps)
         let psr = readDirectives ps
         this.``l-explicit-document`` psr
         |> FallibleOption.map(fun (n,psr) -> n, (ps.SetRestString (psr.InputString)))
@@ -2019,6 +2084,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             either(this.``l-bare-document``)
             ifneither NoResult
         }
+        |> ParseState.PreserveErrorsSR ps
         |> ParseState.AddSuccessSR "l-any-document" ps
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
@@ -2031,7 +2097,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 function
                 |   NoResult -> (ps, [])
                 |   Value (n, ps2) -> (ps2, [n])
-                |   ErrorResult e -> (ps |> ParseState.AddErrorMessage e, [])
+                |   ErrorResult el -> ((el |> List.fold(fun ps e -> ps |> ParseState.AddErrorMessage e) ps), [])
 
             let rec successorDoc (ps:ParseState, nodes) =
                 if ps.InputString.Length > 0 then
@@ -2040,9 +2106,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         either (ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (this.``l-explicit-document``))
                         ifneither NoResult
                     }
+                    |> ParseState.PreserveErrorsSR ps
                     |>  function
                         |   Value (n, ps2) -> successorDoc (ps2, (n :: nodes))
-                        |   _   -> (ps |> ParseState.AddMessage (Error "Cannot parse document."), nodes)
+                        |   _   -> (ps |> ParseState.AddErrorMessage "Cannot parse document.", nodes)
                 else
                     (ps, nodes)
 
