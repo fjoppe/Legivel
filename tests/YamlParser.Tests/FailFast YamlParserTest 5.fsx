@@ -19,57 +19,46 @@ let engine = Yaml12Parser(fun s -> logger.Trace(s))
 
 let YamlParse s =
     try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
+        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
         let (nodes, ps) = pr
         let node = nodes.Head
         printfn "Total lines: %d" ps.LineNumber
         printfn "%s" (Deserialize node (ps.TagShorthands))
-        ps.Messages |> List.iter(fun i -> 
-            match i with
-            |   Error t -> printfn "ERROR: %s" t
-            |   Warn  t -> printfn "Warning: %s" t
-        )
+        
+        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
+        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
+        if ps.Messages.Error.Length > 0 then printfn "Cannot parse: \"%s\"" ps.InputString
     with
     | DocumentException e -> 
-        e.Messages  |> List.iter(fun m -> 
-            match m with
-            |   Error s -> printfn "Error: %s" s
-            |   Warn  s -> printfn "Warning: %s" s
-        )
+        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
+        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
         raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 let YamlParseList s =
     try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Value
+        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
         let (nodes, ps) = pr
+        printfn "Total lines: %d" ps.LineNumber
+        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
+        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
+        if ps.Messages.Error.Length > 0 then printfn "Cannot parse: \"%s\"" ps.InputString
         nodes |> List.iter(fun node -> printfn "%s\n---" (Deserialize node (ps.TagShorthands)))
         nodes
     with
     | DocumentException e -> 
-        e.Messages  |> List.iter(fun m -> 
-            match m with
-            |   Error s -> printfn "Error: %s" s
-            |   Warn  s -> printfn "Warning: %s" s
-        )
+        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
+        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
         raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
 YamlParse "
-%TAG ! tag:clarkevans.com,2002:
---- !shape
-  # Use the ! handle for presenting
-  # tag:clarkevans.com,2002:circle
-- !circle
-  center: &ORIGIN {x: 73, y: 129}
-  radius: 7
-- !line
-  start: *ORIGIN
-  finish: { x: 89, y: 102 }
-- !label
-  start: *ORIGIN
-  color: 0xFFEEBB
-  text: Pretty vector drawing.
-"
+unicode: \"Sosa did fine.\\u263A\"
+control: \"\\b1998\\t1999\\t2000\\n\"
+hex esc: \"\\x0d\\x0a is \\r\\n\"
 
+single: '\"Howdy!\" he cried.'
+quoted: ' # Not a ''comment''.'
+tie-fighter: '|\\-*-/|'
+"

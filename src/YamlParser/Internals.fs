@@ -4,6 +4,7 @@ open System
 open SpookyHash
 
 [<CustomEquality; CustomComparison>]
+[<StructuredFormatDisplay("{AsString}")>]
 type NodeHash = private {
         hash1 : uint64
         hash2 : uint64
@@ -37,6 +38,9 @@ type NodeHash = private {
             | _ -> false
         
         override this.GetHashCode() = this.hash1.GetHashCode()
+
+        override this.ToString() = sprintf "#%X%X" (this.hash1) (this.hash2)
+        member m.AsString = m.ToString()
 
         interface System.IComparable with
             member this.CompareTo yobj =
@@ -106,7 +110,8 @@ module ParserMonads =
             match pv with
             |   NoResult      -> (ct,nw)
             |   Value v       -> (ct, Value v)
-            |   ErrorResult e -> (ct, ErrorResult e)
+            |   ErrorResult _ -> (ct,nw)
+//            (ct, ErrorResult e)
                 
 
         

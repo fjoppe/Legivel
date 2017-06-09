@@ -9,6 +9,7 @@ type NodeKind =
     | Scalar
 
 [<NoEquality; NoComparison>]
+[<StructuredFormatDisplay("{AsString}")>]
 type GlobalTag = {
         Uri     : string
         Kind    : NodeKind
@@ -30,14 +31,27 @@ type GlobalTag = {
 
         member this.Canonical s = this.canonFn s
 
+        override this.ToString() = sprintf "<%A::%s>" this.Kind this.Uri
+        member m.AsString = m.ToString()
+
 [<NoEquality; NoComparison>]
+[<StructuredFormatDisplay("{AsString}")>]
 type TagKind =
     |   Global       of GlobalTag
     |   Unrecognized of GlobalTag
     |   Local        of string
     |   NonSpecific  of string
+    with
+        override this.ToString() =
+            match this with
+            |   Global       gt -> sprintf "Global:%O" gt
+            |   Unrecognized gt -> sprintf "Unrecognized:%O" gt
+            |   Local        ls -> sprintf "Local:%O" ls
+            |   NonSpecific  ls -> sprintf "NonSpecific:%O" ls
+        member m.AsString = m.ToString()
 
 [<NoEquality; NoComparison>]
+[<StructuredFormatDisplay("{AsString}")>]
 type NodeData<'T> = {
         Tag  : TagKind
         Data : 'T
@@ -49,6 +63,9 @@ type NodeData<'T> = {
 
         member this.SetTag t = 
             { this with Tag = t}
+
+        override this.ToString() = sprintf "(%A) %O %A" (this.Hash.Force()) (this.Tag) (this.Data)
+        member m.AsString = m.ToString()
 
 [<DebuggerDisplay("{this.DebuggerInfo}")>]
 [<NoEquality; NoComparison>]

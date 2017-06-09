@@ -243,11 +243,11 @@ let ``Example 2.11. Mapping between Sequences``() =
     yml.Length |> should equal 1
 
     //  TODO: extend YamlPath to query above structure
-//    let p1 = YamlPath.Create "//{}/[]/#'Detroit Tigers'"
-//    let p2 = YamlPath.Create "//{}?/[]/#'2001-07-02'"
+    let p1 = YamlPath.Create "//{}/[]/#'Detroit Tigers'"
+    let p2 = YamlPath.Create "//{}?/[]/#'2001-07-02'"
 
-//    yml.Head |> p1.Select |> ToScalar |> should equal "Detroit Tigers"
-//    yml.Head |> p2.Select |> ToScalar |> should equal "2001-07-02"
+    yml.Head |> p1.Select |> ToScalar |> should equal "Detroit Tigers"
+    yml.Head |> p2.Select |> ToScalar |> should equal "2001-07-02"
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761008")>]
 let ``Example 2.13.  In literals, newlines are preserved``() =
