@@ -39,3 +39,14 @@ let r = ZOM((ymp.``ns-char`` + (RGP "#")) ||| ((ymp.``ns-plain-safe`` ps1) - (RG
 (|Regex3|_|) r ps1
 
 
+
+open System.Text.RegularExpressions
+
+let catchupString = "
+1 hi
+2 hell56
+skipit"
+
+let patt = "\x0d\x0a|\x0d|\x0a"
+
+(Regex.Split(catchupString, patt) |> List.ofArray |> List.last).Length

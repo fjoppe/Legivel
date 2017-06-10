@@ -87,7 +87,10 @@ type ErrorMessage = MessageAtLine list
 type ParseState = {
         /// Current document line number
         LineNumber  : int
-        
+
+        /// Current column in line        
+        ColumnNumber : int
+
         /// String to parse (or what's left of it)
         InputString : string
         
@@ -129,10 +132,13 @@ type ParseState = {
     }
     with
         static member AddErrorMessageDel (ps:ParseState) sl = (sl |> List.fold(fun (p:ParseState) s -> p.AddErrorMessage s) ps)
-        member this.CountLines s =
+        member this.TrackPosition s =
             let patt = "\u000d\u000a|\u000d|\u000a" // see rule [28] ``b-break``
-            let lc = Regex.Matches(s, patt).Count    //  counts \n in a string
-            { this with LineNumber = this.LineNumber + lc}
+            let lines = Regex.Split(s, patt) |> List.ofArray
+            let lc = lines.Length    //  counts \n in a string
+            let lcc = (lines |> List.last).Length // local column count
+            let cc = if lc > 0 then 1 + lcc else this.ColumnNumber + lcc
+            { this with LineNumber = this.LineNumber + lc; ColumnNumber = cc }
 
         member this.SetRestString s = { this with InputString = s }
         member this.AddAnchor s n =  {this with Anchors = this.Anchors.Add(s, n)}
@@ -151,7 +157,7 @@ type ParseState = {
             match (HasMatches(this.InputString, p)) with
             |   (true, mt,frs)  -> 
                 let res = this.SetRestString(frs)
-                res.CountLines mt
+                res.TrackPosition mt
             |   (false, _,_)    -> this
 
         member  this.SetStyleContext cn = { this with c = cn}
@@ -178,7 +184,7 @@ type ParseState = {
         member this.AddTagShortHand ts = { this with TagShorthands = (ts :: (this.TagShorthands |> List.filter(fun ol -> ts.ShortHand <> ol.ShortHand))) }
 
         static member Create inputStr schema = {
-                LineNumber = 0; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
+                LineNumber = 1; ColumnNumber = 1; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
                 Anchors = Map.empty; TraceSuccess = []; Messages=ParseMessage.Create(); Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
                 GlobalTagSchema = schema; LocalTagSchema = None; NodePath = []
@@ -190,7 +196,7 @@ exception DocumentException of ParseState
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module ParseState = 
-    let CountLines s (ps:ParseState) = ps.CountLines s
+    let TrackPosition s (ps:ParseState) = ps.TrackPosition s
     let SetStyleContext cn (ps:ParseState) = ps.SetStyleContext cn
     let SetIndent nn (ps:ParseState) = ps.SetIndent nn
     let SetSubIndent mn (ps:ParseState) = ps.SetSubIndent mn
@@ -269,12 +275,12 @@ module ParseState =
     let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel)
     let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.InputString, patt)) with
-        |   (true, mt, rest) -> ps |> SetRestString rest |> CountLines mt |> postAdvanceFunc
+        |   (true, mt, rest) -> ps |> SetRestString rest |> TrackPosition mt |> postAdvanceFunc
         |   (false, _, _)    -> NoResult
 
     let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
         match (HasMatches(ps.InputString, patt)) with
-        |   (true, mt, rest) -> ps |> SetRestString rest |> CountLines mt |> parseFunc mt
+        |   (true, mt, rest) -> ps |> SetRestString rest |> TrackPosition mt |> parseFunc mt
         |   (false, _, _)    -> NoResult
 
 type ParseFuncSingleResult = FallibleOption<Node * ParseState, ErrorMessage>        //  returns parsed node, if possible
@@ -293,7 +299,7 @@ let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
         let fullMatch = lst |> List.head
         let rest = Advance(fullMatch, ps.InputString)
         let groups = lst |> List.tail
-        Some(MatchResult.Create fullMatch rest groups, ps |> ParseState.CountLines fullMatch |> ParseState.SetRestString rest)
+        Some(MatchResult.Create fullMatch rest groups, ps |> ParseState.TrackPosition fullMatch |> ParseState.SetRestString rest)
     else None
 
 type Yaml12Parser(loggingFunction:string->unit) =
