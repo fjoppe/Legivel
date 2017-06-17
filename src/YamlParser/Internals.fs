@@ -110,8 +110,9 @@ module ParserMonads =
             match pv with
             |   NoResult      -> (ct,nw)
             |   Value v       -> (ct, Value v)
-            |   ErrorResult _ -> (ct,nw)
-//            (ct, ErrorResult e)
+            |   ErrorResult e -> 
+                let ctn = addErr ct e            
+                (ctn,nw)
                 
 
         

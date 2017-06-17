@@ -15,7 +15,6 @@ let ``Example 2.1.  Sequence of Scalars``() =
 - Mark McGwire
 - Sammy Sosa
 - Ken Griffey"
-
     ["Mark McGwire";"Sammy Sosa"; "Ken Griffey"]
     |> List.iter(fun s-> 
         let pth = YamlPath.Create (sprintf "//[]/#'%s'" s)
@@ -614,7 +613,7 @@ Stack:
   - file: TopClass.py
     line: 23
     code: |
-      x = MoreObject(\"345\n\")
+      x = MoreObject(\"345\\n\")
   - file: MoreClass.py
     line: 58
     code: |-

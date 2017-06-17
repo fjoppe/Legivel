@@ -471,15 +471,14 @@ let ``Example 7.23. Flow Content``() =
 
 
 
-[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2793163")>]
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2793490")>]
 let ``Example 7.24. Flow Nodes``() =
     let yml = YamlParseList "
 - !!str \"a\"
 - 'b'
 - &anchor \"c\"
 - *anchor
-- !!str
- "
+- !!str"
     yml.Length |> should equal 1
     let yml = yml.Head
 

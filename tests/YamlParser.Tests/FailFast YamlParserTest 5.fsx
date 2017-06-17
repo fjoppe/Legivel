@@ -22,16 +22,16 @@ let YamlParse s =
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
         let (nodes, ps) = pr
         let node = nodes.Head
-        printfn "Total lines: %d" ps.LineNumber
+        printfn "Total lines: %d" ps.Location.Line
         printfn "%s" (Deserialize node (ps.TagShorthands))
         
-        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
-        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
+        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
+        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
         if ps.Messages.Error.Length > 0 then printfn "Cannot parse: \"%s\"" ps.InputString
     with
     | DocumentException e -> 
-        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
-        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
+        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
+        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
         raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
@@ -39,26 +39,24 @@ let YamlParseList s =
     try
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
         let (nodes, ps) = pr
-        printfn "Total lines: %d" ps.LineNumber
-        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
-        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
+        printfn "Total lines: %d" ps.Location.Line
+        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
+        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
         if ps.Messages.Error.Length > 0 then printfn "Cannot parse: \"%s\"" ps.InputString
         nodes |> List.iter(fun node -> printfn "%s\n---" (Deserialize node (ps.TagShorthands)))
-        nodes
     with
     | DocumentException e -> 
-        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d: %s" (s.Line) (s.Message))
-        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d:%s" (s.Line) (s.Message))
+        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
+        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
         raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
 YamlParse "
-unicode: \"Sosa did fine.\\u263A\"
-control: \"\\b1998\\t1999\\t2000\\n\"
-hex esc: \"\\x0d\\x0a is \\r\\n\"
+- !!str \"a\"
+- 'b'
+- &anchor \"c\"
+- *anchor
+- !!str "
 
-single: '\"Howdy!\" he cried.'
-quoted: ' # Not a ''comment''.'
-tie-fighter: '|\\-*-/|'
-"
+

@@ -4,6 +4,7 @@ open System
 open YamlParse
 open RepresentationGraph
 open TagResolution
+open FsUnit
 
 let YamlParse s =
     let engine = Yaml12Parser()
@@ -11,17 +12,29 @@ let YamlParse s =
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
         let (nodes, ps) = pr
         let node = nodes.Head
-        // printfn "%s" (Deserialize node (ps.TagShorthands))
+        ps.Errors |> should equal 0
         node
     with
     | e -> printfn "%A" e; raise e
+
+let YamlParseWithErrors s =
+    let engine = Yaml12Parser()
+    try
+        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
+        let (nodes, ps) = pr
+        let node = nodes.Head
+        ps.Errors |> should greaterThan 0
+        node
+    with
+    | e -> printfn "%A" e; raise e
+
 
 let YamlParseList s =
     let engine = Yaml12Parser()
     try
         let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
         let (nodes, ps) = pr
-        // nodes |> List.iter(fun node -> printfn "%s" (Deserialize node (ps.TagShorthands)))
+        ps.Errors |> should equal 0
         nodes
     with
     | e -> printfn "%A" e; raise e
