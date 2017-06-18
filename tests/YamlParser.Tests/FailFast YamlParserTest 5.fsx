@@ -52,11 +52,18 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-YamlParse "
-- !!str \"a\"
-- 'b'
-- &anchor \"c\"
-- *anchor
-- !!str "
+YamlParseList "
+---
+time: 20:03:20
+player: Sammy Sosa
+action: strike (miss)
+...
+---
+time: 20:03:47
+player: Sammy Sosa
+action: grand slam
+...
+"
+
 
 

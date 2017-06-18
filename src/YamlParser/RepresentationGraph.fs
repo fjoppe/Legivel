@@ -48,6 +48,11 @@ type TagKind =
             |   Unrecognized gt -> sprintf "Unrecognized:%O" gt
             |   Local        ls -> sprintf "Local:%O" ls
             |   NonSpecific  ls -> sprintf "NonSpecific:%O" ls
+        member this.EqualIfNonSpecific otherTag =
+            match (this, otherTag) with
+            |   (NonSpecific a, NonSpecific b)  -> a=b
+            |   _   -> false
+
         member m.AsString = m.ToString()
 
 [<NoEquality; NoComparison>]

@@ -1630,15 +1630,19 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-flow-node" ps
         let ``ns-flow-content`` ps =
             ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``ns-flow-content``)
-            |>  FallibleOption.ifnoresult (Value (PlainEmptyNode, ps))    //  ``e-scalar`` None
+//            |>  FallibleOption.ifnoresult ()    
 
+        let ``empty content`` ps = Value (PlainEmptyNode, ps) //  ``e-scalar`` None
+    
         ps.OneOf {
             either (this.``c-ns-alias-node``)
             either (this.``ns-flow-content``)
             either (this.``content with properties`` ``ns-flow-content``)
+            either (this.``content with properties`` ``empty content``)
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrorsSR ps
+        |> this.debugbreak
         |> ParseState.TrackParseLocationSR ps
         |> ParseState.AddSuccessSR "ns-flow-node" ps
         |> this.logResultSR
@@ -2315,16 +2319,23 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
 
             let rec successorDoc (ps:ParseState, nodes) =
+                //  quitNode is a Sentinel value, which is realized via its tag
+                let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific "#ILLEGALVALUE#") ("#ILLEGALVALUE#") ((lazy(NodeHash.Create "#ILLEGALVALUE#"))))
+
                 if ps.InputString.Length > 0 then
                     (ps |> ParseState.OneOf) {
                         either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (this.``l-any-document``))
+                        either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (fun psr -> Value(quitNode, psr))) // for missing ``l-any-document``; which is optional
                         either (ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (this.``l-explicit-document``))
                         ifneither NoResult
                     }
                     |> ParseState.PreserveErrorsSR ps
                     |>  function
-                        |   Value (n, ps2) -> successorDoc (ps2, (n :: nodes))
-                        |   _   -> (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform ("Cannot parse document.")), nodes)
+                        |   Value (n, ps2) -> 
+                            if n.NodeTag.EqualIfNonSpecific(quitNode.NodeTag) then (ps, nodes)
+                            else successorDoc (ps2, (n :: nodes))
+                        |   _   -> 
+                            (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform ("Cannot parse document.")), nodes)
                 else
                     (ps, nodes)
 
