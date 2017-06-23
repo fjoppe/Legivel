@@ -33,7 +33,8 @@ let ``Test JSON TagResolution``() =
         let nst = TagResolution.NonSpecific.NonSpecificTagQM 
         let makeScalar s =
             let nh = lazy(NodeHash.Create s)
-            ScalarNode(NodeData<string>.Create nst s nh)
+            let dl = DocumentLocation.Create 0 0
+            ScalarNode(NodeData<string>.Create nst s (ParseInfo.Create dl dl) nh)
         let scalar = makeScalar s
         TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
         |> JSONSchema.TagResolution 
@@ -94,7 +95,8 @@ let ``Test YamlCore TagResolution``() =
         let nst = TagResolution.NonSpecific.NonSpecificTagQM
         let makeScalar s =
             let nh = lazy(NodeHash.Create s)
-            ScalarNode(NodeData<string>.Create nst s nh)
+            let dl = DocumentLocation.Create 0 0
+            ScalarNode(NodeData<string>.Create nst s (ParseInfo.Create dl dl) nh)
         let scalar = makeScalar s
         TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
         |> YamlCoreSchema.TagResolution 

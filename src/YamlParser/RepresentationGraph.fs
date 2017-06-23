@@ -55,16 +55,37 @@ type TagKind =
 
         member m.AsString = m.ToString()
 
+[<StructuredFormatDisplay("{AsString}")>]
+type DocumentLocation = {
+        Line    : int
+        Column  : int
+    }
+    with
+        static member Create l cl = { Line = l; Column = cl}
+        member this.AddAndSet l cl = { Line = this.Line+l; Column = cl}
+
+        override this.ToString() = sprintf "(l%d, c%d)" this.Line this.Column
+        member m.AsString = m.ToString()
+
+
+type ParseInfo = {
+        Start : DocumentLocation
+        End   : DocumentLocation
+    }
+    with
+        static member Create s e = { Start = s; End = e}
+
 [<NoEquality; NoComparison>]
 [<StructuredFormatDisplay("{AsString}")>]
 type NodeData<'T> = {
         Tag  : TagKind
         Data : 'T
         Hash : Lazy<NodeHash>
+        ParseInfo : ParseInfo
     }
     with
-        static member Create t d h =
-            { Tag = t; Data = d; Hash = h}
+        static member Create t d pi h =
+            { Tag = t; Data = d; Hash = h; ParseInfo = pi}
 
         member this.SetTag t = 
             { this with Tag = t}
