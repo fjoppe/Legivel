@@ -147,5 +147,31 @@ type Legend = {
     }
 
 
+type ParseMessageAtLine = {
+        Location: DocumentLocation
+        Message : string
+    }
+    with
+        static member Create dl cd s = {Location = dl; Message = s}
 
+
+type ErrorResult = {
+        Warn  : ParseMessageAtLine list 
+        Error : ParseMessageAtLine list
+        StopLocation : DocumentLocation
+        RestString  : string
+    }
+
+
+type ParsedDocumentResult = {
+        Warn  : ParseMessageAtLine list 
+        RestString  : string
+        Document    : Node
+    }
+
+
+type Representation =
+    |   NoRepresentation of ErrorResult
+    |   PartialRepresentaton of ParsedDocumentResult
+    |   CompleteRepresentaton of ParsedDocumentResult
 
