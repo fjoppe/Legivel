@@ -3,6 +3,18 @@
 open System
 open SpookyHash
 
+module InternalUtil =
+    let equalsOn f (yobj:obj) =
+        match yobj with
+        | :? 'T as y -> (f y)
+        | _ -> false
+
+    let compareOn f (yobj: obj) =
+        match yobj with
+        | :? 'T as y -> (f y)
+        | _ -> invalidArg "yobj" "cannot compare values of different types"
+
+
 [<CustomEquality; CustomComparison>]
 [<StructuredFormatDisplay("{AsString}")>]
 type NodeHash = private {
@@ -32,21 +44,15 @@ type NodeHash = private {
             if a.hash1 = b.hash1 then a.hash2.CompareTo(b.hash2)
             else a.hash1.CompareTo(b.hash1)
 
-        override this.Equals(yobj) =
-            match yobj with
-            | :? NodeHash as y -> (this = y)
-            | _ -> false
+        override this.Equals(yobj) = yobj |> InternalUtil.equalsOn (fun that -> this.hash1 = that.hash1 && this.hash2 = that.hash2)
         
-        override this.GetHashCode() = this.hash1.GetHashCode()
+        override this.GetHashCode() = this.hash1.GetHashCode() ^^^ this.hash2.GetHashCode()
 
         override this.ToString() = sprintf "#%X%X" (this.hash1) (this.hash2)
         member m.AsString = m.ToString()
 
         interface System.IComparable with
-            member this.CompareTo yobj =
-               match yobj with
-                 | :? NodeHash as y -> NodeHash.compare this y
-                 | _ -> invalidArg "yobj" "cannot compare values of different types"    
+            member this.CompareTo yobj = yobj |> InternalUtil.compareOn (fun that -> NodeHash.compare this that)
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module NodeHash = 

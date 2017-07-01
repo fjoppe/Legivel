@@ -8,7 +8,7 @@ type NodeKind =
     | Sequence
     | Scalar
 
-[<NoEquality; NoComparison>]
+[<CustomEquality; CustomComparison>]
 [<StructuredFormatDisplay("{AsString}")>]
 type GlobalTag = {
         Uri     : string
@@ -34,7 +34,14 @@ type GlobalTag = {
         override this.ToString() = sprintf "<%A::%s>" this.Kind this.Uri
         member m.AsString = m.ToString()
 
-[<NoEquality; NoComparison>]
+        override this.Equals(other) = other |> InternalUtil.equalsOn(fun that -> this.Uri = that.Uri && this.Kind = that.Kind)
+
+        override this.GetHashCode() = this.Uri.GetHashCode() ^^^ this.Kind.GetHashCode()
+
+        interface System.IComparable with
+            member this.CompareTo other = other |> InternalUtil.compareOn(fun that -> this.Uri.CompareTo(that.Uri))
+
+
 [<StructuredFormatDisplay("{AsString}")>]
 type TagKind =
     |   Global       of GlobalTag
@@ -75,9 +82,10 @@ type ParseInfo = {
     with
         static member Create s e = { Start = s; End = e}
 
-[<NoEquality; NoComparison>]
+
+[<CustomEquality; CustomComparison>]
 [<StructuredFormatDisplay("{AsString}")>]
-type NodeData<'T> = {
+type NodeData<'T when 'T : equality and 'T :> System.IComparable> = {
         Tag  : TagKind
         Data : 'T
         Hash : Lazy<NodeHash>
@@ -93,8 +101,21 @@ type NodeData<'T> = {
         override this.ToString() = sprintf "(%A) %O %A" (this.Hash.Force()) (this.Tag) (this.Data)
         member m.AsString = m.ToString()
 
+        override this.Equals(other) = 
+            other 
+            |> InternalUtil.equalsOn(fun that ->
+                this.Hash.Force() = that.Hash.Force()   &&
+                this.Tag = that.Tag && 
+                this.Data = that.Data
+                )
+
+        override this.GetHashCode() = this.Hash.Force().GetHashCode()
+
+        interface System.IComparable with
+            member this.CompareTo other = other |> InternalUtil.compareOn(fun (that:NodeData<'T>) -> this.Data.CompareTo(that.Data))
+
+
 [<DebuggerDisplay("{this.DebuggerInfo}")>]
-[<NoEquality; NoComparison>]
 type Node =
     | SeqNode of NodeData<Node list>
     | MapNode of NodeData<(Node*Node) list>
@@ -152,7 +173,7 @@ type ParseMessageAtLine = {
         Message : string
     }
     with
-        static member Create dl cd s = {Location = dl; Message = s}
+        static member Create dl s = {Location = dl; Message = s}
 
 
 type ErrorResult = {
@@ -163,13 +184,32 @@ type ErrorResult = {
     }
 
 
+type Unrecognized =  {
+        Scalar      : int
+        Collection  : int
+    }
+    with
+        static member Create s c = { Scalar = s; Collection = c}
+
+type TagReport = {
+        Unresolved   : int
+        Unrecognized : Unrecognized
+        Unavailable  : int
+    }
+    with
+        static member Create unrc unrs unav = { Unrecognized = unrc; Unresolved = unrs; Unavailable = unav}
+
+
 type ParsedDocumentResult = {
-        Warn  : ParseMessageAtLine list 
-        RestString  : string
+        Warn        : ParseMessageAtLine list
+        TagReport   : TagReport
         Document    : Node
     }
+    with
+        static member Create wm tr d = {Warn = wm; TagReport = tr; Document = d}
 
 
+//  http://www.yaml.org/spec/1.2/spec.html#id2767381
 type Representation =
     |   NoRepresentation of ErrorResult
     |   PartialRepresentaton of ParsedDocumentResult

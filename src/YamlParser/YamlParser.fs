@@ -129,6 +129,9 @@ type ParseState = {
         /// Path from root to current
         NodePath : Node list
 
+        /// Report on tag processing
+        TagReport   : TagReport
+
         /// (dev only) - Trace of success parses
         TraceSuccess: (string*ParseState) list
     }
@@ -185,12 +188,14 @@ type ParseState = {
 
         member this.AddTagShortHand ts = { this with TagShorthands = (ts :: (this.TagShorthands |> List.filter(fun ol -> ts.ShortHand <> ol.ShortHand))) }
 
+        member this.UpdateTagReport tr = {this with TagReport = tr }
 
         static member Create inputStr schema = {
                 Location = DocumentLocation.Create 1 1; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
                 Anchors = Map.empty; TraceSuccess = []; Messages=ParseMessage.Create(); Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
-                GlobalTagSchema = schema; LocalTagSchema = None; NodePath = []
+                GlobalTagSchema = schema; LocalTagSchema = None; NodePath = [];
+                TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
             }
 
 [<NoEquality; NoComparison>]
@@ -262,6 +267,11 @@ module ParseState =
     let AddDirective d (ps:ParseState) = ps.AddDirective d
     let AddAnchorsFrom (prs:ParseState) (ps:ParseState) = ps.AddAnchors prs.Anchors 
     let AddTagShortHand ts (ps:ParseState)  = ps.AddTagShortHand ts
+
+    let IncUnresolved (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unresolved = ps.TagReport.Unresolved + 1}
+    let IncUnavailable (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unavailable = ps.TagReport.Unavailable + 1}
+    let IncUnrecognizedScalar (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Scalar = ps.TagReport.Unrecognized.Scalar + 1}}
+    let IncUnrecognizedCollection (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Collection = ps.TagReport.Unrecognized.Collection + 1}}
 
     let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel)
     let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
@@ -491,14 +501,21 @@ type Yaml12Parser(loggingFunction:string->unit) =
         this.``flow fold lines`` convertPrainEscapedMultiLine ps str
 
     member this.ResolveTag (ps:ParseState) tag (node:Node) : FallibleOption<Node * ParseState, ErrorMessage> =
+        let checkTagKindMatch t rs =
+            if t.Kind = node.Kind then Value(rs)
+            else ErrorResult [MessageAtLine.Create (ps.Location) ErrTagKindMismatch (sprintf "Tag-kind mismatch, tag: %A, node: %A" (t.Kind) (node.Kind))]
+
         let ResolveNonSpecificTag nst = 
             TagResolutionInfo.Create nst (ps.NodePath) (node) (node.Kind)
             |> ps.GlobalTagSchema.TagResolution
             |> function
-            |   Some t -> 
-                if t.Kind = node.Kind then  Value(node.SetTag (Global t), ps)
-                else NoResult
-            |   None -> Value(node, ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Cannot resolve secondary tag: %s" nst)))
+            |   Some t -> checkTagKindMatch t (node.SetTag (Global t), ps)
+            |   None -> 
+                let psunresvd = 
+                    ps 
+                    |> ParseState.AddWarningMessage(MessageAtLine.Create (ps.Location) Freeform (sprintf "Cannot resolve tag: '%s'" nst))
+                    |> ParseState.IncUnresolved
+                Value(node, psunresvd)
 
         let ResolveLocalTag tag =
             Value(node.SetTag (Local tag), ps)
@@ -509,15 +526,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 ps.GlobalTagSchema.GlobalTags 
                 |> List.tryFind(fun t -> t.Uri = DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub))
                 |>  function
-                    |   Some t  -> if (t.Kind = node.Kind) then Value(Global t) else NoResult
+                    |   Some t  -> checkTagKindMatch t (node.SetTag (Global t),ps)
                     |   None    -> 
                         match node.Kind with
-                        |   Scalar  -> Unrecognized (GlobalTag.Create (DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub), node.Kind))
-                        |   _       -> Global (GlobalTag.Create (DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub), node.Kind))
-                        |> Value
-            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Value(Local (tsh.MappedTagBase+sub))
+                        |   Scalar  -> Value(Unrecognized (GlobalTag.Create (DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub), node.Kind))  |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar) 
+                        |   _       -> Value(Global (GlobalTag.Create (DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub), node.Kind))        |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection)
+            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Value(Local (tsh.MappedTagBase+sub)|> node.SetTag, ps)
             |   _ -> NoResult
-            |>  FallibleOption.map(fun e -> (node.SetTag e),ps)
+
 
         let TryResolveTagShortHand name (sub:string) : FallibleOption<Node * ParseState, ErrorMessage> =
             ps.TagShorthands 
