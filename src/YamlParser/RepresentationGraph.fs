@@ -182,6 +182,8 @@ type ErrorResult = {
         StopLocation : DocumentLocation
         RestString  : string
     }
+    with
+        static member Create w e sl rs = { Warn = w; Error = e ; StopLocation = sl; RestString = rs }
 
 
 type Unrecognized =  {
