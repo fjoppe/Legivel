@@ -7,6 +7,7 @@
 open YamlParse
 open TagResolution
 open Deserialization
+open RepresentationGraph
 open NLog
 
 #load "nlog.fsx"
@@ -16,18 +17,36 @@ let logger = LogManager.GetLogger("*")
 
 let engine = Yaml12Parser(fun s -> logger.Trace(s))
 
+let WarnMsg (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
+let ErrMsg  (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column) (s.Message))
+let TotLns (ps:DocumentLocation) = printfn "Total lines: %d" ps.Line
+
+let PrintNode crr =
+    match crr with
+    |   NoRepresentation rr ->
+        printfn "Cannot parse: \"%s\"" rr.RestString
+        rr.StopLocation |>  TotLns
+        rr.Error |> ErrMsg
+        rr.Warn |> WarnMsg
+    |   PartialRepresentaton rr ->
+        rr.StopLocation |>  TotLns
+        rr.Warn |> WarnMsg
+        printfn "%s" (Deserialize rr.Document (rr.TagShorthands))
+    |   CompleteRepresentaton rr ->
+        rr.StopLocation |>  TotLns
+        rr.Warn |> WarnMsg
+        printfn "%s" (Deserialize rr.Document (rr.TagShorthands))
+    |   EmptyRepresentation rr ->
+        printfn "Document was empty"
+        rr.StopLocation |>  TotLns
+        rr.Warn |> WarnMsg
+
 
 let YamlParse s =
     try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
-        let (nodes, ps) = pr
-        let node = nodes.Head
-        printfn "Total lines: %d" ps.Location.Line
-        printfn "%s" (Deserialize node (ps.TagShorthands))
-        
-        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
-        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
-        if ps.Messages.Error.Length > 0 then printfn "Cannot parse: \"%s\"" ps.InputString
+        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let crr = repr.Head
+        PrintNode crr
     with
     | DocumentException e -> 
         e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -37,13 +56,12 @@ let YamlParse s =
 
 let YamlParseList s =
     try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
-        let (nodes, ps) = pr
-        printfn "Total lines: %d" ps.Location.Line
-        ps.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
-        ps.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
-        if ps.Messages.Error.Length > 0 then printfn "Cannot parse: \"%s\"" ps.InputString
-        nodes |> List.iter(fun node -> printfn "%s\n---" (Deserialize node (ps.TagShorthands)))
+        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        printfn "Total Documents: %d" (repr.Length)
+        repr |> List.iter(fun crr ->
+            PrintNode crr
+            printfn "..."
+        )
     with
     | DocumentException e -> 
         e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -53,9 +71,9 @@ let YamlParseList s =
 
 
 YamlParseList "
-commercial-at: @text
-grave-accent: `text
+%TAG !e! tag:example,2000:app/
+---
+- !e! foo
+- !h!bar baz
 "
-
-
 

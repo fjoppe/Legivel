@@ -29,10 +29,7 @@ type GlobalTagSchema = {
 }
 
 
-type TagShorthand = {
-        ShortHand : string
-        MappedTagBase : string
-    }
+type TagShorthand 
     with
         static member Create (short, full) = { ShortHand = short; MappedTagBase = full}
         static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagBase = "tag:yaml.org,2002:"}

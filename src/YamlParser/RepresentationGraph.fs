@@ -201,19 +201,32 @@ type TagReport = {
     with
         static member Create unrc unrs unav = { Unrecognized = unrc; Unresolved = unrs; Unavailable = unav}
 
+type TagShorthand = {
+        ShortHand : string
+        MappedTagBase : string
+    }
 
 type ParsedDocumentResult = {
         Warn        : ParseMessageAtLine list
         TagReport   : TagReport
+        StopLocation : DocumentLocation
+        TagShorthands: TagShorthand list
         Document    : Node
     }
     with
-        static member Create wm tr d = {Warn = wm; TagReport = tr; Document = d}
+        static member Create wm tr sl tsl d = {Warn = wm; TagReport = tr; StopLocation = sl; TagShorthands = tsl; Document = d}
 
+type EmptyDocumentResult = {
+        Warn        : ParseMessageAtLine list
+        StopLocation : DocumentLocation
+    }
+    with
+            static member Create wm sl = {Warn = wm; StopLocation = sl}
 
 //  http://www.yaml.org/spec/1.2/spec.html#id2767381
 type Representation =
     |   NoRepresentation of ErrorResult
     |   PartialRepresentaton of ParsedDocumentResult
     |   CompleteRepresentaton of ParsedDocumentResult
+    |   EmptyRepresentation of EmptyDocumentResult
 

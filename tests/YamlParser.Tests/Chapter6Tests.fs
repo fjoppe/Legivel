@@ -159,12 +159,12 @@ key:    # Comment
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2780544")>]
 let ``Example 6.10. Comment Lines``() =
-    let yml = YamlParseList "
+    let yml = YamlParseEmpty "
   # Comment
    
 
 "
-    yml.Length |> should equal 0
+    yml |> should equal true
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2780696")>]

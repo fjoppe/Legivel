@@ -9,33 +9,50 @@ open FsUnit
 let YamlParse s =
     let engine = Yaml12Parser()
     try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
-        let (nodes, ps) = pr
-        let node = nodes.Head
-        ps.Errors |> should equal 0
-        node
+        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let crrp = repr.Head
+        match crrp with
+        |   CompleteRepresentaton cr -> cr.Document
+        |   _ -> failwith "Unexpected return type"
     with
     | e -> printfn "%A" e; raise e
 
 let YamlParseWithErrors s =
     let engine = Yaml12Parser()
     try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
-        let (nodes, ps) = pr
-        let node = nodes.Head
-        ps.Errors |> should greaterThan 0
-        node
+        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let crrp = repr.Head
+        match crrp with
+        |   NoRepresentation nr -> 
+            nr.Error.Length |> should greaterThan 0
+            nr
+        |   _ -> failwith "Unexpected return type"
+
     with
     | e -> printfn "%A" e; raise e
 
+let YamlParseEmpty s =
+    let engine = Yaml12Parser()
+    try
+        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let crrp = repr.Head
+        match crrp with
+        |   EmptyRepresentation _ -> true
+        |   _ -> failwith "Unexpected return type"
+    with
+    | e -> printfn "%A" e; raise e
 
 let YamlParseList s =
     let engine = Yaml12Parser()
     try
-        let pr = (engine.``l-yaml-stream`` YamlCoreSchema s).Data
-        let (nodes, ps) = pr
-        ps.Errors |> should equal 0
-        nodes
+        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        repr |> List.map(fun e ->
+            match e with
+            |   NoRepresentation _ -> failwith "Unexpected error"
+            |   CompleteRepresentaton cr -> cr.Document
+            |   PartialRepresentaton pr -> pr.Document
+            |   EmptyRepresentation er -> failwith "Unexpected empty"
+        )
     with
     | e -> printfn "%A" e; raise e
 

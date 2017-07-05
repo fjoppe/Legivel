@@ -285,22 +285,29 @@ module ParseState =
             (node,psr)
         )
 
-    let ToRepresentation (n,(ps:ParseState)) =
+    let ToRepresentation (pso:ParseState) no =
         let mal2pm (ml:MessageAtLine list) = (ml |> List.map(fun w -> ParseMessageAtLine.Create (w.Location) (w.Message)))
-        if ps.Errors > 0 then
-            let wr = ps.Messages.Warn  |> mal2pm
-            let er = ps.Messages.Error |> mal2pm
-            let erss = ErrorResult.Create wr er (ps.Location) (ps.InputString)
-            NoRepresentation(erss),ps
-        else
-            if (ps.TagReport.Unrecognized.Scalar > 0 || ps.TagReport.Unresolved > 0) then
-                let wr = ps.Messages.Warn  |> mal2pm
-                let prr = ParsedDocumentResult.Create wr (ps.TagReport) n
-                PartialRepresentaton(prr),ps
+        let wr = pso.Messages.Warn  |> mal2pm
+        match no with
+        |   NoResult    -> EmptyRepresentation(EmptyDocumentResult.Create wr pso.Location), pso
+        |   ErrorResult el ->
+            let psr = pso |> AddErrorMessageList el 
+            let er = psr.Messages.Error |> mal2pm
+            let erss = ErrorResult.Create wr er (psr.Location) (psr.InputString)
+            NoRepresentation(erss),pso
+        |   Value (n, (ps2:ParseState)) ->
+            if ps2.Errors > 0 then
+                let wr = ps2.Messages.Warn  |> mal2pm
+                let er = ps2.Messages.Error |> mal2pm
+                let erss = ErrorResult.Create wr er (ps2.Location) (ps2.InputString)
+                NoRepresentation(erss),ps2
             else
-                let wr = ps.Messages.Warn  |> mal2pm
-                let crr = ParsedDocumentResult.Create wr (ps.TagReport) n
-                CompleteRepresentaton(crr),ps
+                if (ps2.TagReport.Unrecognized.Scalar > 0 || ps2.TagReport.Unresolved > 0) then
+                    let prr = ParsedDocumentResult.Create wr (ps2.TagReport) (ps2.Location) (ps2.TagShorthands) n
+                    PartialRepresentaton(prr),ps2
+                else
+                    let crr = ParsedDocumentResult.Create wr (ps2.TagReport) (ps2.Location) (ps2.TagShorthands) n
+                    CompleteRepresentaton(crr),ps2
 
 let getParseInfo pso psn = ParseInfo.Create (pso.Location) (psn.Location)
 
@@ -1546,7 +1553,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |> this.ResolveTag prs NonSpecificQM
             | _  -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
         |   Regex3(``illegal-ns-plain`` ps) _ -> 
-            ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar. ")]
+            ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
         |   _ -> NoResult
         |> ParseState.ResetEnvSR ps 
         |> ParseState.TrackParseLocationSR ps
@@ -2253,25 +2260,27 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |> this.LogReturn "l-any-document" ps
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
-    member this.``l-yaml-stream`` (globalTagScema:GlobalTagSchema) (input:string) = 
+    member this.``l-yaml-stream`` (globalTagScema:GlobalTagSchema) (input:string) : Representation list= 
         let ps = ParseState.Create input globalTagScema
         logger "l-yaml-stream" ps
+
+        let IsEndOfStream psp =
+            let eofPattern = RGSF(ZOM(this.``s-white`` ||| this.``b-break``))
+            (psp.InputString.Length = 0) || IsMatch(psp.InputString, eofPattern)
+
         ps |> 
         ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (fun psr ->
-            let toEmptyOrSingletonList ps = 
-                function
-                |   NoResult -> (ps, [])
-                |   Value (n, ps2) -> (ps2, [n])
-                |   ErrorResult el -> ((el |> List.fold(fun ps e -> ps |> ParseState.AddErrorMessage e) ps), [])
+            let addToList acc (r,ps) = (ps, r :: acc)
 
-            let rec successorDoc (ps:ParseState, nodes) =
+            let rec successorDoc (ps:ParseState, representations) =
                 //  quitNode is a Sentinel value, which is realized via its tag
-                let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific "#ILLEGALVALUE#") ("#ILLEGALVALUE#") (getParseInfo ps ps) ((lazy(NodeHash.Create "12345678"))))
+                let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific "#QUITNODE#") ("#ILLEGALVALUE#") (getParseInfo ps ps) ((lazy(NodeHash.Create "12345678"))))
+                let noResultNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific "#NORESULTNODE#") ("#ILLEGALVALUE#") (getParseInfo ps ps) ((lazy(NodeHash.Create "12345678"))))
 
-                if ps.InputString.Length > 0 then
+                if not(IsEndOfStream ps) then
                     (ps |> ParseState.OneOf) {
                         either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (this.``l-any-document``))
-                        either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (fun psr -> Value(quitNode, psr))) // for missing ``l-any-document``; which is optional
+                        either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (fun psr -> if (IsEndOfStream psr) then Value(noResultNode, psr) else Value(quitNode, psr))) // for missing ``l-any-document``; which is optional
                         either (ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (this.``l-explicit-document``))
                         ifneither NoResult
                     }
@@ -2279,21 +2288,46 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> ParseState.PostProcessErrors
                     |>  function
                         |   Value (n, ps2) -> 
-                            if n.NodeTag.EqualIfNonSpecific(quitNode.NodeTag) then (ps, nodes)
-                            else successorDoc (ps2, (n :: nodes))
-                        |   _   -> 
-                            (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform ("Cannot parse document.")), nodes)
+                            if (n.NodeTag.EqualIfNonSpecific(quitNode.NodeTag)) then 
+                                NoResult 
+                                |> ParseState.ToRepresentation ps 
+                                |> addToList representations
+                            else
+                                if (n.NodeTag.EqualIfNonSpecific(noResultNode.NodeTag)) then
+                                    (ps2, representations)
+                                else 
+                                    Value (n, ps2)
+                                    |> ParseState.ToRepresentation ps 
+                                    |> addToList representations
+                                    |> successorDoc
+                        |   x   -> 
+                                x
+                                |> ParseState.ToRepresentation ps 
+                                |> addToList representations
+//                                |> successorDoc
                 else
-                    (ps, nodes)
+                    (ps, representations)
 
             psr 
             |>  this.``l-any-document``
             |>  ParseState.PostProcessErrors
-            |>  toEmptyOrSingletonList psr
-            |>  successorDoc
+            |>  ParseState.ToRepresentation psr
+            |>  function
+                |   (NoRepresentation rr,ps2) -> 
+                    (NoRepresentation rr,ps2)
+                    |>  addToList []
+                |   (EmptyRepresentation rr,ps2) -> 
+                    (EmptyRepresentation rr,ps2)
+                    |>  addToList []
+                |   x -> 
+                    x
+                    |>  addToList []
+                    |>  successorDoc
             |>  Value
         )
-        |> FallibleOption.map (fun (ps, nodes) -> (nodes |> List.rev, ps))
+        |>  function
+            | Value (_, representations) -> representations |> List.rev
+            |   _ -> []
 
 
 

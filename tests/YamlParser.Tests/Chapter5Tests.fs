@@ -60,10 +60,10 @@ mapping: { sky: blue, sea: green }
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2773032")>]
 let ``Example 5.5. Comment Indicator``() =
-    let yml = YamlParseList "
+    let yml = YamlParseEmpty "
 # Comment only.
 "
-    yml.Length |> should equal 0
+    yml |> should equal true
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2773402")>]
 let ``Example 5.6. Node Property Indicators``() =
@@ -124,12 +124,15 @@ let ``Example 5.9. Directive Indicator``() =
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2774228")>]
 let ``Example 5.10. Invalid use of Reserved Indicators``() =
-    let yml = YamlParseList "
+    let err = YamlParseWithErrors "
 commercial-at: @text
+"
+    err.Error |> List.map(fun e -> e.Message) |> List.head |> should equal "Reserved indicators can't start a plain scalar."
+
+    let err = YamlParseWithErrors "
 grave-accent: `text
 "
-    yml.Length |> should equal 0
-//    let yml = yml.Head
+    err.Error |> List.map(fun e -> e.Message) |> List.head |> should equal "Reserved indicators can't start a plain scalar."
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2775100")>]
