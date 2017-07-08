@@ -92,12 +92,6 @@ let ``Test Map Hybrid Notation - Sunnny Day Simple``() =
     let pth = YamlPath.Create "//{#'empty'}?"
     yml |> pth.Select |> ExtractTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
 
-//[<Test>]
-//let ``Test Map with inline Comments - Sunnny Day Simple``() =
-//    let pth = YamlPath.Create "//{#'key'}?"
-//    YamlParse "key:    # Comment\n  value" |> pth.Select |> ToScalar |> should equal "value"
-//    YamlParse "key:    # Comment\n        # lines\n  value\n\n" |> pth.Select |> ToScalar |> should equal "value"
-
 [<Test>]
 let ``Test Map Null : Null - Sunnny Day Simple``() =
     let ptk = YamlPath.Create "//{#''}"
@@ -114,22 +108,6 @@ let ``Test Map key : Map - Sunnny Day Simple``() =
 
     yml |> pt1.Select |> ToScalar |> should equal "mainkey"
     yml |> pt2.Select |> ToScalar |> should equal "value"
-
-//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2780810
-//let ``Test Map with inline seperation lines - Sunnny Day Simple``() =
-//    let yml = YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
-//
-//    let pt1 = YamlPath.Create "//{}/{#'first'}?"
-//    yml |> pt1.Select |> ToScalar  |> should equal "Sammy"
-//
-//    let pt2 = YamlPath.Create "//{}/{#'last'}?"
-//    yml |> pt2.Select |> ToScalar |> should equal "Sosa"
-//
-//    let pt3 = YamlPath.Create "//{}?/{#'hr'}?"
-//    yml |> pt3.Select |> ToScalar |> should equal "65"
-//
-//    let pt4 = YamlPath.Create "//{}?/{#'avg'}?"
-//    yml |> pt4.Select |> ToScalar |> should equal "0.278"
 
 [<Test>]
 let ``Test Map indented implicit entries - Sunnny Day Simple``() =
@@ -158,17 +136,57 @@ let ``Test Map implicit entries with indented seq value - Sunnny Day Simple``() 
     let pt2 = YamlPath.Create "//{#'block sequence'}?/[]/{#'two'}?"
     yml |> pt2.Select |> ToScalar |> should equal "three"
 
-//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2787109
-//let ``Test Map Double Quoted style - Sunnny Day Simple``() =
-//    let yml = YamlParse "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]"
-//    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
-//    yml |> pt.Select |> ToScalar |> should equal "value"
+// duplicate key tests
 
-//[<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2788496
-//let ``Test Map Single Quoted style - Sunnny Day Simple``() =
-//    let yml = YamlParse "'implicit block key' : [\n  'implicit flow key' : value,\n ]"
-//    let pt = YamlPath.Create "//{#'implicit block key'}?/[]/{#'implicit flow key'}?"
-//    yml |> pt.Select |> ToScalar |> should equal "value"
 
+[<Test>]
+let ``Test Map duplicate key - Simple``() =
+    let err = YamlParseWithErrors " { a : b, a : c } "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+
+[<Test>]
+let ``Test Map triple key - Simple``() =
+    let err = YamlParseWithErrors " { a : b, a : c, a : d } "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 2
+
+[<Test>]
+let ``Test Map duplicate key - Adjacent``() =
+    let err = YamlParseWithErrors " { a : b, b : d, a : c } "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+
+[<Test>]
+let ``Test Map duplicate key - Seq keys identical``() =
+    let err = YamlParseWithErrors " { [ 1 , 2 ] : b, [ 1 , 2 ] : c } "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+
+[<Test>]
+let ``Test Map duplicate key - Seq keys unordered``() =
+    let err = YamlParseWithErrors " { [ 1 , 2 ] : b, [ 2 , 1 ] : c } "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
 
     
+[<Test>]
+let ``Test Map duplicate key - Map keys identical``() =
+    let err = YamlParseWithErrors " { { 1 : 2 } : b, { 1 : 2 } : c } "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+
+
+[<Test>]
+let ``Test Map duplicate key - Map keys unordered``() =
+    let err = YamlParseWithErrors " { {1 : 2, 2 : 1} : b, {2 : 1, 1 : 2} : c } "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+

@@ -35,7 +35,7 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
             let head = sprintf "%s %s [\n" (ind0) (tagString n.Tag)
             let content = 
                 n.Data
-                |> List.sortBy(fun n -> n.Hash.Value)
+                |> List.sortBy(fun n -> n.Hash)
                 |> List.fold(fun s ni -> s + (sprintf "%s,\n" (convertToString ni (l+1)))) ""
             let tail = sprintf "%s]" ind0
             sprintf "%s%s%s" head content tail
@@ -45,7 +45,7 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
             let head = sprintf "%s %s {\n" (ind0) (tagString n.Tag)
             let content = 
                 n.Data 
-                |> List.sortBy(fun (k,_) -> k.Hash.Value)
+                |> List.sortBy(fun (k,_) -> k.Hash)
                 |> List.fold(
                     fun s (k,v) -> 
                         let kc = convertToString k (l+1)

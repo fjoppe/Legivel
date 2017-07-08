@@ -18,6 +18,15 @@ type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 
 type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHandSecondary of string | ShortHandPrimary of string | NonSpecificQT | NonSpecificQM | Empty
 
+type MessageAtLine = {
+        Location: DocumentLocation
+        Code    : MessageCode
+        Message : string
+    }
+    with
+        static member Create dl cd s = {Location = dl; Code = cd; Message = s}
+
+
 let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
 let ``end-of-file`` = RGP "\\z"
 
@@ -43,7 +52,7 @@ let PlainEmptyNode pi = CreateScalarNode (NonSpecific.NonSpecificTagQM) pi ""
 let CreateMapNode tag pi d  = 
     MapNode(NodeData<(Node*Node) list>.Create tag d pi
         (lazy(d 
-              |> List.map(fun (k,_) -> k.Hash.Value)
+              |> List.map(fun (k,_) -> k.Hash)
               |> List.sort
               |> NodeHash.Merge)
         )
@@ -53,21 +62,13 @@ let CreateMapNode tag pi d  =
 let CreateSeqNode tag pi d  = 
     SeqNode(NodeData<Node list>.Create tag d pi
         (lazy(d 
-              |> List.map(fun e -> e.Hash.Value)
+              |> List.map(fun e -> e.Hash)
               |> List.sort
               |> NodeHash.Merge)
         )
     )
 
 type Directive = YAML of string | TAG of string*string | RESERVED of string list
-
-type MessageAtLine = {
-        Location: DocumentLocation
-        Code    : MessageCode
-        Message : string
-    }
-    with
-        static member Create dl cd s = {Location = dl; Code = cd; Message = s}
 
 type ParseMessage = {
         Warn  : MessageAtLine list 
@@ -213,7 +214,7 @@ module ParseState =
         |> SetStyleContext (ps.c)
         |> SetIndent (ps.n)
         |> SetSubIndent (ps.m)
-    let ResetEnvSR ps pso = pso |> FallibleOption.map(fun (any, prt) -> (any, (renv(prt,ps))))
+    let ResetEnv ps pso = pso |> FallibleOption.map(fun (any, prt) -> (any, (renv(prt,ps))))
     let ResetDocumentParseState ps = 
         { ps with 
             ParseState.Location = (DocumentLocation.Create 1 1)
@@ -250,7 +251,7 @@ module ParseState =
             |> List.distinct
             |> PreserveNoResult // ErrorResult(e)
 
-    let TrackParseLocationSR ps pso =
+    let TrackParseLocation ps pso =
         match pso with
         |   Value (n, psr) -> Value(n,psr |> AddCancelMessage (ps.Location))
         |   x -> x
@@ -342,7 +343,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match pso with
         |   Value (any,prs) -> sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) |> loggingFunction; Value (any,prs)
         |   NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction; NoResult
-        |   ErrorResult e -> sprintf "/%s (ErrorResult) l:%d i:%d c:%A &a:%d e:%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Messages.Warn.Length) |> loggingFunction; ErrorResult e
+        |   ErrorResult e -> sprintf "/%s (ErrorResult) l:%d i:%d c:%A &a:%d e:%d+%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Errors) (ps.Messages.Warn.Length) |> loggingFunction; ErrorResult e
 
 
     //  Utility functions
@@ -386,7 +387,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value(prs, tag, anchor) -> 
             prs 
             |> ``follow up func``
-            |> ParseState.TrackParseLocationSR ps
+            |> ParseState.TrackParseLocation ps
             |>  FallibleOption.bind(fun (c, prs) ->
                 let prs = addAnchor anchor c prs
                 this.ResolveTag prs tag c
@@ -575,6 +576,31 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     member this.ResolvedNullNode (ps:ParseState) =  
         (this.ResolveTag ps NonSpecificQM (PlainEmptyNode (getParseInfo ps ps))).Data |> fst // should never be None
+
+    member this.CreatMapOrReportDuplicateKeys lst crMap =
+        let FindDuplicateKeys (nlst: (Node*Node) list) =
+            nlst 
+            |> List.map(fun (k,_) -> k)
+            |> List.groupBy(fun k -> k.Hash)
+            |> List.map(fun (_,kl) -> kl)
+            |> List.filter(fun kl -> kl.Length > 1)
+            |> function
+                |   []  -> None
+                |   x   -> Some(x)
+
+        let lrv = (lst |> List.rev) 
+        let duplicates = lrv |>FindDuplicateKeys
+        match duplicates with
+        |   None -> crMap lrv
+        |   Some(dupLst) ->
+            let errs = [
+                for kt in dupLst do
+                    let rf = kt.Head
+                    for n in (kt |> List.skip 1) do
+                        yield MessageAtLine.Create (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
+                ]
+            ErrorResult errs
+
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
     member this.``c-printable`` = 
@@ -1052,7 +1078,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   Some ra -> Value(ra, prs2)
                 |   None    -> NoResult //raise (ParseException (sprintf "Referenced anchor '%s' is unknown in line %d" s this.LineNumber))
         ))
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-alias-node" ps
 
     //  [105]   http://www.yaml.org/spec/1.2/spec.html#e-scalar
@@ -1112,7 +1138,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 processSingleLine prs content
             | _  ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
         |   _ -> NoResult
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-double-quoted" ps        
 
     //  [110]   http://www.yaml.org/spec/1.2/spec.html#nb-double-text(n,c)
@@ -1186,7 +1212,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 processSingleLine prs content
             | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
         |   _ -> NoResult
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-single-quoted" ps        
 
     //  [121]   http://www.yaml.org/spec/1.2/spec.html#nb-single-text(n,c)
@@ -1281,8 +1307,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   NoResult        -> prs |> noResult
             |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult
         )
-        |> ParseState.TrackParseLocationSR ps
-        |> ParseState.ResetEnvSR ps
+        |> ParseState.TrackParseLocation ps
+        |> ParseState.ResetEnv ps
         |> this.LogReturn "c-flow-sequence" ps        
                 
     //  [138]   http://www.yaml.org/spec/1.2/spec.html#ns-s-flow-seq-entries(n,c)
@@ -1304,7 +1330,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   NoResult        -> psp |> noResult NoResult
             |   ErrorResult e   -> psp |> ParseState.AddErrorMessageList e |> noResult (ErrorResult e)
         ``ns-s-flow-seq-entries`` ps []
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-s-flow-seq-entries" ps        
 
     //  [139]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-seq-entry(n,c)
@@ -1317,8 +1343,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither(NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
-        |> ParseState.ResetEnvSR ps
+        |> ParseState.TrackParseLocation ps
+        |> ParseState.ResetEnv ps
         |> this.LogReturn "ns-flow-seq-entry"  ps
 
     //  [140]   http://www.yaml.org/spec/1.2/spec.html#c-flow-mapping(n,c)
@@ -1334,11 +1360,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Value (c, prs2) -> 
                 prs2 |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> Value(c, prs2))
             |   NoResult        -> prs |> noResult 
-            |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult
+            |   ErrorResult e   -> ErrorResult e // prs |> ParseState.AddErrorMessageList e |> noResult
                
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-flow-mapping" ps       
             
     //  [141]   http://www.yaml.org/spec/1.2/spec.html#ns-s-flow-map-entries(n,c)
@@ -1347,7 +1373,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let rec ``ns-s-flow-map-entries`` (psp:ParseState) (lst:(Node*Node) list) : ParseFuncResult<_> =
             let noResult rs psr =
                 if lst.Length = 0 then rs   // empty sequence
-                else CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) (lst |> List.rev) |> this.ResolveTag psr NonSpecificQT
+                else
+                    this.CreatMapOrReportDuplicateKeys lst (CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) >> this.ResolveTag psr NonSpecificQT)
 
             match (this.``ns-flow-map-entry`` psp) with
             |   Value ((ck, cv), prs) ->
@@ -1356,12 +1383,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let commaPattern = (RGP ",") + OPT(this.``s-separate`` prs)
                 match prs with
                 |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst
-                |   _ -> CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (lst |> List.rev) |> this.ResolveTag prs NonSpecificQT
+                |   _ -> this.CreatMapOrReportDuplicateKeys lst (CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) >> this.ResolveTag prs NonSpecificQT)
             |   NoResult -> psp |> noResult NoResult
             |   ErrorResult e -> psp |> ParseState.AddErrorMessageList e |> noResult (ErrorResult e)
 
         ``ns-s-flow-map-entries`` ps []
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-s-flow-map-entries" ps        
 
     //  [142]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-entry(n,c)
@@ -1375,7 +1402,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)        
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-entry" ps        
 
     //  [143]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-explicit-entry(n,c)
@@ -1387,7 +1414,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   ErrorResult e -> 
             let ps = ps |> ParseState.AddErrorMessageList e
             Value((this.ResolvedNullNode ps, this.ResolvedNullNode ps), ps)       // ( ``e-node`` + ``e-node``)
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-explicit-entry" ps       
 
     //  [144]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-implicit-entry(n,c)
@@ -1400,7 +1427,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)        
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-implicit-entry" ps        
 
     //  [145]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-yaml-key-entry(n,c)
@@ -1417,7 +1444,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 Value((ck, this.ResolvedNullNode prs), prs)  //  ``e-node``
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-yaml-key-entry" ps     
 
     //  [146]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-empty-key-entry(n,c)
@@ -1427,7 +1454,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value (c, prs) -> Value((this.ResolvedNullNode prs, c), prs)   //  ``e-node``
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-flow-map-empty-key-entry" ps     
 
     //  [147]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-separate-value(n,c)
@@ -1444,7 +1471,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |   NoResult    -> PlainEmptyNode (getParseInfo ps prs) |> this.ResolveTag prs NonSpecificQM  //  ``e-node``
                     |   x   -> x
         )
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-flow-map-separate-value" ps     
 
     //  [148]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-json-key-entry(n,c)
@@ -1461,7 +1488,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 Value((ck, this.ResolvedNullNode prs), prs)  //  ``e-node``
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-flow-map-json-key-entry" ps
 
     //  [149]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-adjacent-value(n,c)
@@ -1476,7 +1503,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs = prs |> ParseState.AddErrorMessageList e
                 Value(this.ResolvedNullNode prs, prs)  //  ``e-node``
         )
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-flow-map-adjacent-value" ps
 
     //  [150]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair(n,c)
@@ -1490,7 +1517,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)        
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-pair" ps
 
     //  [151]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair-entry(n,c)
@@ -1503,7 +1530,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)        
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-pair-entry" ps
 
     //  [152]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair-yaml-key-entry(n,c)
@@ -1518,8 +1545,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ErrorResult e -> ErrorResult e
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
-        |> ParseState.ResetEnvSR ps
+        |> ParseState.TrackParseLocation ps
+        |> ParseState.ResetEnv ps
         |> this.LogReturn "ns-flow-pair-yaml-key-entry" ps
 
     //  [153]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-pair-json-key-entry(n,c)
@@ -1533,8 +1560,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ErrorResult e -> ErrorResult e
         |   NoResult -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
-        |> ParseState.ResetEnvSR ps
+        |> ParseState.TrackParseLocation ps
+        |> ParseState.ResetEnv ps
         |> this.LogReturn "c-ns-flow-pair-json-key-entry" ps
 
     //  [154]   http://www.yaml.org/spec/1.2/spec.html#ns-s-implicit-yaml-key(c)
@@ -1548,7 +1575,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Value(ck, prs)
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-s-implicit-yaml-key" ps
 
     //  [155]   http://www.yaml.org/spec/1.2/spec.html#c-s-implicit-json-key(c)
@@ -1562,7 +1589,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Value(c, prs)
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "c-s-implicit-json-key" ps
 
     //  [156]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-yaml-content(n,c)
@@ -1592,8 +1619,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Regex3(``illegal-ns-plain`` ps) _ -> 
             ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
         |   _ -> NoResult
-        |> ParseState.ResetEnvSR ps 
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps 
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-yaml-content" ps
 
     //  [157]   http://www.yaml.org/spec/1.2/spec.html#c-flow-json-content(n,c)
@@ -1607,7 +1634,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "c-flow-json-content" ps
         
     //  [158]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-content(n,c)
@@ -1619,7 +1646,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-content" ps
 
     //  [159]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-yaml-node(n,c)
@@ -1637,7 +1664,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-yaml-node" ps
 
     //  [160]   http://www.yaml.org/spec/1.2/spec.html#c-flow-json-node(n,c)
@@ -1651,7 +1678,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-flow-json-node" ps
     
     //  [161]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-node(n,c)
@@ -1670,7 +1697,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-node" ps
 
     //  [162]   http://www.yaml.org/spec/1.2/spec.html#c-b-block-header(m,t)
@@ -1813,7 +1840,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 Value(s, ps2)
             |   x  -> x
         )
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+literal" ps
 
     //  [171]   http://www.yaml.org/spec/1.2/spec.html#l-nb-literal-text(n)
@@ -1859,8 +1886,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 (s, ps2)
             )
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+folded" ps 
 
     //  [175]   http://www.yaml.org/spec/1.2/spec.html#s-nb-folded-text(n)
@@ -1907,8 +1934,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |   ErrorResult e   -> psp |> ParseState.AddErrorMessageList e |> contentOrNone (ErrorResult e)
             let ps = ps.SetSubIndent m
             ``l+block-sequence`` ps []
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l+block-sequence" ps
 
     //  [184]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-seq-entry(n)
@@ -1922,8 +1949,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs = prs.SetStyleContext ``Block-in``
                 this.``s-l+block-indented`` prs
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l-block-seq-entry" ps
 
     //  [185]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-indented(n,c)
@@ -1953,8 +1980,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 Value(this.ResolvedNullNode prs2, prs2))
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
-        |> ParseState.ResetEnvSR ps
+        |> ParseState.TrackParseLocation ps
+        |> ParseState.ResetEnv ps
         |> this.LogReturn "s-l+block-indented" ps
 
     //  [186]   http://www.yaml.org/spec/1.2/spec.html#ns-l-compact-sequence(n)
@@ -1974,7 +2001,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value (c, prs) -> ``ns-l-compact-sequence`` prs [c]
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-l-compact-sequence" ps
 
     //  [187]   http://www.yaml.org/spec/1.2/spec.html#l+block-mapping(n)
@@ -1986,7 +2013,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let rec ``l+block-mapping`` (psp:ParseState) (acc:(Node*Node) list) = 
                 let contentOrNone rs psr = 
                     if (acc.Length = 0) then rs
-                    else CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) (List.rev acc) |> this.ResolveTag psr NonSpecificQT 
+                    else this.CreatMapOrReportDuplicateKeys acc (CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) >> this.ResolveTag psr NonSpecificQT)
 
                 (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
                 |>  function
@@ -1995,8 +2022,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |   ErrorResult e       -> psp |> ParseState.AddErrorMessageList e |> contentOrNone (ErrorResult e)
             let ps = ps.SetSubIndent m
             ``l+block-mapping`` ps []
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l+block-mapping" ps
 
     //  [188]   http://www.yaml.org/spec/1.2/spec.html#ns-l-block-map-entry(n)
@@ -2008,7 +2035,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-l-block-map-entry" ps
 
     //  [189]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-explicit-entry(n)
@@ -2028,7 +2055,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ErrorResult e -> prs1 |> ParseState.AddErrorMessageList e |> noResult
         |   NoResult -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l-block-map-explicit-entry" ps
 
     //  [190]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-explicit-key(n)
@@ -2037,8 +2064,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps |> ParseState.``Match and Advance`` (RGP "\\?") (fun prs ->
             this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext ``Block-out``)
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l-block-map-explicit-key" ps
 
     //  [191]   http://www.yaml.org/spec/1.2/spec.html#l-block-map-explicit-value(n)
@@ -2047,8 +2074,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps |> ParseState.``Match and Advance`` ((this.``s-indent(n)`` ps) + RGP(":")) (fun prs ->
             this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext ``Block-out``)
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l-block-map-explicit-value" ps
 
     //  [192]   http://www.yaml.org/spec/1.2/spec.html#ns-l-block-map-implicit-entry(n)
@@ -2070,7 +2097,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value (ck, prs1) -> matchValue(ck, prs1)
         |   NoResult -> ps |> noResult 
         |   ErrorResult el -> ps |> ParseState.AddErrorMessageList el |> noResult
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-l-block-map-implicit-entry" ps
 
     //  [193]   http://www.yaml.org/spec/1.2/spec.html#ns-s-block-map-implicit-key
@@ -2082,8 +2109,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
-        |> ParseState.ResetEnvSR ps
+        |> ParseState.TrackParseLocation ps
+        |> ParseState.ResetEnv ps
         |> this.LogReturn "ns-s-block-map-implicit-key" ps
 
     //  [194]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-implicit-value(n)
@@ -2100,8 +2127,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   NoResult        -> prs |> noResult
             |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l-block-map-implicit-value" ps
 
     //  [195]   http://www.yaml.org/spec/1.2/spec.html#ns-l-compact-mapping(n)
@@ -2110,7 +2137,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let rec ``ns-l-compact-mapping`` psp (acc: (Node * Node) list) =
             let contentOrNone rs prs = 
                 if (acc.Length = 0) then rs
-                else CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (List.rev acc) |> this.ResolveTag prs NonSpecificQT 
+                else this.CreatMapOrReportDuplicateKeys acc (CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) >> this.ResolveTag prs NonSpecificQT)
 
             psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``ns-l-block-map-entry``)
             |>  function
@@ -2121,7 +2148,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value((ck, cv), prs) -> ``ns-l-compact-mapping`` prs [(ck,cv)]
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-l-compact-mapping" ps
 
     //  [196]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-node(n,c)
@@ -2133,7 +2160,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "s-l+block-node" ps
 
     //  [197]   http://www.yaml.org/spec/1.2/spec.html#s-l+flow-in-block(n)
@@ -2146,8 +2173,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   NoResult   -> NoResult
             |   ErrorResult e -> ErrorResult e
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "s-l+flow-in-block" ps
 
     //  [198]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-in-block(n,c)
@@ -2159,7 +2186,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither (NoResult)
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "s-l+block-in-block" ps
 
     //  [199]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-scalar(n,c)
@@ -2190,8 +2217,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |> ParseState.PreserveErrors ps
 
         )
-        |> ParseState.ResetEnvSR ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.ResetEnv ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "s-l+block-scalar" ps
 
     //  [200]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-collection(n,c)
@@ -2218,7 +2245,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             ifneither NoResult
         }
         |> ParseState.PreserveErrors ps
-        |> ParseState.TrackParseLocationSR ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "s-l+block-collection" ps
 
     //  [201]   http://www.yaml.org/spec/1.2/spec.html#seq-spaces(n,c)

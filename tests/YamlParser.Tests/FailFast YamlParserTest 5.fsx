@@ -70,10 +70,6 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-YamlParseList "
-# Assuming conventional resolution:
-- \"1\"
-- 12
-- ! 123
-"
+YamlParse " { {1 : 2, 2 : 1} : b, {2 : 1, 1 : 2} : c } "
+
 

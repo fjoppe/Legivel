@@ -71,8 +71,11 @@ type DocumentLocation = {
         static member Create l cl = { Line = l; Column = cl}
         member this.AddAndSet l cl = { Line = this.Line+l; Column = cl}
 
+        member this.ToPrettyString() = sprintf "line %d; column %d" this.Line this.Column
+
         override this.ToString() = sprintf "(l%d, c%d)" this.Line this.Column
         member m.AsString = m.ToString()
+
 
 
 type ParseInfo = {
@@ -100,6 +103,8 @@ type NodeData<'T when 'T : equality and 'T :> System.IComparable> = {
 
         override this.ToString() = sprintf "(%A) %O %A" (this.Hash.Force()) (this.Tag) (this.Data)
         member m.AsString = m.ToString()
+
+        member this.ToPrettyString() = sprintf "%O %A" (this.Tag) (this.Data)
 
         override this.Equals(other) = 
             other 
@@ -131,9 +136,9 @@ type Node =
         member this.Hash 
             with get() =
                 match this with
-                |   SeqNode n       -> n.Hash
-                |   MapNode n       -> n.Hash
-                |   ScalarNode n    -> n.Hash
+                |   SeqNode n       -> n.Hash.Force()
+                |   MapNode n       -> n.Hash.Force()
+                |   ScalarNode n    -> n.Hash.Force()
         
         member this.SetTag t = 
             match this with
@@ -147,6 +152,19 @@ type Node =
                 |   SeqNode n       -> n.Tag
                 |   MapNode n       -> n.Tag
                 |   ScalarNode n    -> n.Tag
+
+        member this.ParseInfo 
+            with get() =
+                match this with
+                |   SeqNode n       -> n.ParseInfo
+                |   MapNode n       -> n.ParseInfo
+                |   ScalarNode n    -> n.ParseInfo
+
+        member this.ToPrettyString() =
+            match this with
+            |   SeqNode n       -> n.ToPrettyString()
+            |   MapNode n       -> n.ToPrettyString()
+            |   ScalarNode n    -> n.ToPrettyString()
 
         member this.Kind
             with get() =

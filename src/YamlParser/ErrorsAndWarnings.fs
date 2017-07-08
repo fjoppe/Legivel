@@ -9,6 +9,7 @@ type MessageCode =
     |   ErrShorthandNamed
     |   ErrShorthandSecondary
     |   ErrAnchorSyntax
+    |   ErrMapDuplicateKey
 
 
     
