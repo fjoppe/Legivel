@@ -71,9 +71,9 @@ let YamlParseList s =
 
 
 YamlParseList "
-%TAG !e! tag:example,2000:app/
----
-- !e! foo
-- !h!bar baz
+# Assuming conventional resolution:
+- \"1\"
+- 12
+- ! 123
 "
 

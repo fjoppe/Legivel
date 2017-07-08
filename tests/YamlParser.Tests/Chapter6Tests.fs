@@ -417,16 +417,23 @@ let ``Example 6.26. Tag Shorthands``() =
     )
 
 
-//[<Ignore "Check error message">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2785092")>]
 let ``Example 6.27. Invalid Tag Shorthands``() =
-    let yml = YamlParseList "
+    let err = YamlParseWithErrors "
 %TAG !e! tag:example,2000:app/
 ---
 - !e! foo
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.exists(fun m -> m.Message = "The !e! handle has no suffix.") |> should equal true
+
+    let err = YamlParseWithErrors "
+%TAG !e! tag:example,2000:app/
+---
 - !h!bar baz
 "
-    yml.Length |> should equal 0
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.exists(fun m -> m.Message = "The !h! handle wasn't declared.") |> should equal true
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2785512")>]

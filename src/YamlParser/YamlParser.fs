@@ -223,6 +223,11 @@ module ParseState =
             GlobalTagSchema = ps.GlobalTagSchema; LocalTagSchema = ps.LocalTagSchema; NodePath = []
         }
 
+    let AddErrorMessage m (ps:ParseState) = ps.AddErrorMessage m
+    let AddErrorMessageList el (ps:ParseState) = (el |> List.fold(fun ps e -> ps |> AddErrorMessage e) ps)
+    let AddWarningMessage m (ps:ParseState) = ps.AddWarningMessage m
+    let AddCancelMessage m (ps:ParseState) = ps.AddCancelMessage m
+
     let PreserveNoResult (outErrors:MessageAtLine list) =
         if outErrors.Length = 0 then NoResult
         else ErrorResult outErrors
@@ -238,15 +243,12 @@ module ParseState =
         let outErrors = ct.Messages.Error //|> List.sort
         pso |> 
         function 
-        |   Value (n,p) -> Value (n,p)  //  errors already preserved in p
+        |   Value (n,p) -> Value (n,p |> AddErrorMessageList outErrors)  //  errors already preserved in p
         |   NoResult    -> PreserveNoResult outErrors
-        |   ErrorResult _ -> NoResult // ErrorResult(e)
-
-
-    let AddErrorMessage m (ps:ParseState) = ps.AddErrorMessage m
-    let AddErrorMessageList el (ps:ParseState) = (el |> List.fold(fun ps e -> ps |> AddErrorMessage e) ps)
-    let AddWarningMessage m (ps:ParseState) = ps.AddWarningMessage m
-    let AddCancelMessage m (ps:ParseState) = ps.AddCancelMessage m
+        |   ErrorResult e ->  
+            e @ outErrors
+            |> List.distinct
+            |> PreserveNoResult // ErrorResult(e)
 
     let TrackParseLocationSR ps pso =
         match pso with
@@ -277,7 +279,7 @@ module ParseState =
     let PostProcessErrors fr =
         fr |> FallibleOption.map(fun (node, ps:ParseState) ->
             let freeForm = ps.Messages.Error   |> List.filter(fun m -> m.Code = Freeform)     |> List.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
-            let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform && m.Location <> ps.Location)   |> List.distinctBy(fun m -> m.Location)
+            let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform && m.Location <> ps.Location)   |> List.distinct
             let filteredErrors = 
                 cancelable 
                 |> List.filter(fun m -> not(ps.Messages.Cancel |> List.exists(fun k -> m.Location = k)))
@@ -337,17 +339,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
     new() = Yaml12Parser(fun _ -> ())
 
     member private this.LogReturn str ps pso = 
-        pso |> FallibleOption.map(
-            fun (any,prs) -> 
-                sprintf "/%s l:%d i:%d c:%A &a:%d e:%d w:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) |> loggingFunction
-                any, prs)
+        match pso with
+        |   Value (any,prs) -> sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) |> loggingFunction; Value (any,prs)
+        |   NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction; NoResult
+        |   ErrorResult e -> sprintf "/%s (ErrorResult) l:%d i:%d c:%A &a:%d e:%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Messages.Warn.Length) |> loggingFunction; ErrorResult e
+
 
     //  Utility functions
     member private this.debugbreak sr =
-        sr |> FallibleOption.map (fun (n,ps) ->
-            logger "break" ps
-            (n,ps)
-        )
+        sr 
 
     member this.``split by linefeed`` s = 
         Regex.Split(s, this.``b-as-line-feed``.ToString()) |> List.ofArray
@@ -377,7 +377,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let icp = GRP(ZOM(RGP this.``s-space``)) + OOM(this.``ns-char``)
         match ps.InputString with
         | Regex2(icp) mt -> (mt.ge1.Length - ps.n)
-        | _-> -1 // raise (ParseException(sprintf "Cannot detect indentation at '%s'" (stringPosition ps.InputString)))
+        | _-> -1
 
 
     member this.``content with properties`` (``follow up func``: ParseFuncSignature<'a>) ps =
@@ -559,7 +559,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 | Some tsh -> ResolveShorthand tsh sub
                 | None ->
                     let n = node.SetTag (NonSpecific.UnresolvedTag)
-                    let p = ps.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Cannot resolve shorthand '%s%s'" name sub))
+                    let p = ps.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "The %s handle wasn't declared." name))
                     Value(n, p)
 
         match tag with
@@ -954,35 +954,72 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [96]    http://www.yaml.org/spec/1.2/spec.html#c-ns-properties(n,c)
     member this.``c-ns-properties`` ps : FallibleOption<ParseState * TagKind * string, ErrorMessage> =
         logger "c-ns-properties" ps
-        let ``tag anchor`` = GRP(this.``c-ns-tag-property``) + OPT((this.``s-separate`` ps) + GRP(this.``c-ns-anchor-property``))
-        let ``anchor tag`` = GRP(this.``c-ns-anchor-property``) + OPT((this.``s-separate`` ps) + GRP(this.``c-ns-tag-property``))
-        let classifyTag t =
-            if t = "" then TagKind.Empty
-            else
-                let verbatim = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">")
-                let shorthandNamed = GRP(this.``c-named-tag-handle``) + GRP(OOM(this.``ns-tag-char``))
-                let shorthandSecondary = this.``c-secondary-tag-handle`` + GRP(OOM(this.``ns-tag-char``))
-                let shorthandPrimary = this.``c-primary-tag-handle``+ GRP(OOM(this.``ns-tag-char``))
-                match t with
-                |   Regex2(verbatim) mr -> Verbatim mr.ge1
-                |   Regex2(shorthandNamed) mr -> ShortHandNamed  mr.ge2
-                |   Regex2(shorthandSecondary) mr -> ShortHandSecondary  mr.ge1
-                |   Regex2(shorthandPrimary) mr -> ShortHandPrimary mr.ge1
-                |   Regex2(this.``c-non-specific-tag``) _ -> NonSpecificQT
-                |   _ -> raise (ParseException "Unexpected Tag format")
+        
+        let Anchor pst =
+            pst |> ParseState.``Match and Advance`` (RGP "&") (fun psr ->
+                let illAnchor = OOM(this.``ns-char``)
+                match psr with
+                |   Regex3(this.``ns-anchor-name``) (mt,prs) -> Value(prs, mt.FullMatch)
+                |   Regex3(illAnchor) (mt,_) -> ErrorResult [MessageAtLine.Create (ps.Location) ErrAnchorSyntax (sprintf "Anchor has incorrect format: &%s" mt.FullMatch)]
+                |   _ -> NoResult
+            )
 
-        match ps with
-        |   Regex3(``tag anchor``) (mt, prs) -> 
-            let (tag, anchor) = mt.ge2
-            let classifiedTag = classifyTag tag
-            let anchor = if anchor<>"" then anchor.Substring(1) else anchor
-            Value(prs, classifiedTag, anchor)
-        |   Regex3(``anchor tag``) (mt, prs) -> 
-            let (anchor, tag) = mt.ge2
-            let classifiedTag = classifyTag tag
-            let anchor = if anchor<>"" then anchor.Substring(1) else anchor
-            Value(prs, classifiedTag, anchor)
-        |   _ -> NoResult
+        let Tag pst =
+            let verbatim = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">")
+            let illVerbatim = (RGP "!<") + OOM(this.``ns-uri-char``)
+            let shorthandNamed = GRP(this.``c-named-tag-handle``) + GRP(OOM(this.``ns-tag-char``))
+            let illShorthandNamed = GRP(this.``c-named-tag-handle``)
+            let shorthandSecondary = this.``c-secondary-tag-handle`` + GRP(OOM(this.``ns-tag-char``))
+            let illShorthandSecondary = this.``c-secondary-tag-handle`` 
+            let shorthandPrimary = this.``c-primary-tag-handle``+ GRP(OOM(this.``ns-tag-char``))
+            match pst with
+            |   Regex3(verbatim) (mt, prs) -> Value(prs, Verbatim mt.ge1)
+            |   Regex3(illVerbatim) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrVerbatimTag ("Verbatim tag starting with '!<' is missing a closing '>'")]
+            |   Regex3(shorthandNamed) (mt, prs) -> Value(prs, ShortHandNamed mt.ge2)
+            |   Regex3(illShorthandNamed) (mt,_) -> ErrorResult [MessageAtLine.Create (ps.Location) ErrShorthandNamed (sprintf "The %s handle has no suffix." mt.FullMatch)]
+            |   Regex3(shorthandSecondary) (mt, prs) -> Value(prs, ShortHandSecondary mt.ge1)
+            |   Regex3(illShorthandSecondary) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrShorthandSecondary "The !! handle has no suffix."]
+            |   Regex3(shorthandPrimary) (mt, prs) -> Value(prs, ShortHandPrimary mt.ge1)
+            |   Regex3(this.``c-non-specific-tag``) (_, prs) -> Value(prs, NonSpecificQT)
+            |   _ -> NoResult
+
+        let MatchTagAnchor pst =
+            let afterTag ps tg =
+                ps
+                |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (Anchor)
+                |> FallibleOption.map(fun (psa,a) -> (psa, tg, a))
+
+            let tg = (pst|> Tag)
+            match tg with
+            |   NoResult        -> afterTag pst TagKind.Empty
+            |   Value (pstg, t) -> afterTag pstg t
+            |   ErrorResult e   -> ErrorResult e
+
+        let MatchAnchorTag pst =
+            let afterAnchor ps anch =
+                ps
+                |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (Tag)
+                |> FallibleOption.map(fun (psa,t) -> (psa, t, anch))
+
+            let anch = (pst|> Anchor)
+            match anch with
+            |   NoResult        -> afterAnchor pst ""
+            |   Value (pstg, a) -> afterAnchor pstg a
+            |   ErrorResult e   -> ErrorResult e
+
+        (ps |> ParseState.OneOf) {
+            either (MatchTagAnchor)
+            either (MatchAnchorTag)
+            ifneither(NoResult)
+        }
+        |> fun (ct,pso) -> 
+                let outErrors = ct.Messages.Error
+                pso |> 
+                function 
+                |   Value (n,t,a) -> Value (n,t,a)
+                |   NoResult    -> ParseState.PreserveNoResult outErrors
+                |   ErrorResult e -> ErrorResult e
+            
 
     //  [97]    http://www.yaml.org/spec/1.2/spec.html#c-ns-tag-property
     member this.``c-ns-tag-property`` = this.``c-verbatim-tag`` ||| this.``c-ns-shorthand-tag`` ||| this.``c-non-specific-tag``
@@ -1013,7 +1050,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let retrievedAnchor = ps.GetAnchor mt
                 match retrievedAnchor with
                 |   Some ra -> Value(ra, prs2)
-                |   None    -> NoResult // //raise (ParseException (sprintf "Referenced anchor '%s' is unknown in line %d" s this.LineNumber))
+                |   None    -> NoResult //raise (ParseException (sprintf "Referenced anchor '%s' is unknown in line %d" s this.LineNumber))
         ))
         |> ParseState.TrackParseLocationSR ps
         |> this.LogReturn "c-ns-alias-node" ps
@@ -1230,7 +1267,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | _              -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
 
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
-    member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncResult<_>=
+    member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-flow-sequence" ps
         ps |> ParseState.``Match and Advance`` ((RGP "\\[") + OPT(this.``s-separate`` ps)) (fun prs ->
             let prs = prs.SetStyleContext(this.``in-flow`` prs)
@@ -1622,7 +1659,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-flow-node" ps
         let ``ns-flow-content`` ps =
             ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``ns-flow-content``)
-//            |>  FallibleOption.ifnoresult ()    
 
         let ``empty content`` psp = Value (PlainEmptyNode (getParseInfo ps psp), psp) //  ``e-scalar`` None
     
@@ -2304,7 +2340,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                                 x
                                 |> ParseState.ToRepresentation ps 
                                 |> addToList representations
-//                                |> successorDoc
                 else
                     (ps, representations)
 
