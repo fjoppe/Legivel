@@ -59,20 +59,29 @@ let ``Example 8.2. Block Indentation Indicator``() =
     )
 
 
-[<Ignore "Check errors">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2794450")>]
 let ``Example 8.3. Invalid Block Scalar Indentation Indicators``() =
-    let yml = YamlParseList "
+    let err = YamlParseWithErrors "
 - |
   
- text
+ text"
+    err.Error.Length |> should equal 1
+    err.Error |> List.filter(fun m -> m.Message = "A leading all-space line must not have too many spaces.") |> List.length |> should equal 1
+
+    let err = YamlParseWithErrors "
 - >
   text
- text
+ text" 
+    err.Error.Length |> should equal 1
+    //  the following does not comply to the error specified, because the specified error is very hard to detect in this case
+    err.Error |> List.filter(fun m -> m.Message = "Incorrect Syntax, this content cannot be related to previous document structure.") |> List.length |> should equal 1
+
+    let err = YamlParseWithErrors "
 - |2
  text
 "
-    yml.Length |> should equal 0
+    err.Error.Length |> should equal 1
+    err.Error |> List.filter(fun m -> m.Message = "The text is less indented than the indicated level.") |> List.length |> should equal 1
 
 
 

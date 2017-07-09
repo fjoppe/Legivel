@@ -432,17 +432,18 @@ let ``Example 7.21. Single Pair Implicit Entries``() =
 
 
 
-[<Ignore "Check error">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2792902")>]
 let ``Example 7.22. Invalid Implicit Keys``() =
     let plus1Kchars = [0 .. 1025] |> List.fold(fun s e -> s+"A") ""
 
-    let input = sprintf "[ foo\n bar: invalid,\n \"foo...%s...bar\": invalid ]" plus1Kchars
+    let input = "[ foo\n bar: invalid ]" 
+    let err = YamlParseWithErrors input
+    err.Error.Length |> should be (greaterThan 0)
 
-    let yml = YamlParseList input
-    yml.Length |> should equal 0
 
-
+    let input = sprintf "[ \"foo...%s...bar\": invalid ]" plus1Kchars
+    let err = YamlParseWithErrors input
+    err.Error.Length |> should be (greaterThan 0)
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2793163")>]

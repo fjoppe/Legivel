@@ -70,6 +70,7 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-YamlParse " { {1 : 2, 2 : 1} : b, {2 : 1, 1 : 2} : c } "
-
-
+YamlParse  "
+- !!map # Block collection
+  foo : bar
+"
