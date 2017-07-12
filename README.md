@@ -21,7 +21,7 @@ FsYamlParser requires a local git installation. You can download git from [Git D
 
 Mono | .NET
 ---- | ----
-[![Mono CI Build Status](https://img.shields.io/travis/fjoppe/FsYamlParser/master.svg)](https://travis-ci.org/fjoppe/FsYamlParser) | [![.NET Build Status](https://img.shields.io/appveyor/ci/fjoppe/fsyamlparser/master.svg)](https://ci.appveyor.com/project/fsgit/FsYamlParser)
+[![Mono CI Build Status](https://img.shields.io/travis/fjoppe/FsYamlParser/master.svg)](https://travis-ci.org/fjoppe/FsYamlParser) | [![.NET Build Status](https://img.shields.io/appveyor/ci/fjoppe/fsyamlparser/master.svg)](https://ci.appveyor.com/project/fjoppe/FsYamlParser)
 
 ## Maintainer(s)
 
