@@ -104,3 +104,21 @@ comments:
 
 
 
+YamlParse "#%RAML 1.0
+title: GitHub API
+version: v3
+baseUri: https://api.github.com
+mediaType:  application/json
+securitySchemes:
+  oauth_2_0: !include securitySchemes/oauth_2_0.raml
+types:
+  Gist:  !include types/gist.raml
+  Gists: !include types/gists.raml
+resourceTypes:
+  collection: !include types/collection.raml
+traits:
+securedBy: [ oauth_2_0 ]
+/search:
+  /code:
+    type: collection
+    get:"
