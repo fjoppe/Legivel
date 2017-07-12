@@ -7,6 +7,8 @@ type MessageCode =
     |   ErrPlainScalarMultiLine
     |   ErrTagKindMismatch
     |   ErrVerbatimTag
+    |   ErrVerbatimTagNoLocal
+    |   ErrVerbatimTagIncorrectFormat
     |   ErrShorthandNamed
     |   ErrShorthandSecondary
     |   ErrAnchorSyntax
@@ -14,6 +16,9 @@ type MessageCode =
     |   ErrTooManySpacesLiteral
     |   ErrTooLessIndentedLiteral
     |   ErrBadFormatLiteral
+    |   ErrLengthExceeds1024
+    |   ErrMissingDquote
+    |   ErrMissingSquote
 
 
     

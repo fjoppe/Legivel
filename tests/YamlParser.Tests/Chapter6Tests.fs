@@ -252,15 +252,14 @@ let ``Example 6.16. “TAG” directive``() =
     yml |> Some |> ToScalar |> should equal "foo"
 
 
-[<Ignore "Check error">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782400")>]
 let ``Example 6.17. Invalid Repeated TAG directive``() =
-    let yml = YamlParseList "
+    let err = YamlParseWithErrors "
 %TAG ! !foo
 %TAG ! !foo
 bar"
-    yml.Length |> should equal 0
-    // check error
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("The TAG directive must only be given at most once per handle in the same document")) |> List.length |> should equal 1
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782728")>]
@@ -386,14 +385,17 @@ let ``Example 6.24. Verbatim Tags``() =
     yml |> p1.Select |> ExtractTag |> should equal "!bar"
 
 
-[<Ignore "Check error message">]
+
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2784444")>]
 let ``Example 6.25. Invalid Verbatim Tags``() =
-    let yml = YamlParseList "
-- !<!> foo
-- !<$:?> bar
-"
-    yml.Length |> should equal 0
+    let err = YamlParseWithErrors "- !<!> foo"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Verbatim tags aren't resolved, so ! is invalid.")) |> List.length |> should equal 1
+
+    let err = YamlParseWithErrors "- !<$:?> bar"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Verbatim tag is neither a local or global tag.")) |> List.length |> should equal 1
 
 
 //[<Ignore "Check tags">]

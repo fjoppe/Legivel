@@ -439,11 +439,12 @@ let ``Example 7.22. Invalid Implicit Keys``() =
     let input = "[ foo\n bar: invalid ]" 
     let err = YamlParseWithErrors input
     err.Error.Length |> should be (greaterThan 0)
-
+    err.Error |> List.filter(fun m ->m.Message.StartsWith("This plain scalar cannot span multiple lines")) |> List.length  |> should equal 1
 
     let input = sprintf "[ \"foo...%s...bar\": invalid ]" plus1Kchars
     let err = YamlParseWithErrors input
     err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m ->m.Message.StartsWith("The mapping key is too long.")) |> List.length  |> should equal 1
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2793163")>]

@@ -29,6 +29,8 @@ type MessageAtLine = {
         member this.DebuggerInfo 
                     with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
 
+type ErrorMessage = MessageAtLine list
+
 let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
 let ``end-of-file`` = RGP "\\z"
 
@@ -72,6 +74,14 @@ let CreateSeqNode tag pi d  =
 
 type Directive = YAML of string | TAG of string*string | RESERVED of string list
 
+
+type ParseRestrictions = {
+        AllowedMultiLine : bool
+    }
+    with
+        static member Create() = { AllowedMultiLine = true }
+
+
 type ParseMessage = {
         Warn  : MessageAtLine list 
         Error : MessageAtLine list
@@ -89,12 +99,14 @@ type ParseMessage = {
             if this.Cancel |> List.exists(fun e -> e = mal) then this
             else {this with Cancel = mal :: this.Cancel}
 
-type ErrorMessage = MessageAtLine list
 
 [<NoEquality; NoComparison>]
 type ParseState = {
         //  Document Location
         Location : DocumentLocation
+
+        //  track string length
+        TrackLength : int
 
         /// String to parse (or what's left of it)
         InputString : string
@@ -134,6 +146,9 @@ type ParseState = {
 
         /// Report on tag processing
         TagReport   : TagReport
+
+        /// Context sensitive restrictions 
+        Restrictions : ParseRestrictions
     }
     with
         static member AddErrorMessageDel (ps:ParseState) sl = (sl |> List.fold(fun (p:ParseState) s -> p.AddErrorMessage s) ps)
@@ -143,7 +158,7 @@ type ParseState = {
             let lc = (lines.Length-1)  //  counts \n in a string
             let lcc = (lines |> List.last).Length // local column count
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
-            { this with Location = this.Location.AddAndSet lc cc }
+            { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + (s.Length) }
 
         member this.SetRestString s = { this with InputString = s }
         member this.AddAnchor s n =  {this with Anchors = this.Anchors.Add(s, n)}
@@ -190,12 +205,17 @@ type ParseState = {
 
         member this.UpdateTagReport tr = {this with TagReport = tr }
 
+        member this.ResetRestrictions() = {this with Restrictions = ParseRestrictions.Create()}
+
+        member this.ResetTrackLength() = { this with TrackLength = 0 }
+
         static member Create inputStr schema = {
                 Location = DocumentLocation.Create 1 1; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
                 Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
                 GlobalTagSchema = schema; LocalTagSchema = None; NodePath = [];
                 TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
+                Restrictions = ParseRestrictions.Create(); TrackLength = 0
             }
 
 [<NoEquality; NoComparison>]
@@ -313,6 +333,10 @@ module ParseState =
                 else
                     let crr = ParsedDocumentResult.Create wr (ps2.TagReport) (ps2.Location) (ps2.TagShorthands) n
                     CompleteRepresentaton(crr),ps2
+
+    let RestrictMultiLine ps = {ps with Restrictions = {ps.Restrictions with AllowedMultiLine = false}}
+    let ResetRestrictions (ps:ParseState) = ps.ResetRestrictions()
+    let ResetTrackLength (ps:ParseState) = ps.ResetTrackLength()
 
 let getParseInfo pso psn = ParseInfo.Create (pso.Location) (psn.Location)
 
@@ -875,19 +899,25 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform ("The YAML directive must only be given at most once per document.")))
                     else ps
                 if ps.Errors >0 then
-                    raise (DocumentException ps)
+                    ErrorResult (ps.Messages.Error)
                 else
                     Value(YAML(mt.ge1), ps.SetRestString mt.Rest)
             |   Regex2(this.``ns-tag-directive``)   mt    -> 
                 let tg = mt.ge2 |> fst
                 let ymlcnt = ps.Directives |> List.filter(function | TAG (t,_) ->  (t=tg) | _ -> false) |> List.length
                 let ps = 
-                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "You can only add a tag shorthand once: %s" tg)))
+                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "The TAG directive must only be given at most once per handle in the same document: %s" tg)))
                     else ps
                 if ps.Errors >0 then
-                    raise (DocumentException ps)
+                    ErrorResult (ps.Messages.Error)
                 else
-                    Value(TAG(mt.ge2),  ps.SetRestString (mt.Rest) |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
+                    let tagPfx = snd mt.ge2
+                    let lcTag = this.``c-primary-tag-handle`` + OOM(this.``ns-tag-char``)
+                    if System.Uri.IsWellFormedUriString(tagPfx, UriKind.Absolute) || IsMatch(tagPfx, lcTag) then
+                        Value(TAG(mt.ge2),  ps.SetRestString (mt.Rest) |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
+                    else
+                        let ps = (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg)))
+                        raise (DocumentException ps)
             |   Regex2(this.``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Unsupported directive: %%%s" mt.ge1)))
             |   _   -> NoResult
         )
@@ -953,13 +983,21 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let Tag pst =
             let verbatim = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">")
             let illVerbatim = (RGP "!<") + OOM(this.``ns-uri-char``)
+            let illVerbatimNoLocaltag = (RGP "!<!>")
             let shorthandNamed = GRP(this.``c-named-tag-handle``) + GRP(OOM(this.``ns-tag-char``))
             let illShorthandNamed = GRP(this.``c-named-tag-handle``)
             let shorthandSecondary = this.``c-secondary-tag-handle`` + GRP(OOM(this.``ns-tag-char``))
             let illShorthandSecondary = this.``c-secondary-tag-handle`` 
             let shorthandPrimary = this.``c-primary-tag-handle``+ GRP(OOM(this.``ns-tag-char``))
             match pst with
-            |   Regex3(verbatim) (mt, prs) -> Value(prs, Verbatim mt.ge1)
+            |   Regex3(illVerbatimNoLocaltag) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrVerbatimTagNoLocal ("Verbatim tags aren't resolved, so ! is invalid.")]
+            |   Regex3(verbatim) (mt, prs) -> 
+                let tag = mt.ge1
+                let lcTag = this.``c-primary-tag-handle`` + OOM(this.``ns-tag-char``)
+                if System.Uri.IsWellFormedUriString(tag, UriKind.Absolute) || IsMatch(tag, lcTag) then
+                    Value(prs, Verbatim mt.ge1)
+                else
+                    ErrorResult [MessageAtLine.Create (ps.Location) ErrVerbatimTagIncorrectFormat ("Verbatim tag is neither a local or global tag.")]                    
             |   Regex3(illVerbatim) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrVerbatimTag ("Verbatim tag starting with '!<' is missing a closing '>'")]
             |   Regex3(shorthandNamed) (mt, prs) -> Value(prs, ShortHandNamed mt.ge2)
             |   Regex3(illShorthandNamed) (mt,_) -> ErrorResult [MessageAtLine.Create (ps.Location) ErrShorthandNamed (sprintf "The %s handle has no suffix." mt.FullMatch)]
@@ -1084,6 +1122,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
 
         let patt = (RGP "\"") + GRP(this.``nb-double-text`` ps) + (RGP "\"")
+        let ``illegal-patt`` = (RGP "\"") + GRP(this.``nb-double-text`` ps)
 
         match ps with
         |   Regex3(patt)    (mt,prs) ->
@@ -1098,6 +1137,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _  ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+        |   Regex3(``illegal-patt``) _ ->
+            ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingDquote "Missing \" in string literal."]
         |   _ -> NoResult
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-double-quoted" ps        
@@ -1159,6 +1200,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
 
         let patt = (RGP "'") + GRP(this.``nb-single-text`` ps) + (RGP "'")
+        let ``illegal-patt`` = (RGP "'") + GRP(this.``nb-single-text`` ps) 
+
         match ps with
         |   Regex3(patt)    (mt,prs) ->
             let content = mt.ge1
@@ -1172,6 +1215,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+        |   Regex3(``illegal-patt``) _ ->
+            ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingSquote "Missing \' in string literal."]
         |   _ -> NoResult
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-single-quoted" ps        
@@ -1264,7 +1309,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     CreateSeqNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psx) [] |> this.ResolveTag psx NonSpecificQT (prs.Location))
 
             match (this.``ns-s-flow-seq-entries`` prs) with
-            |   Value (c, prs2) -> prs2 |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> Value (c, psx) ) 
+            |   Value (c, prs2) -> 
+                prs2 
+                |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> Value (c, psx) ) 
+                |> FallibleOption.ifnoresult(if prs2.Errors > 0 then ErrorResult (prs2.Messages.Error) else NoResult)
             |   NoResult        -> prs |> noResult
             |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(ErrorResult e)
         )
@@ -1394,9 +1442,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [145]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-yaml-key-entry(n,c)
     member this.``ns-flow-map-yaml-key-entry`` (ps:ParseState) =
         logger "ns-flow-map-yaml-key-entry" ps
-        match (this.``ns-flow-yaml-node`` ps) with
+        match (this.``ns-flow-yaml-node`` (ps |> ParseState.RestrictMultiLine)) with
         |   Value (ck, prs) -> 
-            let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
+            let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs)) |> ParseState.ResetRestrictions
             match (this.``c-ns-flow-map-separate-value`` prs) with
             |   Value (cv, prs2) -> Value((ck,cv), prs2)
             |   NoResult -> Value((ck, this.ResolvedNullNode prs), prs)  //  ``e-node``
@@ -1530,10 +1578,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-s-implicit-yaml-key" ps
 //        let ``n/a`` = 0
 //        let ps = ps.SetIndent ``n/a``
-        match (this.``ns-flow-yaml-node`` ps) with
+        match (this.``ns-flow-yaml-node`` (ps |> ParseState.ResetTrackLength |> ParseState.RestrictMultiLine)) with
         |   Value (ck, prs) -> 
             let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
-            Value(ck, prs)
+            if prs.TrackLength > 1024 then
+                ErrorResult [MessageAtLine.Create (ps.Location) ErrLengthExceeds1024 ("The mapping key is too long. The maximum allowed length is 1024.)")]
+            else Value(ck, prs)
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
         |> ParseState.TrackParseLocation ps
@@ -1544,10 +1594,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "c-s-implicit-json-key" ps
 //        let ``n/a`` = 0
 //        let ps = ps.SetIndent ``n/a``
-        match (this.``c-flow-json-node`` ps) with
+        match (this.``c-flow-json-node`` (ps |> ParseState.ResetTrackLength |> ParseState.RestrictMultiLine)) with
         |   Value (c, prs) -> 
-            let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
-            Value(c, prs)
+            if prs.TrackLength > 1024 then
+                ErrorResult [MessageAtLine.Create (ps.Location) ErrLengthExceeds1024 ("The mapping key is too long. The maximum allowed length is 1024.)")]
+            else 
+                let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
+                Value(c, prs)
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
         |> ParseState.TrackParseLocation ps
@@ -1557,17 +1610,20 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-flow-yaml-content`` (ps:ParseState) : ParseFuncResult<_> = 
         logger "ns-flow-yaml-content" ps
 
-        let ``illegal-ns-plain`` p =  this.``c-indicator`` + this.``ns-plain-first`` p
+        //  illegal indicators, minus squote and dquote; see this.``c-indicator``
+        let ``illegal-ns-plain`` p =  (RGO  "\-\?:,\[\]\{\}#&\*!;>%@`") + this.``ns-plain-first`` p
         let ``illegl multiline`` ps = (this.``ns-plain-one-line`` ps) + OOM(this.``s-ns-plain-next-line`` ps)
         let preErr = 
-            match ps.c with
-            | ``Flow-out``  | ``Flow-in``   -> NoResult
-            | ``Block-key`` | ``Flow-key``  -> 
-                match ps with
-                |   Regex3(``illegl multiline`` ps) _ -> 
-                    ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarMultiLine ("Plain scalar cannot span multiple lines.")]
-                |   _ -> NoResult
-            | _  -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+            if not(ps.Restrictions.AllowedMultiLine) then 
+                match ps.c with
+                | ``Flow-out``  | ``Flow-in``   -> NoResult
+                | ``Block-key`` | ``Flow-key``  -> 
+                    match ps with
+                    |   Regex3(``illegl multiline`` ps) _ -> 
+                        ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarMultiLine ("This plain scalar cannot span multiple lines; this restrictin applies to mapping keys.")]
+                    |   _ -> NoResult
+                | _  -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+            else NoResult
 
         match preErr with
         |   NoResult ->
@@ -1589,7 +1645,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                 | _  -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
-            |   Regex3(``illegal-ns-plain`` ps) _ -> 
+            |   Regex3(``illegal-ns-plain`` ps) (mt,psign) -> 
                 ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
             |   _ -> NoResult
         | x -> x
@@ -1750,7 +1806,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
             let ``l-empty`` = RGSF((this.``s-line-prefix`` (pst.SetStyleContext ``Block-in``)) ||| (this.``s-indent(<n)`` pst))
             let ``l-literaltext`` = RGSF((this.``s-indent(n)`` pst) + OOM(this.``nb-char``))
-            let ``ill-literaltext`` = RGS((this.``s-indent(<n)`` pst) + OOM(this.``nb-char``))
 
             let trimTail sin sout =
                 match sin with
@@ -2336,7 +2391,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   NoResult    -> ps
             |   ErrorResult el -> ps |> ParseState.AddErrorMessageList el
         let psr = readDirectives ps
-        this.``l-explicit-document`` psr
+        if psr.Errors = 0 then 
+            this.``l-explicit-document`` psr
+        else
+            ErrorResult (psr.Messages.Error)
         |> this.LogReturn "l-directive-document" ps
 
     //  [210]   http://www.yaml.org/spec/1.2/spec.html#l-any-document
