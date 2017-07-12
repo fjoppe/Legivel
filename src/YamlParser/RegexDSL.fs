@@ -56,6 +56,7 @@ type RGXType =
     |   Concat     of RGXType list
     |   IterRange  of RGXType * int * (int option)
     |   ZeroOrMore of RGXType
+    |   ZeroOrMoreNonGreedy of RGXType
     |   OneOrMore  of RGXType
     |   Optional   of RGXType
     |   Group      of RGXType
@@ -75,6 +76,7 @@ type RGXType =
                 |   Some(mn) ->  sprintf "(?:%O){%d,%d}" t mn mx
                 |   None     ->  sprintf "(?:%O){%d}" t mx
         |   ZeroOrMore t -> sprintf "(?:%O)*" t
+        |   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
         |   OneOrMore  t -> sprintf "(?:%O)+" t
         |   Optional   t -> sprintf "(?:%O)?" t
         |   Group      t -> sprintf "(%O)" t
@@ -115,6 +117,8 @@ let Range(t, mn, mx) = IterRange(t, mx, Some(mn))
 /// Regex pattern may repeat zero or more, eg: ZOM(RGP("abc")) := (abc)*
 let ZOM(t) = ZeroOrMore(t)
 
+/// Regex pattern may repeat zero or more - nongreedy, eg: ZOM(RGP("abc")) := (abc)*
+let ZOMNG(t) = ZeroOrMoreNonGreedy(t)
 /// Regex pattern may repeat once or more, eg: OOM(RGP("abc")) := (abc)+
 let OOM(t) = OneOrMore(t)
 

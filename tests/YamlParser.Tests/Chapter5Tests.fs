@@ -187,13 +187,20 @@ let ``Example 5.13. Escaped Characters``() =
     yml |> Some |> ToScalar |> should equal "Fun with \x5C \x22 \x07 \x08 \x1B \x0C \x0A \x0D \x09 \x0B \x00 \x20 \xA0 \x85 \u2028 \u2029 A A A"
 
 
-[<Ignore "TODO: Check for coorect error message">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2777449")>]
 let ``Example 5.14. Invalid Escaped Characters``() =
-    let yml = YamlParseList "
+    let err = YamlParseWithErrors "
 Bad escapes:
-  \"\c
-  \xq-\"
+  \"\\c
+  \\xq-\"
 "
-    yml.Length |> should equal 0
+    err.Error.Length |> should equal 1
+    err.Error |> List.map(fun e -> e.Message) |> List.head |> should equal "Literal string contains illegal characters."
 
+    let err = YamlParseWithErrors "
+Bad escapes:
+  \"
+  \\xq-\"
+"
+    err.Error.Length |> should equal 1
+    err.Error |> List.map(fun e -> e.Message) |> List.head |> should equal "Literal string contains illegal characters."

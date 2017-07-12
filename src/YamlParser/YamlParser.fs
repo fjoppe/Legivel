@@ -321,17 +321,17 @@ module ParseState =
             let erss = ErrorResult.Create wr er (psr.Location) (psr.InputString)
             NoRepresentation(erss),pso
         |   Value (n, (ps2:ParseState)) ->
+            let wr2 = wr @ (ps2.Messages.Warn  |> mal2pm)
             if ps2.Errors > 0 then
-                let wr = ps2.Messages.Warn  |> mal2pm
                 let er = ps2.Messages.Error |> mal2pm
-                let erss = ErrorResult.Create wr er (ps2.Location) (ps2.InputString)
+                let erss = ErrorResult.Create wr2 er (ps2.Location) (ps2.InputString)
                 NoRepresentation(erss),ps2
             else
                 if (ps2.TagReport.Unrecognized.Scalar > 0 || ps2.TagReport.Unresolved > 0) then
-                    let prr = ParsedDocumentResult.Create wr (ps2.TagReport) (ps2.Location) (ps2.TagShorthands) n
+                    let prr = ParsedDocumentResult.Create wr2 (ps2.TagReport) (ps2.Location) (ps2.TagShorthands) n
                     PartialRepresentaton(prr),ps2
                 else
-                    let crr = ParsedDocumentResult.Create wr (ps2.TagReport) (ps2.Location) (ps2.TagShorthands) n
+                    let crr = ParsedDocumentResult.Create wr2 (ps2.TagReport) (ps2.Location) (ps2.TagShorthands) n
                     CompleteRepresentaton(crr),ps2
 
     let RestrictMultiLine ps = {ps with Restrictions = {ps.Restrictions with AllowedMultiLine = false}}
@@ -885,8 +885,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l-directive`` (ps:ParseState) : FallibleOption<ParseState,ErrorMessage> = 
         ps 
         |> ParseState.``Match and Advance`` (RGP "%") (fun prs ->
+            let ``ns-yaml-directive`` = this.``ns-yaml-directive`` + this.``s-l-comments``
+            let ``ns-tag-directive`` = this.``ns-tag-directive``  + this.``s-l-comments``
+            let ``ns-reserved-directive`` = GRP(this.``ns-reserved-directive``) + this.``s-l-comments``
             match prs.InputString with
-            |   Regex2(this.``ns-yaml-directive``)  mt    -> 
+            |   Regex2(``ns-yaml-directive``)  mt    -> 
                 let ps = 
                     match (mt.ge1.Split('.') |> List.ofArray) with
                     | [a;b] when a="1" && b<"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
@@ -902,7 +905,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     ErrorResult (ps.Messages.Error)
                 else
                     Value(YAML(mt.ge1), ps.SetRestString mt.Rest)
-            |   Regex2(this.``ns-tag-directive``)   mt    -> 
+            |   Regex2(``ns-tag-directive``)   mt    -> 
                 let tg = mt.ge2 |> fst
                 let ymlcnt = ps.Directives |> List.filter(function | TAG (t,_) ->  (t=tg) | _ -> false) |> List.length
                 let ps = 
@@ -918,7 +921,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     else
                         let ps = (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg)))
                         raise (DocumentException ps)
-            |   Regex2(this.``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Unsupported directive: %%%s" mt.ge1)))
+            |   Regex2(``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Reserved directive will ignored: %%%s" mt.ge1)))
             |   _   -> NoResult
         )
         |> FallibleOption.bind(fun (t,prs) ->
@@ -927,7 +930,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     //  [83]    http://www.yaml.org/spec/1.2/spec.html#ns-reserved-directive
     member this.``ns-reserved-directive`` = 
-        this.``ns-directive-name`` + ZOM(this.``s-separate-in-line`` + this.``ns-directive-parameter``)
+        this.``ns-directive-name`` + ZOMNG(this.``s-separate-in-line`` + this.``ns-directive-parameter``)
 
     //  [84]    http://www.yaml.org/spec/1.2/spec.html#ns-directive-name
     member this.``ns-directive-name`` = OOM(this.``ns-char``)
@@ -1122,6 +1125,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
 
         let patt = (RGP "\"") + GRP(this.``nb-double-text`` ps) + (RGP "\"")
+        let ``illegal-chars`` = (RGP "\"") + OOM(this.``nb-json`` ||| this.``s-double-break`` ps) + (RGP "\"")
         let ``illegal-patt`` = (RGP "\"") + GRP(this.``nb-double-text`` ps)
 
         match ps with
@@ -1137,8 +1141,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _  ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
-        |   Regex3(``illegal-patt``) _ ->
-            ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingDquote "Missing \" in string literal."]
+        |   Regex3(``illegal-chars``) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrDquoteIllegalChars "Literal string contains illegal characters."]
+        |   Regex3(``illegal-patt``) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingDquote "Missing \" in string literal."]
         |   _ -> NoResult
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-double-quoted" ps        
@@ -2359,27 +2363,32 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [207]   http://www.yaml.org/spec/1.2/spec.html#l-bare-document
     member this.``l-bare-document`` (ps:ParseState) : ParseFuncResult<_> = 
         logger "l-bare-document" ps
-        ps 
-        |> ParseState.SetIndent -1
-        |> ParseState.SetStyleContext ``Block-in``
-        |> this.``s-l+block-node`` (* Excluding c-forbidden content *)
+        if ps.Errors = 0 then
+            ps 
+            |> ParseState.SetIndent -1
+            |> ParseState.SetStyleContext ``Block-in``
+            |> this.``s-l+block-node`` (* Excluding c-forbidden content *)
+        else
+            ErrorResult (ps.Messages.Error)
         |> this.LogReturn "l-bare-document" ps
 
     //  [208]   http://www.yaml.org/spec/1.2/spec.html#l-explicit-document
     member this.``l-explicit-document`` (ps:ParseState) : ParseFuncResult<_> =
         logger "l-explicit-document" ps
-        ps 
-        |> ParseState.``Match and Advance`` (this.``c-directives-end``) (fun prs ->
-            (prs |> ParseState.OneOf)
-                {
-                    either(this.``l-bare-document``)
-                    ifneither (
-                        let prs2 = prs.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
-                        this.ResolveTag prs2 NonSpecificQM (prs2.Location) (PlainEmptyNode (getParseInfo ps prs) )
-                    )
-                }
-            |> ParseState.PreserveErrors ps
-        )
+        if ps.Errors = 0 then
+            ps 
+            |> ParseState.``Match and Advance`` (this.``c-directives-end``) (fun prs ->
+                (prs |> ParseState.OneOf)
+                    {
+                        either(this.``l-bare-document``)
+                        ifneither (
+                            let prs2 = prs.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
+                            this.ResolveTag prs2 NonSpecificQM (prs2.Location) (PlainEmptyNode (getParseInfo ps prs) )
+                        )
+                    }
+                |> ParseState.PreserveErrors ps
+            )
+        else ErrorResult (ps.Messages.Error)
         |> this.LogReturn "l-explicit-document" ps
 
     //  [209]   http://www.yaml.org/spec/1.2/spec.html#l-directive-document

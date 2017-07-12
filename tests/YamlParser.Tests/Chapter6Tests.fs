@@ -204,41 +204,39 @@ let ``Example 6.12. Separation Spaces``() =
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-[<Ignore "Check warning">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2781445")>]
 let ``Example 6.13. Reserved Directives``() =
-    let yml = YamlParseList "
-%FOO  bar baz # Should be ignored
+    let wrr = YamlParseWithWarning "
+%FOO bar baz # Should be ignored
               # with a warning.
 --- \"foo\"
 "
-    yml.Length |> should equal 1
+    wrr.Warn.Length |> should equal 1
+    wrr.Warn |> List.filter(fun m -> m.Message = "Reserved directive will ignored: %FOO bar baz") |> List.length |> should equal 1
+    [wrr.Document] |> Some |> ToScalar |> should equal "foo"
 
-    yml |> Some |> ToScalar |> should equal "foo"
 
-
-[<Ignore "Check warning">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2781929")>]
 let ``Example 6.14. “YAML” directive``() =
-    let yml = YamlParseList "
+    let yml = YamlParseWithWarning "
 %YAML 1.3 # Attempt parsing
            # with a warning
 ---
 \"foo\""
-    yml.Length |> should equal 1
+    yml.Warn.Length |> should equal 1
+    yml.Warn |> List.filter(fun m -> m.Message = "YAML 1.3 document will be parsed as YAML 1.2") |> List.length |> should equal 1
 
-    yml |> Some |> ToScalar |> should equal "foo"
+    [yml.Document] |> Some |> ToScalar |> should equal "foo"
 
 
-[<Ignore "Check warning">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782032")>]
 let ``Example 6.15. Invalid Repeated YAML directive``() =
-    let yml = YamlParseList "
+    let err = YamlParseWithErrors "
 %YAML 1.2
 %YAML 1.1
 foo"
-    yml.Length |> should equal 0
-    // check error
+    err.Error.Length |> should equal 1
+    err.Error |> List.filter(fun m -> m.Message = "The YAML directive must only be given at most once per document.") |> List.length |> should equal 1
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2782252")>]

@@ -31,6 +31,20 @@ let YamlParseWithErrors s =
     with
     | e -> printfn "%A" e; raise e
 
+let YamlParseWithWarning s =
+    let engine = Yaml12Parser()
+    try
+        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let crrp = repr.Head
+        match crrp with
+            |   NoRepresentation _ -> failwith "Unexpected error"
+            |   CompleteRepresentaton cr -> cr
+            |   PartialRepresentaton pr -> pr
+            |   EmptyRepresentation er -> failwith "Unexpected empty"
+    with
+    | e -> printfn "%A" e; raise e
+
+
 let YamlParseEmpty s =
     let engine = Yaml12Parser()
     try

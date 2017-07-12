@@ -18,6 +18,7 @@ type MessageCode =
     |   ErrBadFormatLiteral
     |   ErrLengthExceeds1024
     |   ErrMissingDquote
+    |   ErrDquoteIllegalChars
     |   ErrMissingSquote
 
 
