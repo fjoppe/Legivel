@@ -133,8 +133,8 @@ type TagEvaluation =
                 match nd.Tag with
                 |   Global gt   -> gt.Uri
                 |   Unrecognized gt -> gt.Uri
-                |   Local  s    -> s
-                |   NonSpecific s -> s
+                |   Local  s    -> s.Handle
+                |   NonSpecific s -> s.Handle
             match n with
             |   ScalarNode nd -> extract nd
             |   SeqNode nd -> extract nd

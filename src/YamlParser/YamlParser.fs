@@ -47,30 +47,18 @@ let ``Read stream until stop condition`` (strm:TextReader) (stopCondition:string
 
 
 let CreateScalarNode tag pi d = 
-    ScalarNode(NodeData<Node>.Create tag d pi (lazy(NodeHash.Create d)))
+    ScalarNode(NodeData<Node>.Create tag d pi)
 
 
 let PlainEmptyNode pi = CreateScalarNode (NonSpecific.NonSpecificTagQM) pi ""
 
 
 let CreateMapNode tag pi d  = 
-    MapNode(NodeData<(Node*Node) list>.Create tag d pi
-        (lazy(d 
-              |> List.map(fun (k,_) -> k.Hash)
-              |> List.sort
-              |> NodeHash.Merge)
-        )
-    )
+    MapNode(NodeData<(Node*Node) list>.Create tag d pi)
 
 
 let CreateSeqNode tag pi d  = 
-    SeqNode(NodeData<Node list>.Create tag d pi
-        (lazy(d 
-              |> List.map(fun e -> e.Hash)
-              |> List.sort
-              |> NodeHash.Merge)
-        )
-    )
+    SeqNode(NodeData<Node list>.Create tag d pi)
 
 type Directive = YAML of string | TAG of string*string | RESERVED of string list
 
@@ -512,7 +500,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 Value(node, psunresvd)
 
         let ResolveLocalTag tag =
-            Value(node.SetTag (Local tag), ps)
+            Value(node.SetTag (Local (LocalTag.Create tag (ps.GlobalTagSchema.LocalTags))), ps)
 
         let ResolveShorthand tsh sub =
             match tsh.MappedTagBase with
@@ -523,9 +511,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |   Some t  -> checkTagKindMatch t (node.SetTag (Global t),ps)
                     |   None    -> 
                         match node.Kind with
-                        |   Scalar  -> Value(Unrecognized (GlobalTag.Create (DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub), node.Kind))  |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar) 
-                        |   _       -> Value(Global (GlobalTag.Create (DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub), node.Kind))        |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection)
-            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Value(Local (tsh.MappedTagBase+sub)|> node.SetTag, ps)
+                        |   Scalar  -> Value(Unrecognized (ps.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub)) |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar) 
+                        |   _       -> Value(Global (ps.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub))       |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection)
+            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> Value(Local (LocalTag.Create (tsh.MappedTagBase+sub) (ps.GlobalTagSchema.LocalTags))|> node.SetTag, ps)
             |   _ -> NoResult
 
 
@@ -2433,8 +2421,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
             let rec successorDoc (ps:ParseState, representations) =
                 //  quitNode is a Sentinel value, which is realized via its tag
-                let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific "#QUITNODE#") ("#ILLEGALVALUE#") (getParseInfo ps ps) ((lazy(NodeHash.Create "12345678"))))
-                let noResultNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific "#NORESULTNODE#") ("#ILLEGALVALUE#") (getParseInfo ps ps) ((lazy(NodeHash.Create "12345678"))))
+                let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#QUITNODE#" (ps.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
+                let noResultNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#NORESULTNODE#" (ps.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
 
                 if not(IsEndOfStream ps) then
                     (ps |> ParseState.OneOf) {

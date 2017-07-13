@@ -26,8 +26,8 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
 //                let rest = gt.Uri.Substring(mtg.MappedTagUri.Length) 
 //                mtg.ShortHand + rest
 //            |   None -> sprintf "!<%s>" gt.Uri
-        |   Local       s -> s
-        |   NonSpecific s -> s
+        |   Local       s -> s.Handle
+        |   NonSpecific s -> s.Handle
     let rec convertToString n0 l =
         match n0 with
         |   SeqNode n ->
@@ -35,7 +35,6 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
             let head = sprintf "%s %s [\n" (ind0) (tagString n.Tag)
             let content = 
                 n.Data
-                |> List.sortBy(fun n -> n.Hash)
                 |> List.fold(fun s ni -> s + (sprintf "%s,\n" (convertToString ni (l+1)))) ""
             let tail = sprintf "%s]" ind0
             sprintf "%s%s%s" head content tail
@@ -45,7 +44,6 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
             let head = sprintf "%s %s {\n" (ind0) (tagString n.Tag)
             let content = 
                 n.Data 
-                |> List.sortBy(fun (k,_) -> k.Hash)
                 |> List.fold(
                     fun s (k,v) -> 
                         let kc = convertToString k (l+1)

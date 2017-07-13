@@ -86,8 +86,8 @@ let ExtractTag n =
         match nd.Tag with
         |   Global gt   -> gt.Uri
         |   Unrecognized gt -> gt.Uri
-        |   Local  s    -> s
-        |   NonSpecific s -> s
+        |   Local  s    -> s.Handle
+        |   NonSpecific s -> s.Handle
     match n with
     |   Some([ScalarNode nd]) -> extract nd
     |   Some([SeqNode nd]) -> extract nd

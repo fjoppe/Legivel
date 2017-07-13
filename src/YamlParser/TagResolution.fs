@@ -3,7 +3,7 @@
 open System
 open RepresentationGraph
 open RegexDSL
-
+open YamlParser.Internals
 
 exception TagResolutionException of string
 
@@ -20,12 +20,15 @@ type TagResolutionInfo = {
 
 
 type TagResolutionFunc = (TagResolutionInfo -> GlobalTag option)
+type UnresolvedTagResolutionFunc = (NodeKind -> string -> GlobalTag)
 
 
-[<NoEquality; NoComparison>]
+//[<NoEquality; NoComparison>]
 type GlobalTagSchema = {
-    GlobalTags      : GlobalTag list
-    TagResolution   : TagResolutionFunc
+    GlobalTags              : GlobalTag list
+    TagResolution           : TagResolutionFunc
+    UnresolvedResolution    : UnresolvedTagResolutionFunc
+    LocalTags               : LocalTagsFuncs
 }
 
 
@@ -48,16 +51,60 @@ let private clearTrailingZeros (s:string) =
         )
     String.Join("", cleared)
 
-module internal NonSpecific =
-    let NonSpecificTagQT = TagKind.NonSpecific "!"
-    let NonSpecificTagQM = TagKind.NonSpecific "?"
-    let UnresolvedTag = TagKind.NonSpecific "?"
-
 
 module internal Failsafe =
-    let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping)
-    let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence)
-    let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar)
+    let mappingsAreEqual n1 n2 = true
+    let sequencesAreEqual n1 n2 = true
+    let scalarsAreEqual n1 n2 = true
+
+    let getMappingHash (d:Node) =
+        match d with
+        |   MapNode n ->  
+            (lazy(n.Data 
+                  |> List.map(fun (k,_) -> k.Hash)
+                  |> List.sort
+                  |> NodeHash.Merge)
+            )
+        |   _    -> failwith "Tag-kind mismatch between node and tag"
+
+    let getSeqenceHash (d:Node) = 
+        match d with
+        |   SeqNode n ->  
+            (lazy(n.Data 
+                  |> List.map(fun e -> e.Hash)
+                  |> List.sort
+                  |> NodeHash.Merge)
+            )
+        |   _    -> failwith "Tag-kind mismatch between node and tag"
+    let getScalarHash (d:Node) = 
+        match d with
+        |   ScalarNode n ->  (lazy(NodeHash.Create n.Data))
+        |   _    -> failwith "Tag-kind mismatch between node and tag"
+
+    let getUnresolvedTag nodeKind tagstr = 
+        let (eqfn, hsh) =
+            match nodeKind with
+            |   NodeKind.Mapping    -> (mappingsAreEqual, getMappingHash)
+            |   NodeKind.Sequence   -> (sequencesAreEqual, getSeqenceHash)
+            |   NodeKind.Scalar     -> (scalarsAreEqual, getScalarHash)
+        GlobalTag.Create (DecodeEncodedUriHexCharacters(tagstr), nodeKind, eqfn, hsh)
+
+    let localTagsAreEqual n1 n2 = true
+    let localTagsGetHash (n:Node) =
+        match n with
+        |   MapNode mn  -> getMappingHash n
+        |   SeqNode sn  -> getSeqenceHash n
+        |   ScalarNode sn -> getScalarHash n
+
+    let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping, mappingsAreEqual, getMappingHash)
+    let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence, sequencesAreEqual, getSeqenceHash)
+    let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar, scalarsAreEqual, getScalarHash)
+
+
+module internal NonSpecific =
+    let NonSpecificTagQT = TagKind.NonSpecific {Handle ="!"; LocalTag ={ LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}}
+    let NonSpecificTagQM = TagKind.NonSpecific {Handle ="?"; LocalTag ={ LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}}
+    let UnresolvedTag = TagKind.NonSpecific {Handle ="?"; LocalTag ={ LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}}
 
 
 module internal JSON =
@@ -67,7 +114,7 @@ module internal JSON =
                     match s with
                     | Regex "null" _ -> "null"
                     | _ -> raise (TagResolutionException (sprintf "Cannot convert to null: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let BooleanGlobalTag = 
@@ -77,7 +124,7 @@ module internal JSON =
                 | Regex "true" _ -> "true"
                 | Regex "false" _ -> "false"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let IntegerGlobalTag = 
@@ -86,7 +133,7 @@ module internal JSON =
                 match s with
                 | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let FloatGlobalTag = 
@@ -100,7 +147,7 @@ module internal JSON =
                     let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
                     sprintf "%s0.%se%+04d" canSign fullMantissa canExp
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
 module internal YamlCore =
@@ -110,7 +157,7 @@ module internal YamlCore =
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> "null"
                     | _ -> raise (TagResolutionException (sprintf "Cannot convert to null: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let BooleanGlobalTag = 
@@ -120,7 +167,7 @@ module internal YamlCore =
                 | Regex "true|True|TRUE"    _ -> "true"
                 | Regex "false|False|FALSE" _ -> "false"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let IntegerGlobalTag = 
@@ -140,7 +187,7 @@ module internal YamlCore =
                     let ic = ps |> List.fold(fun s c -> (s <<< 4) + (digitToValue  c)) 0
                     convertToCanonical "" ic
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let FloatGlobalTag = 
@@ -158,7 +205,7 @@ module internal YamlCore =
                     sprintf "%s.inf" canSign
                 | Regex "^(\.(nan|NaN|NAN))$" _ -> ".nan"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
 
@@ -170,7 +217,7 @@ module internal YamlExtended =
                 | Regex "y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON" _ -> "true"
                 | Regex "n|N|no|No|NO|false|False|FALSE|off|Off|OFF" _ -> "false"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let IntegerGlobalTag = 
@@ -200,7 +247,7 @@ module internal YamlExtended =
                     let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
                     convertToCanonical sign ic
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
     let FloatGlobalTag = 
@@ -229,7 +276,7 @@ module internal YamlExtended =
                     sprintf "%s.inf" canSign
                 | Regex "^(\.(nan|NaN|NAN))$" _ -> ".nan"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
-            )
+            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
         )
 
 
@@ -247,6 +294,8 @@ let FailsafeSchema =
     {
         GlobalTags = [Failsafe.MappingGlobalTag; Failsafe.SequenceGlobalTag; Failsafe.StringGlobalTag]
         TagResolution = TagResolution
+        UnresolvedResolution = Failsafe.getUnresolvedTag
+        LocalTags = { LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}
     }
 
 
@@ -277,6 +326,8 @@ let JSONSchema =
                 JSON.NullGlobalTag; JSON.BooleanGlobalTag; JSON.IntegerGlobalTag; JSON.FloatGlobalTag
             ]
         TagResolution = TagResolution
+        UnresolvedResolution = Failsafe.getUnresolvedTag
+        LocalTags = { LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}
     }
 
 let YamlCoreSchema =
@@ -305,4 +356,6 @@ let YamlCoreSchema =
                 YamlCore.NullGlobalTag; YamlCore.BooleanGlobalTag; YamlCore.IntegerGlobalTag; YamlCore.FloatGlobalTag
             ]
         TagResolution = TagResolution
+        UnresolvedResolution = Failsafe.getUnresolvedTag
+        LocalTags = { LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}
     }

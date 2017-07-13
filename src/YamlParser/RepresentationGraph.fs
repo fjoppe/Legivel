@@ -3,67 +3,9 @@
 open System.Diagnostics
 open YamlParser.Internals
 
-type NodeKind = 
-    | Mapping
-    | Sequence
-    | Scalar
-
-[<CustomEquality; CustomComparison>]
-[<StructuredFormatDisplay("{AsString}")>]
-type GlobalTag = {
-        Uri     : string
-        Kind    : NodeKind
-        Regex   : string
-        canonFn : string -> string
-    }
-    with
-        static member Create (uri, nk, rgx, canon) =
-            { 
-                Uri = uri; 
-                Kind = nk;
-                Regex = sprintf "\\A(%s)\\z" rgx
-                canonFn = canon
-            }
-
-        static member Create (uri, nk, rgx) = GlobalTag.Create (uri, nk, rgx, fun s -> s)
-
-        static member Create (uri, nk) = GlobalTag.Create (uri, nk, ".*", fun s -> s)
-
-        member this.Canonical s = this.canonFn s
-
-        override this.ToString() = sprintf "<%A::%s>" this.Kind this.Uri
-        member m.AsString = m.ToString()
-
-        override this.Equals(other) = other |> InternalUtil.equalsOn(fun that -> this.Uri = that.Uri && this.Kind = that.Kind)
-
-        override this.GetHashCode() = this.Uri.GetHashCode() ^^^ this.Kind.GetHashCode()
-
-        interface System.IComparable with
-            member this.CompareTo other = other |> InternalUtil.compareOn(fun that -> this.Uri.CompareTo(that.Uri))
-
 
 [<StructuredFormatDisplay("{AsString}")>]
-type TagKind =
-    |   Global       of GlobalTag
-    |   Unrecognized of GlobalTag
-    |   Local        of string
-    |   NonSpecific  of string
-    with
-        override this.ToString() =
-            match this with
-            |   Global       gt -> sprintf "Global:%O" gt
-            |   Unrecognized gt -> sprintf "Unrecognized:%O" gt
-            |   Local        ls -> sprintf "Local:%O" ls
-            |   NonSpecific  ls -> sprintf "NonSpecific:%O" ls
-        member this.EqualIfNonSpecific otherTag =
-            match (this, otherTag) with
-            |   (NonSpecific a, NonSpecific b)  -> a=b
-            |   _   -> false
-
-        member m.AsString = m.ToString()
-
-[<StructuredFormatDisplay("{AsString}")>]
-type DocumentLocation = {
+type    DocumentLocation = {
         Line    : int
         Column  : int
     }
@@ -77,7 +19,6 @@ type DocumentLocation = {
         member m.AsString = m.ToString()
 
 
-
 type ParseInfo = {
         Start : DocumentLocation
         End   : DocumentLocation
@@ -86,22 +27,129 @@ type ParseInfo = {
         static member Create s e = { Start = s; End = e}
 
 
-[<CustomEquality; CustomComparison>]
-[<StructuredFormatDisplay("{AsString}")>]
-type NodeData<'T when 'T : equality and 'T :> System.IComparable> = {
+type NodeKind = 
+    | Mapping
+    | Sequence
+    | Scalar
+
+//type GetHashPerNodeKind =
+//    |   MappingHash of ((Node*Node) list -> Lazy<NodeHash>)
+//    |   SequencHash of (Node list -> Lazy<NodeHash>)
+//    |   ScalarHash of (string -> Lazy<NodeHash>)
+
+type
+    LocalTagsFuncs = {
+        AreEqual : Node -> Node -> bool
+        GetHash  : Node -> Lazy<NodeHash>
+    }
+
+and
+    [<CustomEquality; CustomComparison>]
+    [<StructuredFormatDisplay("{AsString}")>]
+    GlobalTag = {
+        Uri     : string
+        Kind    : NodeKind
+        Regex   : string
+        canonFn : string -> string
+        AreEqual: Node -> Node -> bool
+        GetHash : Node -> Lazy<NodeHash>
+    }
+    with
+        static member Create (uri, nk, rgx, canon, eqfn, gnh) =
+            { 
+                Uri = uri; 
+                Kind = nk;
+                Regex = sprintf "\\A(%s)\\z" rgx
+                canonFn = canon
+                AreEqual = eqfn
+                GetHash = gnh
+            }
+
+        static member Create (uri, nk, rgx, eqfn, gnh) = GlobalTag.Create (uri, nk, rgx, (fun s -> s), eqfn, gnh)
+
+        static member Create (uri, nk, eqfn, gnh) = GlobalTag.Create (uri, nk, ".*", (fun s -> s), eqfn, gnh)
+
+        member this.Canonical s = this.canonFn s
+
+        override this.ToString() = sprintf "<%A::%s>" this.Kind this.Uri
+        member m.AsString = m.ToString()
+
+        override this.Equals(other) = other |> InternalUtil.equalsOn(fun that -> this.Uri = that.Uri && this.Kind = that.Kind)
+
+        override this.GetHashCode() = this.Uri.GetHashCode() ^^^ this.Kind.GetHashCode()
+
+        interface System.IComparable with
+            member this.CompareTo other = other |> InternalUtil.compareOn(fun that -> this.Uri.CompareTo(that.Uri))
+
+and
+    [<CustomEquality; CustomComparison>]
+    LocalTag = {
+        Handle      : string
+        LocalTag    : LocalTagsFuncs
+    }
+    with
+        static member Create h f = { Handle = h; LocalTag = f}
+
+        override this.Equals(other) = other |> InternalUtil.equalsOn(fun that -> this.Handle = that.Handle)
+
+        override this.GetHashCode() = this.Handle.GetHashCode() 
+
+        interface System.IComparable with
+            member this.CompareTo other = other |> InternalUtil.compareOn(fun that -> this.Handle.CompareTo(that.Handle))
+        
+and
+    [<StructuredFormatDisplay("{AsString}")>]
+    TagKind =
+    |   Global       of GlobalTag
+    |   Unrecognized of GlobalTag
+    |   Local        of LocalTag
+    |   NonSpecific  of LocalTag
+    with
+        override this.ToString() =
+            match this with
+            |   Global       gt -> sprintf "Global:%O" gt
+            |   Unrecognized gt -> sprintf "Unrecognized:%O" gt
+            |   Local        ls -> sprintf "Local:%O" (ls.Handle)
+            |   NonSpecific  ls -> sprintf "NonSpecific:%O" (ls.Handle)
+        member this.EqualIfNonSpecific otherTag =
+            match (this, otherTag) with
+            |   (NonSpecific a, NonSpecific b)  -> a.Handle=b.Handle
+            |   _   -> false
+
+        member this.AreEqual n1 n2 =
+            match this with
+            |   Global       gt -> gt.AreEqual n1 n2
+            |   Unrecognized gt -> gt.AreEqual n1 n2
+            |   Local        lt -> lt.LocalTag.AreEqual n1 n2
+            |   NonSpecific  lt -> lt.LocalTag.AreEqual n1 n2
+
+        member this.GetHash n =
+            match this with
+            |   Global       gt -> gt.GetHash n
+            |   Unrecognized gt -> gt.GetHash n
+            |   Local        lt -> lt.LocalTag.GetHash n
+            |   NonSpecific  lt -> lt.LocalTag.GetHash n
+
+
+        member m.AsString = m.ToString()
+
+
+and
+    [<CustomEquality; CustomComparison>]
+    [<StructuredFormatDisplay("{AsString}")>]
+    NodeData<'T when 'T : equality and 'T :> System.IComparable> = {
         Tag  : TagKind
         Data : 'T
-        Hash : Lazy<NodeHash>
         ParseInfo : ParseInfo
     }
     with
-        static member Create t d pi h =
-            { Tag = t; Data = d; Hash = h; ParseInfo = pi}
+        static member Create t d pi =
+            { Tag = t; Data = d; ParseInfo = pi}
 
         member this.SetTag t = 
             { this with Tag = t}
 
-        override this.ToString() = sprintf "(%A) %O %A" (this.Hash.Force()) (this.Tag) (this.Data)
+        override this.ToString() = sprintf "%O %A" (this.Tag) (this.Data)
         member m.AsString = m.ToString()
 
         member this.ToPrettyString() = sprintf "%O %A" (this.Tag) (this.Data)
@@ -109,19 +157,18 @@ type NodeData<'T when 'T : equality and 'T :> System.IComparable> = {
         override this.Equals(other) = 
             other 
             |> InternalUtil.equalsOn(fun that ->
-                this.Hash.Force() = that.Hash.Force()   &&
                 this.Tag = that.Tag && 
                 this.Data = that.Data
                 )
 
-        override this.GetHashCode() = this.Hash.Force().GetHashCode()
+        override this.GetHashCode() = this.Data.GetHashCode() ^^^ this.ParseInfo.GetHashCode()
 
         interface System.IComparable with
             member this.CompareTo other = other |> InternalUtil.compareOn(fun (that:NodeData<'T>) -> this.Data.CompareTo(that.Data))
 
-
-[<DebuggerDisplay("{this.DebuggerInfo}")>]
-type Node =
+and
+    [<DebuggerDisplay("{this.DebuggerInfo}")>]
+    Node =
     | SeqNode of NodeData<Node list>
     | MapNode of NodeData<(Node*Node) list>
     | ScalarNode of NodeData<string>
@@ -129,16 +176,17 @@ type Node =
         member private this.tagString t =
             match t with
             |   Global gt -> gt.Uri
-            |   Local  s  -> s
-            |   NonSpecific s -> s
+            |   Local  s  -> s.Handle
+            |   NonSpecific s -> s.Handle
             |   Unrecognized gt -> gt.Uri
 
         member this.Hash 
             with get() =
                 match this with
-                |   SeqNode n       -> n.Hash.Force()
-                |   MapNode n       -> n.Hash.Force()
-                |   ScalarNode n    -> n.Hash.Force()
+                |   SeqNode n       -> n.Tag.GetHash this
+                |   MapNode n       -> n.Tag.GetHash this
+                |   ScalarNode n    -> n.Tag.GetHash this
+                |> fun h -> h.Force()
         
         member this.SetTag t = 
             match this with
