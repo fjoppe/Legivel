@@ -361,7 +361,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
 
     //  Utility functions
-    member private this.debugbreak sr =
+    member private this.Debugbreak sr =
         sr 
 
     member this.``split by linefeed`` s = 
@@ -396,15 +396,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
 
     member this.``content with properties`` (``follow up func``: ParseFuncSignature<'a>) ps =
-        let addAnchor anchor c (ps:ParseState) = if anchor<> "" then (ps.AddAnchor anchor c) else ps
+        let addAnchor (anchor:string) (n:Node) (ps:ParseState) = if anchor<> "" then (ps.AddAnchor anchor n) else ps
         match (this.``c-ns-properties`` ps) with
-        |   Value(prs, (tag,tl), (anchor,al)) -> 
+        |   Value(prs, (tag,tl), (anchor,_)) -> 
             prs 
             |> ``follow up func``
             |> ParseState.TrackParseLocation ps
-            |> FallibleOption.bind(fun (c, prs) ->
-                let prs = addAnchor anchor c prs
-                this.ResolveTag prs tag tl c
+            |> FallibleOption.bind(fun (content, prs) ->
+                let prs = addAnchor anchor content prs
+                this.ResolveTag prs tag tl content
             )
         |   NoResult        -> NoResult
         |   ErrorResult e   -> ErrorResult e
@@ -549,18 +549,22 @@ type Yaml12Parser(loggingFunction:string->unit) =
         (this.ResolveTag ps NonSpecificQM (ps.Location) (PlainEmptyNode (getParseInfo ps ps))).Data |> fst // should never be None
 
     member this.CreatMapOrReportDuplicateKeys lst crMap =
-        let FindDuplicateKeys (nlst: (Node*Node) list) =
+        let areEqual (nl:Node list) (n: Node) =
+            if nl.Length = 0 then false
+            else n.NodeTag.AreEqual (nl.Head) n
+        let findDuplicateKeys (nlst: (Node*Node) list) =
             nlst 
-            |> List.map(fun (k,_) -> k)
-            |> List.groupBy(fun k -> k.Hash)
-            |> List.map(fun (_,kl) -> kl)
+            |> List.map(fst)
+            |> List.groupBy(fun k -> k.Hash, k.NodeTag)
+            |> List.map(snd)
+            |> List.map(fun nl -> if (nl |> List.forall(fun n -> areEqual nl n)) then nl else [])
             |> List.filter(fun kl -> kl.Length > 1)
             |> function
                 |   []  -> None
                 |   x   -> Some(x)
 
         let lrv = (lst |> List.rev) 
-        let duplicates = lrv |>FindDuplicateKeys
+        let duplicates = lrv |> findDuplicateKeys
         match duplicates with
         |   None -> crMap lrv
         |   Some(dupLst) ->
@@ -961,7 +965,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-ns-properties`` ps : FallibleOption<ParseState * (TagKind*DocumentLocation) * (string*DocumentLocation), ErrorMessage> =
         logger "c-ns-properties" ps
         
-        let Anchor pst =
+        let anchor pst =
             pst |> ParseState.``Match and Advance`` (RGP "&") (fun psr ->
                 let illAnchor = OOM(this.``ns-char``)
                 match psr with
@@ -971,7 +975,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             )
             |> FallibleOption.map(fun (p,a) -> p,(a,pst.Location))
 
-        let Tag pst =
+        let tag pst =
             let verbatim = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">")
             let illVerbatim = (RGP "!<") + OOM(this.``ns-uri-char``)
             let illVerbatimNoLocaltag = (RGP "!<!>")
@@ -999,33 +1003,33 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   _ -> NoResult
             |> FallibleOption.map(fun (p,t) -> p,(t,pst.Location))
 
-        let MatchTagAnchor pst =
+        let matchTagAnchor pst =
             let afterTag ps tg =
                 ps
-                |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (Anchor)
+                |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (anchor)
                 |> FallibleOption.map(fun (psa,a) -> (psa, tg, a))
 
-            let tg = (pst|> Tag)
+            let tg = (pst|> tag)
             match tg with
             |   NoResult        -> afterTag pst (TagKind.Empty, pst.Location)
             |   Value (pstg, t) -> afterTag pstg t
             |   ErrorResult e   -> ErrorResult e
 
-        let MatchAnchorTag pst =
+        let matchAnchorTag pst =
             let afterAnchor ps anch =
                 ps
-                |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (Tag)
+                |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (tag)
                 |> FallibleOption.map(fun (psa,t) -> (psa, t, anch))
 
-            let anch = (pst|> Anchor)
+            let anch = (pst|> anchor)
             match anch with
             |   NoResult        -> afterAnchor pst ("",pst.Location)
             |   Value (pstg, a) -> afterAnchor pstg a
             |   ErrorResult e   -> ErrorResult e
 
         (ps |> ParseState.OneOf) {
-            either (MatchTagAnchor)
-            either (MatchAnchorTag)
+            either (matchTagAnchor)
+            either (matchAnchorTag)
             ifneither(NoResult)
         }
         |> fun (ct,pso) -> 
@@ -1396,7 +1400,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-flow-map-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-map-entry" ps
         let ``ns-flow-map-explicit-entry`` ps = 
-            ps |> ParseState.``Match and Advance`` (RGP "\\?" + (this.``s-separate`` ps)) (fun prs -> this.``ns-flow-map-explicit-entry`` prs)
+            ps |> ParseState.``Match and Advance`` (RGP "\\?" + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-map-implicit-entry``)
@@ -1637,7 +1641,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                 | _  -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
-            |   Regex3(``illegal-ns-plain`` ps) (mt,psign) -> 
+            |   Regex3(``illegal-ns-plain`` ps) (_,_) -> 
                 ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
             |   _ -> NoResult
         | x -> x
@@ -1929,7 +1933,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                                 foldEverything rest foldedout false
                             else
                                foldEverything rest (h :: outLines) false
-            foldEverything strlst [] false |> List.map(fun s -> unIndent s)
+            foldEverything strlst [] false |> List.map(unIndent)
 
 
         ps |> ParseState.``Match and Advance`` (RGP ">") (fun prs ->

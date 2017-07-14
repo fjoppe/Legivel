@@ -53,9 +53,39 @@ let private clearTrailingZeros (s:string) =
 
 
 module internal Failsafe =
-    let mappingsAreEqual n1 n2 = true
-    let sequencesAreEqual n1 n2 = true
-    let scalarsAreEqual n1 n2 = true
+    let mappingsAreEqual (n1:Node) (n2:Node) = 
+        n1.Hash = n2.Hash &&
+        n1.Kind = n2.Kind &&
+        n1.NodeTag = n2.NodeTag &&
+        match (n1,n2) with
+        |   (MapNode mn1, MapNode mn2)  ->
+            mn1.Data.Length = mn2.Data.Length &&
+            (mn1.Data |> List.sortBy(fun (k, _) -> k.Hash)) 
+            |> List.zip (mn2.Data |> List.sortBy(fun (k, _) -> k.Hash))
+            |> List.forall(fun ((kl,vl),(kr,vr)) -> kl.NodeTag.AreEqual kl kr && vl.NodeTag.AreEqual vl vr)
+        |   _ -> false
+
+    let sequencesAreEqual (n1:Node) (n2:Node) = 
+        n1.Hash = n2.Hash &&
+        n1.Kind = n2.Kind &&
+        n1.NodeTag = n2.NodeTag &&
+        match (n1,n2) with
+        |   (SeqNode mn1, SeqNode mn2)  ->
+            mn1.Data.Length = mn2.Data.Length &&
+            (mn1.Data |> List.sortBy(fun k -> k.Hash)) 
+            |> List.zip (mn2.Data |> List.sortBy(fun k -> k.Hash))
+            |> List.forall(fun (l,r) -> l.NodeTag.AreEqual l r)
+        |   _ -> false
+
+    let scalarsAreEqual (n1:Node) (n2:Node) = 
+        n1.Hash = n2.Hash &&
+        n1.Kind = n2.Kind &&
+        n1.NodeTag = n2.NodeTag &&
+        match (n1,n2) with
+        |   (ScalarNode mn1, ScalarNode mn2)  -> 
+            mn1.Tag = mn2.Tag &&
+            (mn1.Tag.CanonFn (mn1.Data)) = (mn2.Tag.CanonFn (mn2.Data))
+        |   _ -> false
 
     let getMappingHash (d:Node) =
         match d with
@@ -78,7 +108,7 @@ module internal Failsafe =
         |   _    -> failwith "Tag-kind mismatch between node and tag"
     let getScalarHash (d:Node) = 
         match d with
-        |   ScalarNode n ->  (lazy(NodeHash.Create n.Data))
+        |   ScalarNode n ->  (lazy(NodeHash.Create (n.Data)))
         |   _    -> failwith "Tag-kind mismatch between node and tag"
 
     let getUnresolvedTag nodeKind tagstr = 
@@ -92,9 +122,9 @@ module internal Failsafe =
     let localTagsAreEqual n1 n2 = true
     let localTagsGetHash (n:Node) =
         match n with
-        |   MapNode mn  -> getMappingHash n
-        |   SeqNode sn  -> getSeqenceHash n
-        |   ScalarNode sn -> getScalarHash n
+        |   MapNode _  -> getMappingHash n
+        |   SeqNode _  -> getSeqenceHash n
+        |   ScalarNode _ -> getScalarHash n
 
     let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping, mappingsAreEqual, getMappingHash)
     let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence, sequencesAreEqual, getSeqenceHash)

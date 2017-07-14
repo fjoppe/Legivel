@@ -130,6 +130,12 @@ and
             |   Local        lt -> lt.LocalTag.GetHash n
             |   NonSpecific  lt -> lt.LocalTag.GetHash n
 
+        member this.CanonFn =
+            match this with
+            |   Global       gt -> gt.canonFn 
+            |   Unrecognized gt -> gt.canonFn 
+            |   Local        lt -> id
+            |   NonSpecific  lt -> id
 
         member m.AsString = m.ToString()
 
