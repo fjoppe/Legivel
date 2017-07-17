@@ -4,19 +4,7 @@ open System.Diagnostics
 open YamlParser.Internals
 
 
-[<StructuredFormatDisplay("{AsString}")>]
-type    DocumentLocation = {
-        Line    : int
-        Column  : int
-    }
-    with
-        static member Create l cl = { Line = l; Column = cl}
-        member this.AddAndSet l cl = { Line = this.Line+l; Column = cl}
 
-        member this.ToPrettyString() = sprintf "line %d; column %d" this.Line this.Column
-
-        override this.ToString() = sprintf "(l%d, c%d)" this.Line this.Column
-        member m.AsString = m.ToString()
 
 
 type ParseInfo = {
@@ -32,12 +20,55 @@ type NodeKind =
     | Sequence
     | Scalar
 
-//type GetHashPerNodeKind =
-//    |   MappingHash of ((Node*Node) list -> Lazy<NodeHash>)
-//    |   SequencHash of (Node list -> Lazy<NodeHash>)
-//    |   ScalarHash of (string -> Lazy<NodeHash>)
+[<NoEquality; NoComparison>]
+type TagFunctions = {
+        AreEqual    : Node -> Node -> bool
+        GetHash     : Node -> Lazy<NodeHash>
+        IsValid     : Node -> FallibleOption<Node, ErrorMessage>
+    }
+    with
+        static member Create eq hs vl = { AreEqual = eq; GetHash = hs; IsValid = vl}
 
-type
+//and
+//    [<NoEquality; NoComparison>]
+//    SequenceTagFunctions = {
+//        AreEqual    : Node -> Node -> bool
+//        GetHash     : Node -> Lazy<NodeHash>
+//        IsValid     : Node list -> bool
+//    }
+//    with
+//        static member Create eq hs vl = { AreEqual = eq; GetHash = hs; IsValid = vl}
+//
+//and
+//    [<NoEquality; NoComparison>]
+//    ScalarTagFunctions = {
+//        AreEqual    : Node -> Node -> bool
+//        GetHash     : Node -> Lazy<NodeHash>
+////        IsValid     : Node -> bool
+//    }
+//    with
+//        static member Create eq hs = { AreEqual = eq; GetHash = hs}
+
+//and 
+//    [<NoEquality; NoComparison>]
+//    TagFunctionsPerNodeKind =
+//    |   MappingTag of MappingTagFunctions
+//    |   SequencTag of SequenceTagFunctions
+//    |   ScalarTag of ScalarTagFunctions
+//    with
+//        member this.AreEqual n1 n2 =
+//            match this with
+//            |   MappingTag t -> t.AreEqual n1 n2
+//            |   SequencTag t -> t.AreEqual n1 n2
+//            |   ScalarTag  t -> t.AreEqual n1 n2
+//        member this.GetHash n =
+//            match this with
+//            |   MappingTag t -> t.GetHash n
+//            |   SequencTag t -> t.GetHash n
+//            |   ScalarTag  t -> t.GetHash n
+
+and 
+    [<NoEquality; NoComparison>]
     LocalTagsFuncs = {
         AreEqual : Node -> Node -> bool
         GetHash  : Node -> Lazy<NodeHash>
@@ -51,23 +82,25 @@ and
         Kind    : NodeKind
         Regex   : string
         canonFn : string -> string
-        AreEqual: Node -> Node -> bool
-        GetHash : Node -> Lazy<NodeHash>
+        TagFunctions : TagFunctions
     }
     with
-        static member Create (uri, nk, rgx, canon, eqfn, gnh) =
+        static member Create (uri, nk, rgx, canon, tgfn) =
             { 
                 Uri = uri; 
                 Kind = nk;
                 Regex = sprintf "\\A(%s)\\z" rgx
                 canonFn = canon
-                AreEqual = eqfn
-                GetHash = gnh
+                TagFunctions = tgfn
             }
 
-        static member Create (uri, nk, rgx, eqfn, gnh) = GlobalTag.Create (uri, nk, rgx, (fun s -> s), eqfn, gnh)
+        static member Create (uri, nk, rgx, tgfn) = GlobalTag.Create (uri, nk, rgx, (fun s -> s), tgfn)
 
-        static member Create (uri, nk, eqfn, gnh) = GlobalTag.Create (uri, nk, ".*", (fun s -> s), eqfn, gnh)
+        static member Create (uri, nk, tgfn) = GlobalTag.Create (uri, nk, ".*", (fun s -> s), tgfn)
+
+        member this.AreEqual n1 n2 = this.TagFunctions.AreEqual n1 n2
+        member this.GetHash n = this.TagFunctions.GetHash n
+        member this.IsValid n = this.TagFunctions.IsValid n
 
         member this.Canonical s = this.canonFn s
 
@@ -130,12 +163,20 @@ and
             |   Local        lt -> lt.LocalTag.GetHash n
             |   NonSpecific  lt -> lt.LocalTag.GetHash n
 
+        member this.IsValid n =
+            match this with
+            |   Global       gt -> gt.IsValid n
+            |   Unrecognized gt -> gt.IsValid n
+            // local tags are checked by the application, so always valid here
+            |   Local        _  -> Value(n) 
+            |   NonSpecific  _  -> Value(n)
+
         member this.CanonFn =
             match this with
             |   Global       gt -> gt.canonFn 
             |   Unrecognized gt -> gt.canonFn 
-            |   Local        lt -> id
-            |   NonSpecific  lt -> id
+            |   Local        _  -> id
+            |   NonSpecific  _  -> id
 
         member m.AsString = m.ToString()
 

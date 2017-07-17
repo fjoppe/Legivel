@@ -2,6 +2,8 @@
 
 open System
 open SpookyHash
+open ErrorsAndWarnings
+open System.Diagnostics
 
 module InternalUtil =
     let equalsOn f (yobj:obj) =
@@ -119,7 +121,37 @@ module ParserMonads =
             |   ErrorResult e -> 
                 let ctn = addErr ct e            
                 (ctn,nw)
-                
 
+[<StructuredFormatDisplay("{AsString}")>]
+type    DocumentLocation = {
+        Line    : int
+        Column  : int
+    }
+    with
+        static member Create l cl = { Line = l; Column = cl}
+        member this.AddAndSet l cl = { Line = this.Line+l; Column = cl}
+
+        member this.ToPrettyString() = sprintf "line %d; column %d" this.Line this.Column
+
+        override this.ToString() = sprintf "(l%d, c%d)" this.Line this.Column
+        member m.AsString = m.ToString()
+                        
+[<DebuggerDisplay("{this.DebuggerInfo}")>]
+type MessageAtLine = {
+        Location: DocumentLocation
+        Code    : MessageCode
+        Message : string
+    }
+    with
+        static member Create dl cd s = {Location = dl; Code = cd; Message = s}
+        member this.DebuggerInfo 
+                    with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
+
+type ErrorMessage = MessageAtLine list
         
+module Option =
+    let ifnone f v=
+        match v with
+        |   None-> f
+        |   Some x   -> Some x
         

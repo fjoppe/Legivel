@@ -68,6 +68,7 @@
     <None Include="FailFast YamlParserTest 5.fsx" />
     <None Include="FailFast SpookyHash.fsx" />
     <None Include="FailFast YamlPath.fsx" />
+    <None Include="FailFast - SchemaTest.fsx" />
     <None Include="nlog.fsx" />
     <Content Include="nlog.config" />
   </ItemGroup>

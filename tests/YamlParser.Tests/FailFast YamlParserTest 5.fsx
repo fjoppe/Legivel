@@ -8,7 +8,9 @@ open YamlParse
 open TagResolution
 open Deserialization
 open RepresentationGraph
+open YamlParser.Internals
 open NLog
+
 
 #load "nlog.fsx"
 NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__

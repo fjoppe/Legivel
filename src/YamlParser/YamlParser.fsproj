@@ -46,10 +46,10 @@
     <Compile Include="SpookyHash.fsi" />
     <Compile Include="SpookyHash.fs" />
     <Compile Include="RegexDSL.fs" />
+    <Compile Include="ErrorsAndWarnings.fs" />
     <Compile Include="Internals.fs" />
     <Compile Include="RepresentationGraph.fs" />
     <Compile Include="TagResolution.fs" />
-    <Compile Include="ErrorsAndWarnings.fs" />
     <Compile Include="YamlParser.fs" />
     <Compile Include="YamlPath.fs" />
     <Compile Include="Deserialization.fs" />

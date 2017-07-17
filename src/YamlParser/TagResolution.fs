@@ -3,6 +3,7 @@
 open System
 open RepresentationGraph
 open RegexDSL
+open ErrorsAndWarnings
 open YamlParser.Internals
 
 exception TagResolutionException of string
@@ -23,7 +24,7 @@ type TagResolutionFunc = (TagResolutionInfo -> GlobalTag option)
 type UnresolvedTagResolutionFunc = (NodeKind -> string -> GlobalTag)
 
 
-//[<NoEquality; NoComparison>]
+[<NoEquality; NoComparison>]
 type GlobalTagSchema = {
     GlobalTags              : GlobalTag list
     TagResolution           : TagResolutionFunc
@@ -53,31 +54,86 @@ let private clearTrailingZeros (s:string) =
 
 
 module internal Failsafe =
-    let mappingsAreEqual (n1:Node) (n2:Node) = 
+    let areUnorderedMappingsEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
         n1.Kind = n2.Kind &&
         n1.NodeTag = n2.NodeTag &&
         match (n1,n2) with
         |   (MapNode mn1, MapNode mn2)  ->
             mn1.Data.Length = mn2.Data.Length &&
+            //  to check equality of unordered content, we order it!
             (mn1.Data |> List.sortBy(fun (k, _) -> k.Hash)) 
             |> List.zip (mn2.Data |> List.sortBy(fun (k, _) -> k.Hash))
             |> List.forall(fun ((kl,vl),(kr,vr)) -> kl.NodeTag.AreEqual kl kr && vl.NodeTag.AreEqual vl vr)
         |   _ -> false
 
-    let sequencesAreEqual (n1:Node) (n2:Node) = 
+    let getUnorderedMappingHash (n:Node) =
+        match n with
+        |   MapNode n ->  
+            (lazy(n.Data 
+                  |> List.map(fun (k,_) -> k.Hash)
+                  |> List.sort
+                  |> NodeHash.Merge)
+            )
+        |   _    -> failwith "Tag-kind mismatch between node and tag"
+
+    let validateMappingForDuplicateKeys (n: Node) =
+        let areEqual (nl:Node list) (n: Node) =
+            if nl.Length = 0 then false
+            else n.NodeTag.AreEqual (nl.Head) n
+        match n with
+        |   MapNode nd ->  
+            let findDuplicateKeys (nlst: (Node*Node) list) =
+                nlst 
+                |> List.map(fst)
+                |> List.groupBy(fun k -> k.Hash, k.NodeTag)
+                |> List.map(snd)
+                |> List.map(fun nl -> if (nl |> List.forall(fun n -> areEqual nl n)) then nl else [])
+                |> List.filter(fun kl -> kl.Length > 1)
+                |> function
+                    |   []  -> None
+                    |   x   -> Some(x)
+
+            let lrv = nd.Data
+            let duplicates = lrv |> findDuplicateKeys
+            match duplicates with
+            |   None -> Value n
+            |   Some(dupLst) ->
+                let errs = [
+                    for kt in dupLst do
+                        let rf = kt.Head
+                        for n in (kt |> List.skip 1) do
+                            yield MessageAtLine.Create (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
+                    ]
+                ErrorResult errs
+        |   _    -> failwith "Tag-kind mismatch between node and tag"
+
+    let areUnorderedSequencesEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
         n1.Kind = n2.Kind &&
         n1.NodeTag = n2.NodeTag &&
         match (n1,n2) with
         |   (SeqNode mn1, SeqNode mn2)  ->
             mn1.Data.Length = mn2.Data.Length &&
+            //  to check equality of unordered content, we order it!
             (mn1.Data |> List.sortBy(fun k -> k.Hash)) 
             |> List.zip (mn2.Data |> List.sortBy(fun k -> k.Hash))
             |> List.forall(fun (l,r) -> l.NodeTag.AreEqual l r)
         |   _ -> false
 
-    let scalarsAreEqual (n1:Node) (n2:Node) = 
+    let getUnorderedSeqenceHash (n:Node) = 
+        match n with
+        |   SeqNode n ->  
+            (lazy(n.Data 
+                  |> List.map(fun e -> e.Hash)
+                  |> List.sort
+                  |> NodeHash.Merge)
+            )
+        |   _    -> failwith "Tag-kind mismatch between node and tag"
+
+    let isUnorderedSequenceValid (n: Node) = Value(n)
+
+    let areScalarsEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
         n1.Kind = n2.Kind &&
         n1.NodeTag = n2.NodeTag &&
@@ -87,54 +143,46 @@ module internal Failsafe =
             (mn1.Tag.CanonFn (mn1.Data)) = (mn2.Tag.CanonFn (mn2.Data))
         |   _ -> false
 
-    let getMappingHash (d:Node) =
-        match d with
-        |   MapNode n ->  
-            (lazy(n.Data 
-                  |> List.map(fun (k,_) -> k.Hash)
-                  |> List.sort
-                  |> NodeHash.Merge)
-            )
-        |   _    -> failwith "Tag-kind mismatch between node and tag"
-
-    let getSeqenceHash (d:Node) = 
-        match d with
-        |   SeqNode n ->  
-            (lazy(n.Data 
-                  |> List.map(fun e -> e.Hash)
-                  |> List.sort
-                  |> NodeHash.Merge)
-            )
-        |   _    -> failwith "Tag-kind mismatch between node and tag"
-    let getScalarHash (d:Node) = 
-        match d with
+    let getScalarHash (n:Node) = 
+        match n with
         |   ScalarNode n ->  (lazy(NodeHash.Create (n.Data)))
         |   _    -> failwith "Tag-kind mismatch between node and tag"
 
+    let isScalarValid (n: Node) = Value(n)
+
+    let fsMappingTag = TagFunctions.Create areUnorderedMappingsEqual getUnorderedMappingHash validateMappingForDuplicateKeys
+    let fsSequenceTag = TagFunctions.Create areUnorderedSequencesEqual getUnorderedSeqenceHash isUnorderedSequenceValid
+    let fsScalarTag = TagFunctions.Create areScalarsEqual getScalarHash isScalarValid
+
+
     let getUnresolvedTag nodeKind tagstr = 
-        let (eqfn, hsh) =
+        let tf =
             match nodeKind with
-            |   NodeKind.Mapping    -> (mappingsAreEqual, getMappingHash)
-            |   NodeKind.Sequence   -> (sequencesAreEqual, getSeqenceHash)
-            |   NodeKind.Scalar     -> (scalarsAreEqual, getScalarHash)
-        GlobalTag.Create (DecodeEncodedUriHexCharacters(tagstr), nodeKind, eqfn, hsh)
+            |   NodeKind.Mapping    -> fsMappingTag
+            |   NodeKind.Sequence   -> fsSequenceTag
+            |   NodeKind.Scalar     -> fsScalarTag
+        GlobalTag.Create (DecodeEncodedUriHexCharacters(tagstr), nodeKind, tf)
+
 
     let localTagsAreEqual n1 n2 = true
     let localTagsGetHash (n:Node) =
         match n with
-        |   MapNode _  -> getMappingHash n
-        |   SeqNode _  -> getSeqenceHash n
+        |   MapNode _  -> getUnorderedMappingHash n
+        |   SeqNode _  -> getUnorderedSeqenceHash n
         |   ScalarNode _ -> getScalarHash n
+    
+    let localtagFunctions = { LocalTagsFuncs.AreEqual = localTagsAreEqual; GetHash = localTagsGetHash}
 
-    let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping, mappingsAreEqual, getMappingHash)
-    let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence, sequencesAreEqual, getSeqenceHash)
-    let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar, scalarsAreEqual, getScalarHash)
+    let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping, fsMappingTag)
+    let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence, fsSequenceTag)
+    let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar, fsScalarTag )
 
+    let providedTags = [MappingGlobalTag; SequenceGlobalTag; StringGlobalTag]
 
 module internal NonSpecific =
-    let NonSpecificTagQT = TagKind.NonSpecific {Handle ="!"; LocalTag ={ LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}}
-    let NonSpecificTagQM = TagKind.NonSpecific {Handle ="?"; LocalTag ={ LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}}
-    let UnresolvedTag = TagKind.NonSpecific {Handle ="?"; LocalTag ={ LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}}
+    let NonSpecificTagQT = TagKind.NonSpecific {Handle ="!"; LocalTag =Failsafe.localtagFunctions}
+    let NonSpecificTagQM = TagKind.NonSpecific {Handle ="?"; LocalTag = Failsafe.localtagFunctions}
+    let UnresolvedTag = TagKind.NonSpecific {Handle ="?"; LocalTag = Failsafe.localtagFunctions}
 
 
 module internal JSON =
@@ -144,7 +192,7 @@ module internal JSON =
                     match s with
                     | Regex "null" _ -> "null"
                     | _ -> raise (TagResolutionException (sprintf "Cannot convert to null: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let BooleanGlobalTag = 
@@ -154,7 +202,7 @@ module internal JSON =
                 | Regex "true" _ -> "true"
                 | Regex "false" _ -> "false"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let IntegerGlobalTag = 
@@ -163,7 +211,7 @@ module internal JSON =
                 match s with
                 | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let FloatGlobalTag = 
@@ -177,8 +225,10 @@ module internal JSON =
                     let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
                     sprintf "%s0.%se%+04d" canSign fullMantissa canExp
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
+
+    let providedTags = [NullGlobalTag; BooleanGlobalTag;IntegerGlobalTag;FloatGlobalTag]
 
 module internal YamlCore =
     let NullGlobalTag =
@@ -187,7 +237,7 @@ module internal YamlCore =
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> "null"
                     | _ -> raise (TagResolutionException (sprintf "Cannot convert to null: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let BooleanGlobalTag = 
@@ -197,7 +247,7 @@ module internal YamlCore =
                 | Regex "true|True|TRUE"    _ -> "true"
                 | Regex "false|False|FALSE" _ -> "false"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let IntegerGlobalTag = 
@@ -217,7 +267,7 @@ module internal YamlCore =
                     let ic = ps |> List.fold(fun s c -> (s <<< 4) + (digitToValue  c)) 0
                     convertToCanonical "" ic
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let FloatGlobalTag = 
@@ -235,11 +285,35 @@ module internal YamlCore =
                     sprintf "%s.inf" canSign
                 | Regex "^(\.(nan|NaN|NAN))$" _ -> ".nan"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
+    let providedTags = [NullGlobalTag; BooleanGlobalTag;IntegerGlobalTag;FloatGlobalTag]
 
 module internal YamlExtended =
+    let areOrderedMappingsEqual (n1:Node) (n2:Node) = 
+        n1.Hash = n2.Hash &&
+        n1.Kind = n2.Kind &&
+        n1.NodeTag = n2.NodeTag &&
+        match (n1,n2) with
+        |   (MapNode mn1, MapNode mn2)  ->
+            mn1.Data.Length = mn2.Data.Length &&
+            //  to check equality of ordered content, we keep the order of entry
+            mn1.Data
+            |> List.zip mn2.Data
+            |> List.forall(fun ((kl,vl),(kr,vr)) -> kl.NodeTag.AreEqual kl kr && vl.NodeTag.AreEqual vl vr)
+        |   _ -> false
+
+    let getOrderedMappingHash (n:Node) =
+        match n with
+        |   MapNode n ->  
+            (lazy(n.Data 
+                  |> List.map(fun (k,_) -> k.Hash)
+                  |> NodeHash.Merge)
+            )
+        |   _    -> failwith "Tag-kind mismatch between node and tag"
+
+
     let BooleanGlobalTag = 
         GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
             (fun s -> 
@@ -247,7 +321,7 @@ module internal YamlExtended =
                 | Regex "y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON" _ -> "true"
                 | Regex "n|N|no|No|NO|false|False|FALSE|off|Off|OFF" _ -> "false"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let IntegerGlobalTag = 
@@ -277,7 +351,7 @@ module internal YamlExtended =
                     let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
                     convertToCanonical sign ic
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
 
     let FloatGlobalTag = 
@@ -306,8 +380,15 @@ module internal YamlExtended =
                     sprintf "%s.inf" canSign
                 | Regex "^(\.(nan|NaN|NAN))$" _ -> ".nan"
                 | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
-            ), Failsafe.scalarsAreEqual, Failsafe.getScalarHash
+            ), Failsafe.fsScalarTag
         )
+
+    let yeOMappingTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash Failsafe.validateMappingForDuplicateKeys
+
+    let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", Sequence, yeOMappingTag)
+
+    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag]
+    let providedSeqTags = [OrderedMappingGlobalTag]
 
 
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
@@ -322,10 +403,10 @@ let FailsafeSchema =
             |   Scalar   -> Some Failsafe.StringGlobalTag
         |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
     {
-        GlobalTags = [Failsafe.MappingGlobalTag; Failsafe.SequenceGlobalTag; Failsafe.StringGlobalTag]
+        GlobalTags = Failsafe.providedTags
         TagResolution = TagResolution
         UnresolvedResolution = Failsafe.getUnresolvedTag
-        LocalTags = { LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}
+        LocalTags = Failsafe.localtagFunctions
     }
 
 
@@ -343,22 +424,18 @@ let JSONSchema =
             |   MapNode _ -> Some Failsafe.MappingGlobalTag
             |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
             |   ScalarNode data -> 
-                [JSON.NullGlobalTag; JSON.BooleanGlobalTag;JSON.IntegerGlobalTag;JSON.FloatGlobalTag]
-                |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
-                |> function
-                |   Some v  -> Some v
-                |   None    -> raise (TagResolutionException (sprintf "Unrecognized type for: %s" data.Data))
+                JSON.providedTags  |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
+                |>  function
+                    |   None -> raise (TagResolutionException (sprintf "Unrecognized type for: %s" data.Data))
+                    |   x -> x
         |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
     {
-        GlobalTags = 
-            [
-                Failsafe.MappingGlobalTag; Failsafe.SequenceGlobalTag; Failsafe.StringGlobalTag
-                JSON.NullGlobalTag; JSON.BooleanGlobalTag; JSON.IntegerGlobalTag; JSON.FloatGlobalTag
-            ]
+        GlobalTags = Failsafe.providedTags @ JSON.providedTags 
         TagResolution = TagResolution
         UnresolvedResolution = Failsafe.getUnresolvedTag
-        LocalTags = { LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}
+        LocalTags = Failsafe.localtagFunctions
     }
+
 
 let YamlCoreSchema =
     let TagResolution : TagResolutionFunc = fun nst -> 
@@ -373,19 +450,38 @@ let YamlCoreSchema =
             |   MapNode _ -> Some Failsafe.MappingGlobalTag
             |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
             |   ScalarNode data -> 
-                [YamlCore.NullGlobalTag; YamlCore.BooleanGlobalTag;YamlCore.IntegerGlobalTag;YamlCore.FloatGlobalTag]
+                YamlCore.providedTags 
                 |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
-                |> function
-                |   Some v -> Some v
-                |   None -> Some (Failsafe.StringGlobalTag)
+                |> Option.ifnone(Some (Failsafe.StringGlobalTag))
         |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
     {
-        GlobalTags = 
-            [
-                Failsafe.MappingGlobalTag; Failsafe.SequenceGlobalTag; Failsafe.StringGlobalTag
-                YamlCore.NullGlobalTag; YamlCore.BooleanGlobalTag; YamlCore.IntegerGlobalTag; YamlCore.FloatGlobalTag
-            ]
+        GlobalTags = Failsafe.providedTags @ YamlCore.providedTags
         TagResolution = TagResolution
         UnresolvedResolution = Failsafe.getUnresolvedTag
-        LocalTags = { LocalTagsFuncs.AreEqual = Failsafe.localTagsAreEqual; GetHash = Failsafe.localTagsGetHash}
+        LocalTags = Failsafe.localtagFunctions
+    }
+
+
+let YamlExtendedSchema =
+    let TagResolution : TagResolutionFunc = fun nst -> 
+        match nst.NonSpecificTag with
+        |   "!" ->
+            match nst.NodeKind with
+            |   Mapping  -> Some Failsafe.MappingGlobalTag
+            |   Sequence -> Some Failsafe.SequenceGlobalTag
+            |   Scalar   -> Some Failsafe.StringGlobalTag
+        |   "?" ->  
+            match nst.Content with
+            |   MapNode _ -> Some Failsafe.MappingGlobalTag
+            |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
+            |   ScalarNode data -> 
+                YamlExtended.providedScalarTags
+                |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
+                |> Option.ifnone(Some (Failsafe.StringGlobalTag))
+        |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
+    {
+        GlobalTags = Failsafe.providedTags @ YamlExtended.providedScalarTags @ YamlExtended.providedSeqTags
+        TagResolution = TagResolution
+        UnresolvedResolution = Failsafe.getUnresolvedTag
+        LocalTags = Failsafe.localtagFunctions
     }
