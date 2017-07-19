@@ -77,8 +77,7 @@ module internal Failsafe =
             )
         |   _    -> failwith "Tag-kind mismatch between node and tag"
 
-
-    let validateDuplicateKeys n (nlst: Node list) =
+    let findDuplicateKeys (nlst: Node list) =
         let areEqual (nl:Node list) (n: Node) =
             if nl.Length = 0 then false
             else n.NodeTag.AreEqual (nl.Head) n
@@ -87,6 +86,11 @@ module internal Failsafe =
         |> List.map(snd)
         |> List.map(fun nl -> if (nl |> List.forall(fun n -> areEqual nl n)) then nl else [])
         |> List.filter(fun kl -> kl.Length > 1)
+
+
+    let validateDuplicateKeys n (nlst: Node list) =
+        nlst
+        |> findDuplicateKeys
         |> function
             |   []  -> Value n
             |   dupLst ->
@@ -97,7 +101,6 @@ module internal Failsafe =
                             yield MessageAtLine.Create (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
                     ]
                 ErrorResult errs
-
 
 
     let validateMappingForDuplicateKeys (n: Node) =
@@ -320,37 +323,54 @@ module internal YamlExtended =
             )
         |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
 
+    let getKeysFromPairs nl =
+        nl
+        |> List.map(fun n ->
+            match n with
+            |   MapNode nd ->  nd.Data |> List.map(fst)
+            |   _ -> failwith "YamlParser defect: Expecting MapNode."
+        )
+        |>  List.concat
 
-    let isMatchOrderedMapping (n:Node) t = 
-        let isSingleMapping (ns:Node) =
+
+    let isMatchSequenceOfPairs (n:Node) t = 
+        let isSinglularMapping (ns:Node) =
             match ns with
             |   MapNode nd ->  nd.Data.Length = 1
             |   _ -> false
         match n with
-        |   SeqNode nd -> nd.Data |> List.forall(isSingleMapping)
+        |   SeqNode nd -> nd.Data |> List.forall(isSinglularMapping)
         |   _    -> false
-        
 
-    let validateOrderedMapping (n:Node) =
-        let getKeys nl =
-            nl
-            |> List.map(fun n ->
-                match n with
-                |   MapNode nd ->  nd.Data |> List.map(fst)
-                |   _ -> failwith "YamlParser defect: Expecting MapNode."
-            )
-            |>  List.concat
-
-        if (isMatchOrderedMapping n n.NodeTag) then
+    let isMatchSequenceOfMappings (n:Node) t = 
+        if (isMatchSequenceOfPairs n n.NodeTag) then
             match n with
             |   SeqNode nd ->
                 nd.Data 
-                |> getKeys 
+                |> getKeysFromPairs
+                |> Failsafe.findDuplicateKeys
+                |>  function
+                    | []    -> true
+                    |   _   -> false
+        else
+            false
+
+    let validateOrderedMappings (n:Node) =
+        if (isMatchSequenceOfPairs n n.NodeTag) then
+            match n with
+            |   SeqNode nd ->
+                nd.Data 
+                |> getKeysFromPairs 
                 |> Failsafe.validateDuplicateKeys n
             |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
         else
-            ErrorResult [MessageAtLine.Create (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, an 'omap' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+            ErrorResult [MessageAtLine.Create (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+
         
+    let validateOrderedPairs (n:Node) =
+        if (isMatchSequenceOfPairs n n.NodeTag) then Value n
+        else ErrorResult [MessageAtLine.Create (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+
 
     let BooleanGlobalTag = 
         GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
@@ -421,12 +441,16 @@ module internal YamlExtended =
             ), Failsafe.fsScalarTag
         )
 
-    let yeOMappingTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMapping isMatchOrderedMapping
+    let yeOrderedMappingTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMappings isMatchSequenceOfMappings
+    let yeOrderedPairsTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedPairs isMatchSequenceOfPairs
 
-    let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", Sequence, yeOMappingTag)
+    let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", Sequence, yeOrderedMappingTag)
+    let OrderedPairsGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:pairs", Sequence, yeOrderedPairsTag)
 
     let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag]
-    let providedSeqTags = [OrderedMappingGlobalTag]
+    
+    //  order is important, !!pairs is a superset of !!omap
+    let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag]
 
 
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346

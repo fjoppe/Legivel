@@ -80,5 +80,16 @@ YamlParse "
 - Mark McGwire: 65
 - Sammy Sosa: 63
 - Ken Griffy: 58
-- 1:
+- 1
 "
+
+YamlParse "# Explicitly typed pairs.
+Block tasks: !!pairs
+  - meeting: with team.
+  - meeting: with boss.
+  - break: lunch.
+  - meeting: with client.
+  - meeting
+Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]"
+
+
