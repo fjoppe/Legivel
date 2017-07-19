@@ -46,7 +46,7 @@ let PrintNode crr =
 
 let YamlParse s =
     try
-        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlExtendedSchema s)
         let crr = repr.Head
         PrintNode crr
     with
@@ -58,7 +58,7 @@ let YamlParse s =
 
 let YamlParseList s =
     try
-        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlExtendedSchema s)
         printfn "Total Documents: %d" (repr.Length)
         repr |> List.iter(fun crr ->
             PrintNode crr
@@ -73,54 +73,12 @@ let YamlParseList s =
 
 
 YamlParse "
---- !<tag:clarkevans.com,2002:invoice>
-invoice: 34843
-date   : 2001-01-23
-bill-to: &id001
-    given  : Chris
-    family : Dumars
-    address:
-        lines: |
-            458 Walkman Dr.
-            Suite #292
-        city    : Royal Oak
-        state   : MI
-        postal  : 48046
-ship-to: *id001
-product:
-    - sku         : BL394D
-      quantity    : 4
-      description : Basketball
-      price       : 450.00
-    - sku         : BL4438H
-      quantity    : 1
-      description : Super Hoop
-      price       : 2392.00
-tax  : 251.42
-total: 4443.52
-comments:
-    Late afternoon is best.
-    Backup contact is Nancy
-    Billsmer @ 338-4338.
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+--- !!omap
+- Mark McGwire: 65
+- Sammy Sosa: 63
+- Ken Griffy: 58
+- 1:
 "
-
-
-
-YamlParse "#%RAML 1.0
-title: GitHub API
-version: v3
-baseUri: https://api.github.com
-mediaType:  application/json
-securitySchemes:
-  oauth_2_0: !include securitySchemes/oauth_2_0.raml
-types:
-  Gist:  !include types/gist.raml
-  Gists: !include types/gists.raml
-resourceTypes:
-  collection: !include types/collection.raml
-traits:
-securedBy: [ oauth_2_0 ]
-/search:
-  /code:
-    type: collection
-    get:"

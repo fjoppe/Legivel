@@ -523,10 +523,9 @@ let ``Example 2.25. Unordered Sets``() =
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-[<Ignore "TODO: This runs, but add support for !!omap, need to read nesten map in seq with yamlpath">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761780")>]
 let ``Example 2.26. Ordered Mappings``() =
-    let yml = YamlParse "
+    let yml = YamlParseForSchema (TagResolution.YamlExtendedSchema)  "
 # Ordered maps are represented as
 # A sequence of mappings, with
 # each mapping having one key
@@ -538,11 +537,12 @@ let ``Example 2.26. Ordered Mappings``() =
     [
         ("Mark McGwire", "65")
         ("Sammy Sosa", "63")
-        ("Ken Griff", "58") 
+        ("Ken Griffy", "58") 
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
+        Some([yml]) |> ExtractTag |> should equal "tag:yaml.org,2002:omap"
     )
 
 

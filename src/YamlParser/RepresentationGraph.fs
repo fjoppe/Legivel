@@ -22,50 +22,21 @@ type NodeKind =
 
 [<NoEquality; NoComparison>]
 type TagFunctions = {
+        /// true if two nodes are equal
         AreEqual    : Node -> Node -> bool
+
+        /// Retrieve the hash of the specified node
         GetHash     : Node -> Lazy<NodeHash>
+
+        /// true if the node is valid; called after node construction and tag resolution
         IsValid     : Node -> FallibleOption<Node, ErrorMessage>
+
+        /// true if the Node is a match for the specified tag
+        IsMatch     : Node -> GlobalTag -> bool
     }
     with
-        static member Create eq hs vl = { AreEqual = eq; GetHash = hs; IsValid = vl}
+        static member Create eq hs vl ismt = { AreEqual = eq; GetHash = hs; IsValid = vl; IsMatch = ismt}
 
-//and
-//    [<NoEquality; NoComparison>]
-//    SequenceTagFunctions = {
-//        AreEqual    : Node -> Node -> bool
-//        GetHash     : Node -> Lazy<NodeHash>
-//        IsValid     : Node list -> bool
-//    }
-//    with
-//        static member Create eq hs vl = { AreEqual = eq; GetHash = hs; IsValid = vl}
-//
-//and
-//    [<NoEquality; NoComparison>]
-//    ScalarTagFunctions = {
-//        AreEqual    : Node -> Node -> bool
-//        GetHash     : Node -> Lazy<NodeHash>
-////        IsValid     : Node -> bool
-//    }
-//    with
-//        static member Create eq hs = { AreEqual = eq; GetHash = hs}
-
-//and 
-//    [<NoEquality; NoComparison>]
-//    TagFunctionsPerNodeKind =
-//    |   MappingTag of MappingTagFunctions
-//    |   SequencTag of SequenceTagFunctions
-//    |   ScalarTag of ScalarTagFunctions
-//    with
-//        member this.AreEqual n1 n2 =
-//            match this with
-//            |   MappingTag t -> t.AreEqual n1 n2
-//            |   SequencTag t -> t.AreEqual n1 n2
-//            |   ScalarTag  t -> t.AreEqual n1 n2
-//        member this.GetHash n =
-//            match this with
-//            |   MappingTag t -> t.GetHash n
-//            |   SequencTag t -> t.GetHash n
-//            |   ScalarTag  t -> t.GetHash n
 
 and 
     [<NoEquality; NoComparison>]
@@ -101,6 +72,7 @@ and
         member this.AreEqual n1 n2 = this.TagFunctions.AreEqual n1 n2
         member this.GetHash n = this.TagFunctions.GetHash n
         member this.IsValid n = this.TagFunctions.IsValid n
+        member this.IsMatch n = this.TagFunctions.IsMatch n this
 
         member this.Canonical s = this.canonFn s
 
@@ -144,6 +116,14 @@ and
             |   Unrecognized gt -> sprintf "Unrecognized:%O" gt
             |   Local        ls -> sprintf "Local:%O" (ls.Handle)
             |   NonSpecific  ls -> sprintf "NonSpecific:%O" (ls.Handle)
+
+        member this.ToPrettyString() =
+            match this with
+            |   Global       gt -> sprintf "%s" gt.Uri
+            |   Unrecognized gt -> sprintf "%s" gt.Uri
+            |   Local        ls -> sprintf "%s" ls.Handle
+            |   NonSpecific  ls -> sprintf "%s" ls.Handle
+
         member this.EqualIfNonSpecific otherTag =
             match (this, otherTag) with
             |   (NonSpecific a, NonSpecific b)  -> a.Handle=b.Handle

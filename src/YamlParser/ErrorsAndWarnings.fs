@@ -13,6 +13,7 @@ type MessageCode =
     |   ErrShorthandSecondary
     |   ErrAnchorSyntax
     |   ErrMapDuplicateKey
+    |   ErrTagSyntax
     |   ErrTooManySpacesLiteral
     |   ErrTooLessIndentedLiteral
     |   ErrBadFormatLiteral

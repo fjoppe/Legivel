@@ -393,7 +393,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> ParseState.TrackParseLocation ps
             |> FallibleOption.bind(fun (content, prs) ->
                 let prs = addAnchor anchor content prs
-                this.ResolveTag prs tag tl content
+                content
+                |> this.ResolveTag prs tag tl 
+                |> this.ValidateNode
             )
         |   NoResult        -> NoResult
         |   ErrorResult e   -> ErrorResult e

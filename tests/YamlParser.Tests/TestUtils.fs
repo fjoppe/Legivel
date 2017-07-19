@@ -70,6 +70,19 @@ let YamlParseList s =
     with
     | e -> printfn "%A" e; raise e
 
+
+let YamlParseForSchema sch s =
+    let engine = Yaml12Parser()
+    try
+        let repr = (engine.``l-yaml-stream`` sch s)
+        let crrp = repr.Head
+        match crrp with
+        |   CompleteRepresentaton cr -> cr.Document
+        |   _ -> failwith "Unexpected return type"
+    with
+    | e -> printfn "%A" e; raise e
+
+
 let ToScalar n = 
     match n with
     |   Some([ScalarNode nd]) -> nd.Data

@@ -77,28 +77,19 @@ module internal Failsafe =
             )
         |   _    -> failwith "Tag-kind mismatch between node and tag"
 
-    let validateMappingForDuplicateKeys (n: Node) =
+
+    let validateDuplicateKeys n (nlst: Node list) =
         let areEqual (nl:Node list) (n: Node) =
             if nl.Length = 0 then false
             else n.NodeTag.AreEqual (nl.Head) n
-        match n with
-        |   MapNode nd ->  
-            let findDuplicateKeys (nlst: (Node*Node) list) =
-                nlst 
-                |> List.map(fst)
-                |> List.groupBy(fun k -> k.Hash, k.NodeTag)
-                |> List.map(snd)
-                |> List.map(fun nl -> if (nl |> List.forall(fun n -> areEqual nl n)) then nl else [])
-                |> List.filter(fun kl -> kl.Length > 1)
-                |> function
-                    |   []  -> None
-                    |   x   -> Some(x)
-
-            let lrv = nd.Data
-            let duplicates = lrv |> findDuplicateKeys
-            match duplicates with
-            |   None -> Value n
-            |   Some(dupLst) ->
+        nlst
+        |> List.groupBy(fun k -> k.Hash, k.NodeTag)
+        |> List.map(snd)
+        |> List.map(fun nl -> if (nl |> List.forall(fun n -> areEqual nl n)) then nl else [])
+        |> List.filter(fun kl -> kl.Length > 1)
+        |> function
+            |   []  -> Value n
+            |   dupLst ->
                 let errs = [
                     for kt in dupLst do
                         let rf = kt.Head
@@ -106,6 +97,14 @@ module internal Failsafe =
                             yield MessageAtLine.Create (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
                     ]
                 ErrorResult errs
+
+
+
+    let validateMappingForDuplicateKeys (n: Node) =
+        match n with
+        |   MapNode nd ->  
+            let lrv = nd.Data
+            lrv |> List.map(fst) |> validateDuplicateKeys n
         |   _    -> failwith "Tag-kind mismatch between node and tag"
 
     let areUnorderedSequencesEqual (n1:Node) (n2:Node) = 
@@ -150,9 +149,16 @@ module internal Failsafe =
 
     let isScalarValid (n: Node) = Value(n)
 
-    let fsMappingTag = TagFunctions.Create areUnorderedMappingsEqual getUnorderedMappingHash validateMappingForDuplicateKeys
-    let fsSequenceTag = TagFunctions.Create areUnorderedSequencesEqual getUnorderedSeqenceHash isUnorderedSequenceValid
-    let fsScalarTag = TagFunctions.Create areScalarsEqual getScalarHash isScalarValid
+    let isScalarMatch n t = 
+        match n with
+        |   ScalarNode nd ->  IsMatch (nd.Data, t.Regex)
+        |   _    -> false
+
+    let isNoMatch _ _ = false
+
+    let fsMappingTag = TagFunctions.Create areUnorderedMappingsEqual getUnorderedMappingHash validateMappingForDuplicateKeys isNoMatch
+    let fsSequenceTag = TagFunctions.Create areUnorderedSequencesEqual getUnorderedSeqenceHash isUnorderedSequenceValid isNoMatch
+    let fsScalarTag = TagFunctions.Create areScalarsEqual getScalarHash isScalarValid isScalarMatch
 
 
     let getUnresolvedTag nodeKind tagstr = 
@@ -165,6 +171,7 @@ module internal Failsafe =
 
 
     let localTagsAreEqual n1 n2 = true
+
     let localTagsGetHash (n:Node) =
         match n with
         |   MapNode _  -> getUnorderedMappingHash n
@@ -311,8 +318,39 @@ module internal YamlExtended =
                   |> List.map(fun (k,_) -> k.Hash)
                   |> NodeHash.Merge)
             )
-        |   _    -> failwith "Tag-kind mismatch between node and tag"
+        |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
 
+
+    let isMatchOrderedMapping (n:Node) t = 
+        let isSingleMapping (ns:Node) =
+            match ns with
+            |   MapNode nd ->  nd.Data.Length = 1
+            |   _ -> false
+        match n with
+        |   SeqNode nd -> nd.Data |> List.forall(isSingleMapping)
+        |   _    -> false
+        
+
+    let validateOrderedMapping (n:Node) =
+        let getKeys nl =
+            nl
+            |> List.map(fun n ->
+                match n with
+                |   MapNode nd ->  nd.Data |> List.map(fst)
+                |   _ -> failwith "YamlParser defect: Expecting MapNode."
+            )
+            |>  List.concat
+
+        if (isMatchOrderedMapping n n.NodeTag) then
+            match n with
+            |   SeqNode nd ->
+                nd.Data 
+                |> getKeys 
+                |> Failsafe.validateDuplicateKeys n
+            |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
+        else
+            ErrorResult [MessageAtLine.Create (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, an 'omap' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+        
 
     let BooleanGlobalTag = 
         GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
@@ -383,7 +421,7 @@ module internal YamlExtended =
             ), Failsafe.fsScalarTag
         )
 
-    let yeOMappingTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash Failsafe.validateMappingForDuplicateKeys
+    let yeOMappingTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMapping isMatchOrderedMapping
 
     let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", Sequence, yeOMappingTag)
 
@@ -424,7 +462,7 @@ let JSONSchema =
             |   MapNode _ -> Some Failsafe.MappingGlobalTag
             |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
             |   ScalarNode data -> 
-                JSON.providedTags  |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
+                JSON.providedTags  |> List.tryFind(fun t -> t.IsMatch (nst.Content))
                 |>  function
                     |   None -> raise (TagResolutionException (sprintf "Unrecognized type for: %s" data.Data))
                     |   x -> x
@@ -449,9 +487,9 @@ let YamlCoreSchema =
             match nst.Content with
             |   MapNode _ -> Some Failsafe.MappingGlobalTag
             |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
-            |   ScalarNode data -> 
+            |   ScalarNode _ -> 
                 YamlCore.providedTags 
-                |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
+                |> List.tryFind(fun t -> t.IsMatch (nst.Content))
                 |> Option.ifnone(Some (Failsafe.StringGlobalTag))
         |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
     {
@@ -468,15 +506,18 @@ let YamlExtendedSchema =
         |   "!" ->
             match nst.NodeKind with
             |   Mapping  -> Some Failsafe.MappingGlobalTag
-            |   Sequence -> Some Failsafe.SequenceGlobalTag
+            |   Sequence -> 
+                YamlExtended.providedSeqTags
+                |> List.tryFind(fun t -> t.IsMatch (nst.Content))
+                |> Option.ifnone(Some Failsafe.SequenceGlobalTag)
             |   Scalar   -> Some Failsafe.StringGlobalTag
         |   "?" ->  
             match nst.Content with
             |   MapNode _ -> Some Failsafe.MappingGlobalTag
             |   SeqNode _ -> Some Failsafe.SequenceGlobalTag
-            |   ScalarNode data -> 
+            |   ScalarNode _ -> 
                 YamlExtended.providedScalarTags
-                |> List.tryFind(fun t -> IsMatch(data.Data, t.Regex))
+                |> List.tryFind(fun t -> t.IsMatch (nst.Content))
                 |> Option.ifnone(Some (Failsafe.StringGlobalTag))
         |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
     {
