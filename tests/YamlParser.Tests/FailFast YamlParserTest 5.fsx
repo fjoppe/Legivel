@@ -74,24 +74,10 @@ let YamlParseList s =
 
 
 YamlParse "
-    {
-        ? !!omap [ a : 1, b : 1] 
-        : value,
-        ? !!omap [b : 1,  a : 1] 
-        : value
-    }
+--- !!pairs
+- meeting: with team.
+- 1
 "
-
-
-
-YamlParse "# Explicitly typed pairs.
-Block tasks: !!pairs
-  - meeting: with team.
-  - meeting: with boss.
-  - break: lunch.
-  - meeting: with client.
-  - meeting
-Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]"
 
 
 YamlParse "# Explicitly typed set.

@@ -338,6 +338,8 @@ let ``Test YamlExtended omap sunny day - omap assigned - equality - reordered``(
 
 
 //  YamlExtended - pairs
+
+
 [<Test>]
 let ``Test YamlExtended pairs sunny day - pairs assigned``() =
     let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
@@ -363,4 +365,77 @@ Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
         yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
     )
 
+[<Test>]
+let ``Test YamlExtended pairs sunny day - pairs detected``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+# Explicitly typed pairs.
+Block tasks:    # no pairs tag
+  - meeting: with team.
+  - meeting: with boss.
+  - break: lunch.
+  - meeting: with client.
+Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
+"
+    [("meeting",3);("break",1)]
+    |> List.iter(fun (k,l) -> 
+        let ypath = (sprintf "//{#'Block tasks'}?/[]/{#'%s'}" k)
+        let pth = YamlPath.Create ypath
+        yml |> pth.Select |> Option.get |> List.length |> should equal l
+    )
 
+    let btpth = YamlPath.Create "//{#'Block tasks'}?"
+    let ftpth = YamlPath.Create "//{#'Flow tasks'}?"
+    [btpth;ftpth]
+    |> List.iter(fun pth -> 
+        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test YamlExtended pairs rainy day - pairs assinged - voilating pair constraint``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+--- !!pairs
+- meeting: with team.
+- 1     # not a pair
+"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Construct has incorrect syntax for tag tag:yaml.org,2002:pairs")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test YamlExtended pairs rainy day - pairs assigned - equality``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+
+    {
+        ? !!pairs [ a : 1, b : 1] 
+        : value,
+        ? !!pairs [ a : 1, b : 1] 
+        : value
+    }
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+
+[<Test>]
+let ``Test YamlExtended pairs sunny day - pairs assigned - equality - reordered``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+
+    {
+        ? !!pairs [ a : 1, b : 1] 
+        : value,
+        ? !!pairs [ b : 1, a : 1] 
+        : value
+    }
+"
+    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.MappingGlobalTag.Uri
+
+    let pth = YamlPath.Create "//{}"
+
+    yml 
+    |> pth.Select 
+    |> Option.get
+    |> List.iter(fun n -> 
+            [n]
+            |> Some
+            |> ExtractTag 
+            |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri)
