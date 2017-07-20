@@ -136,39 +136,40 @@ let ``Test Map implicit entries with indented seq value - Sunnny Day Simple``() 
     let pt2 = YamlPath.Create "//{#'block sequence'}?/[]/{#'two'}?"
     yml |> pt2.Select |> ToScalar |> should equal "three"
 
-// duplicate key tests
+
+// Duplicate key tests Yaml Core schema
 
 
 [<Test>]
-let ``Test Map duplicate key - Simple``() =
+let ``Test YamlCore Map duplicate key - Simple``() =
     let err = YamlParseWithErrors " { a : b, a : c } "
 
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
 
 [<Test>]
-let ``Test Map triple key - Simple``() =
+let ``Test YamlCore Map triple key - Simple``() =
     let err = YamlParseWithErrors " { a : b, a : c, a : d } "
 
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 2
 
 [<Test>]
-let ``Test Map duplicate key - Adjacent``() =
+let ``Test YamlCore Map duplicate key - Adjacent``() =
     let err = YamlParseWithErrors " { a : b, b : d, a : c } "
 
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
 
 [<Test>]
-let ``Test Map duplicate key - Seq keys identical``() =
+let ``Test YamlCore Map duplicate key - Seq keys identical``() =
     let err = YamlParseWithErrors " { [ 1 , 2 ] : b, [ 1 , 2 ] : c } "
 
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
 
 [<Test>]
-let ``Test Map duplicate key - Seq keys unordered``() =
+let ``Test YamlCore Map duplicate key - Seq keys unordered``() =
     let err = YamlParseWithErrors " { [ 1 , 2 ] : b, [ 2 , 1 ] : c } "
 
     err.Error.Length |> should be (greaterThan 0)
@@ -176,7 +177,7 @@ let ``Test Map duplicate key - Seq keys unordered``() =
 
     
 [<Test>]
-let ``Test Map duplicate key - Map keys identical``() =
+let ``Test YamlCore Map duplicate key - Map keys identical``() =
     let err = YamlParseWithErrors " { { 1 : 2 } : b, { 1 : 2 } : c } "
 
     err.Error.Length |> should be (greaterThan 0)
@@ -184,9 +185,182 @@ let ``Test Map duplicate key - Map keys identical``() =
 
 
 [<Test>]
-let ``Test Map duplicate key - Map keys unordered``() =
+let ``Test YamlCore Map duplicate key - Map keys unordered``() =
     let err = YamlParseWithErrors " { {1 : 2, 2 : 1} : b, {2 : 1, 1 : 2} : c } "
 
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+
+//  Ill formed
+[<Test>]
+let ``Test YamlCore Map ill formed - missing comma``() =
+    let err = YamlParseWithErrors "
+    { 
+        ? b
+        : value # missing comma
+        ? a
+        : value        
+    }
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message ="Incorrect mapping syntax, are you missing a comma, or }?") |> List.length |> should equal 1
+
+
+//  YamlExtended - omap
+
+[<Test>]
+let ``Test YamlExtended omap sunny day - omap assigned``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+--- !!omap
+- Mark McGwire: 65
+- Sammy Sosa: 63
+- Ken Griffy: 58
+"
+    [
+        ("Mark McGwire", "65")
+        ("Sammy Sosa", "63")
+        ("Ken Griffy", "58")
+    ]
+    |> List.iter(fun (k,v) -> 
+        let ypath = (sprintf "//[]/{#'%s'}?" k)
+        let pth = YamlPath.Create ypath
+        yml |> pth.Select |> ToScalar |> should equal v
+    )
+
+    Some([yml]) |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri
+
+[<Test>]
+let ``Test YamlExtended omap sunny day - omap detected``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+---
+- Mark McGwire: 65
+- Sammy Sosa: 63
+- Ken Griffy: 58
+"
+    [
+        ("Mark McGwire", "65")
+        ("Sammy Sosa", "63")
+        ("Ken Griffy", "58")
+    ]
+    |> List.iter(fun (k,v) -> 
+        let ypath = (sprintf "//[]/{#'%s'}?" k)
+        let pth = YamlPath.Create ypath
+        yml |> pth.Select |> ToScalar |> should equal v
+    )
+
+    Some([yml]) |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri
+
+[<Test>]
+let ``Test YamlExtended omap sunny day - pairs detected because of duplicate key``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+---
+- Mark McGwire: 65
+- Sammy Sosa: 63
+- Ken Griffy: 58
+- Ken Griffy: 58    # duplicate
+"
+    [
+        ("Mark McGwire", "65")
+        ("Sammy Sosa", "63")
+        ("Ken Griffy", "58")
+    ]
+    |> List.iter(fun (k,v) -> 
+        let ypath = (sprintf "//[]/{#'%s'}?" k)
+        let pth = YamlPath.Create ypath
+        yml |> pth.Select |> Option.get |> List.length |> should be (greaterThan 0)
+    )
+
+    Some([yml]) |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
+
+[<Test>]
+let ``Test YamlExtended omap rainy day - omap assinged - voilating duplicate key``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+--- !!omap
+- Mark McGwire: 65
+- Sammy Sosa: 63
+- Ken Griffy: 58
+- Ken Griffy: 58    # duplicate
+"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+
+[<Test>]
+let ``Test YamlExtended omap rainy day - omap assigned - equality``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+
+    {
+        ? !!omap [ a : 1, b : 1] 
+        : value,
+        ? !!omap [ a : 1, b : 1] 
+        : value
+    }
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test YamlExtended omap sunny day - omap assigned - equality - reordered``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    {
+        ? !!omap [ a : 1, b : 1] 
+        : value,
+        ? !!omap [b : 1,  a : 1] 
+        : value
+    }
+"
+    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.MappingGlobalTag.Uri
+
+    let pth = YamlPath.Create "//{}"
+
+    yml 
+    |> pth.Select 
+    |> Option.get
+    |> List.iter(fun n -> 
+            [n]
+            |> Some
+            |> ExtractTag 
+            |> should equal TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri)
+    
+
+
+//  YamlExtended - pairs
+[<Test>]
+let ``Test YamlExtended pairs sunny day - pairs assigned``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+# Explicitly typed pairs.
+Block tasks: !!pairs
+  - meeting: with team.
+  - meeting: with boss.
+  - break: lunch.
+  - meeting: with client.
+Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
+"
+    [("meeting",3);("break",1)]
+    |> List.iter(fun (k,l) -> 
+        let ypath = (sprintf "//{#'Block tasks'}?/[]/{#'%s'}" k)
+        let pth = YamlPath.Create ypath
+        yml |> pth.Select |> Option.get |> List.length |> should equal l
+    )
+
+    let btpth = YamlPath.Create "//{#'Block tasks'}?"
+    let ftpth = YamlPath.Create "//{#'Flow tasks'}?"
+    [btpth;ftpth]
+    |> List.iter(fun pth -> 
+        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
+    )
+
 

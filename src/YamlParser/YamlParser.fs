@@ -148,12 +148,22 @@ type ParseState = {
             if this.Anchors.ContainsKey s then this.Anchors.[s] |> Some
             else None
 
+        member this.MarkParseRange pss =
+            let filterRange msl =
+                msl
+                |> List.filter(fun (m:MessageAtLine) -> m.Location >= pss.Location && m.Location <= this.Location)
+            
+            this.Messages.Error @ this.Messages.Warn
+            |> filterRange
+            |> List.fold(fun (s:ParseState) i -> s.AddCancelMessage (i.Location)) this
+
+
         [<DebuggerStepThrough>]
         member this.SkipIfMatch p = 
             match (HasMatches(this.InputString, p)) with
             |   (true, mt,frs)  -> 
                 let res = this.SetRestString(frs)
-                res.TrackPosition mt
+                (res.TrackPosition mt).MarkParseRange this
             |   (false, _,_)    -> this
 
         member  this.SetStyleContext cn = { this with c = cn}
@@ -255,6 +265,11 @@ module ParseState =
         |   Value (n, psr) -> Value(n,psr |> AddCancelMessage (ps.Location))
         |   x -> x
 
+    let MarkParseRange (pss:ParseState) pse =
+        match pse with
+        |   Value (n, (psr:ParseState)) -> Value(n, psr.MarkParseRange pss)
+        |   x -> x
+
     let AddErrorMessageDel m (ps:ParseState) = ParseState.AddErrorMessageDel ps m 
     let AddDirective d (ps:ParseState) = ps.AddDirective d
     let AddAnchorsFrom (prs:ParseState) (ps:ParseState) = ps.AddAnchors prs.Anchors 
@@ -268,7 +283,7 @@ module ParseState =
     let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel)
     let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.InputString, patt)) with
-        |   (true, mt, rest) -> ps |> SetRestString rest |> TrackPosition mt |> postAdvanceFunc
+        |   (true, mt, rest) -> ps |> AddCancelMessage (ps.Location) |> SetRestString rest |> TrackPosition mt |> postAdvanceFunc
         |   (false, _, _)    -> NoResult
 
     let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
@@ -530,7 +545,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   NonSpecificQT   -> ResolveNonSpecificTag "!"
         |   ShortHandPrimary name -> 
             TryResolveTagShortHand "!" name
-            |> FallibleOption.ifnoresult(ResolveLocalTag ("!"+name) )
+            |> FallibleOption.ifnoresult(fun () -> ResolveLocalTag ("!"+name) )
         |   ShortHandSecondary sub  -> ResolveTagShortHand "!!" sub
         |   ShortHandNamed (name, sub)  -> ResolveTagShortHand name sub
         |   Verbatim name   -> ResolveLocalTag name
@@ -1298,23 +1313,25 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
     member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-flow-sequence" ps
-        ps |> ParseState.``Match and Advance`` ((RGP "\\[") + OPT(this.``s-separate`` ps)) (fun prs ->
+        ps |> ParseState.``Match and Advance`` ((RGP "\[") + OPT(this.``s-separate`` ps)) (fun prs ->
             let prs = prs.SetStyleContext(this.``in-flow`` prs)
 
             let noResult prs =
-                prs |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> 
-                    CreateSeqNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psx) [] 
-                    |> this.ResolveTag psx NonSpecificQT (prs.Location)
+                prs |> ParseState.``Match and Advance`` (RGP "\]") (fun psx -> 
+                    CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psx) [] 
+                    |> this.ResolveTag psx NonSpecificQM (prs.Location)
                     |> this.ValidateNode
                     )
 
             match (this.``ns-s-flow-seq-entries`` prs) with
             |   Value (c, prs2) -> 
                 prs2 
-                |> ParseState.``Match and Advance`` (RGP "\\]") (fun psx -> Value (c, psx) ) 
-                |> FallibleOption.ifnoresult(if prs2.Errors > 0 then ErrorResult (prs2.Messages.Error) else NoResult)
+                |> ParseState.``Match and Advance`` (RGP "\]") (fun psx -> Value (c, psx))
+                |> FallibleOption.ifnoresult(fun () -> 
+                    ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.Create (prs2.Location) ErrMissingMappingSymbol "Incorrect sequence syntax, are you missing a comma, or ]?"])
+                )
             |   NoResult        -> prs |> noResult
-            |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(ErrorResult e)
+            |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(fun () -> ErrorResult e)
         )
         |> ParseState.TrackParseLocation ps
         |> ParseState.ResetEnv ps
@@ -1327,8 +1344,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let noResult rs psr =
                 if lst.Length = 0 then rs   // empty sequence
                 else 
-                    CreateSeqNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) lst 
-                    |> this.ResolveTag psr NonSpecificQT (psr.Location)
+                    CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) lst 
+                    |> this.ResolveTag psr NonSpecificQM (psr.Location)
                     |> this.ValidateNode
 
             match (this.``ns-flow-seq-entry`` psp) with
@@ -1337,10 +1354,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
                 let commaPattern = (RGP ",") + OPT(this.``s-separate`` prs)
                 match prs with 
-                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst
+                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst |> ParseState.MarkParseRange prs
                 |   _ ->  
-                    CreateSeqNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) lst
-                    |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                    CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst
+                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.ValidateNode
             |   NoResult        -> psp |> noResult NoResult
             |   ErrorResult e   -> psp |> ParseState.AddErrorMessageList e |> noResult (ErrorResult e)
@@ -1353,7 +1370,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-flow-seq-entry" ps
 
         (ps |> ParseState.OneOf) {
-            either(this.``ns-flow-pair`` >> FallibleOption.bind(fun ((ck, cv), prs) -> CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) [(ck,cv)] |> this.ResolveTag prs NonSpecificQT (prs.Location)))
+            either(this.``ns-flow-pair`` >> FallibleOption.bind(fun ((ck, cv), prs) -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) [(ck,cv)] |> this.ResolveTag prs NonSpecificQM (prs.Location)))
             either(this.``ns-flow-node``)
             ifneither(NoResult)
         }
@@ -1369,13 +1386,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let prs = prs.SetStyleContext(this.``in-flow`` prs)
             let mres = this.``ns-s-flow-map-entries`` prs
 
-            let noResult prs = prs |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQT (prs2.Location))
+            let noResult prs = prs |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQM (prs2.Location))
 
             match (mres) with
             |   Value (c, prs2) -> 
-                prs2 |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> Value(c, prs2))
+                prs2 
+                |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> Value(c, prs2))
+                |> FallibleOption.ifnoresult(fun () -> ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.Create (prs2.Location) ErrMissingMappingSymbol "Incorrect mapping syntax, are you missing a comma, or }?"]))
             |   NoResult        -> prs |> noResult 
-            |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(ErrorResult e)
+            |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(fun () -> ErrorResult e)
                
         )
         |> ParseState.ResetEnv ps
@@ -1389,8 +1408,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let noResult rs psr =
                 if lst.Length = 0 then rs   // empty sequence
                 else
-                    CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) lst 
-                    |> this.ResolveTag psr NonSpecificQT (psr.Location)
+                    CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) lst 
+                    |> this.ResolveTag psr NonSpecificQM (psr.Location)
                     |> this.ValidateNode
 
             match (this.``ns-flow-map-entry`` psp) with
@@ -1399,10 +1418,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
                 let commaPattern = (RGP ",") + OPT(this.``s-separate`` prs)
                 match prs with
-                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst
+                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst |> ParseState.MarkParseRange prs
                 |   _ -> 
-                    CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) lst  
-                    |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                    CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst  
+                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.ValidateNode
             |   NoResult -> psp |> noResult NoResult
             |   ErrorResult e -> psp |> ParseState.AddErrorMessageList e |> noResult (ErrorResult e)
@@ -1699,7 +1718,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let ``ns-flow-yaml-content`` psp =
             psp 
             |> ParseState.``Match and Advance`` (this.``s-separate`` psp) (this.``ns-flow-yaml-content``)
-            |> FallibleOption.ifnoresult (Value (PlainEmptyNode (getParseInfo ps psp), psp))    //  ``e-scalar`` None
+            |> FallibleOption.ifnoresult (fun () -> Value (PlainEmptyNode (getParseInfo ps psp), psp))    //  ``e-scalar`` None
 
         ps.OneOf {
             either (this.``c-ns-alias-node``)
@@ -2024,8 +2043,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let contentOrNone rs psr = 
                     if (acc.Length = 0) then rs
                     else 
-                        CreateSeqNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) acc 
-                        |> this.ResolveTag psp NonSpecificQT (psp.Location)
+                        CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
+                        |> this.ResolveTag psp NonSpecificQM (psp.Location)
                         |> this.ValidateNode
 
                 (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``c-l-block-seq-entry``)
@@ -2092,8 +2111,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let contentOrNone rs psr = 
                 if (acc.Length = 0) then rs
                 else 
-                    CreateSeqNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) acc 
-                    |> this.ResolveTag psr NonSpecificQT (psr.Location)
+                    CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
+                    |> this.ResolveTag psr NonSpecificQM (psr.Location)
                     |> this.ValidateNode
             
             psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
@@ -2118,8 +2137,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let contentOrNone rs psr = 
                     if (acc.Length = 0) then rs
                     else 
-                        CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps psr) acc 
-                        |> this.ResolveTag psr NonSpecificQT (psr.Location)
+                        CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
+                        |> this.ResolveTag psr NonSpecificQM (psr.Location)
                         |> this.ValidateNode
 
                 (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
@@ -2203,7 +2222,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match (this.``ns-s-block-map-implicit-key`` ps) with
         |   Value (ck, prs1) -> matchValue(ck, prs1)
         |   NoResult -> ps |> noResult 
-        |   ErrorResult el -> ps |> ParseState.AddErrorMessageList el |> noResult |> FallibleOption.ifnoresult(ErrorResult el)
+        |   ErrorResult el -> ps |> ParseState.AddErrorMessageList el |> noResult |> FallibleOption.ifnoresult(fun () -> ErrorResult el)
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-l-block-map-implicit-entry" ps
 
@@ -2245,8 +2264,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let contentOrNone rs prs = 
                 if (acc.Length = 0) then rs
                 else 
-                    CreateMapNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) acc 
-                    |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                    CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) acc 
+                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.ValidateNode
 
             psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``ns-l-block-map-entry``)

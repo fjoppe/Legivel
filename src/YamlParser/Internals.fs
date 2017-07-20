@@ -87,7 +87,7 @@ module FallibleOption =
 
     let ifnoresult<'a,'b,'c> f (o:FallibleOption<'a,'c>) =
         match o with
-        |   NoResult    -> f
+        |   NoResult    -> f()
         |   Value v     -> Value v
         |   ErrorResult e -> ErrorResult e
 

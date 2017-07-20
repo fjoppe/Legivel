@@ -21,6 +21,7 @@ type MessageCode =
     |   ErrMissingDquote
     |   ErrDquoteIllegalChars
     |   ErrMissingSquote
+    |   ErrMissingMappingSymbol
 
 
     

@@ -72,16 +72,17 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
+
 YamlParse "
-# Ordered maps are represented as
-# A sequence of mappings, with
-# each mapping having one key
---- !!omap
-- Mark McGwire: 65
-- Sammy Sosa: 63
-- Ken Griffy: 58
-- 1
+    {
+        ? !!omap [ a : 1, b : 1] 
+        : value,
+        ? !!omap [b : 1,  a : 1] 
+        : value
+    }
 "
+
+
 
 YamlParse "# Explicitly typed pairs.
 Block tasks: !!pairs
@@ -93,3 +94,75 @@ Block tasks: !!pairs
 Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]"
 
 
+YamlParse "# Explicitly typed set.
+baseball players: !!set
+  ? Mark McGwire
+  ? Sammy Sosa
+  ? Ken Griffey
+# Flow style
+baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }"
+
+YamlParse "# Explicitly typed set.
+baseball players: 
+  ? Mark McGwire
+  ? Sammy Sosa
+  ? Ken Griffey
+# Flow style
+baseball teams: { Boston Red Sox, Detroit Tigers, New York Yankees }"
+
+YamlParse "# Explicitly typed set.
+baseball players: !!set
+  ? Mark McGwire
+  ? Sammy Sosa
+  ? Ken Griffey
+  ? Ken Griffey
+# Flow style
+baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }"
+
+YamlParse "# Explicitly typed set.
+baseball players: !!set
+  ? Mark McGwire
+  ? Sammy Sosa
+  ? Ken Griffey
+  : 1
+# Flow style
+baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }"
+
+YamlParseList "# A document may be null.
+---
+---
+# This mapping has four keys,
+# one has a value.
+empty:
+canonical: ~
+english: null
+~: null key
+---
+# This sequence has five
+# entries, two have values.
+sparse:
+  - ~
+  - 2nd entry
+  -
+  - 4th entry
+  - Null"
+
+
+open RegexDSL
+
+let patt = (RGP "\[")
+let str = "[\r\n: [ 2001-07-02, 2001-08-12,\r\n    2001-08-14 ]\r\n"
+
+IsMatch(str, patt)
+
+
+type    DocumentLocation = {
+        Line    : int
+        Column  : int
+    }
+
+
+let a1 = {Line = 1; Column = 5}
+let a2 = {Line = 1; Column = 4}
+
+a1 < a2

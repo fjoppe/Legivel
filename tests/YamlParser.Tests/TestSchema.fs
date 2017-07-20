@@ -7,6 +7,15 @@ open RepresentationGraph
 open YamlParser.Internals
 
 
+let TagResolveScalar schema s  =
+    let nst = TagResolution.NonSpecific.NonSpecificTagQM
+    let makeScalar s =
+        let dl = DocumentLocation.Create 0 0
+        ScalarNode(NodeData<string>.Create nst s (ParseInfo.Create dl dl))
+    let scalar = makeScalar s
+    TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
+    |> schema 
+
 [<Test>]
 let ``Test JSON Schema Tags``() =
     JSON.NullGlobalTag.canonFn "null" |> should equal "null"
@@ -29,14 +38,7 @@ let ``Test JSON Schema Tags``() =
 
 [<Test>]
 let ``Test JSON TagResolution``() =
-    let tagResolveScalar s =
-        let nst = TagResolution.NonSpecific.NonSpecificTagQM 
-        let makeScalar s =
-            let dl = DocumentLocation.Create 0 0
-            ScalarNode(NodeData<string>.Create nst s (ParseInfo.Create dl dl))
-        let scalar = makeScalar s
-        TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
-        |> JSONSchema.TagResolution 
+    let tagResolveScalar = TagResolveScalar JSONSchema.TagResolution 
 
     tagResolveScalar "null" 
         |> Option.map(fun e -> (e.Uri |> should equal (JSON.NullGlobalTag.Uri)); e) |> Option.isSome |> should equal true
@@ -66,7 +68,7 @@ let ``Test JSON TagResolution``() =
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2805712
 let ``Test Yaml Core Schema Tags``() =
     ["null"; "NULL"; "Null"; ""; "~" ]
-    |> List.iter(fun i -> YamlCore.NullGlobalTag.canonFn i |> should equal "null")
+    |> List.iter(fun i -> YamlCore.NullGlobalTag.canonFn i |> should equal "~")
 
     ["true";"True";"TRUE"]
     |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> should equal "true")
@@ -90,14 +92,7 @@ let ``Test Yaml Core Schema Tags``() =
 
 [<Test>]
 let ``Test YamlCore TagResolution``() =
-    let tagResolveScalar s =
-        let nst = TagResolution.NonSpecific.NonSpecificTagQM
-        let makeScalar s =
-            let dl = DocumentLocation.Create 0 0
-            ScalarNode(NodeData<string>.Create nst s (ParseInfo.Create dl dl))
-        let scalar = makeScalar s
-        TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
-        |> YamlCoreSchema.TagResolution 
+    let tagResolveScalar = TagResolveScalar YamlCoreSchema.TagResolution 
 
     ["null"; "NULL"; "Null"; ""; "~" ]
     |> List.iter(fun s ->

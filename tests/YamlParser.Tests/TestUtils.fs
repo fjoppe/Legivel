@@ -82,6 +82,19 @@ let YamlParseForSchema sch s =
     with
     | e -> printfn "%A" e; raise e
 
+let YamlParseForSchemaWithErrors sch s =
+    let engine = Yaml12Parser()
+    try
+        let repr = (engine.``l-yaml-stream`` sch s)
+        let crrp = repr.Head
+        match crrp with
+        |   NoRepresentation nr -> 
+            nr.Error.Length |> should greaterThan 0
+            nr
+        |   _ -> failwith "Unexpected return type"
+
+    with
+    | e -> printfn "%A" e; raise e
 
 let ToScalar n = 
     match n with
