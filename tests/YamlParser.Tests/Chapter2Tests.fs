@@ -8,6 +8,7 @@ open NUnit.Framework
 open FsUnit
 open TestUtils
 open YamlParser
+open TagResolution
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760118")>]
 let ``Example 2.1.  Sequence of Scalars``() =
@@ -501,10 +502,10 @@ let ``Example 2.24. Global Tags``() =
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-[<Ignore "TODO: This runs, but add support for !!set">]
+
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761758")>]
 let ``Example 2.25. Unordered Sets``() =
-    let yml = YamlParse "
+    let yml = YamlParseForSchema YamlExtendedSchema "
 # Sets are represented as a
 # Mapping where each key is
 # associated with a null value
@@ -522,10 +523,13 @@ let ``Example 2.25. Unordered Sets``() =
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
     )
+    Some([yml]) |> ExtractTag |> should equal "tag:yaml.org,2002:set"
+
+
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761780")>]
 let ``Example 2.26. Ordered Mappings``() =
-    let yml = YamlParseForSchema (TagResolution.YamlExtendedSchema)  "
+    let yml = YamlParseForSchema YamlExtendedSchema  "
 # Ordered maps are represented as
 # A sequence of mappings, with
 # each mapping having one key
@@ -542,8 +546,8 @@ let ``Example 2.26. Ordered Mappings``() =
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
         yml |> p.Select |> ToScalar |> should equal v
-        Some([yml]) |> ExtractTag |> should equal "tag:yaml.org,2002:omap"
     )
+    Some([yml]) |> ExtractTag |> should equal "tag:yaml.org,2002:omap"
 
 
 [<Ignore "TODO: Needs complete fixing">]

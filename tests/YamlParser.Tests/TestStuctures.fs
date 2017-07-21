@@ -137,6 +137,34 @@ let ``Test Map implicit entries with indented seq value - Sunnny Day Simple``() 
     yml |> pt2.Select |> ToScalar |> should equal "three"
 
 
+//  Test !!seq
+[<Test>]
+let ``Test Seq full - Sunny Day Simple``() =
+    let yml = YamlParse "
+# Ordered sequence of nodes
+Block style: !!seq
+- Mercury   # Rotates - no light/dark sides.
+- Venus     # Deadliest. Aptly named.
+- Earth     # Mostly dirt.
+- Mars      # Seems empty.
+- Jupiter   # The king.
+- Saturn    # Pretty.
+- Uranus    # Where the sun hardly shines.
+- Neptune   # Boring. No rings.
+- Pluto     # You call this a planet?
+Flow style: !!seq [ Mercury, Venus, Earth, Mars,      # Rocks
+                    Jupiter, Saturn, Uranus, Neptune, # Gas
+                    Pluto ]                           # Overrated" 
+
+    let btpth = YamlPath.Create "//{#'Block style'}?"
+    let ftpth = YamlPath.Create "//{#'Flow style'}?"
+    [btpth;ftpth]
+    |> List.iter(fun pth -> 
+        yml |> pth.Select |> ExtractTag |> should equal TagResolution.Failsafe.SequenceGlobalTag.Uri
+    )
+
+    
+
 // Duplicate key tests Yaml Core schema
 
 
@@ -206,7 +234,7 @@ let ``Test YamlCore Map ill formed - missing comma``() =
     err.Error |> List.filter(fun m -> m.Message ="Incorrect mapping syntax, are you missing a comma, or }?") |> List.length |> should equal 1
 
 
-//  YamlExtended - omap
+//  YamlExtended - !!omap
 
 [<Test>]
 let ``Test YamlExtended omap sunny day - omap assigned``() =
@@ -337,8 +365,7 @@ let ``Test YamlExtended omap sunny day - omap assigned - equality - reordered``(
     
 
 
-//  YamlExtended - pairs
-
+//  YamlExtended - !!pairs
 
 [<Test>]
 let ``Test YamlExtended pairs sunny day - pairs assigned``() =
@@ -439,3 +466,106 @@ let ``Test YamlExtended pairs sunny day - pairs assigned - equality - reordered`
             |> Some
             |> ExtractTag 
             |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri)
+
+
+//  YamlExtended - !!set
+
+[<Test>]
+let ``Test YamlExtended set sunny day - set assigned``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+# Explicitly typed set.
+baseball players: !!set
+  ? Mark McGwire
+  ? Sammy Sosa
+  ? Ken Griffey
+# Flow style
+baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }
+"
+    ["Mark McGwire";"Sammy Sosa";"Ken Griffey"]
+    |> List.iter(fun k -> 
+        let ypath = (sprintf "//{#'baseball players'}?/{#'%s'}" k)
+        let pth = YamlPath.Create ypath
+        yml |> pth.Select |> Option.get |> List.length |> should equal 1
+    )
+
+    let btpth = YamlPath.Create "//{#'baseball players'}?"
+    let ftpth = YamlPath.Create "//{#'baseball teams'}?"
+    [btpth;ftpth]
+    |> List.iter(fun pth -> 
+        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.UnOrderedSetGlobalTag.Uri
+    )
+
+
+[<Test>]
+let ``Test YamlExtended set sunny day - set detected``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+# Explicitly typed set.
+baseball players:
+  ? Mark McGwire
+  ? Sammy Sosa
+  ? Ken Griffey
+# Flow style
+baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }
+"
+    ["Mark McGwire";"Sammy Sosa";"Ken Griffey"]
+    |> List.iter(fun k -> 
+        let ypath = (sprintf "//{#'baseball players'}?/{#'%s'}" k)
+        let pth = YamlPath.Create ypath
+        yml |> pth.Select |> Option.get |> List.length |> should equal 1
+    )
+
+    let btpth = YamlPath.Create "//{#'baseball players'}?"
+    let ftpth = YamlPath.Create "//{#'baseball teams'}?"
+    [btpth;ftpth]
+    |> List.iter(fun pth -> 
+        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.UnOrderedSetGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test YamlExtended set rainy day - set assinged - voilating set unique constraint``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+--- !!set
+    ?   duplicate
+    ?   duplicate
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test YamlExtended set rainy day - set assinged - voilating set no-value constraint``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+--- !!set
+    ?   some value
+    ?   has illegal
+    :   value
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Construct has incorrect syntax for tag")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test YamlExtended set rainy day - set assigned - equality``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    {
+        ? !!set { a, b }
+        : value,
+        ? !!set { a, b }
+        : value
+    }
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+
+[<Test>]
+let ``Test YamlExtended set rainy day - set assigned - equality - reordered``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    {
+        ? !!set { a, b }
+        : value,
+        ? !!set { b, a }
+        : value
+    }
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)

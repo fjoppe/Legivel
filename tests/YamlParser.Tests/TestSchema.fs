@@ -5,7 +5,7 @@ open FsUnit
 open TagResolution
 open RepresentationGraph
 open YamlParser.Internals
-
+open TestUtils
 
 let TagResolveScalar schema s  =
     let nst = TagResolution.NonSpecific.NonSpecificTagQM
@@ -125,143 +125,133 @@ let ``Test YamlCore TagResolution``() =
     )
 
 
+[<Test>]
+let ``Test YamlExtended Canonical Integers - Simple``() =
+    YamlExtended.IntegerGlobalTag.Canonical "5" |> should equal "+5"
+
+[<Test>]
+let ``Test YamlExtended Canonical Integers - Binary``() =
+    YamlExtended.IntegerGlobalTag.Canonical "0b101" |> should equal "+5"
+
+[<Test>]
+let ``Test YamlExtended Canonical Integers - Octal``() =
+    YamlExtended.IntegerGlobalTag.Canonical "017" |> should equal "+15"
+
+[<Test>]
+let ``Test YamlExtended Canonical Integers - Hexadecimal``() =
+    YamlExtended.IntegerGlobalTag.Canonical "0x12" |> should equal "+18"
+
+[<Test>]
+let ``Test YamlExtended Canonical Integers - Sexagesimal``() =
+    YamlExtended.IntegerGlobalTag.Canonical "190:20:30" |> should equal "+685230"
 
 
-//
-//
-//
-//let ToScalar n = 
-//    match n with
-//    |   ScalarNode nd -> nd.Data
-//    |   _ -> raise (Exception "Is no scalar")
-//
-//let GetNodeTagUri (n:Node) = n.NodeTag.Uri
-//   
-//
-//[<Test>]
-//let ``Test Canonical Integers - Simple``() =
-//    IntegerGlobalTag.Canonical "5" |> should equal "+5"
-//
-//[<Test>]
-//let ``Test Canonical Integers - Binary``() =
-//    IntegerGlobalTag.Canonical "0b101" |> should equal "+5"
-//
-//[<Test>]
-//let ``Test Canonical Integers - Octal``() =
-//    IntegerGlobalTag.Canonical "017" |> should equal "+15"
-//
-//[<Test>]
-//let ``Test Canonical Integers - Hexadecimal``() =
-//    IntegerGlobalTag.Canonical "0x12" |> should equal "+18"
-//
-//[<Test>]
-//let ``Test Canonical Integers - Sexagesimal``() =
-//    IntegerGlobalTag.Canonical "190:20:30" |> should equal "+685230"
-//
-//[<Test>]
-//let ``Test Canonical Floats - Simple``() =
-//    FloatGlobalTag.Canonical "81.23" |> should equal "+0.8123e+002"
-//    float(FloatGlobalTag.Canonical "81.23") |> should equal (float "81.23")
-//
-//[<Test>]
-//let ``Test Canonical Floats - Shifted decimal``() =
-//    FloatGlobalTag.Canonical "0.008123" |> should equal "+0.8123e-002"
-//    float(FloatGlobalTag.Canonical "0.008123") |> should equal (float "0.008123")
-//
-//[<Test>]
-//let ``Test Canonical Floats - Normalized decimal``() =
-//    FloatGlobalTag.Canonical "1.008123" |> should equal "+0.1008123e+001"
-//    float(FloatGlobalTag.Canonical "1.008123") |> should equal (float "1.008123")  
-//
-//    FloatGlobalTag.Canonical "0.8123" |> should equal "+0.8123e+000"
-//    float(FloatGlobalTag.Canonical "0.8123") |> should equal (float "+0.8123e+000")
-//
-//[<Test>]
-//let ``Test Canonical Floats - Sexagesimal``() =
-//    FloatGlobalTag.Canonical "190:20:30.15" |> should equal "+0.68523015e+006"
-//    float(FloatGlobalTag.Canonical "190:20:30.15") |> should equal (float "685230.15")
-//
-//[<Test>]
-//let ``Test Canonical Floats - Specials``() =
-//    FloatGlobalTag.Canonical ".inf"  |> should equal "+.inf"
-//    FloatGlobalTag.Canonical "+.inf" |> should equal "+.inf"
-//    FloatGlobalTag.Canonical "-.inf" |> should equal "-.inf"
-//    FloatGlobalTag.Canonical ".nan"  |> should equal ".nan"
-//
-//[<Test>]
-//let ``Test MapScalar Null - Sunny Day``() =
-//    ["null"; "NULL"; "Null"]
-//    |> List.iter(fun input ->
-//        let node = MapScalar input
-//        node         |> ToScalar      |> should equal input
-//        node         |> GetNodeTagUri |> should equal NullGlobalTag.Uri
-//    )
-//
-//[<Test>]
-//let ``Test MapScalar Null - Rainy Day``() =
-//    [
-//        "null and more text"
-//        "null\nand more text"
-//    ]
-//    |> List.iter(fun input ->
-//        let faultyNode = MapScalar input
-//        faultyNode |> ToScalar      |> should equal input
-//        faultyNode |> GetNodeTagUri |> should equal StringGlobalTag.Uri
-//    )
-//
-//[<Test>]
-//let ``Test MapScalar Bool - Sunny Day``() =
-//    [
-//        "yes";"no";"y";"n";"Y";"N";"Yes";"No";"YES";"NO";
-//        "true";"false";"True";"False";"TRUE";"FALSE";
-//        "on";"off";"On";"Off";"ON";"OFF"
-//    ]
-//    |> List.iter(fun input ->
-//        let node = MapScalar input
-//        node        |> ToScalar      |> should equal input
-//        node        |> GetNodeTagUri |> should equal BooleanGlobalTag.Uri
-//    )
-//
-//[<Test>]
-//let ``Test MapScalar Bool - Rainy Day``() =
-//    [
-//        "true and more text"
-//        "true\nand more text"
-//    ]
-//    |> List.iter(fun input ->
-//        let faultyNode = MapScalar input
-//        faultyNode |> ToScalar      |> should equal input
-//        faultyNode |> GetNodeTagUri |> should equal StringGlobalTag.Uri
-//    )
-//
-//[<Test>]
-//let ``Test MapScalar Intgeger - Sunny Day``() =
-//    [
-//        "1"; "100"; "1000"
-//        "-1"; "-100"; "-1000"
-//        "+1"; "+100"; "+1000"
-//        "0b1"; "0b100"; "0b1000"
-//        "-0b1"; "-0b100"; "-0b1000"
-//        "+0b1"; "+0b100"; "+0b1000"
-//        "0x1"; "0x100"; "1000"
-//        "-0x1"; "-0x100"; "-0x1000"
-//        "+0x1"; "+0x100"; "+0x1000"
-//        "190:20:30"
-//    ]
-//    |> List.iter(fun input ->
-//        let node = MapScalar input
-//        node         |> ToScalar      |> should equal input
-//        node         |> GetNodeTagUri |> should equal IntegerGlobalTag.Uri
-//    )
-//
-//[<Test>]
-//let ``Test MapScalar Integer - Rainy Day``() =
-//    [
-//        "100 and more text"
-//        "100\nand more text"
-//    ]
-//    |> List.iter(fun input ->
-//        let faultyNode = MapScalar input
-//        faultyNode |> ToScalar      |> should equal input
-//        faultyNode |> GetNodeTagUri |> should equal StringGlobalTag.Uri
-//    )
+[<Test>]
+let ``Test YamlExtended Canonical Floats - Simple``() =
+    YamlExtended.FloatGlobalTag.Canonical "81.23" |> should equal "+0.8123e+002"
+    float(YamlExtended.FloatGlobalTag.Canonical "81.23") |> should equal (float "81.23")
+
+[<Test>]
+let ``Test YamlExtended Canonical Floats - Shifted decimal``() =
+    YamlExtended.FloatGlobalTag.Canonical "0.008123" |> should equal "+0.8123e-002"
+    float(YamlExtended.FloatGlobalTag.Canonical "0.008123") |> should equal (float "0.008123")
+
+[<Test>]
+let ``Test YamlExtended Canonical Floats - Normalized decimal``() =
+    YamlExtended.FloatGlobalTag.Canonical "1.008123" |> should equal "+0.1008123e+001"
+    float(YamlExtended.FloatGlobalTag.Canonical "1.008123") |> should equal (float "1.008123")  
+
+    YamlExtended.FloatGlobalTag.Canonical "0.8123" |> should equal "+0.8123e+000"
+    float(YamlExtended.FloatGlobalTag.Canonical "0.8123") |> should equal (float "+0.8123e+000")
+
+[<Test>]
+let ``Test YamlExtended Canonical Floats - Sexagesimal``() =
+    YamlExtended.FloatGlobalTag.Canonical "190:20:30.15" |> should equal "+0.68523015e+006"
+    float(YamlExtended.FloatGlobalTag.Canonical "190:20:30.15") |> should equal (float "685230.15")
+
+[<Test>]
+let ``Test YamlExtended Canonical Floats - Specials``() =
+    YamlExtended.FloatGlobalTag.Canonical ".inf"  |> should equal "+.inf"
+    YamlExtended.FloatGlobalTag.Canonical "+.inf" |> should equal "+.inf"
+    YamlExtended.FloatGlobalTag.Canonical "-.inf" |> should equal "-.inf"
+    YamlExtended.FloatGlobalTag.Canonical ".nan"  |> should equal ".nan"
+
+
+[<Test>]
+let ``Test YamlExtended Null - Sunny Day``() =
+    ["null"; "NULL"; "Null"]
+    |> List.iter(fun input ->
+        let node = YamlParseForSchema YamlExtendedSchema input
+        Some [node] |> ToScalar      |> should equal input
+        Some [node] |> ExtractTag |> should equal YamlExtended.NullGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test YamlExtended Null - Rainy Day``() =
+    [
+        "\"null and more text\""
+        "\"null\nand more text\""
+    ]
+    |> List.iter(fun input ->
+        let node = YamlParseForSchema YamlExtendedSchema  input
+        Some [node] |> ToScalar   |> should equal (input.Replace("\"", "").Replace("\n", " "))
+        Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test YamlExtended Bool - Sunny Day``() =
+    [
+        "yes";"no";"y";"n";"Y";"N";"Yes";"No";"YES";"NO";
+        "true";"false";"True";"False";"TRUE";"FALSE";
+        "on";"off";"On";"Off";"ON";"OFF"
+    ]
+    |> List.iter(fun input ->
+        let node = YamlParseForSchema YamlExtendedSchema  input
+        Some [node] |> ToScalar      |> should equal input
+        Some [node] |> ExtractTag |> should equal YamlExtended.BooleanGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test YamlExtended Bool - Rainy Day``() =
+    [
+        "\"true and more text\""
+        "\"true\nand more text\""
+    ]
+    |> List.iter(fun input ->
+        let node = YamlParseForSchema YamlExtendedSchema  input
+        Some [node] |> ToScalar   |> should equal (input.Replace("\"", "").Replace("\n", " "))
+        Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test YamlExtended Intgeger - Sunny Day``() =
+    [
+        "1"; "100"; "1000"
+        "-1"; "-100"; "-1000"
+        "+1"; "+100"; "+1000"
+        "0b1"; "0b100"; "0b1000"
+        "-0b1"; "-0b100"; "-0b1000"
+        "+0b1"; "+0b100"; "+0b1000"
+        "0x1"; "0x100"; "1000"
+        "-0x1"; "-0x100"; "-0x1000"
+        "+0x1"; "+0x100"; "+0x1000"
+        "190:20:30"
+    ]
+    |> List.iter(fun input ->
+        let node = YamlParseForSchema YamlExtendedSchema  input
+        Some [node] |> ToScalar   |> should equal input
+        Some [node] |> ExtractTag |> should equal YamlExtended.IntegerGlobalTag.Uri
+    )
+
+[<Test>]
+let ``Test YamlExtended Integer - Rainy Day``() =
+    [
+        "\"100 and more text\""
+        "\"100\nand more text\""
+    ]
+    |> List.iter(fun input ->
+        let node = YamlParseForSchema YamlExtendedSchema  input
+        Some [node] |> ToScalar   |> should equal (input.Replace("\"", "").Replace("\n", " "))
+        Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
+    )
+
