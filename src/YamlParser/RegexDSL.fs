@@ -41,7 +41,7 @@ type OneInSet =
     static member (+) (r1:OneInSet, r2:OneInSet) =
         {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not}
     static member (+) (_:OneInSet, _:Plain) =
-        raise (RegexException "not supported")
+        failwith "Unsupported RGX addition"
 
     static member Create r =
          {mainset= r; subtractset = ""; not = false}
@@ -96,7 +96,7 @@ type RGXType =
         match (r1,r2) with
         |   (OneInSet o1, OneInSet o2)  -> OneInSet(o1 - o2)
         |   (OneInSet o1,    Plain p1)  -> OneInSet(o1 - p1)
-        |   _   -> raise (RegexException "These cannot be subtracted")
+        |   _   -> failwith "Unsupported RGX subtraction"
 
     static member (+) (r1:RGXType, r2:RGXType) =
         match (r1,r2) with
@@ -107,7 +107,7 @@ type RGXType =
     member this.Not = 
         match this with
         |   OneInSet o1 ->  OneInSet(o1.Not())
-        |   _   -> raise (RegexException "Cannot invert this")
+        |   _   -> failwith "Unsupported Not-case"
 
 
 /// Regex pattern must repeat exactly given value, eg: Range(RGP("abc"), 2) := (abc){2}

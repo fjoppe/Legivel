@@ -418,7 +418,7 @@ let Short (message:byte array) (hash1:UInt64) (hash2:UInt64) =
             let c = c + sc_const
             let d = d + sc_const
             (a,b,c,d)
-        |   _  -> raise (Exception "Impossible error, righto. This loop is only for arrays with lengths lower than 16, and currently this isnot the case")
+        |   _  -> failwith "Impossible error, righto. This loop is only for arrays with lengths lower than 16, and currently this isnot the case"
 
     let rec mixitAll ((a:uint64), (b:uint64), (c:uint64), (d:uint64)) (remain:byte array) =
         match remain.Length with

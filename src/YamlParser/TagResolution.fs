@@ -201,7 +201,7 @@ module internal JSON =
             (fun s -> 
                     match s with
                     | Regex "null" _ -> "null"
-                    | _ -> raise (TagResolutionException (sprintf "Cannot convert to null: %s" s))
+                    | _ -> failwith (sprintf "Cannot convert to null: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -211,7 +211,7 @@ module internal JSON =
                 match s with
                 | Regex "true" _ -> "true"
                 | Regex "false" _ -> "false"
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to boolean: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -220,7 +220,7 @@ module internal JSON =
             (fun s ->
                 match s with
                 | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to integer: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -234,7 +234,7 @@ module internal JSON =
                     let fullMantissa = clearTrailingZeros (mantissa + prec)
                     let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
                     sprintf "%s0.%se%+04d" canSign fullMantissa canExp
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to float: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -246,7 +246,7 @@ module internal YamlCore =
             (fun s -> 
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> "~"
-                    | _ -> raise (TagResolutionException (sprintf "Cannot convert to null: %s" s))
+                    | _ -> failwith (sprintf "Cannot convert to null: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -256,7 +256,7 @@ module internal YamlCore =
                 match s with
                 | Regex "true|True|TRUE"    _ -> "true"
                 | Regex "false|False|FALSE" _ -> "false"
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to boolean: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -276,7 +276,7 @@ module internal YamlCore =
                     let ps = hs.Substring(2).ToUpper().ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 4) + (digitToValue  c)) 0
                     convertToCanonical "" ic
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to integer: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -294,7 +294,7 @@ module internal YamlCore =
                     let canSign = canonicalSign sign
                     sprintf "%s.inf" canSign
                 | Regex "^(\\.(nan|NaN|NAN))$" _ -> ".nan"
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to float: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -390,7 +390,7 @@ module internal YamlExtended =
             (fun s -> 
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> "~"
-                    | _ -> raise (TagResolutionException (sprintf "Cannot convert to null: %s" s))
+                    | _ -> failwith (sprintf "Cannot convert to null: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -400,7 +400,7 @@ module internal YamlExtended =
                 match s with
                 | Regex "y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON" _ -> "true"
                 | Regex "n|N|no|No|NO|false|False|FALSE|off|Off|OFF" _ -> "false"
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to boolean: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to boolean: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -430,7 +430,7 @@ module internal YamlExtended =
                     let ps = ss.Replace("_","").Split([|":"|], StringSplitOptions.RemoveEmptyEntries)
                     let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
                     convertToCanonical sign ic
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to integer: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to integer: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -459,7 +459,7 @@ module internal YamlExtended =
                     let canSign = canonicalSign sign
                     sprintf "%s.inf" canSign
                 | Regex "^(\.(nan|NaN|NAN))$" _ -> ".nan"
-                | _ -> raise (TagResolutionException (sprintf "Cannot convert to float: %s" s))
+                | _ -> failwith (sprintf "Cannot convert to float: %s" s)
             ), Failsafe.fsScalarTag
         )
 
@@ -542,7 +542,7 @@ let private tagResolution (mappingTags:GlobalTag list) (seqTags:GlobalTag list) 
             scalarTags
             |> List.tryFind(fun t -> t.IsMatch (nst.Content))
             |> Option.ifnone(Some (Failsafe.StringGlobalTag))
-    |   _ -> raise (TagResolutionException (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag))
+    |   _ -> failwith (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag)
 
     
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
@@ -565,7 +565,7 @@ let JSONSchema =
                 |   ("?", ScalarNode data) -> 
                     JSON.providedScalarTags  |> List.tryFind(fun t -> t.IsMatch (nst.Content))
                     |>  function
-                        |   None -> raise (TagResolutionException (sprintf "Unrecognized type for: %s" data.Data))
+                        |   None -> raise (TagResolutionException <| sprintf "Unrecognized type for: %s" data.Data)
                         |   x -> x
                 |   _ -> tagResolution [] [] JSON.providedScalarTags nst
             )

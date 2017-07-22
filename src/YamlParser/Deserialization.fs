@@ -1,8 +1,6 @@
 ﻿module Deserialization
 
 open RepresentationGraph
-open TagResolution
-
 
 let Deserialize (node:Node) (shorthands:TagShorthand list) =
     let indent l = [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
@@ -19,13 +17,6 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
         match lt with
         |   Global gt  -> strGlobal gt
         |   Unrecognized gt -> strGlobal gt
-//            shorthands
-//            |> List.tryFind(fun e -> gt.Uri.StartsWith(e.MappedTagUri)) 
-//            |> function
-//            |   Some mtg ->
-//                let rest = gt.Uri.Substring(mtg.MappedTagUri.Length) 
-//                mtg.ShortHand + rest
-//            |   None -> sprintf "!<%s>" gt.Uri
         |   Local       s -> s.Handle
         |   NonSpecific s -> s.Handle
     let rec convertToString n0 l =

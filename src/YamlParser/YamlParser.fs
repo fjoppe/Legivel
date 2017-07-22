@@ -1900,42 +1900,40 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   Regex2(p)  m -> Value(m.ge1, ps.SetRestString m.Rest)
                 |   _ -> NoResult
 
-            let cbh = (this.``c-b-block-header`` prs)
-            match cbh with
-            |   Value (pm, prs2) -> 
-                let m = match pm with
-                        |   Some(m) -> m
-                        |   None    ->
-                        match (``literal-content`` prs2) with
-                        |   Value(ms, _) ->  
-                            let split = ms |> this.``split by linefeed`` 
-                            let aut = split |> this.``auto detect indent in block`` prs2.n
-                            if aut < 0 then raise (ParseException "Lesser indented than expected")
-                            aut
-                        |   _  -> raise (ParseException "Could not detect indentation of literal block scalar after '|'")
-
-                match (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0)) with
-                |   Value(ms, ps2) ->  
-                    if ms = "" then
-                        let detectLessIndented = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
-                        match detectLessIndented with
-                        |   Value _ ->  ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrTooLessIndentedLiteral "The text is less indented than the indicated level."]
-                        |   _ ->        ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrBadFormatLiteral "The literal has bad syntax."]
-                    else
+            (this.``c-b-block-header`` prs)
+            |> FallibleOption.bind(fun (pm, prs2) ->
+                match pm with
+                |   Some(m) -> Value m
+                |   None    ->
+                    match (``literal-content`` prs2) with
+                    |   Value(ms, _) ->  
                         let split = ms |> this.``split by linefeed`` 
-                        split 
-                        |> trimIndent ps2
-                        |> FallibleOption.map(fun prs -> 
-                            let s = 
-                                prs
-                                |> this.``chomp lines`` ps2 
-                                |> this.``join lines``
-                            (s, ps2)
-                            )
-                |   x  -> x
-            |   NoResult -> NoResult    // this should not occur
-            |   ErrorResult e -> ErrorResult e 
-
+                        let aut = split |> this.``auto detect indent in block`` prs2.n
+                        if aut < 0 then failwith "Autodetected indentation is less than zero"
+                        Value aut
+                    |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '|'"]
+                |> FallibleOption.bind(fun m ->
+                    (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
+                    |> FallibleOption.bind(fun (ms, ps2) ->  
+                        if ms = "" then
+                            let detectLessIndented = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
+                            match detectLessIndented with
+                            |   Value _ ->  ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrTooLessIndentedLiteral "The text is less indented than the indicated level."]
+                            |   _ ->        ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrBadFormatLiteral "The literal has bad syntax."]
+                        else
+                            let split = ms |> this.``split by linefeed`` 
+                            split 
+                            |> trimIndent ps2
+                            |> FallibleOption.map(fun prs -> 
+                                let s = 
+                                    prs
+                                    |> this.``chomp lines`` ps2 
+                                    |> this.``join lines``
+                                (s, ps2)
+                                )
+                    )
+                )
+            )
         )
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+literal" ps
@@ -2005,33 +2003,32 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   Regex3(patt)  (m,p) -> Value(m.ge1, p)
                 |   _ -> NoResult
 
-            let cbh = (this.``c-b-block-header`` prs)
-            match cbh with
-            |   Value (pm, prs2) -> 
-                let m = match pm with
-                        |   Some(m) -> m
-                        |   None    ->
-                        match (``folded-content`` prs2) with
-                        |   Value(ms, _) ->  
-                            let split = ms |> this.``split by linefeed`` 
-                            let aut = split |> this.``auto detect indent in block`` prs2.n
-                            if aut < 0 then raise (ParseException "Lesser indented than expected")
-                            aut
-                        |   _  -> raise (ParseException "Could not detect indentation of literal block scalar after '>'")
-
-                (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
-                |> FallibleOption.map(fun (ms, ps2) -> 
-                    let s = 
-                        ms 
-                        |> this.``split by linefeed`` 
-                        |> ``block fold lines`` ps2
-                        |> this.``chomp lines`` ps2 
-                        |> this.``join lines``
-                    (s, ps2)
+            (this.``c-b-block-header`` prs)
+            |> FallibleOption.bind(fun (pm, prs2) -> 
+                match pm with
+                |   Some(m) -> Value m
+                |   None    ->
+                    match (``folded-content`` prs2) with
+                    |   Value(ms, _) ->  
+                        let split = ms |> this.``split by linefeed`` 
+                        let aut = split |> this.``auto detect indent in block`` prs2.n
+                        if aut < 0 then failwith "Autodetected indentation is less than zero"
+                        Value aut
+                    |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '>'"]
+                |> FallibleOption.bind(fun m ->
+                    (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
+                    |> FallibleOption.map(fun (ms, ps2) -> 
+                        let s = 
+                            ms 
+                            |> this.``split by linefeed`` 
+                            |> ``block fold lines`` ps2
+                            |> this.``chomp lines`` ps2 
+                            |> this.``join lines``
+                        (s, ps2)
+                    )
                 )
-            |   NoResult -> NoResult    // this should not occur
-            |   ErrorResult e -> ErrorResult e 
-        )
+            )
+         )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+folded" ps 
@@ -2066,7 +2063,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l+block-sequence`` (ps:ParseState) = 
         logger "l+block-sequence" ps
         let m = this.``auto detect indent in line`` ps
-        if m < 1 then NoResult // raise (ParseException "Incorrect indentation")
+        if m < 1 then NoResult
         else
             let rec ``l+block-sequence`` (psp:ParseState) (acc: Node list) =
                 let contentOrNone rs psr = 
@@ -2160,7 +2157,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l+block-mapping`` ps =
         logger "l+block-mapping" ps
         let m = this.``auto detect indent in line`` ps
-        if m < 1 then NoResult // raise (ParseException "Incorrect indentation")
+        if m < 1 then NoResult 
         else
             let rec ``l+block-mapping`` (psp:ParseState) (acc:(Node*Node) list) = 
                 let contentOrNone rs psr = 
@@ -2200,10 +2197,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value(ck, prs1) ->
             let noResult prs1 =
                 prs1 |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs2 -> Value((ck, this.ResolvedNullNode prs2), prs2))
-                |>  function
-                    |   ErrorResult _
-                    |   NoResult    ->  raise (ParseException "Cannot identify mapping value")
-                    |   v           ->  v
             match (this.``l-block-map-explicit-value`` prs1) with
             |   Value (cv, prs1) -> Value((ck, cv), prs1)
             |   NoResult  -> prs1 |> noResult
@@ -2416,7 +2409,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match ps.c with
         |   ``Block-out``   ->  ps.SetIndent (ps.n-1)
         |   ``Block-in``    ->  ps
-        |   _ ->    raise (ParseException "Case is not supported")
+        |   _ ->    failwith "Unsupported document style."
 
     //  [202]   http://www.yaml.org/spec/1.2/spec.html#l-document-prefix
     member this.``l-document-prefix`` = OPT(this.``c-byte-order-mark``) + ZOM(this.``l-comment``)
