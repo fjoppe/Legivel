@@ -98,7 +98,7 @@ module internal Failsafe =
                     for kt in dupLst do
                         let rf = kt.Head
                         for n in (kt |> List.skip 1) do
-                            yield MessageAtLine.Create (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
+                            yield MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
                     ]
                 ErrorResult errs
 
@@ -378,12 +378,12 @@ module internal YamlExtended =
                 |> Failsafe.validateDuplicateKeys n
             |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
         else
-            ErrorResult [MessageAtLine.Create (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+            ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
 
         
     let validateOrderedPairs (n:Node) =
         if (isMatchSequenceOfPairs n n.NodeTag) then Value n
-        else ErrorResult [MessageAtLine.Create (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+        else ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
 
     let NullGlobalTag =
         GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
@@ -497,7 +497,7 @@ module internal YamlExtended =
                 |> FallibleOption.bind(fun _ ->
                     if (hasNoValues nd.Data) then Value(n)
                     else 
-                        ErrorResult [MessageAtLine.Create (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+                        ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
                 )
             |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
 

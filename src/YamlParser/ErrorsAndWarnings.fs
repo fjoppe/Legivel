@@ -5,6 +5,7 @@ type MessageCode =
     //  the following errors are "cancelable", ie are returned as a potential error
     |   ErrPlainScalarRestrictedIndicator
     |   ErrPlainScalarMultiLine
+    |   ErrFoldedChompIndicator
     |   ErrTagKindMismatch
     |   ErrVerbatimTag
     |   ErrVerbatimTagNoLocal

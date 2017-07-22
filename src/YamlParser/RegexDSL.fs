@@ -58,6 +58,7 @@ type RGXType =
     |   ZeroOrMore of RGXType
     |   ZeroOrMoreNonGreedy of RGXType
     |   OneOrMore  of RGXType
+    |   OneOrMoreNonGreedy  of RGXType
     |   Optional   of RGXType
     |   Group      of RGXType
     override this.ToString() =
@@ -78,6 +79,7 @@ type RGXType =
         |   ZeroOrMore t -> sprintf "(?:%O)*" t
         |   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
         |   OneOrMore  t -> sprintf "(?:%O)+" t
+        |   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
         |   Optional   t -> sprintf "(?:%O)?" t
         |   Group      t -> sprintf "(%O)" t
     static member (|||) (r1:RGXType, r2:RGXType) =
@@ -119,8 +121,12 @@ let ZOM(t) = ZeroOrMore(t)
 
 /// Regex pattern may repeat zero or more - nongreedy, eg: ZOM(RGP("abc")) := (abc)*
 let ZOMNG(t) = ZeroOrMoreNonGreedy(t)
+
 /// Regex pattern may repeat once or more, eg: OOM(RGP("abc")) := (abc)+
 let OOM(t) = OneOrMore(t)
+
+/// Regex pattern may repeat once or more - non greedy, eg: OOM(RGP("abc")) := (abc)+
+let OOMNG(t) = OneOrMore(t)
 
 /// Make Regex optional, eg: OPT(RGP("abc")) := (abc)?
 let OPT(t) = Optional(t)

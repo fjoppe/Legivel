@@ -582,3 +582,34 @@ let ``Test reference non existend anchor - Rainy Day``() =
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Referenced anchor 'invalidanchor'")) |> List.length |> should be (greaterThan 0)
 
 
+[<Test>]
+let ``Test literal folded illegal chomping 1 - Rainy Day``() =
+    let err = YamlParseWithErrors "
+|=
+    never parsed
+"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test block folded illegal chomping 1 - Rainy Day``() =
+    let err = YamlParseWithErrors "
+>@
+    never parsed
+"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> should be (greaterThan 0)
+
+[<Test>]
+let ``Test block folded illegal chomping 2 - Rainy Day``() =
+    let err = YamlParseWithErrors "
+>@  # with comment
+    never parsed
+"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> should be (greaterThan 0)
+

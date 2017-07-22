@@ -98,7 +98,7 @@ module ParserMonads =
     open System.Diagnostics
 
     [<DebuggerStepThrough>]
-    type EitherBuilder<'a,'b,'c,'d>(context : 'c, addErr:'c->'b->'c) =
+    type EitherBuilder<'a,'b,'c,'d>(context : 'c, addErr:'c->'b->'c, contAfterErr: 'c-> bool) =
         member this.Yield (_ : 'd) : 'c * FallibleOption<'a,'b> = (context, NoResult)
 
         [<CustomOperation("setcontext")>]
@@ -108,19 +108,19 @@ module ParserMonads =
         member this.Either (((ct:'c), pv), nw) =
             match pv with
             |   Value v  -> (ct, Value v)
-            |   NoResult -> (ct, nw ct)
+            |   NoResult -> if contAfterErr ct then (ct, nw ct) else (ct,NoResult)
             |   ErrorResult e -> 
                 let ctn = addErr ct e
-                (ctn, nw ctn)
+                if contAfterErr ctn then (ctn, nw ctn) else (ctn,NoResult)
 
         [<CustomOperation("ifneither")>]
         member this.IfNeither (((ct:'c), pv), nw) = 
             match pv with
-            |   NoResult      -> (ct,nw)
+            |   NoResult      -> if contAfterErr ct then (ct,nw) else (ct,NoResult)
             |   Value v       -> (ct, Value v)
             |   ErrorResult e -> 
                 let ctn = addErr ct e            
-                (ctn,nw)
+                if contAfterErr ctn then (ctn,nw) else (ctn,NoResult)
 
 [<StructuredFormatDisplay("{AsString}")>]
 type    DocumentLocation = {
@@ -135,15 +135,23 @@ type    DocumentLocation = {
 
         override this.ToString() = sprintf "(l%d, c%d)" this.Line this.Column
         member m.AsString = m.ToString()
+
+
+type MessageAction =
+    |   Continue
+    |   Terminate
                         
 [<DebuggerDisplay("{this.DebuggerInfo}")>]
 type MessageAtLine = {
         Location: DocumentLocation
         Code    : MessageCode
+        Action  : MessageAction
         Message : string
     }
     with
-        static member Create dl cd s = {Location = dl; Code = cd; Message = s}
+        static member CreateContinue dl cd s = {Location = dl; Code = cd; Action = Continue; Message = s}
+        static member CreateTerminate dl cd s = {Location = dl; Code = cd; Action = Terminate; Message = s}
+
         member this.DebuggerInfo 
                     with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
 

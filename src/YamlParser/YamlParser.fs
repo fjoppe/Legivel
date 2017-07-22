@@ -137,6 +137,8 @@ type ParseState = {
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
             { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + (s.Length) }
 
+        static member HasNoTerminatingError (ps:ParseState) = ps.Messages.Error |> List.exists(fun m -> m.Action = Terminate) |> not
+
         member this.SetRestString s = { this with InputString = s }
         member this.AddAnchor s n =  {this with Anchors = this.Anchors.Add(s, n)}
 
@@ -165,8 +167,8 @@ type ParseState = {
                 let res = this.SetRestString(frs)
                 (res.TrackPosition mt).MarkParseRange this
             |   (false, _,_)    -> this
-
-        member  this.SetStyleContext cn = { this with c = cn}
+        
+        member this.SetStyleContext cn = { this with c = cn}
 
         member this.SetIndent nn = { this with n = nn}
 
@@ -176,7 +178,7 @@ type ParseState = {
 
         member this.SetChomping tn = { this with t = tn }
 
-        member inline this.OneOf with get() = EitherBuilder(this, ParseState.AddErrorMessageDel)
+        member inline this.OneOf with get() = EitherBuilder(this, ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
 
         member this.AddErrorMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddError s}
         member this.AddWarningMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddWarning s}
@@ -280,7 +282,7 @@ module ParseState =
     let IncUnrecognizedScalar (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Scalar = ps.TagReport.Unrecognized.Scalar + 1}}
     let IncUnrecognizedCollection (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Collection = ps.TagReport.Unrecognized.Collection + 1}}
 
-    let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel)
+    let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
     let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.InputString, patt)) with
         |   (true, mt, rest) -> ps |> AddCancelMessage (ps.Location) |> SetRestString rest |> TrackPosition mt |> postAdvanceFunc
@@ -491,7 +493,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.ResolveTag (ps:ParseState) tag tagLocation (node:Node) : FallibleOption<Node * ParseState, ErrorMessage> =
         let checkTagKindMatch t rs =
             if t.Kind = node.Kind then Value(rs)
-            else ErrorResult [MessageAtLine.Create (tagLocation) ErrTagKindMismatch (sprintf "Tag-kind mismatch, tag: %A, node: %A" (t.Kind) (node.Kind))]
+            else ErrorResult [MessageAtLine.CreateContinue (tagLocation) ErrTagKindMismatch (sprintf "Tag-kind mismatch, tag: %A, node: %A" (t.Kind) (node.Kind))]
 
         let ResolveNonSpecificTag nst = 
             TagResolutionInfo.Create nst (ps.NodePath) (node) (node.Kind)
@@ -501,7 +503,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   None -> 
                 let psunresvd = 
                     ps 
-                    |> ParseState.AddWarningMessage(MessageAtLine.Create (ps.Location) Freeform (sprintf "Cannot resolve tag: '%s'" nst))
+                    |> ParseState.AddWarningMessage(MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "Cannot resolve tag: '%s'" nst))
                     |> ParseState.IncUnresolved
                 Value(node, psunresvd)
 
@@ -537,7 +539,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 | Some tsh -> ResolveShorthand tsh sub
                 | None ->
                     let n = node.SetTag (NonSpecific.UnresolvedTag)
-                    let p = ps.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "The %s handle wasn't declared." name))
+                    let p = ps.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "The %s handle wasn't declared." name))
                     Value(n, p)
 
         match tag with
@@ -895,14 +897,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Regex2(``ns-yaml-directive``)  mt    -> 
                 let ps = 
                     match (mt.ge1.Split('.') |> List.ofArray) with
-                    | [a;b] when a="1" && b<"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
+                    | [a;b] when a="1" && b<"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
                     | [a;b] when a="1" && b="2" -> ps
-                    | [a;b] when a="1" && b>"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
-                    | [a;_] when a>"1"          -> ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "YAML %s document cannot be parsed, only YAML 1.2 is supported" mt.ge1))
-                    | _                         -> ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Illegal directive: %%YAML %s, document cannot be parsed" mt.ge1))
+                    | [a;b] when a="1" && b>"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
+                    | [a;_] when a>"1"          -> ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "YAML %s document cannot be parsed, only YAML 1.2 is supported" mt.ge1))
+                    | _                         -> ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "Illegal directive: %%YAML %s, document cannot be parsed" mt.ge1))
                 let ymlcnt = ps.Directives |> List.filter(function | YAML _ -> true | _ -> false) |> List.length
                 let ps = 
-                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform ("The YAML directive must only be given at most once per document.")))
+                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) Freeform ("The YAML directive must only be given at most once per document.")))
                     else ps
                 if ps.Errors >0 then
                     ErrorResult (ps.Messages.Error)
@@ -912,7 +914,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let tg = mt.ge2 |> fst
                 let ymlcnt = ps.Directives |> List.filter(function | TAG (t,_) ->  (t=tg) | _ -> false) |> List.length
                 let ps = 
-                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "The TAG directive must only be given at most once per handle in the same document: %s" tg)))
+                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "The TAG directive must only be given at most once per handle in the same document: %s" tg)))
                     else ps
                 if ps.Errors >0 then
                     ErrorResult (ps.Messages.Error)
@@ -922,9 +924,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     if System.Uri.IsWellFormedUriString(tagPfx, UriKind.Absolute) || IsMatch(tagPfx, lcTag) then
                         Value(TAG(mt.ge2),  ps.SetRestString (mt.Rest) |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
                     else
-                        let ps = (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg)))
+                        let ps = (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg)))
                         ErrorResult (ps.Messages.Error)
-            |   Regex2(``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Reserved directive will ignored: %%%s" mt.ge1)))
+            |   Regex2(``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "Reserved directive will ignored: %%%s" mt.ge1)))
             |   _   -> NoResult
         )
         |> FallibleOption.bind(fun (t,prs) ->
@@ -981,7 +983,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let illAnchor = OOM(this.``ns-char``)
                 match psr with
                 |   Regex3(this.``ns-anchor-name``) (mt,prs) -> Value(prs, mt.FullMatch)
-                |   Regex3(illAnchor) (mt,_) -> ErrorResult [MessageAtLine.Create (ps.Location) ErrAnchorSyntax (sprintf "Anchor has incorrect format: &%s" mt.FullMatch)]
+                |   Regex3(illAnchor) (mt,_) -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrAnchorSyntax (sprintf "Anchor has incorrect format: &%s" mt.FullMatch)]
                 |   _ -> NoResult
             )
             |> FallibleOption.map(fun (p,a) -> p,(a,pst.Location))
@@ -996,19 +998,19 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let illShorthandSecondary = this.``c-secondary-tag-handle`` 
             let shorthandPrimary = this.``c-primary-tag-handle``+ GRP(OOM(this.``ns-tag-char``))
             match pst with
-            |   Regex3(illVerbatimNoLocaltag) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrVerbatimTagNoLocal ("Verbatim tags aren't resolved, so ! is invalid.")]
+            |   Regex3(illVerbatimNoLocaltag) _ -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrVerbatimTagNoLocal ("Verbatim tags aren't resolved, so ! is invalid.")]
             |   Regex3(verbatim) (mt, prs) -> 
                 let tag = mt.ge1
                 let lcTag = this.``c-primary-tag-handle`` + OOM(this.``ns-tag-char``)
                 if System.Uri.IsWellFormedUriString(tag, UriKind.Absolute) || IsMatch(tag, lcTag) then
                     Value(prs, Verbatim mt.ge1)
                 else
-                    ErrorResult [MessageAtLine.Create (ps.Location) ErrVerbatimTagIncorrectFormat ("Verbatim tag is neither a local or global tag.")]                    
-            |   Regex3(illVerbatim) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrVerbatimTag ("Verbatim tag starting with '!<' is missing a closing '>'")]
+                    ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrVerbatimTagIncorrectFormat ("Verbatim tag is neither a local or global tag.")]                    
+            |   Regex3(illVerbatim) _ -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrVerbatimTag ("Verbatim tag starting with '!<' is missing a closing '>'")]
             |   Regex3(shorthandNamed) (mt, prs) -> Value(prs, ShortHandNamed mt.ge2)
-            |   Regex3(illShorthandNamed) (mt,_) -> ErrorResult [MessageAtLine.Create (ps.Location) ErrShorthandNamed (sprintf "The %s handle has no suffix." mt.FullMatch)]
+            |   Regex3(illShorthandNamed) (mt,_) -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrShorthandNamed (sprintf "The %s handle has no suffix." mt.FullMatch)]
             |   Regex3(shorthandSecondary) (mt, prs) -> Value(prs, ShortHandSecondary mt.ge1)
-            |   Regex3(illShorthandSecondary) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrShorthandSecondary "The !! handle has no suffix."]
+            |   Regex3(illShorthandSecondary) _ -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrShorthandSecondary "The !! handle has no suffix."]
             |   Regex3(shorthandPrimary) (mt, prs) -> Value(prs, ShortHandPrimary mt.ge1)
             |   Regex3(this.``c-non-specific-tag``) (_, prs) -> Value(prs, NonSpecificQT)
             |   _ -> NoResult
@@ -1081,7 +1083,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let retrievedAnchor = ps.GetAnchor mt
                 match retrievedAnchor with
                 |   Some ra -> Value(ra, prs2)
-                |   None    -> ErrorResult  [MessageAtLine.Create (ps.Location) ErrAnchorNotExists (sprintf "Referenced anchor '%s' is unknown." mt)]
+                |   None    -> ErrorResult  [MessageAtLine.CreateContinue (ps.Location) ErrAnchorNotExists (sprintf "Referenced anchor '%s' is unknown." mt)]
                
         ))
         |> ParseState.TrackParseLocation ps
@@ -1147,8 +1149,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
-        |   Regex3(``illegal-chars``) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrDquoteIllegalChars "Literal string contains illegal characters."]
-        |   Regex3(``illegal-patt``) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingDquote "Missing \" in string literal."]
+        |   Regex3(``illegal-chars``) _ -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrDquoteIllegalChars "Literal string contains illegal characters."]
+        |   Regex3(``illegal-patt``) _ -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrMissingDquote "Missing \" in string literal."]
         |   _ -> NoResult
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-double-quoted" ps        
@@ -1229,7 +1231,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 processSingleLine prs content
             | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
         |   Regex3(``illegal-patt``) _ ->
-            ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingSquote "Missing \' in string literal."]
+            ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrMissingSquote "Missing \' in string literal."]
         |   _ -> NoResult
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-single-quoted" ps        
@@ -1329,7 +1331,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 prs2 
                 |> ParseState.``Match and Advance`` (RGP "\]") (fun psx -> Value (c, psx))
                 |> FallibleOption.ifnoresult(fun () -> 
-                    ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.Create (prs2.Location) ErrMissingMappingSymbol "Incorrect sequence syntax, are you missing a comma, or ]?"])
+                    ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.CreateContinue (prs2.Location) ErrMissingMappingSymbol "Incorrect sequence syntax, are you missing a comma, or ]?"])
                 )
             |   NoResult        -> prs |> noResult
             |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(fun () -> ErrorResult e)
@@ -1393,7 +1395,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Value (c, prs2) -> 
                 prs2 
                 |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> Value(c, prs2))
-                |> FallibleOption.ifnoresult(fun () -> ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.Create (prs2.Location) ErrMissingMappingSymbol "Incorrect mapping syntax, are you missing a comma, or }?"]))
+                |> FallibleOption.ifnoresult(fun () -> ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.CreateContinue (prs2.Location) ErrMissingMappingSymbol "Incorrect mapping syntax, are you missing a comma, or }?"]))
             |   NoResult        -> prs |> noResult 
             |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(fun () -> ErrorResult e)
                
@@ -1613,7 +1615,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value (ck, prs) -> 
             let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
             if prs.TrackLength > 1024 then
-                ErrorResult [MessageAtLine.Create (ps.Location) ErrLengthExceeds1024 ("The mapping key is too long. The maximum allowed length is 1024.)")]
+                ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrLengthExceeds1024 ("The mapping key is too long. The maximum allowed length is 1024.)")]
             else Value(ck, prs)
         |   NoResult   -> NoResult
         |   ErrorResult e -> ErrorResult e
@@ -1628,7 +1630,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match (this.``c-flow-json-node`` (ps |> ParseState.ResetTrackLength |> ParseState.RestrictMultiLine)) with
         |   Value (c, prs) -> 
             if prs.TrackLength > 1024 then
-                ErrorResult [MessageAtLine.Create (ps.Location) ErrLengthExceeds1024 ("The mapping key is too long. The maximum allowed length is 1024.)")]
+                ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrLengthExceeds1024 ("The mapping key is too long. The maximum allowed length is 1024.)")]
             else 
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
                 Value(c, prs)
@@ -1651,7 +1653,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 | ``Block-key`` | ``Flow-key``  -> 
                     match ps with
                     |   Regex3(``illegl multiline`` ps) _ -> 
-                        ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarMultiLine ("This plain scalar cannot span multiple lines; this restrictin applies to mapping keys.")]
+                        ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrPlainScalarMultiLine ("This plain scalar cannot span multiple lines; this restrictin applies to mapping keys.")]
                     |   _ -> NoResult
                 | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
             else NoResult
@@ -1680,7 +1682,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> this.ValidateNode
                 | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
             |   Regex3(``illegal-ns-plain`` ps) (_,_) -> 
-                ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
+                ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
             |   _ -> NoResult
         | x -> x
         |> ParseState.ResetEnv ps 
@@ -1772,29 +1774,43 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   "-" -> ``Strip``
             |   "+" -> ``Keep``
             |   ""  -> ``Clip``
-            |   _ -> raise (ParseException(sprintf "Illegal chomp indicator '%s'" indicator))
+            |   _ -> failwith "Undetected illegal chomp indicator"
         let indent i = 
             if i = "" then None    
             else Some(Int32.Parse i)
 
-        let ``indent chomp`` ps : (int option * ParseState) option = 
+        let ``indent chomp`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
             let p = GRP(this.``c-indentation-indicator``) + GRP(this.``c-chomping-indicator``) + this.``s-b-comment``
             match ps.InputString with
             | Regex2(p)  mt -> 
                 let (i, c) = mt.ge2
-                Some(indent  i, (ps.SetRestString mt.Rest).SetChomping (chomp c))
-            |   _ -> None
-        let ``chomp indent`` ps : (int option * ParseState) option = 
+                Value(indent  i, (ps.SetRestString mt.Rest).SetChomping (chomp c))
+            |   _ -> NoResult
+
+        let ``chomp indent`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
             let p = GRP(this.``c-chomping-indicator``) + GRP(this.``c-indentation-indicator``) + this.``s-b-comment``
             match ps.InputString with
             | Regex2(p)  mt -> 
                 let (c, i) = mt.ge2
-                Some(indent  i, (ps.SetRestString mt.Rest).SetChomping (chomp c))
-            |   _ -> None
-        match (ps) with
-        |   Eval(``indent chomp``)  value -> value
-        |   Eval(``chomp indent``)  value -> value
-        |   _ ->    (None, ps.SetChomping ``Clip``)
+                Value(indent  i, (ps.SetRestString mt.Rest).SetChomping (chomp c))
+            |   _ -> NoResult
+
+        let ``illformed chomping`` ps : FallibleOption<int option * ParseState,ErrorMessage> =
+            let p = GRP(OOMNG(this.``nb-char``)) + this.``s-b-comment``
+            match ps.InputString with
+            | Regex2(p)  mt -> 
+                ErrorResult [MessageAtLine.CreateTerminate (ps.Location) ErrFoldedChompIndicator (sprintf "Illegal chomp indicator '%s'" (mt.ge1))]
+            |   _ -> NoResult
+
+        let nochomp = Value(None, ps.SetChomping ``Clip``)
+        (ps |> ParseState.OneOf) {
+            either(``indent chomp``)
+            either(``chomp indent``)
+            either(``illformed chomping``)
+            ifneither(nochomp)
+        }
+        |> ParseState.PreserveErrors ps
+        |> this.LogReturn "c-b-block-header" ps
 
     //  [163]   http://www.yaml.org/spec/1.2/spec.html#c-indentation-indicator(m)
     member this.``c-indentation-indicator`` = OPT(this.``ns-dec-digit``)
@@ -1847,7 +1863,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   h :: _ ->
                     let patt = this.``l-chomped-empty`` pst + RGP("\\z")
                     if (h="") || IsMatch(h, patt) then sout |> List.rev |> Value
-                    else raise (ParseException (sprintf "Unexpected characters"))
+                    else 
+                        ErrorResult [MessageAtLine.CreateTerminate (ps.Location) ErrBadFormatLiteral (sprintf "Unexpected characters '%s'" h)]                    
 
             let rec trimMain sin sout =
                 match sin with
@@ -1871,7 +1888,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         let tooManySpaces = RGSF((this.``s-indent(n)`` pst) + OOM(RGP this.``s-space``))
                         match h with
                         |   Regex(``l-empty``)  _ -> trimHead rest (unIndent h :: sout)
-                        |   Regex(tooManySpaces) _ -> ErrorResult [MessageAtLine.Create (pst.Location) ErrTooManySpacesLiteral "A leading all-space line must not have too many spaces."]
+                        |   Regex(tooManySpaces) _ -> ErrorResult [MessageAtLine.CreateContinue (pst.Location) ErrTooManySpacesLiteral "A leading all-space line must not have too many spaces."]
                         |   _ -> trimMain sin sout
             trimHead slist []
 
@@ -1882,37 +1899,43 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match ps.InputString  with
                 |   Regex2(p)  m -> Value(m.ge1, ps.SetRestString m.Rest)
                 |   _ -> NoResult
-            let (pm, prs2) = (this.``c-b-block-header`` prs)
-            let m = match pm with
-                    |   Some(m) -> m
-                    |   None    ->
-                    match (``literal-content`` prs2) with
-                    |   Value(ms, _) ->  
-                        let split = ms |> this.``split by linefeed`` 
-                        let aut = split |> this.``auto detect indent in block`` prs2.n
-                        if aut < 0 then raise (ParseException "Lesser indented than expected")
-                        aut
-                    |   _  -> raise (ParseException "Could not detect indentation of literal block scalar after '|'")
 
-            match (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0)) with
-            |   Value(ms, ps2) ->  
-                if ms = "" then
-                    let detectLessIndented = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
-                    match detectLessIndented with
-                    |   Value _ ->  ErrorResult [MessageAtLine.Create (ps2.Location) ErrTooLessIndentedLiteral "The text is less indented than the indicated level."]
-                    |   _ ->        ErrorResult [MessageAtLine.Create (ps2.Location) ErrBadFormatLiteral "The literal has bad syntax."]
-                else
-                    let split = ms |> this.``split by linefeed`` 
-                    split 
-                    |> trimIndent ps2
-                    |> FallibleOption.map(fun prs -> 
-                        let s = 
-                            prs
-                            |> this.``chomp lines`` ps2 
-                            |> this.``join lines``
-                        (s, ps2)
-                        )
-            |   x  -> x
+            let cbh = (this.``c-b-block-header`` prs)
+            match cbh with
+            |   Value (pm, prs2) -> 
+                let m = match pm with
+                        |   Some(m) -> m
+                        |   None    ->
+                        match (``literal-content`` prs2) with
+                        |   Value(ms, _) ->  
+                            let split = ms |> this.``split by linefeed`` 
+                            let aut = split |> this.``auto detect indent in block`` prs2.n
+                            if aut < 0 then raise (ParseException "Lesser indented than expected")
+                            aut
+                        |   _  -> raise (ParseException "Could not detect indentation of literal block scalar after '|'")
+
+                match (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0)) with
+                |   Value(ms, ps2) ->  
+                    if ms = "" then
+                        let detectLessIndented = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
+                        match detectLessIndented with
+                        |   Value _ ->  ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrTooLessIndentedLiteral "The text is less indented than the indicated level."]
+                        |   _ ->        ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrBadFormatLiteral "The literal has bad syntax."]
+                    else
+                        let split = ms |> this.``split by linefeed`` 
+                        split 
+                        |> trimIndent ps2
+                        |> FallibleOption.map(fun prs -> 
+                            let s = 
+                                prs
+                                |> this.``chomp lines`` ps2 
+                                |> this.``join lines``
+                            (s, ps2)
+                            )
+                |   x  -> x
+            |   NoResult -> NoResult    // this should not occur
+            |   ErrorResult e -> ErrorResult e 
+
         )
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+literal" ps
@@ -1981,28 +2004,33 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match ps with
                 |   Regex3(patt)  (m,p) -> Value(m.ge1, p)
                 |   _ -> NoResult
-            let (pm, prs2) = (this.``c-b-block-header`` prs)
-            let m = match pm with
-                    |   Some(m) -> m
-                    |   None    ->
-                    match (``folded-content`` prs2) with
-                    |   Value(ms, _) ->  
-                        let split = ms |> this.``split by linefeed`` 
-                        let aut = split |> this.``auto detect indent in block`` prs2.n
-                        if aut < 0 then raise (ParseException "Lesser indented than expected")
-                        aut
-                    |   _  -> raise (ParseException "Could not detect indentation of literal block scalar after '>'")
 
-            (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
-            |> FallibleOption.map(fun (ms, ps2) -> 
-                let s = 
-                    ms 
-                    |> this.``split by linefeed`` 
-                    |> ``block fold lines`` ps2
-                    |> this.``chomp lines`` ps2 
-                    |> this.``join lines``
-                (s, ps2)
-            )
+            let cbh = (this.``c-b-block-header`` prs)
+            match cbh with
+            |   Value (pm, prs2) -> 
+                let m = match pm with
+                        |   Some(m) -> m
+                        |   None    ->
+                        match (``folded-content`` prs2) with
+                        |   Value(ms, _) ->  
+                            let split = ms |> this.``split by linefeed`` 
+                            let aut = split |> this.``auto detect indent in block`` prs2.n
+                            if aut < 0 then raise (ParseException "Lesser indented than expected")
+                            aut
+                        |   _  -> raise (ParseException "Could not detect indentation of literal block scalar after '>'")
+
+                (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
+                |> FallibleOption.map(fun (ms, ps2) -> 
+                    let s = 
+                        ms 
+                        |> this.``split by linefeed`` 
+                        |> ``block fold lines`` ps2
+                        |> this.``chomp lines`` ps2 
+                        |> this.``join lines``
+                    (s, ps2)
+                )
+            |   NoResult -> NoResult    // this should not occur
+            |   ErrorResult e -> ErrorResult e 
         )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
@@ -2488,7 +2516,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (this.``l-any-document``))
                         either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (fun psr -> if (IsEndOfStream psr) then Value(noResultNode, psr) else Value(quitNode, psr))) // for missing ``l-any-document``; which is optional
                         either (ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (this.``l-explicit-document``))
-                        ifneither(ErrorResult [MessageAtLine.Create (ps.Location) Freeform "Incorrect Syntax, this content cannot be related to previous document structure."])
+                        ifneither(ErrorResult [MessageAtLine.CreateContinue (ps.Location) Freeform "Incorrect Syntax, this content cannot be related to previous document structure."])
                     }
                     |> ParseState.PreserveErrors ps
                     |> ParseState.PostProcessErrors
