@@ -56,6 +56,7 @@
     <Compile Include="TestSchema.fs" />
     <Compile Include="TestStringScalars.fs" />
     <Compile Include="TestStuctures.fs" />
+    <Compile Include="Test Directives.fs" />
     <None Include="FailFast Scalar.fsx" />
     <None Include="FailFast LineFolding.fsx" />
     <None Include="FailFast LineFolding2.fsx" />

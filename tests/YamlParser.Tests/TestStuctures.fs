@@ -569,3 +569,16 @@ let ``Test YamlExtended set rainy day - set assigned - equality - reordered``() 
 "
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test reference non existend anchor - Rainy Day``() =
+    let err = YamlParseWithErrors "
+    -   first
+    -   *invalidanchor
+    "
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Referenced anchor 'invalidanchor'")) |> List.length |> should be (greaterThan 0)
+
+

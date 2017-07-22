@@ -831,7 +831,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | ``Block-in``  ->  this.``s-block-line-prefix`` ps
         | ``Flow-out``  ->  this.``s-flow-line-prefix`` ps
         | ``Flow-in``   ->  this.``s-flow-line-prefix`` ps
-        | _             ->  raise(ParseException "The context 'block-key' and 'flow-key' are not supported at this point")
+        | _             ->  failwith "The context 'block-key' and 'flow-key' are not supported at this point"
 
     //  [68]    http://www.yaml.org/spec/1.2/spec.html#s-block-line-prefix(n)
     member this.``s-block-line-prefix`` ps = this.``s-indent(n)`` ps
@@ -923,7 +923,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         Value(TAG(mt.ge2),  ps.SetRestString (mt.Rest) |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
                     else
                         let ps = (ps |> ParseState.AddErrorMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg)))
-                        raise (DocumentException ps)
+                        ErrorResult (ps.Messages.Error)
             |   Regex2(``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (MessageAtLine.Create (ps.Location) Freeform (sprintf "Reserved directive will ignored: %%%s" mt.ge1)))
             |   _   -> NoResult
         )
@@ -1081,7 +1081,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let retrievedAnchor = ps.GetAnchor mt
                 match retrievedAnchor with
                 |   Some ra -> Value(ra, prs2)
-                |   None    -> NoResult //raise (ParseException (sprintf "Referenced anchor '%s' is unknown in line %d" s this.LineNumber))
+                |   None    -> ErrorResult  [MessageAtLine.Create (ps.Location) ErrAnchorNotExists (sprintf "Referenced anchor '%s' is unknown." mt)]
+               
         ))
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-alias-node" ps
@@ -1145,7 +1146,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     processMultiLine prs content
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
-            | _  ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+            | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
         |   Regex3(``illegal-chars``) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrDquoteIllegalChars "Literal string contains illegal characters."]
         |   Regex3(``illegal-patt``) _ -> ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingDquote "Missing \" in string literal."]
         |   _ -> NoResult
@@ -1159,7 +1160,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | ``Flow-in``   ->  this.``nb-double-multi-line`` ps
         | ``Block-key`` ->  this.``nb-double-one-line``
         | ``Flow-key``  ->  this.``nb-double-one-line``
-        | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+        | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [111]   http://www.yaml.org/spec/1.2/spec.html#nb-double-one-line
     member this.``nb-double-one-line`` = ZOM(this.``nb-double-char``)
@@ -1226,7 +1227,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     processMultiLine prs content
             |   ``Block-key`` | ``Flow-key`` -> //  single line
                 processSingleLine prs content
-            | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+            | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
         |   Regex3(``illegal-patt``) _ ->
             ErrorResult [MessageAtLine.Create (ps.Location) ErrMissingSquote "Missing \' in string literal."]
         |   _ -> NoResult
@@ -1241,7 +1242,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   ``Flow-in``     -> this.``nb-single-multi-line`` ps
         |   ``Block-key``   -> this.``nb-single-one-line``
         |   ``Flow-key``    -> this.``nb-single-one-line``
-        | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+        | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [122]   http://www.yaml.org/spec/1.2/spec.html#nb-single-one-line    
     member this.``nb-single-one-line`` = ZOM(this.``nb-single-char``)
@@ -1268,7 +1269,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   ``Flow-in``     -> this.``ns-plain-safe-in``
         |   ``Block-key``   -> this.``ns-plain-safe-out``
         |   ``Flow-key``    -> this.``ns-plain-safe-in``
-        | _             ->  raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+        | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [128]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe-out
     member this.``ns-plain-safe-out`` = this.``ns-char``
@@ -1287,7 +1288,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         | ``Flow-in``   -> this.``ns-plain-multi-line`` ps
         | ``Block-key`` -> this.``ns-plain-one-line`` ps
         | ``Flow-key``  -> this.``ns-plain-one-line`` ps
-        | _              -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+        | _              -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [132]   http://www.yaml.org/spec/1.2/spec.html#nb-ns-plain-in-line(c)
     member this.``nb-ns-plain-in-line`` ps = ZOM(ZOM(this.``s-white``) + (this.``ns-plain-char`` ps))
@@ -1308,7 +1309,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   ``Flow-in``  -> ``Flow-in``
         |   ``Block-key``-> ``Flow-key``
         |   ``Flow-key`` -> ``Flow-key``
-        | _              -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+        | _              -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
     member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncResult<_> =
@@ -1652,7 +1653,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |   Regex3(``illegl multiline`` ps) _ -> 
                         ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarMultiLine ("This plain scalar cannot span multiple lines; this restrictin applies to mapping keys.")]
                     |   _ -> NoResult
-                | _  -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+                | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
             else NoResult
 
         match preErr with
@@ -1677,7 +1678,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.ValidateNode
-                | _  -> raise(ParseException "The context 'block-out' and 'block-in' are not supported at this point")
+                | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
             |   Regex3(``illegal-ns-plain`` ps) (_,_) -> 
                 ErrorResult [MessageAtLine.Create (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
             |   _ -> NoResult

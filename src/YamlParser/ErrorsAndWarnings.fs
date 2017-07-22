@@ -12,6 +12,7 @@ type MessageCode =
     |   ErrShorthandNamed
     |   ErrShorthandSecondary
     |   ErrAnchorSyntax
+    |   ErrAnchorNotExists
     |   ErrMapDuplicateKey
     |   ErrTagSyntax
     |   ErrTooManySpacesLiteral
