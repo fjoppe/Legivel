@@ -255,3 +255,17 @@ let ``Test YamlExtended Integer - Rainy Day``() =
         Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
     )
 
+
+[<Test>]
+let ``Test YamlExtended Timestamp - Sunny Day``() =
+    [
+        ("2001-12-15 2:59:43.10",           "2001-12-15T02:59:43.10Z")
+        ("2002-12-14",                      "2002-12-14T00:00:00.0Z")
+        ("2001-12-14t21:59:43.10-05:00",    "2001-12-14T21:59:43.10-05:00")
+        ("2001-12-14 21:59:43.10 -5",       "2001-12-14T21:59:43.10-05:00")
+    ]
+    |> List.iter(fun (input, expect) ->
+        YamlExtended.TimestampGlobalTag.Canonical input |> should equal expect
+        let node = YamlParseForSchema YamlExtendedSchema input
+        Some [node] |> ExtractTag |> should equal YamlExtended.TimestampGlobalTag.Uri
+    )

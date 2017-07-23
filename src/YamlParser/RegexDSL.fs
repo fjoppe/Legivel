@@ -249,6 +249,5 @@ let DecodeEncodedEscapedCharacters value =
             | _ -> sprintf "\\%s" m.Groups.["Value"].Value
         ))
 
-[<DebuggerStepThrough>]
-let (|Eval|_|)  func x = func x
+
 

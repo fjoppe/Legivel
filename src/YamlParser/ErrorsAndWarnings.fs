@@ -16,6 +16,7 @@ type MessageCode =
     |   ErrAnchorNotExists
     |   ErrMapDuplicateKey
     |   ErrTagSyntax
+    |   ErrTagBadFormat
     |   ErrTooManySpacesLiteral
     |   ErrTooLessIndentedLiteral
     |   ErrBadFormatLiteral

@@ -54,6 +54,21 @@ let private clearTrailingZeros (s:string) =
 
 
 module internal Failsafe =
+    let getMapNode (n:Node) =
+        match n with
+        |   MapNode n ->  n.Data 
+        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting a Map Node"
+
+    let getSeqNode (n:Node) =
+        match n with
+        |   SeqNode n ->  n.Data 
+        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting e Seq Node"
+
+    let getScalarNode (n:Node) =
+        match n with
+        |   ScalarNode n ->  n.Data 
+        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting a Scalar Node"
+
     let areUnorderedMappingsEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
         n1.Kind = n2.Kind &&
@@ -68,14 +83,11 @@ module internal Failsafe =
         |   _ -> false
 
     let getUnorderedMappingHash (n:Node) =
-        match n with
-        |   MapNode n ->  
-            (lazy(n.Data 
-                  |> List.map(fun (k,_) -> k.Hash)
-                  |> List.sort
-                  |> NodeHash.Merge)
-            )
-        |   _    -> failwith "Tag-kind mismatch between node and tag"
+        (lazy(getMapNode n
+                |> List.map(fun (k,_) -> k.Hash)
+                |> List.sort
+                |> NodeHash.Merge)
+        )
 
     let findDuplicateKeys (nlst: Node list) =
         let areEqual (nl:Node list) (n: Node) =
@@ -86,7 +98,6 @@ module internal Failsafe =
         |> List.map(snd)
         |> List.map(fun nl -> if (nl |> List.forall(fun n -> areEqual nl n)) then nl else [])
         |> List.filter(fun kl -> kl.Length > 1)
-
 
     let validateDuplicateKeys n (nlst: Node list) =
         nlst
@@ -104,11 +115,8 @@ module internal Failsafe =
 
 
     let validateMappingForDuplicateKeys (n: Node) =
-        match n with
-        |   MapNode nd ->  
-            let lrv = nd.Data
-            lrv |> List.map(fst) |> validateDuplicateKeys n
-        |   _    -> failwith "Tag-kind mismatch between node and tag"
+            getMapNode n |> List.map(fst) |> validateDuplicateKeys n
+
 
     let areUnorderedSequencesEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
@@ -124,14 +132,11 @@ module internal Failsafe =
         |   _ -> false
 
     let getUnorderedSeqenceHash (n:Node) = 
-        match n with
-        |   SeqNode n ->  
-            (lazy(n.Data 
-                  |> List.map(fun e -> e.Hash)
-                  |> List.sort
-                  |> NodeHash.Merge)
-            )
-        |   _    -> failwith "Tag-kind mismatch between node and tag"
+        (lazy(getSeqNode n
+                |> List.map(fun e -> e.Hash)
+                |> List.sort
+                |> NodeHash.Merge)
+        )
 
     let isUnorderedSequenceValid (n: Node) = Value(n)
 
@@ -145,10 +150,7 @@ module internal Failsafe =
             (mn1.Tag.CanonFn (mn1.Data)) = (mn2.Tag.CanonFn (mn2.Data))
         |   _ -> false
 
-    let getScalarHash (n:Node) = 
-        match n with
-        |   ScalarNode n ->  (lazy(NodeHash.Create (n.Data)))
-        |   _    -> failwith "Tag-kind mismatch between node and tag"
+    let getScalarHash (n:Node) = (lazy(NodeHash.Create (getScalarNode n)))
 
     let isScalarValid (n: Node) = Value(n)
 
@@ -157,10 +159,10 @@ module internal Failsafe =
         |   ScalarNode nd ->  IsMatch (nd.Data, t.Regex)
         |   _    -> false
 
-    let isNoMatch _ _ = false
+    let neverMatches _ _ = false
 
-    let fsMappingTag = TagFunctions.Create areUnorderedMappingsEqual getUnorderedMappingHash validateMappingForDuplicateKeys isNoMatch
-    let fsSequenceTag = TagFunctions.Create areUnorderedSequencesEqual getUnorderedSeqenceHash isUnorderedSequenceValid isNoMatch
+    let fsMappingTag = TagFunctions.Create areUnorderedMappingsEqual getUnorderedMappingHash validateMappingForDuplicateKeys neverMatches
+    let fsSequenceTag = TagFunctions.Create areUnorderedSequencesEqual getUnorderedSeqenceHash isUnorderedSequenceValid neverMatches
     let fsScalarTag = TagFunctions.Create areScalarsEqual getScalarHash isScalarValid isScalarMatch
 
 
@@ -188,6 +190,7 @@ module internal Failsafe =
     let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar, fsScalarTag )
 
     let providedTags = [MappingGlobalTag; SequenceGlobalTag; StringGlobalTag]
+
 
 module internal NonSpecific =
     let NonSpecificTagQT = TagKind.NonSpecific {Handle ="!"; LocalTag =Failsafe.localtagFunctions}
@@ -304,11 +307,7 @@ module internal YamlExtended =
 
     let getPairs nl =
         nl
-        |> List.map(fun n ->
-            match n with
-            |   MapNode nd ->  nd.Data
-            |   _ -> failwith "YamlParser defect: Expecting MapNode."
-        )
+        |> List.map(Failsafe.getMapNode)
         |>  List.concat
 
     let getKeysFromPairs nl =
@@ -336,14 +335,11 @@ module internal YamlExtended =
 
 
     let getOrderedMappingHash (n:Node) =
-        match n with
-        |   SeqNode nd ->  
-            (lazy(nd.Data 
-                |> getKeysFromPairs
-                |> List.map(fun k -> k.Hash)
-                |> NodeHash.Merge)
-            )
-        |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
+        (lazy(Failsafe.getSeqNode n
+            |> getKeysFromPairs
+            |> List.map(fun k -> k.Hash)
+            |> NodeHash.Merge)
+        )
 
 
     let isMatchSequenceOfPairs (n:Node) t = 
@@ -365,18 +361,16 @@ module internal YamlExtended =
                 |>  function
                     | []    -> true
                     |   _   -> false
+            |   _   -> false
         else
             false
 
 
     let validateOrderedMappings (n:Node) =
         if (isMatchSequenceOfPairs n n.NodeTag) then
-            match n with
-            |   SeqNode nd ->
-                nd.Data 
-                |> getKeysFromPairs 
-                |> Failsafe.validateDuplicateKeys n
-            |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
+            (Failsafe.getSeqNode n)
+            |> getKeysFromPairs 
+            |> Failsafe.validateDuplicateKeys n
         else
             ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
 
@@ -463,6 +457,29 @@ module internal YamlExtended =
             ), Failsafe.fsScalarTag
         )
 
+    let TimestampGlobalTag = 
+        let validateTimestamp n =
+            let (isValid,str) = 
+                let nd = Failsafe.getScalarNode n
+                (DateTime.TryParse(nd) |> fst), nd
+            if isValid then Value n 
+            else 
+                ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Timestamp has incorrect format: %s" str)]
+
+        GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]|[0-9][0-9][0-9][0-9]-[0-9][0-9]?-[0-9][0-9]?([Tt]|[ \t]+)[0-9][0-9]?:[0-9][0-9]:[0-9][0-9](\.[0-9]*)?(([ \t]*)Z|[-+][0-9][0-9]?(:[0-9][0-9])?)?",
+            (fun s -> 
+                let canon y mo d h mi s fr tz = sprintf "%04d-%02d-%02dT%02d:%02d:%02d.%d%s" y mo d h mi s fr tz
+                let ToInt s = int("0"+s)
+
+                match s with
+                | Regex "^([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])$" [year; month; day] ->
+                    canon (ToInt year) (ToInt month) (ToInt day) 0 0 0 0 "Z"
+                | Regex "^([0-9][0-9][0-9][0-9])-([0-9][0-9]?)-([0-9][0-9]?)(?:[Tt]|[ \t]+)([0-9][0-9]?):([0-9][0-9]):([0-9][0-9])(?:\.([0-9]*))?(?:(?:[ \t]*)Z|([-+][0-9][0-9])?(?::([0-9][0-9]))?)?$" [year; month; day; hour; min; sec; fraction; tzzero; tzoffset] -> 
+                    canon (ToInt year) (ToInt month) (ToInt day) (ToInt hour) (ToInt min) (ToInt sec) (ToInt fraction) "Z"
+                | _ -> failwith (sprintf "Cannot convert to timestamp: %s" s)
+            ), { Failsafe.fsScalarTag with IsValid = validateTimestamp}
+        )
+
     let isMatchUnorderedSet (n:Node) t = 
         let hasNoDuplicates nd =
             nd
@@ -491,15 +508,12 @@ module internal YamlExtended =
             |> List.forall(fun (v:Node) -> v.NodeTag = Global NullGlobalTag)
         if isMatchUnorderedSet n (n.NodeTag) then Value(n)
         else
-            match n with
-            |   MapNode nd -> 
-                Failsafe.validateMappingForDuplicateKeys n
-                |> FallibleOption.bind(fun _ ->
-                    if (hasNoValues nd.Data) then Value(n)
-                    else 
-                        ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
-                )
-            |   _    -> failwith "YamlParser defect: Tag-kind mismatch between node and tag"
+            Failsafe.validateMappingForDuplicateKeys n
+            |> FallibleOption.bind(fun _ ->
+                if (hasNoValues (Failsafe.getMapNode n)) then Value(n)
+                else 
+                    ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+            )
 
     let yeOrderedMappingTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMappings isMatchSequenceOfMappings
     let yeOrderedPairsTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedPairs isMatchSequenceOfPairs
@@ -517,7 +531,7 @@ module internal YamlExtended =
    
     //  order is important, !!pairs is a superset of !!omap
     let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag]
-    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag;NullGlobalTag]
+    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag]
     let providedMappingTags = [UnOrderedSetGlobalTag]
 
 
