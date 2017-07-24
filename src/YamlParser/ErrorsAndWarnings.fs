@@ -17,6 +17,7 @@ type MessageCode =
     |   ErrMapDuplicateKey
     |   ErrTagSyntax
     |   ErrTagBadFormat
+    |   ErrTagConstraint
     |   ErrTooManySpacesLiteral
     |   ErrTooLessIndentedLiteral
     |   ErrBadFormatLiteral

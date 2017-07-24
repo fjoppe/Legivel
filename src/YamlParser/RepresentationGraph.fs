@@ -28,14 +28,14 @@ type TagFunctions = {
         /// Retrieve the hash of the specified node
         GetHash     : Node -> Lazy<NodeHash>
 
-        /// true if the node is valid; called after node construction and tag resolution
-        IsValid     : Node -> FallibleOption<Node, ErrorMessage>
+        /// Called after node construction and tag resolution
+        PostProcessAndValidateNode     : Node -> FallibleOption<Node, ErrorMessage>
 
         /// true if the Node is a match for the specified tag
         IsMatch     : Node -> GlobalTag -> bool
     }
     with
-        static member Create eq hs vl ismt = { AreEqual = eq; GetHash = hs; IsValid = vl; IsMatch = ismt}
+        static member Create eq hs vl ismt = { AreEqual = eq; GetHash = hs; PostProcessAndValidateNode = vl; IsMatch = ismt}
 
 
 and 
@@ -71,7 +71,7 @@ and
 
         member this.AreEqual n1 n2 = this.TagFunctions.AreEqual n1 n2
         member this.GetHash n = this.TagFunctions.GetHash n
-        member this.IsValid n = this.TagFunctions.IsValid n
+        member this.PostProcessAndValidateNode n = this.TagFunctions.PostProcessAndValidateNode n
         member this.IsMatch n = this.TagFunctions.IsMatch n this
 
         member this.Canonical s = this.canonFn s
@@ -143,13 +143,21 @@ and
             |   Local        lt -> lt.LocalTag.GetHash n
             |   NonSpecific  lt -> lt.LocalTag.GetHash n
 
-        member this.IsValid n =
+        member this.PostProcessAndValidateNode n =
             match this with
-            |   Global       gt -> gt.IsValid n
-            |   Unrecognized gt -> gt.IsValid n
+            |   Global       gt -> gt.PostProcessAndValidateNode n
+            |   Unrecognized gt -> gt.PostProcessAndValidateNode n
             // local tags are checked by the application, so always valid here
             |   Local        _  -> Value(n) 
             |   NonSpecific  _  -> Value(n)
+
+        member this.Uri 
+            with get() =
+                match this with
+                |   Global       gt -> sprintf "%s" gt.Uri
+                |   Unrecognized gt -> sprintf "%s" gt.Uri
+                |   Local        ls -> sprintf "%s" ls.Handle
+                |   NonSpecific  ls -> sprintf "%s" ls.Handle
 
         member this.CanonFn =
             match this with

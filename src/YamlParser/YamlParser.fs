@@ -412,7 +412,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let prs = addAnchor anchor content prs
                 content
                 |> this.ResolveTag prs tag tl 
-                |> this.ValidateNode
+                |> this.PostProcessAndValidateNode
             )
         |   NoResult        -> NoResult
         |   ErrorResult e   -> ErrorResult e
@@ -553,41 +553,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Verbatim name   -> ResolveLocalTag name
         |   TagKind.Empty   -> Value(node,ps)
 
-    member this.ValidateNode (fn : FallibleOption<Node * ParseState, ErrorMessage>) =
+    member this.PostProcessAndValidateNode (fn : FallibleOption<Node * ParseState, ErrorMessage>) =
         match fn with
-        |   Value (n,ps) -> n.NodeTag.IsValid n |> FallibleOption.map(fun n -> (n,ps))
+        |   Value (n,ps) -> n.NodeTag.PostProcessAndValidateNode n |> FallibleOption.map(fun n -> (n,ps))
         |   x -> x
 
     member this.ResolvedNullNode (ps:ParseState) =  
         (this.ResolveTag ps NonSpecificQM (ps.Location) (PlainEmptyNode (getParseInfo ps ps))).Data |> fst // should never be None
-
-//    member this.CreatMapOrReportDuplicateKeys lst crMap =
-//        let areEqual (nl:Node list) (n: Node) =
-//            if nl.Length = 0 then false
-//            else n.NodeTag.AreEqual (nl.Head) n
-//        let findDuplicateKeys (nlst: (Node*Node) list) =
-//            nlst 
-//            |> List.map(fst)
-//            |> List.groupBy(fun k -> k.Hash, k.NodeTag)
-//            |> List.map(snd)
-//            |> List.map(fun nl -> if (nl |> List.forall(fun n -> areEqual nl n)) then nl else [])
-//            |> List.filter(fun kl -> kl.Length > 1)
-//            |> function
-//                |   []  -> None
-//                |   x   -> Some(x)
-//
-//        let lrv = (lst |> List.rev) 
-//        let duplicates = lrv |> findDuplicateKeys
-//        match duplicates with
-//        |   None -> crMap lrv
-//        |   Some(dupLst) ->
-//            let errs = [
-//                for kt in dupLst do
-//                    let rf = kt.Head
-//                    for n in (kt |> List.skip 1) do
-//                        yield MessageAtLine.Create (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
-//                ]
-//            ErrorResult errs
 
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
@@ -1122,7 +1094,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> convertDQuoteEscapedSingleLine
             |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.ValidateNode
+            |> this.PostProcessAndValidateNode
 
         let processMultiLine prs content =
             content 
@@ -1130,7 +1102,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.``double quote flowfold lines`` ps
             |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.ValidateNode
+            |> this.PostProcessAndValidateNode
 
         let patt = (RGP "\"") + GRP(this.``nb-double-text`` ps) + (RGP "\"")
         let ``illegal-chars`` = (RGP "\"") + OOM(this.``nb-json`` ||| this.``s-double-break`` ps) + (RGP "\"")
@@ -1204,7 +1176,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> convertSQuoteEscapedSingleLine
             |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.ValidateNode
+            |> this.PostProcessAndValidateNode
 
         let processMultiLine prs content =
             content 
@@ -1212,7 +1184,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.``single quote flowfold lines`` ps
             |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.ValidateNode
+            |> this.PostProcessAndValidateNode
 
         let patt = (RGP "'") + GRP(this.``nb-single-text`` ps) + (RGP "'")
         let ``illegal-patt`` = (RGP "'") + GRP(this.``nb-single-text`` ps) 
@@ -1323,7 +1295,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 prs |> ParseState.``Match and Advance`` (RGP "\]") (fun psx -> 
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psx) [] 
                     |> this.ResolveTag psx NonSpecificQM (prs.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
                     )
 
             match (this.``ns-s-flow-seq-entries`` prs) with
@@ -1349,7 +1321,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 else 
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) lst 
                     |> this.ResolveTag psr NonSpecificQM (psr.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
 
             match (this.``ns-flow-seq-entry`` psp) with
             |   Value (entry, prs) ->
@@ -1361,7 +1333,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   _ ->  
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
             |   NoResult        -> psp |> noResult NoResult
             |   ErrorResult e   -> psp |> ParseState.AddErrorMessageList e |> noResult (ErrorResult e)
         ``ns-s-flow-seq-entries`` ps []
@@ -1413,7 +1385,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 else
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) lst 
                     |> this.ResolveTag psr NonSpecificQM (psr.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
 
             match (this.``ns-flow-map-entry`` psp) with
             |   Value ((ck, cv), prs) ->
@@ -1425,7 +1397,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   _ -> 
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst  
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
             |   NoResult -> psp |> noResult NoResult
             |   ErrorResult e -> psp |> ParseState.AddErrorMessageList e |> noResult (ErrorResult e)
 
@@ -1673,13 +1645,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> this.``plain flow fold lines`` prs
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
 
                 | ``Block-key`` | ``Flow-key``  -> 
                     mt.FullMatch
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
                 | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
             |   Regex3(``illegal-ns-plain`` ps) (_,_) -> 
                 ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
@@ -2071,7 +2043,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     else 
                         CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
                         |> this.ResolveTag psp NonSpecificQM (psp.Location)
-                        |> this.ValidateNode
+                        |> this.PostProcessAndValidateNode
 
                 (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``c-l-block-seq-entry``)
                 |>  function
@@ -2139,7 +2111,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 else 
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
                     |> this.ResolveTag psr NonSpecificQM (psr.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
             
             psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
             |>  function
@@ -2165,7 +2137,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     else 
                         CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
                         |> this.ResolveTag psr NonSpecificQM (psr.Location)
-                        |> this.ValidateNode
+                        |> this.PostProcessAndValidateNode
 
                 (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
                 |>  function
@@ -2288,7 +2260,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 else 
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) acc 
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
 
             psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``ns-l-block-map-entry``)
             |>  function
@@ -2349,7 +2321,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
                 let mapScalar (s, prs) = 
                     Value(CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s), prs)
-                    |> this.ValidateNode
+                    |> this.PostProcessAndValidateNode
                 (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
                     {
                         either   (this.``c-l+literal`` >> FallibleOption.bind mapScalar)
@@ -2362,7 +2334,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let mapScalar (s, prs) = 
                 CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s) 
                 |> this.ResolveTag prs NonSpecificQT (prs.Location)
-                |> this.ValidateNode
+                |> this.PostProcessAndValidateNode
             (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
                 {
                     either(this.``content with properties`` ``literal or folded``)

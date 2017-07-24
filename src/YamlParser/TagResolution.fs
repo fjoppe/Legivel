@@ -138,7 +138,7 @@ module internal Failsafe =
                 |> NodeHash.Merge)
         )
 
-    let isUnorderedSequenceValid (n: Node) = Value(n)
+    let validateUnorderedSequence (n: Node) = Value(n)
 
     let areScalarsEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
@@ -162,7 +162,7 @@ module internal Failsafe =
     let neverMatches _ _ = false
 
     let fsMappingTag = TagFunctions.Create areUnorderedMappingsEqual getUnorderedMappingHash validateMappingForDuplicateKeys neverMatches
-    let fsSequenceTag = TagFunctions.Create areUnorderedSequencesEqual getUnorderedSeqenceHash isUnorderedSequenceValid neverMatches
+    let fsSequenceTag = TagFunctions.Create areUnorderedSequencesEqual getUnorderedSeqenceHash validateUnorderedSequence neverMatches
     let fsScalarTag = TagFunctions.Create areScalarsEqual getScalarHash isScalarValid isScalarMatch
 
 
@@ -175,7 +175,7 @@ module internal Failsafe =
         GlobalTag.Create (DecodeEncodedUriHexCharacters(tagstr), nodeKind, tf)
 
 
-    let localTagsAreEqual n1 n2 = true
+    let localTagsAreEqual _ _ = true
 
     let localTagsGetHash (n:Node) =
         match n with
@@ -188,6 +188,13 @@ module internal Failsafe =
     let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping, fsMappingTag)
     let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence, fsSequenceTag)
     let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar, fsScalarTag )
+
+
+    let defaultFailSafeResolution nst =
+        match nst.NodeKind with
+        |   Mapping -> Some MappingGlobalTag
+        |   Sequence-> Some SequenceGlobalTag
+        |   Scalar  -> Some StringGlobalTag
 
     let providedTags = [MappingGlobalTag; SequenceGlobalTag; StringGlobalTag]
 
@@ -342,7 +349,7 @@ module internal YamlExtended =
         )
 
 
-    let isMatchSequenceOfPairs (n:Node) t = 
+    let isMatchSequenceOfPairs (n:Node) _ = 
         let isSinglularMapping (ns:Node) =
             match ns with
             |   MapNode nd ->  nd.Data.Length = 1
@@ -351,7 +358,7 @@ module internal YamlExtended =
         |   SeqNode nd -> nd.Data |> List.forall(isSinglularMapping)
         |   _    -> false
 
-    let isMatchSequenceOfMappings (n:Node) t = 
+    let isMatchSequenceOfMappings (n:Node) _ = 
         if (isMatchSequenceOfPairs n n.NodeTag) then
             match n with
             |   SeqNode nd ->
@@ -501,10 +508,10 @@ module internal YamlExtended =
                 ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Timestamp has incorrect format: %s" str)]
 
         GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, RGSF(rgtimestamp),
-            (timestampToCanonical), { Failsafe.fsScalarTag with IsValid = validateTimestamp}
+            (timestampToCanonical), { Failsafe.fsScalarTag with PostProcessAndValidateNode = validateTimestamp}
         )
 
-
+    //  http://yaml.org/type/value.html
     let ValueGlobalTag =
         //  this tag only marks !!value, no logic; a native constuctor could/should effect this
         GlobalTag.Create("tag:yaml.org,2002:value", Scalar, "=",
@@ -515,8 +522,18 @@ module internal YamlExtended =
             ), Failsafe.fsScalarTag
         )
 
+    //  http://yaml.org/type/merge.html
+    let MergeGlobalTag =
+        //  this tag only marks !!merge, the !!map should effect this
+        GlobalTag.Create("tag:yaml.org,2002:merge", Scalar, "<<",
+            (fun s -> 
+                    match s with
+                    | Regex "<<" _ -> "<<"
+                    | _ -> failwith (sprintf "Cannot convert to merge: %s" s)
+            ), Failsafe.fsScalarTag
+        )
 
-    let isMatchUnorderedSet (n:Node) t = 
+    let isMatchUnorderedSet (n:Node) _ = 
         let hasNoDuplicates nd =
             nd
             |> List.map(fst)
@@ -551,55 +568,117 @@ module internal YamlExtended =
                     ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
             )
 
-    let yeOrderedMappingTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMappings isMatchSequenceOfMappings
-    let yeOrderedPairsTag = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedPairs isMatchSequenceOfPairs
-    let yeUnorderedSetTag = TagFunctions.Create Failsafe.areUnorderedMappingsEqual Failsafe.getUnorderedMappingHash validateUnorderedSet isMatchUnorderedSet
+    let orderedMappingTagFuncs = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMappings isMatchSequenceOfMappings
+    let orderedPairsTagFuncs = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedPairs isMatchSequenceOfPairs
+    let unorderedSetTagFuncs = TagFunctions.Create Failsafe.areUnorderedMappingsEqual Failsafe.getUnorderedMappingHash validateUnorderedSet isMatchUnorderedSet
 
     //  http://yaml.org/type/omap.html
-    let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", Sequence, yeOrderedMappingTag)
+    let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", Sequence, orderedMappingTagFuncs)
 
     //  http://yaml.org/type/pairs.html
-    let OrderedPairsGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:pairs", Sequence, yeOrderedPairsTag)
+    let OrderedPairsGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:pairs", Sequence, orderedPairsTagFuncs)
 
     //  http://yaml.org/type/set.html
-    let UnOrderedSetGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:set", Mapping, yeUnorderedSetTag)
+    let UnOrderedSetGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:set", Mapping, unorderedSetTagFuncs)
+
+    let  mergeAndValidateMapping n = 
+        let (mn,rn) = (Failsafe.getMapNode n) |> List.partition(fun (k,_) -> k.NodeTag.Uri = MergeGlobalTag.Uri)
+
+        let rec merge mlst reslst =
+            let mergeMapNode nd rs =
+                let nodesToMerge =
+                    nd |>  List.filter(fun (km:Node,_) -> reslst |> List.exists(fun (kr:Node,_) -> kr.NodeTag.AreEqual kr km) |> not)
+                nodesToMerge @ rs
+            match mlst with
+            |   []  -> reslst |> List.rev |> Value
+            |   h :: tl -> 
+                match h with
+                |   MapNode nd ->   mergeMapNode nd.Data reslst |> merge tl
+                |   SeqNode nd -> 
+                    nd.Data |> List.filter(fun n -> n.Kind <> NodeKind.Mapping)
+                    |>  function
+                        |   []   -> 
+                            nd.Data
+                            |>  List.map(Failsafe.getMapNode)
+                            |>  List.fold(fun s i -> mergeMapNode i s) reslst
+                            |>  merge tl
+                        |   frs    -> 
+                            frs
+                            |> List.map(fun fn -> MessageAtLine.CreateTerminate (fn.ParseInfo.Start) ErrTagConstraint (sprintf "Incorrect Node type at position: %s, << should map to a sequece of mapping nodes, other types are not allowed in the sequence." (h.ParseInfo.Start.ToPrettyString())))
+                            |> ErrorResult
+                |   ScalarNode _ -> ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot map to a scalar, at position: %s, << should map to a mapping node, or a sequence of mappings." (h.ParseInfo.Start.ToPrettyString()))]
+
+        merge (mn |> List.map(fun (_,v) -> v)) (rn |> List.rev)
+        |>  FallibleOption.bind(fun ml -> 
+            match n with
+            |   MapNode nd -> Failsafe.validateMappingForDuplicateKeys (MapNode {nd with Data = ml})
+            |   _   -> failwith "Expecting a mapping node"
+        )
+        
+
+    let validateMapping n = 
+        (Failsafe.getMapNode n) |> List.map(fun (k,v) -> v) |> List.filter(fun n -> n.NodeTag.Uri = MergeGlobalTag.Uri)
+        |>  function
+            |   []  -> mergeAndValidateMapping n
+            |   ml  ->
+                ml
+                |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot be used in a mapping value, at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
+                |>  ErrorResult
+            
+        
+    let validateSequence n = 
+        (Failsafe.getSeqNode n |> List.filter(fun n -> n.NodeTag.Uri = MergeGlobalTag.Uri)) 
+        |>  function
+            |   []  -> Failsafe.validateUnorderedSequence n
+            |   ml  ->
+                ml
+                |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot be used in the sequence at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
+                |>  ErrorResult
+
+    let YEMappingGlobalTag = { Failsafe.MappingGlobalTag with TagFunctions = { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }}
+    let YESequenceGlobalTag = { Failsafe.MappingGlobalTag with TagFunctions = { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }}
+
+    let YEFailSafeResolution nst =
+        match nst.NodeKind with
+        |   Mapping -> Some YEMappingGlobalTag
+        |   Sequence-> Some YESequenceGlobalTag
+        |   Scalar  -> Some Failsafe.StringGlobalTag
 
    
     //  order is important, !!pairs is a superset of !!omap
-    let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag]
-    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag; ValueGlobalTag]
-    let providedMappingTags = [UnOrderedSetGlobalTag]
+    let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag; YESequenceGlobalTag]
+    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag; ValueGlobalTag; MergeGlobalTag; Failsafe.StringGlobalTag]
+    let providedMappingTags = [UnOrderedSetGlobalTag;YEMappingGlobalTag]
 
 
-let private tagResolution (mappingTags:GlobalTag list) (seqTags:GlobalTag list) (scalarTags:GlobalTag list) : TagResolutionFunc = fun nst -> 
+let private tagResolution (failsafe:TagResolutionInfo->GlobalTag option) (fsMap, fsSeq, fsScal) (mappingTags:GlobalTag list) (seqTags:GlobalTag list) (scalarTags:GlobalTag list) : TagResolutionFunc = fun nst -> 
     match nst.NonSpecificTag with
-    |   "!" ->
-        match nst.NodeKind with
-        |   Mapping -> Some Failsafe.MappingGlobalTag
-        |   Sequence-> Some Failsafe.SequenceGlobalTag
-        |   Scalar  -> Some Failsafe.StringGlobalTag
+    |   "!" -> failsafe nst
     |   "?" ->  
         match nst.Content with
         |   MapNode _ -> 
             mappingTags
             |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-            |> Option.ifnone(Some Failsafe.MappingGlobalTag)
+            |> Option.ifnone(Some fsMap)
         |   SeqNode _ -> 
             seqTags
             |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-            |> Option.ifnone(Some Failsafe.SequenceGlobalTag)
+            |> Option.ifnone(Some fsSeq)
         |   ScalarNode _ -> 
             scalarTags
             |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-            |> Option.ifnone(Some (Failsafe.StringGlobalTag))
+            |> Option.ifnone(Some fsScal)
     |   _ -> failwith (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag)
 
-    
+
+let private tagResolutionWithDefaultFailsafe = 
+    tagResolution Failsafe.defaultFailSafeResolution (Failsafe.MappingGlobalTag, Failsafe.SequenceGlobalTag, Failsafe.StringGlobalTag)
+
 //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
 let FailsafeSchema =
     {
         GlobalTags = Failsafe.providedTags
-        TagResolution = tagResolution [] [] []
+        TagResolution = tagResolutionWithDefaultFailsafe [] [] []
         UnresolvedResolution = Failsafe.getUnresolvedTag
         LocalTags = Failsafe.localtagFunctions
     }
@@ -617,7 +696,7 @@ let JSONSchema =
                     |>  function
                         |   None -> raise (TagResolutionException <| sprintf "Unrecognized type for: %s" data.Data)
                         |   x -> x
-                |   _ -> tagResolution [] [] JSON.providedScalarTags nst
+                |   _ -> tagResolutionWithDefaultFailsafe [] [] JSON.providedScalarTags nst
             )
         UnresolvedResolution = Failsafe.getUnresolvedTag
         LocalTags = Failsafe.localtagFunctions
@@ -627,16 +706,18 @@ let JSONSchema =
 let YamlCoreSchema =
     {
         GlobalTags = Failsafe.providedTags @ YamlCore.providedScalarTags
-        TagResolution = tagResolution [] [] YamlCore.providedScalarTags
+        TagResolution = tagResolutionWithDefaultFailsafe [] [] YamlCore.providedScalarTags
         UnresolvedResolution = Failsafe.getUnresolvedTag
         LocalTags = Failsafe.localtagFunctions
     }
 
 
 let YamlExtendedSchema =
+    let tagResolutionYamlExtended = tagResolution YamlExtended.YEFailSafeResolution (YamlExtended.YEMappingGlobalTag, YamlExtended.YESequenceGlobalTag, Failsafe.StringGlobalTag)
     {
-        GlobalTags = Failsafe.providedTags @ YamlExtended.providedScalarTags @ YamlExtended.providedSeqTags @ YamlExtended.providedMappingTags
-        TagResolution = tagResolution YamlExtended.providedMappingTags YamlExtended.providedSeqTags YamlExtended.providedScalarTags
+        //  note that failsafe tags are overriden in this schema        
+        GlobalTags = YamlExtended.providedScalarTags @ YamlExtended.providedSeqTags @ YamlExtended.providedMappingTags
+        TagResolution = tagResolutionYamlExtended YamlExtended.providedMappingTags YamlExtended.providedSeqTags YamlExtended.providedScalarTags
         UnresolvedResolution = Failsafe.getUnresolvedTag
         LocalTags = Failsafe.localtagFunctions
     }
