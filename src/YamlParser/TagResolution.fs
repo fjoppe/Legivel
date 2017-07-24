@@ -458,26 +458,50 @@ module internal YamlExtended =
         )
 
     let TimestampGlobalTag = 
+        let rgyear = Repeat(RGO("0-9"),4)
+        let rgmonth = RGO("0-9") + OPT(RGO("0-9"))
+        let rgmonthf = Repeat(RGO("0-9"),2)
+        let rgday = RGO("0-9") + OPT(RGO("0-9"))
+        let rgdayf = Repeat(RGO("0-9"),2)
+        let rgdate = (GRP rgyear) + RGP("-") + (GRP rgmonth) + RGP("-") + (GRP rgday)
+        let rgdatef = (GRP rgyear) + RGP("-") + (GRP rgmonthf) + RGP("-") + (GRP rgdayf)
+        let rghour = RGO("0-9") + OPT(RGO("0-9"))
+        let rgmin = Repeat(RGO "0-9", 2)
+        let rgsec = Repeat(RGO "0-9", 2)
+        let rgfrac= ZOM(RGO "0-9")
+        let rgtime = (GRP rghour) + RGP(":") + (GRP rgmin) + RGP(":") + (GRP rgsec) + OPT(RGP("\.") + GRP(rgfrac))
+        let rgztimez = RGP("Z")
+        let rgdtimez = (RGO "-+") + rghour + OPT(RGP(":") + rgmin)
+        let rgws = ZOM(RGO " \t")
+ 
+        let rgISO8601 = rgdate + OPT(((RGO "Tt") ||| OOM(rgws)) + rgtime + OPT(rgws + GRP((rgztimez ||| rgdtimez))))
+        let rgtimestamp = rgdate ||| rgISO8601
+
+        let timestampToCanonical s =
+            let canon y mo d h mi s fr tz = sprintf "%04d-%02d-%02dT%02d:%02d:%02d.%d%s" y mo d h mi s fr tz
+            let ToInt s = int("0"+s)
+
+            match s with
+            | Regex (RGSF rgdatef) [_; year; month; day] ->
+                let dt = DateTime.Parse(canon (ToInt year) (ToInt month) (ToInt day) 0 0 0 0 "Z")
+                dt.ToUniversalTime().ToString("o")
+            | Regex(RGSF rgISO8601)  [_; year; month; day; hour; min; sec; fraction; tz] -> 
+                let tzc = if tz = "" then "Z" else tz
+                let dt = DateTime.Parse(canon (ToInt year) (ToInt month) (ToInt day) (ToInt hour) (ToInt min) (ToInt sec) (ToInt fraction) tzc)
+                dt.ToUniversalTime().ToString("o")
+            | _ -> failwith (sprintf "Cannot convert to timestamp: %s" s)
+
         let validateTimestamp n =
             let (isValid,str) = 
                 let nd = Failsafe.getScalarNode n
-                (DateTime.TryParse(nd) |> fst), nd
+                let str = timestampToCanonical nd
+                (DateTime.TryParse(str) |> fst), nd
             if isValid then Value n 
             else 
                 ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Timestamp has incorrect format: %s" str)]
 
-        GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]|[0-9][0-9][0-9][0-9]-[0-9][0-9]?-[0-9][0-9]?([Tt]|[ \t]+)[0-9][0-9]?:[0-9][0-9]:[0-9][0-9](\.[0-9]*)?(([ \t]*)Z|[-+][0-9][0-9]?(:[0-9][0-9])?)?",
-            (fun s -> 
-                let canon y mo d h mi s fr tz = sprintf "%04d-%02d-%02dT%02d:%02d:%02d.%d%s" y mo d h mi s fr tz
-                let ToInt s = int("0"+s)
-
-                match s with
-                | Regex "^([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])$" [year; month; day] ->
-                    canon (ToInt year) (ToInt month) (ToInt day) 0 0 0 0 "Z"
-                | Regex "^([0-9][0-9][0-9][0-9])-([0-9][0-9]?)-([0-9][0-9]?)(?:[Tt]|[ \t]+)([0-9][0-9]?):([0-9][0-9]):([0-9][0-9])(?:\.([0-9]*))?(?:(?:[ \t]*)Z|([-+][0-9][0-9])?(?::([0-9][0-9]))?)?$" [year; month; day; hour; min; sec; fraction; tzzero; tzoffset] -> 
-                    canon (ToInt year) (ToInt month) (ToInt day) (ToInt hour) (ToInt min) (ToInt sec) (ToInt fraction) "Z"
-                | _ -> failwith (sprintf "Cannot convert to timestamp: %s" s)
-            ), { Failsafe.fsScalarTag with IsValid = validateTimestamp}
+        GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, RGSF(rgtimestamp),
+            (timestampToCanonical), { Failsafe.fsScalarTag with IsValid = validateTimestamp}
         )
 
     let isMatchUnorderedSet (n:Node) t = 
