@@ -4,6 +4,7 @@ open NUnit.Framework
 open FsUnit
 open TagResolution
 open RepresentationGraph
+open YamlParser
 open YamlParser.Internals
 open TestUtils
 
@@ -269,4 +270,17 @@ let ``Test YamlExtended Timestamp - Sunny Day``() =
         let node = YamlParseForSchema YamlExtendedSchema input
         Some [node] |> ExtractTag |> should equal YamlExtended.TimestampGlobalTag.Uri
     )
+
+
+[<Test>]
+let ``Test YamlExtended value sunny day - value detected``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+link with:
+  - = : library1.dll
+    version: 1.2"
+    
+    let ypath = "//{#'link with'}?/[]/{#'='}"
+    let pth = YamlPath.Create ypath
+    yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.ValueGlobalTag.Uri
+
 

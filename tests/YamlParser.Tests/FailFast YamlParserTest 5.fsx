@@ -74,28 +74,12 @@ let YamlParseList s =
 
 
 YamlParse "
-|=
-    hi
+link with:
+  - = : library1.dll
+    version: 1.2
+  - = : library2.dll
+    version: 2.3
 "
 
-
-YamlParseList "# A document may be null.
----
----
-# This mapping has four keys,
-# one has a value.
-empty:
-canonical: ~
-english: null
-~: null key
----
-# This sequence has five
-# entries, two have values.
-sparse:
-  - ~
-  - 2nd entry
-  -
-  - 4th entry
-  - Null"
 
 System.Int32.Parse("")

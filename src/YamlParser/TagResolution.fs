@@ -504,6 +504,18 @@ module internal YamlExtended =
             (timestampToCanonical), { Failsafe.fsScalarTag with IsValid = validateTimestamp}
         )
 
+
+    let ValueGlobalTag =
+        //  this tag only marks !!value, no logic; a native constuctor could/should effect this
+        GlobalTag.Create("tag:yaml.org,2002:value", Scalar, "=",
+            (fun s -> 
+                    match s with
+                    | Regex "=" _ -> "="
+                    | _ -> failwith (sprintf "Cannot convert to value: %s" s)
+            ), Failsafe.fsScalarTag
+        )
+
+
     let isMatchUnorderedSet (n:Node) t = 
         let hasNoDuplicates nd =
             nd
@@ -555,7 +567,7 @@ module internal YamlExtended =
    
     //  order is important, !!pairs is a superset of !!omap
     let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag]
-    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag]
+    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag; ValueGlobalTag]
     let providedMappingTags = [UnOrderedSetGlobalTag]
 
 
