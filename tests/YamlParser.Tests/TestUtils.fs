@@ -89,7 +89,7 @@ let YamlParseForSchemaWithErrors sch s =
         let crrp = repr.Head
         match crrp with
         |   NoRepresentation nr -> 
-            nr.Error.Length |> should greaterThan 0
+            nr.Error.Length |> should be (greaterThan 0)
             nr
         |   _ -> failwith "Unexpected return type"
 

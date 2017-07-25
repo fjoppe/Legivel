@@ -282,27 +282,32 @@ module ParseState =
     let IncUnrecognizedScalar (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Scalar = ps.TagReport.Unrecognized.Scalar + 1}}
     let IncUnrecognizedCollection (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Collection = ps.TagReport.Unrecognized.Collection + 1}}
 
+
     let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
     let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.InputString, patt)) with
         |   (true, mt, rest) -> ps |> AddCancelMessage (ps.Location) |> SetRestString rest |> TrackPosition mt |> postAdvanceFunc
         |   (false, _, _)    -> NoResult
 
+
     let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
         match (HasMatches(ps.InputString, patt)) with
         |   (true, mt, rest) -> ps |> SetRestString rest |> TrackPosition mt |> parseFunc mt
         |   (false, _, _)    -> NoResult
 
+
+    let ProcessErrors (ps:ParseState) =
+        let freeForm = ps.Messages.Error   |> List.filter(fun m -> m.Code = Freeform)     |> List.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
+        let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform && m.Location <> ps.Location)   |> List.distinct
+        let filteredErrors = 
+            cancelable 
+            |> List.filter(fun m -> not(ps.Messages.Cancel |> List.exists(fun k -> m.Location = k)))
+        {ps with Messages = {ps.Messages with Error = freeForm @ filteredErrors; Cancel = []}}
+
+
     let PostProcessErrors fr =
-        fr |> FallibleOption.map(fun (node, ps:ParseState) ->
-            let freeForm = ps.Messages.Error   |> List.filter(fun m -> m.Code = Freeform)     |> List.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
-            let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform && m.Location <> ps.Location)   |> List.distinct
-            let filteredErrors = 
-                cancelable 
-                |> List.filter(fun m -> not(ps.Messages.Cancel |> List.exists(fun k -> m.Location = k)))
-            let psr = {ps with Messages = {ps.Messages with Error = freeForm @ filteredErrors; Cancel = []}}
-            (node,psr)
-        )
+        fr |> FallibleOption.map(fun (node, ps:ParseState) ->(node,ProcessErrors ps))
+
 
     let ToRepresentation (pso:ParseState) no =
         let mal2pm (ml:MessageAtLine list) = (ml |> List.map(fun w -> ParseMessageAtLine.Create (w.Location) (w.Message)))
@@ -2039,11 +2044,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
         else
             let rec ``l+block-sequence`` (psp:ParseState) (acc: Node list) =
                 let contentOrNone rs psr = 
-                    if (acc.Length = 0) then rs
-                    else 
-                        CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
-                        |> this.ResolveTag psp NonSpecificQM (psp.Location)
-                        |> this.PostProcessAndValidateNode
+                    if (ParseState.HasNoTerminatingError psr) then
+                        if (acc.Length = 0) then rs
+                        else 
+                            CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
+                            |> this.ResolveTag psp NonSpecificQM (psp.Location)
+                            |> this.PostProcessAndValidateNode
+                    else
+                        let prsc = psr |> ParseState.ProcessErrors
+                        ErrorResult (prsc.Messages.Error)
 
                 (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``c-l-block-seq-entry``)
                 |>  function
@@ -2133,11 +2142,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
         else
             let rec ``l+block-mapping`` (psp:ParseState) (acc:(Node*Node) list) = 
                 let contentOrNone rs psr = 
-                    if (acc.Length = 0) then rs
-                    else 
-                        CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
-                        |> this.ResolveTag psr NonSpecificQM (psr.Location)
-                        |> this.PostProcessAndValidateNode
+                    if (ParseState.HasNoTerminatingError psr) then
+                        if (acc.Length = 0) then rs
+                        else 
+                            CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
+                            |> this.ResolveTag psr NonSpecificQM (psr.Location)
+                            |> this.PostProcessAndValidateNode
+                    else
+                        let prsc = psr |> ParseState.ProcessErrors
+                        ErrorResult (prsc.Messages.Error)
 
                 (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
                 |>  function

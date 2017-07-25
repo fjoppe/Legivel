@@ -284,3 +284,82 @@ link with:
     yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.ValueGlobalTag.Uri
 
 
+[<Test>]
+let ``Test YamlExtended merge sunny day``() =
+    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+---
+- &CENTER { x: 1, ! y: 2 }
+- &LEFT { x: 0, ! y: 2 }
+- &BIG { r: 10 }
+- &SMALL { r: 1 }
+
+# All the following maps are equal:
+
+- first: # Explicit keys
+      x: 1
+      ! y: 2
+      r: 10
+      label: center/big
+
+  second: # Merge one map
+      << : *CENTER
+      r: 10
+      label: center/big
+
+  third: # Merge multiple maps
+      << : [ *CENTER, *BIG ]
+      label: center/big
+
+  fourth: # Override
+      << : [  *BIG, *LEFT, *SMALL ]  #  
+      x: 1
+      label: center/big
+"
+    let x = YamlPath.Create "//{#'x'}?"
+    let y = YamlPath.Create "//{#'y'}?"
+    let r = YamlPath.Create "//{#'r'}?"
+    let label = YamlPath.Create "//{#'label'}?"
+
+    ["first"; "second"; "third"; "fourth"]
+    |>  List.iter(fun k ->
+        let ypath = sprintf "//[]/{#'%s'}?" k
+        let pth = YamlPath.Create ypath
+        let root = yml |> pth.Select |> Option.get
+        root |> List.length |> should equal 1
+        
+        root.Head |> x.Select |> ToScalar |> should equal "1"
+        root.Head |> y.Select |> ToScalar |> should equal "2"
+        root.Head |> r.Select |> ToScalar |> should equal "10"
+        root.Head |> label.Select |> ToScalar |> should equal "center/big"
+    )
+[<Test>]
+let ``Test YamlExtended merge rainy day - cannot use << in seq``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "[1,2, << ]"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Merge tag or << cannot be used in the sequence")) |> List.length |> should equal 1
+
+[<Test>]
+let ``Test YamlExtended merge sunny day - can use << in seq with !``() =
+    YamlParseForSchema TagResolution.YamlExtendedSchema "[1,2, ! << ]" |> ignore
+    // no exception..
+
+[<Test>]
+let ``Test YamlExtended merge rainy day - cannot merge non-mappings in seq``() =
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+---
+- &CENTER { x: 1, ! y: 2 }
+- &LEFT { x: 0, ! y: 2 }
+- &BIG { r: 10 }
+- &SMALL { r: 1 }
+
+# All the following maps are equal:
+
+- # Sequence contains scalar
+    << : [ *CENTER, *BIG, invalid value ]
+    label: center/big    
+"
+
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Incorrect Node type")) |> List.length |> should equal 1
+

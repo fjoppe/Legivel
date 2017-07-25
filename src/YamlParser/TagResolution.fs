@@ -524,7 +524,7 @@ module internal YamlExtended =
 
     //  http://yaml.org/type/merge.html
     let MergeGlobalTag =
-        //  this tag only marks !!merge, the !!map should effect this
+        //  this tag only marks !!merge, the !!map tag should effect this
         GlobalTag.Create("tag:yaml.org,2002:merge", Scalar, "<<",
             (fun s -> 
                     match s with
@@ -586,8 +586,9 @@ module internal YamlExtended =
 
         let rec merge mlst reslst =
             let mergeMapNode nd rs =
-                let nodesToMerge =
-                    nd |>  List.filter(fun (km:Node,_) -> reslst |> List.exists(fun (kr:Node,_) -> kr.NodeTag.AreEqual kr km) |> not)
+                let areKeysEqual (km:Node) (kr:Node) = kr.NodeTag.AreEqual kr km
+                let nodesToMerge = 
+                    nd |>  List.filter(fun (km:Node,_) -> rs |> List.exists(fun (kr:Node,_) -> areKeysEqual km kr) |> not)
                 nodesToMerge @ rs
             match mlst with
             |   []  -> reslst |> List.rev |> Value
@@ -636,7 +637,7 @@ module internal YamlExtended =
                 |>  ErrorResult
 
     let YEMappingGlobalTag = { Failsafe.MappingGlobalTag with TagFunctions = { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }}
-    let YESequenceGlobalTag = { Failsafe.MappingGlobalTag with TagFunctions = { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }}
+    let YESequenceGlobalTag = { Failsafe.SequenceGlobalTag with TagFunctions = { Failsafe.SequenceGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }}
 
     let YEFailSafeResolution nst =
         match nst.NodeKind with
