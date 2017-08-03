@@ -47,6 +47,6 @@ let Deserialize (node:Node) (shorthands:TagShorthand list) =
             sprintf "%s%s%s" head content tail
         |   ScalarNode n ->
             let ind0 = indent l
-            sprintf "%s %s \"%s\"" ind0 (tagString n.Tag) (n.Data)
+            sprintf "%s %s \"%s\"" ind0 (tagString n.Tag) (n.Tag.CanonFn n.Data)
     convertToString node 0
 

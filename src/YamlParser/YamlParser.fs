@@ -646,10 +646,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``b-carriage-return`` = RGP "\u000d"
 
     //  [i26]   http://www.yaml.org/spec/1.2/spec.html#b-char
-    member this.``b-char`` = this.``b-line-feed`` + this.``b-carriage-return``
+    member this.``b-char`` = this.``b-line-feed`` ||| this.``b-carriage-return``
 
     //  [27]    http://www.yaml.org/spec/1.2/spec.html#nb-char
-    member this.``nb-char``  = this.``c-printable`` - this.``b-char``
+    member this.``nb-char``  = this.``c-printable`` - RGO("\u000a\u000d") // this.``b-char``
 
     //  [28]    http://www.yaml.org/spec/1.2/spec.html#b-break
     member this.``b-break`` = 
@@ -2410,17 +2410,22 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     //  [206]   http://www.yaml.org/spec/1.2/spec.html#c-forbidden
     member this.``c-forbidden`` =
-        ``start-of-line`` + ( this.``c-directives-end`` ||| this.``c-document-end``) +
+        (``start-of-line`` ||| this.``b-break``) +
+        ( this.``c-directives-end`` ||| this.``c-document-end``) +
         (this.``b-char`` ||| this.``s-white`` ||| ``end-of-file``)
 
     //  [207]   http://www.yaml.org/spec/1.2/spec.html#l-bare-document
     member this.``l-bare-document`` (ps:ParseState) : ParseFuncResult<_> = 
         logger "l-bare-document" ps
         if ps.Errors = 0 then
-            ps 
-            |> ParseState.SetIndent -1
-            |> ParseState.SetStyleContext ``Block-in``
-            |> this.``s-l+block-node`` (* Excluding c-forbidden content *)
+            (* Excluding c-forbidden content *)
+            if IsMatch(ps.InputString, this.``c-forbidden``) then
+                NoResult
+            else
+                ps 
+                |> ParseState.SetIndent -1
+                |> ParseState.SetStyleContext ``Block-in``
+                |> this.``s-l+block-node`` 
         else
             ErrorResult (ps.Messages.Error)
         |> this.LogReturn "l-bare-document" ps
@@ -2454,7 +2459,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ErrorResult el -> ps |> ParseState.AddErrorMessageList el
         let psr = readDirectives ps
         if psr.Errors = 0 then 
-            this.``l-explicit-document`` psr
+            if psr.Directives.Length > 0 then
+                this.``l-explicit-document`` psr
+            else
+                NoResult
         else
             ErrorResult (psr.Messages.Error)
         |> this.LogReturn "l-directive-document" ps

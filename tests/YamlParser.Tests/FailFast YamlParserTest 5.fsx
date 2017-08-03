@@ -73,19 +73,25 @@ let YamlParseList s =
 
 
 
-YamlParse "
+YamlParseList "
+# A document may be null.
 ---
-- &CENTER { x: 1, ! y: 2 }
-- &LEFT { x: 0, ! y: 2 }
-- &BIG { r: 10 }
-- &SMALL { r: 1 }
-
-# All the following maps are equal:
-
-- # Sequence contains scalar
-    << : [ *CENTER, *BIG, invalid value ]
-    label: center/big    
+---
+# This mapping has four keys,
+# one has a value.
+empty:
+canonical: ~
+english: null
+~: null key
+---
+# This sequence has five
+# entries, two have values.
+sparse:
+  - ~
+  - 2nd entry
+  -
+  - 4th entry
+  - Null 
 "
 
-YamlParse "<<"
 

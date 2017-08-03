@@ -188,6 +188,44 @@ let ``Test YamlExtended Null - Sunny Day``() =
     )
 
 [<Test>]
+let ``Test YamlExtended Null - Various types - Sunny Day``() =
+    let yml = YamlParseList "
+# A document may be null.
+---
+---
+# This mapping has four keys,
+# one has a value.
+empty:
+canonical: ~
+english: null
+~: null key
+---
+# This sequence has five
+# entries, two have values.
+sparse:
+  - ~
+  - 2nd entry
+  -
+  - 4th entry
+  - Null 
+"
+    yml.Length |> should equal 3
+
+    let [y1;y2;y3]  = yml
+
+    Some [y1] |> ExtractTag |> should equal  YamlExtended.NullGlobalTag.Uri
+
+    ["empty"; "canonical"; "english"]
+    |>  List.iter(fun k ->
+        let ypath = sprintf "//{#'%s'}?" k
+        let pth = YamlPath.Create ypath
+        let root = y2 |> pth.Select 
+        root |> Option.get |> List.length |> should equal 1
+        root |> ExtractTag |> should equal  YamlExtended.NullGlobalTag.Uri
+    )
+
+
+[<Test>]
 let ``Test YamlExtended Null - Rainy Day``() =
     [
         "\"null and more text\""
