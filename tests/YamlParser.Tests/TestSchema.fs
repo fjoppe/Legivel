@@ -18,7 +18,7 @@ let TagResolveScalar schema s  =
     |> schema 
 
 [<Test>]
-let ``Test JSON Schema Tags``() =
+let ``Test JSON Schema Tags - Sunny Day``() =
     JSON.NullGlobalTag.canonFn "null" |> should equal "null"
 
     JSON.BooleanGlobalTag.canonFn "true" |> should equal "true"
@@ -29,12 +29,25 @@ let ``Test JSON Schema Tags``() =
 
     //  http://www.yaml.org/spec/1.2/spec.html#id2804318
     [
-        ("0.", "+0.0e+001");("0.0", "+0.0e+001");("1.0", "+0.1e+001");("20.0","+0.2e+002");
-        ("-0.0", "+0.0e+001");
+        ("0.", "+0.0e+000");("0.0", "+0.0e+000");("1.0", "+0.1e+001");("20.0","+0.2e+002");
+        ("-0.0", "+0.0e+000");
         ("3.141500","+0.31415e+001");("100.01500","+0.100015e+003");("-1.","-0.1e+001")
         ("2.3e+4", "+0.23e+005")
     ]
     |> List.iter(fun (i,e) -> JSON.FloatGlobalTag.canonFn i |> should equal e)
+
+[<Test>]
+let ``Test JSON Schema Tags - Rainy Day``() =
+    [
+        "!!int a"; "!!int 2a"; "!!int a2"
+        "!!bool a"; "!!bool ya"; "!!bool onb"
+        "!!float a"; "!!float 2.a"; "!!float 2.0a"
+    ]
+    |>  List.map (YamlParseForSchemaWithErrors JSONSchema)
+    |>  List.iter(fun en -> 
+        en.Error.Length |> should equal 1
+        en.Error |> List.filter(fun m -> m.Message.StartsWith("Incorrect format:")) |> List.length |> should equal 1
+    )
 
 
 [<Test>]
@@ -60,9 +73,7 @@ let ``Test JSON TagResolution``() =
     )
 
     ["True"; "Null"; "0o7"; "0x3A"; "+12.3"]
-    |> List.iter(fun s ->
-        (fun () -> tagResolveScalar s |> ignore) |> should throw typeof<TagResolutionException>
-    )
+    |> List.iter(tagResolveScalar >> should equal None)
 
 
 
@@ -83,7 +94,7 @@ let ``Test Yaml Core Schema Tags``() =
 
     //  http://www.yaml.org/spec/1.2/spec.html#id2804318
     [
-        ("0.", "+0.0e+001");("-0.0", "+0.0e+001");(".5", "+0.5e+000");("+12e+03","+0.12e+005");
+        ("0.", "+0.0e+000");("-0.0", "+0.0e+000");(".5", "+0.5e+000");("+12e+03","+0.12e+005");
         ("-2E+05", "-0.2e+006")
         (".inf","+.inf");("-.Inf","-.inf");("+.INF","+.inf")
         (".NAN", ".nan")
@@ -125,6 +136,19 @@ let ``Test YamlCore TagResolution``() =
         tagResolveScalar s |> Option.map(fun e -> (e.Uri |> should equal (Failsafe.StringGlobalTag.Uri)); e) |> Option.isSome |> should equal true
     )
 
+[<Test>]
+let ``Test YamlCore Schema Tags - Rainy Day``() =
+    [
+        "!!int a"; "!!int 2a"; "!!int a2"
+        "!!bool a"; "!!bool ya"; "!!bool onb"
+        "!!float a"; "!!float 2.a"; "!!float 2.0a"
+    ]
+    |>  List.map (YamlParseForSchemaWithErrors YamlCoreSchema)
+    |>  List.iter(fun en -> 
+        en.Error.Length |> should equal 1
+        en.Error |> List.filter(fun m -> m.Message.StartsWith("Incorrect format:")) |> List.length |> should equal 1
+    )
+
 
 [<Test>]
 let ``Test YamlExtended Canonical Integers - Simple``() =
@@ -151,6 +175,11 @@ let ``Test YamlExtended Canonical Integers - Sexagesimal``() =
 let ``Test YamlExtended Canonical Floats - Simple``() =
     YamlExtended.FloatGlobalTag.Canonical "81.23" |> should equal "+0.8123e+002"
     float(YamlExtended.FloatGlobalTag.Canonical "81.23") |> should equal (float "81.23")
+
+[<Test>]
+let ``Test YamlExtended Canonical Floats zero ending - Simple``() =
+    YamlExtended.FloatGlobalTag.Canonical "2.0" |> should equal "+0.2e+001"
+    float(YamlExtended.FloatGlobalTag.Canonical "2.0") |> should equal (float "2.0")
 
 [<Test>]
 let ``Test YamlExtended Canonical Floats - Shifted decimal``() =
@@ -263,7 +292,7 @@ let ``Test YamlExtended Bool - Rainy Day``() =
     )
 
 [<Test>]
-let ``Test YamlExtended Intgeger - Sunny Day``() =
+let ``Test YamlExtended Integer - Sunny Day``() =
     [
         "1"; "100"; "1000"
         "-1"; "-100"; "-1000"
@@ -292,6 +321,20 @@ let ``Test YamlExtended Integer - Rainy Day``() =
         let node = YamlParseForSchema YamlExtendedSchema  input
         Some [node] |> ToScalar   |> should equal (input.Replace("\"", "").Replace("\n", " "))
         Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
+    )
+
+
+[<Test>]
+let ``Test YamlExtended Schema Tags - Rainy Day``() =
+    [
+        "!!int a"; "!!int 2a"; "!!int a2"
+        "!!bool a"; "!!bool ya"; "!!bool onb"
+        "!!float a"; "!!float 2.a"; "!!float 2.0a"
+    ]
+    |>  List.map (YamlParseForSchemaWithErrors YamlExtendedSchema)
+    |>  List.iter(fun en -> 
+        en.Error.Length |> should equal 1
+        en.Error |> List.filter(fun m -> m.Message.StartsWith("Incorrect format:")) |> List.length |> should equal 1
     )
 
 
