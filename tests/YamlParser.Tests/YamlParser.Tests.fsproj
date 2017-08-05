@@ -45,6 +45,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
     <None Include="paket.references" />
     <Content Include="App.config" />
     <Compile Include="TestUtils.fs" />

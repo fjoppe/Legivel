@@ -550,7 +550,6 @@ let ``Example 2.26. Ordered Mappings``() =
     Some([yml]) |> ExtractTag |> should equal "tag:yaml.org,2002:omap"
 
 
-[<Ignore "TODO: Needs complete fixing">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761823")>]
 let ``Example 2.27. Invoice``() =
     let yml = YamlParse "
@@ -586,12 +585,54 @@ comments:
 "
     [
         ("invoice", "34843")
+        ("tax", "251.42")
         ("total", "4443.52")
+        ("comments", "Late afternoon is best. Backup contact is Nancy Billsmer @ 338-4338.")
+        ("bill-to/given", "Chris")
+        ("bill-to/family", "Dumars")
+        ("bill-to/address/lines", "458 Walkman Dr.\nSuite #292\n")
+        ("bill-to/address/city", "Royal Oak")
+        ("bill-to/address/state", "MI")
+        ("bill-to/address/postal", "48046")
+        ("ship-to/given", "Chris")
+        ("ship-to/family", "Dumars")
+        ("ship-to/address/lines", "458 Walkman Dr.\nSuite #292\n")
+        ("ship-to/address/city", "Royal Oak")
+        ("ship-to/address/state", "MI")
+        ("ship-to/address/postal", "48046")
     ]
     |> List.iter(fun (k,v) ->
-        let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
+        let kp = k.Split([|'/'|], System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
+        let p = kp |> List.fold(fun s i -> sprintf "%s/{#'%s'}?" s i) "/" |> YamlPath.Create
         yml |> p.Select |> ToScalar |> should equal v
     )
+
+    let prdpt =  YamlPath.Create "//{#'product'}?/[]"
+    let prdNodes = yml |> prdpt.Select |> Option.get
+
+    [
+        [
+            ("sku", "BL394D")
+            ("quantity", "4")
+            ("description", "Basketball")
+            ("price", "450.00")
+        ]
+        [
+            ("sku", "BL4438H")
+            ("quantity", "1")
+            ("description", "Super Hoop")
+            ("price", "2392.00")
+        ]
+    ]
+    |>  List.zip prdNodes
+    |>  List.iter(fun (e,a) -> 
+        a
+        |> List.iter(fun (k,v) ->
+            let p = (sprintf "//{#'%s'}?" k) |> YamlPath.Create
+            e |> p.Select |> ToScalar |> should equal v
+        )
+    )
+
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761866")>]
 let ``Example 2.28. Log File``() =
