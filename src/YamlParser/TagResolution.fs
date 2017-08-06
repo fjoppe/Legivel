@@ -71,22 +71,14 @@ module internal SchemaUtils =
             let exp = cleanMant.Length
             ((cleanMant + cleanPrec).TrimEnd('0') |> mt2z, exp)
 
-    let private tagFormatCheckError (n:Node) data =
+    let tagFormatCheckError (n:Node) data =
         function
-        |   (true, _)   -> Value n
-        |   (false, _)  -> ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Incorrect format: %s, for tag: %s" data (n.NodeTag.ToPrettyString()))]
+        |   Some _ -> Value n
+        |   None   -> ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Incorrect format: '%s', for tag: %s" data (n.NodeTag.ToPrettyString()))]
 
-    let isFloatValid n = 
+    let isFormattedScalarValid (n: Node) = 
         let data = getScalarNode n
-        System.Double.TryParse(n.NodeTag.CanonFn data) |> tagFormatCheckError n data
-
-    let isIntValid n = 
-        let data = getScalarNode n
-        System.Int32.TryParse(n.NodeTag.CanonFn data) |> tagFormatCheckError n data
-
-    let isBooleanValid n = 
-        let data = getScalarNode n
-        System.Boolean.TryParse(n.NodeTag.CanonFn data) |> tagFormatCheckError n data
+        n.NodeTag.CanonFn data |> tagFormatCheckError n data
 
 
 module internal Failsafe =
@@ -227,32 +219,34 @@ module internal NonSpecific =
 
 
 module internal JSON =
+    let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
+
     let NullGlobalTag =
         GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "null",
             (fun s -> 
                     match s with
-                    | Regex "null" _ -> "null"
-                    | _ -> failwith (sprintf "Cannot convert to null: %s" s)
-            ), Failsafe.fsScalarTag
+                    | Regex "null" _ -> Some "null"
+                    | _ -> None
+            ), formattedScalarTag
         )
 
     let BooleanGlobalTag = 
         GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "true|false",
             (fun s -> 
                 match s with
-                | Regex "true" _ -> "true"
-                | Regex "false" _ -> "false"
-                | _ -> "ILLEGAL VALUE"
-            ), { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isBooleanValid}
+                | Regex "true" _ -> Some "true"
+                | Regex "false" _ -> Some "false"
+                | _ -> None
+            ), formattedScalarTag
         )
 
     let IntegerGlobalTag = 
         GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "[-]?(0|[1-9][0-9]*)",
             (fun s ->
                 match s with
-                | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
-                | _ -> "ILLEGAL VALUE"
-            ), { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isIntValid}
+                | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is))) |> Some
+                | _ -> None
+            ), formattedScalarTag
         )
 
     let FloatGlobalTag = 
@@ -264,31 +258,33 @@ module internal JSON =
                     let (fullMantissa, canExp) = SchemaUtils.toFloatComponent mantissa prec
                     let givenExp = int(esign + "0" + exp)
                     let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
-                    sprintf "%s0.%se%+04d" canSign fullMantissa (canExp+givenExp)
-                | _ -> "ILLEGAL VALUE"
-            ), { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFloatValid}
+                    sprintf "%s0.%se%+04d" canSign fullMantissa (canExp+givenExp) |> Some
+                | _ -> None
+            ), formattedScalarTag
         )
 
     let providedScalarTags = [NullGlobalTag; BooleanGlobalTag;IntegerGlobalTag;FloatGlobalTag]
 
 module internal YamlCore =
+    let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
+
     let NullGlobalTag =
         GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
             (fun s -> 
                     match s with
-                    | Regex "~|null|Null|NULL|^$" _ -> "~"
-                    | _ -> failwith (sprintf "Cannot convert to null: %s" s)
-            ), Failsafe.fsScalarTag
+                    | Regex "~|null|Null|NULL|^$" _ -> Some "~"
+                    | _ -> None
+            ), formattedScalarTag
         )
 
     let BooleanGlobalTag = 
         GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "true|True|TRUE|false|False|FALSE",
             (fun s -> 
                 match s with
-                | Regex "true|True|TRUE"    _ -> "true"
-                | Regex "false|False|FALSE" _ -> "false"
-                | _ -> "ILLEGAL VALUE"
-            ), { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isBooleanValid}
+                | Regex "true|True|TRUE"    _ -> Some "true"
+                | Regex "false|False|FALSE" _ -> Some "false"
+                | _ -> None
+            ), formattedScalarTag
         )
 
     let IntegerGlobalTag = 
@@ -301,14 +297,14 @@ module internal YamlCore =
                 | Regex "^0o([0-7]+)$"  [os] -> 
                     let ps = os.ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 3) + (digitToValue  c)) 0
-                    convertToCanonical "" ic
-                | Regex "^([-+])?([0-9]+)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is)))
+                    convertToCanonical "" ic |> Some
+                | Regex "^([-+])?([0-9]+)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is))) |> Some
                 | Regex "^(0x[0-9a-fA-F]+)$"  [hs] -> 
                     let ps = hs.Substring(2).ToUpper().ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 4) + (digitToValue  c)) 0
-                    convertToCanonical "" ic
-                | _ -> "ILLEGAL VALUE"
-            ), { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isIntValid}
+                    convertToCanonical "" ic |> Some
+                | _ -> None
+            ), formattedScalarTag
         )
 
     let FloatGlobalTag = 
@@ -319,28 +315,21 @@ module internal YamlCore =
                 let (fullMantissa, canExp) = SchemaUtils.toFloatComponent mantissa prec
                 let givenExp = int(esign + "0" + exp)
                 let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
-                sprintf "%s0.%se%+04d" canSign fullMantissa (canExp+givenExp)
+                sprintf "%s0.%se%+04d" canSign fullMantissa (canExp+givenExp) |> Some
             | Regex "^([-+]?)\\.(?:inf|Inf|INF)$" [sign] ->
                 let canSign = canonicalSign sign
-                sprintf "%s.inf" canSign
-            | Regex "^(\\.(nan|NaN|NAN))$" _ -> ".nan"
-            | _ -> "ILLEGAL VALUE"
-
-        let isFloatValid n =
-            let data = SchemaUtils.getScalarNode n
-            match (toCanonical data) with
-            |   "+.inf"
-            |   "-.inf"
-            |   ".nan"  -> Value n
-            |   _ -> SchemaUtils.isFloatValid n
+                sprintf "%s.inf" canSign |> Some
+            | Regex "^(\\.(nan|NaN|NAN))$" _ -> ".nan" |> Some
+            | _ -> None
 
         GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?|[-+]?\\.(inf|Inf|INF)|\\.(nan|NaN|NAN)",
-            toCanonical, { Failsafe.fsScalarTag with PostProcessAndValidateNode = isFloatValid}
+            toCanonical, formattedScalarTag
         )
 
     let providedScalarTags = [BooleanGlobalTag;IntegerGlobalTag;FloatGlobalTag;NullGlobalTag]
 
 module internal YamlExtended =
+    let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
 
     let getPairs nl =
         nl
@@ -420,19 +409,19 @@ module internal YamlExtended =
         GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
             (fun s -> 
                     match s with
-                    | Regex "(^(~|null|Null|NULL)$)|^$" _ -> "~"
-                    | _ -> failwith (sprintf "Cannot convert to null: %s" s)
-            ), Failsafe.fsScalarTag
+                    | Regex "(^(~|null|Null|NULL)$)|^$" _ -> "~" |> Some
+                    | _ -> None
+            ), formattedScalarTag
         )
 
     let BooleanGlobalTag = 
         GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
             (fun s -> 
                 match s with
-                | Regex "^(y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON)$" _ -> "true"
-                | Regex "^(n|N|no|No|NO|false|False|FALSE|off|Off|OFF)$" _ -> "false"
-                | _ -> "ILLEGAL VALUE" // failwith (sprintf "Cannot convert to boolean: %s" s)
-            ), { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isBooleanValid}
+                | Regex "^(y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON)$" _ -> Some "true"
+                | Regex "^(n|N|no|No|NO|false|False|FALSE|off|Off|OFF)$" _ -> Some "false"
+                | _ -> None
+            ), formattedScalarTag
         )
 
     let IntegerGlobalTag = 
@@ -445,24 +434,24 @@ module internal YamlExtended =
                 | Regex "^(?:([-+])?0b([0-1_]+))$" [sign; bs] -> 
                     let ps = bs.Replace("_","").ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 1) + (digitToValue  c)) 0
-                    convertToCanonical sign ic
+                    convertToCanonical sign ic |> Some 
                 | Regex "^(?:([-+])?0([0-7_]+))$"  [sign; os] -> 
                     let ps = os.Replace("_","").ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 3) + (digitToValue  c)) 0
-                    convertToCanonical sign ic
-                | Regex "^(?:([-+])?(0|[1-9][0-9_]*))$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is.Replace("_",""))))
+                    convertToCanonical sign ic |> Some 
+                | Regex "^(?:([-+])?(0|[1-9][0-9_]*))$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is.Replace("_","")))) |> Some 
                 | Regex "^(?:([-+])?(0x[0-9a-fA-F_]+))$"  [sign; hs] -> 
                     let ps = hs.Substring(2).ToUpper().Replace("_","").ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 4) + (digitToValue  c)) 0
-                    convertToCanonical sign ic
+                    convertToCanonical sign ic |> Some 
                 | Regex "^(?:([-+])?([1-9][0-9_]*(:[0-5]?[0-9])+))$" ssl ->
                     let sign = List.item 0 ssl
                     let ss   = List.item 1 ssl
                     let ps = ss.Replace("_","").Split([|":"|], StringSplitOptions.RemoveEmptyEntries)
                     let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
-                    convertToCanonical sign ic
-                | _ -> "ILLEGAL VALUE" // failwith (sprintf "Cannot convert to integer: %s" s)
-            ), { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isIntValid}
+                    convertToCanonical sign ic |> Some 
+                | _ -> None
+            ), formattedScalarTag
         )
 
     let FloatGlobalTag = 
@@ -473,30 +462,22 @@ module internal YamlExtended =
                 let (fullMantissa, canExp) = SchemaUtils.toFloatComponent (mantissa.Replace("_","")) prec
                 let givenExp = int(esign + "0" + exp)
                 let canSign = if fullMantissa = "0" then "+" else canonicalSign sign
-                sprintf "%s0.%se%+04d" canSign fullMantissa (canExp+givenExp)
+                sprintf "%s0.%se%+04d" canSign fullMantissa (canExp+givenExp) |> Some 
             | Regex "^(?:([-+]?)((?:[0-9][0-9_]*)(?::[0-5]?[0-9])+)\.([0-9_]*))$"  [sign; mantissa; prec] -> 
                 let ps = mantissa.Replace("_","").Split([|":"|], StringSplitOptions.RemoveEmptyEntries)
                 let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
                 let canSign = canonicalSign sign
                 let canMantissa = ic.ToString()
                 let canExp = canMantissa.Length
-                sprintf "%s0.%s%se%+04d" canSign canMantissa (prec.Replace("_","")) canExp
+                sprintf "%s0.%s%se%+04d" canSign canMantissa (prec.Replace("_","")) canExp |> Some 
             | Regex "^(?:([-+]?)\.(?:inf|Inf|INF))$" [sign] ->
                 let canSign = canonicalSign sign
-                sprintf "%s.inf" canSign
-            | Regex "^(?:(\.(nan|NaN|NAN)))$" _ -> ".nan"
-            | _ -> "ILLEGAL VALUE" // failwith (sprintf "Cannot convert to float: %s" s)
+                sprintf "%s.inf" canSign |> Some 
+            | Regex "^(?:(\.(nan|NaN|NAN)))$" _ -> Some ".nan"
+            | _ -> None
 
-        let isFloatValid n =
-            let data = SchemaUtils.getScalarNode n
-            match (toCanonical data) with
-            |   "+.inf"
-            |   "-.inf"
-            |   ".nan"  -> Value n
-            |   _ -> SchemaUtils.isFloatValid n
-
-        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "^[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)$",
-            toCanonical, { Failsafe.fsScalarTag with PostProcessAndValidateNode = isFloatValid}
+        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "^([-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN))$",
+            toCanonical, formattedScalarTag
         )
 
     let TimestampGlobalTag = 
@@ -527,25 +508,27 @@ module internal YamlExtended =
             | Regex (RGSF rgdatef) [_; year; month; day] ->
                 let dt = DateTime.Parse(canon (ToInt year) (ToInt month) (ToInt day) 0 0 0 0 "Z")
                 let ut = dt.ToUniversalTime()   // in two steps, or we get a warning
-                ut.ToString("o")
+                ut.ToString("o") |> Some 
             | Regex(RGSF rgISO8601)  [_; year; month; day; hour; min; sec; fraction; tz] -> 
                 let tzc = if tz = "" then "Z" else tz
                 let dt = DateTime.Parse(canon (ToInt year) (ToInt month) (ToInt day) (ToInt hour) (ToInt min) (ToInt sec) (ToInt fraction) tzc)
                 let ut = dt.ToUniversalTime()   // in two steps, or we get a warning
-                ut.ToString("o")
-            | _ -> "ILLEGAL VALUE" // failwith (sprintf "Cannot convert to timestamp: %s" s)
+                ut.ToString("o") |> Some 
+            | _ -> None
 
         let validateTimestamp n =
             let (isValid,str) = 
                 let nd = SchemaUtils.getScalarNode n
-                let str = timestampToCanonical nd
-                (DateTime.TryParse(str) |> fst), nd
+                timestampToCanonical nd
+                |>  function
+                    |   Some strd   -> (DateTime.TryParse(strd) |> fst), nd
+                    |   None        -> false, nd
             if isValid then Value n 
             else 
                 ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Timestamp has incorrect format: %s" str)]
 
         GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, RGSF(rgtimestamp),
-            (timestampToCanonical), { Failsafe.fsScalarTag with PostProcessAndValidateNode = validateTimestamp}
+            (timestampToCanonical), { formattedScalarTag with PostProcessAndValidateNode = validateTimestamp}
         )
 
     //  http://yaml.org/type/value.html
@@ -554,9 +537,9 @@ module internal YamlExtended =
         GlobalTag.Create("tag:yaml.org,2002:value", Scalar, "=",
             (fun s -> 
                     match s with
-                    | Regex "=" _ -> "="
-                    | _ -> failwith (sprintf "Cannot convert to value: %s" s)
-            ), Failsafe.fsScalarTag
+                    | Regex "=" _ -> Some "=" 
+                    | _ -> None
+            ), formattedScalarTag
         )
 
     //  http://yaml.org/type/merge.html
@@ -565,9 +548,9 @@ module internal YamlExtended =
         GlobalTag.Create("tag:yaml.org,2002:merge", Scalar, "<<",
             (fun s -> 
                     match s with
-                    | Regex "<<" _ -> "<<"
-                    | _ -> failwith (sprintf "Cannot convert to merge: %s" s)
-            ), Failsafe.fsScalarTag
+                    | Regex "<<" _ -> Some "<<"
+                    | _ -> None
+            ), formattedScalarTag
         )
 
     //  http://yaml.org/type/binary.html
@@ -589,10 +572,10 @@ module internal YamlExtended =
 
         let binaryToCanonical s =
             match s with
-            | Regex (RGSF allowedChars) [full] -> "<<"
-            | _ -> failwith (sprintf "Cannot convert to merge: %s" s)        
+            | Regex (RGSF allowedChars) [_] -> Some "<<"
+            | _ -> None
         GlobalTag.Create("tag:yaml.org,2002:binary", Scalar, RGSF(allowedChars), 
-            binaryToCanonical, Failsafe.fsScalarTag)
+            binaryToCanonical, formattedScalarTag)
 
 
     let isMatchUnorderedSet (n:Node) _ = 
@@ -680,7 +663,7 @@ module internal YamlExtended =
         
 
     let validateMapping n = 
-        (SchemaUtils.getMapNode n) |> List.map(fun (k,v) -> v) |> List.filter(fun n -> n.NodeTag.Uri = MergeGlobalTag.Uri)
+        (SchemaUtils.getMapNode n) |> List.map(fun (_,v) -> v) |> List.filter(fun n -> n.NodeTag.Uri = MergeGlobalTag.Uri)
         |>  function
             |   []  -> mergeAndValidateMapping n
             |   ml  ->

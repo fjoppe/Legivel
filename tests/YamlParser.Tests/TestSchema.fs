@@ -19,13 +19,13 @@ let TagResolveScalar schema s  =
 
 [<Test>]
 let ``Test JSON Schema Tags - Sunny Day``() =
-    JSON.NullGlobalTag.canonFn "null" |> should equal "null"
+    JSON.NullGlobalTag.canonFn "null" |> Option.get |> should equal "null"
 
-    JSON.BooleanGlobalTag.canonFn "true" |> should equal "true"
-    JSON.BooleanGlobalTag.canonFn "false" |> should equal "false"
+    JSON.BooleanGlobalTag.canonFn "true" |> Option.get |> should equal "true"
+    JSON.BooleanGlobalTag.canonFn "false" |> Option.get |> should equal "false"
 
     [("1234","+1234"); ("-1234", "-1234"); ("0","+0"); ("-0" ,"+0")]
-    |> List.iter(fun (i,e) -> JSON.IntegerGlobalTag.canonFn i |> should equal e)
+    |> List.iter(fun (i,e) -> JSON.IntegerGlobalTag.canonFn i |> Option.get |> should equal e)
 
     //  http://www.yaml.org/spec/1.2/spec.html#id2804318
     [
@@ -34,7 +34,7 @@ let ``Test JSON Schema Tags - Sunny Day``() =
         ("3.141500","+0.31415e+001");("100.01500","+0.100015e+003");("-1.","-0.1e+001")
         ("2.3e+4", "+0.23e+005")
     ]
-    |> List.iter(fun (i,e) -> JSON.FloatGlobalTag.canonFn i |> should equal e)
+    |> List.iter(fun (i,e) -> JSON.FloatGlobalTag.canonFn i |> Option.get |> should equal e)
 
 [<Test>]
 let ``Test JSON Schema Tags - Rainy Day``() =
@@ -80,17 +80,17 @@ let ``Test JSON TagResolution``() =
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2805712
 let ``Test Yaml Core Schema Tags``() =
     ["null"; "NULL"; "Null"; ""; "~" ]
-    |> List.iter(fun i -> YamlCore.NullGlobalTag.canonFn i |> should equal "~")
+    |> List.iter(fun i -> YamlCore.NullGlobalTag.canonFn i |> Option.get |> should equal "~")
 
     ["true";"True";"TRUE"]
-    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> should equal "true")
+    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> Option.get  |> should equal "true")
 
     ["false";"False";"FALSE"]
-    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> should equal "false")
+    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> Option.get  |> should equal "false")
 
 
     [("0","+0"); ("-0","+0"); ("0o7", "+7"); ("0x3A","+58"); ("-19" ,"-19")]
-    |> List.iter(fun (i,e) -> YamlCore.IntegerGlobalTag.canonFn i |> should equal e)
+    |> List.iter(fun (i,e) -> YamlCore.IntegerGlobalTag.canonFn i |> Option.get  |> should equal e)
 
     //  http://www.yaml.org/spec/1.2/spec.html#id2804318
     [
@@ -99,7 +99,7 @@ let ``Test Yaml Core Schema Tags``() =
         (".inf","+.inf");("-.Inf","-.inf");("+.INF","+.inf")
         (".NAN", ".nan")
     ]
-    |> List.iter(fun (i,e) -> YamlCore.FloatGlobalTag.canonFn i |> should equal e)
+    |> List.iter(fun (i,e) -> YamlCore.FloatGlobalTag.canonFn i |> Option.get  |> should equal e)
 
 
 [<Test>]
@@ -152,59 +152,59 @@ let ``Test YamlCore Schema Tags - Rainy Day``() =
 
 [<Test>]
 let ``Test YamlExtended Canonical Integers - Simple``() =
-    YamlExtended.IntegerGlobalTag.Canonical "5" |> should equal "+5"
+    YamlExtended.IntegerGlobalTag.Canonical "5" |> Option.get |> should equal "+5"
 
 [<Test>]
 let ``Test YamlExtended Canonical Integers - Binary``() =
-    YamlExtended.IntegerGlobalTag.Canonical "0b101" |> should equal "+5"
+    YamlExtended.IntegerGlobalTag.Canonical "0b101" |> Option.get |> should equal "+5"
 
 [<Test>]
 let ``Test YamlExtended Canonical Integers - Octal``() =
-    YamlExtended.IntegerGlobalTag.Canonical "017" |> should equal "+15"
+    YamlExtended.IntegerGlobalTag.Canonical "017" |> Option.get |> should equal "+15"
 
 [<Test>]
 let ``Test YamlExtended Canonical Integers - Hexadecimal``() =
-    YamlExtended.IntegerGlobalTag.Canonical "0x12" |> should equal "+18"
+    YamlExtended.IntegerGlobalTag.Canonical "0x12" |> Option.get |> should equal "+18"
 
 [<Test>]
 let ``Test YamlExtended Canonical Integers - Sexagesimal``() =
-    YamlExtended.IntegerGlobalTag.Canonical "190:20:30" |> should equal "+685230"
+    YamlExtended.IntegerGlobalTag.Canonical "190:20:30" |> Option.get |> should equal "+685230"
 
 
 [<Test>]
 let ``Test YamlExtended Canonical Floats - Simple``() =
-    YamlExtended.FloatGlobalTag.Canonical "81.23" |> should equal "+0.8123e+002"
-    float(YamlExtended.FloatGlobalTag.Canonical "81.23") |> should equal (float "81.23")
+    YamlExtended.FloatGlobalTag.Canonical "81.23" |> Option.get |> should equal "+0.8123e+002"
+    float(YamlExtended.FloatGlobalTag.Canonical "81.23" |> Option.get) |> should equal (float "81.23")
 
 [<Test>]
 let ``Test YamlExtended Canonical Floats zero ending - Simple``() =
-    YamlExtended.FloatGlobalTag.Canonical "2.0" |> should equal "+0.2e+001"
-    float(YamlExtended.FloatGlobalTag.Canonical "2.0") |> should equal (float "2.0")
+    YamlExtended.FloatGlobalTag.Canonical "2.0" |> Option.get |> should equal "+0.2e+001"
+    float(YamlExtended.FloatGlobalTag.Canonical "2.0" |> Option.get) |> should equal (float "2.0")
 
 [<Test>]
 let ``Test YamlExtended Canonical Floats - Shifted decimal``() =
-    YamlExtended.FloatGlobalTag.Canonical "0.008123" |> should equal "+0.8123e-002"
-    float(YamlExtended.FloatGlobalTag.Canonical "0.008123") |> should equal (float "0.008123")
+    YamlExtended.FloatGlobalTag.Canonical "0.008123" |> Option.get |> should equal "+0.8123e-002"
+    float(YamlExtended.FloatGlobalTag.Canonical "0.008123" |> Option.get) |> should equal (float "0.008123")
 
 [<Test>]
 let ``Test YamlExtended Canonical Floats - Normalized decimal``() =
-    YamlExtended.FloatGlobalTag.Canonical "1.008123" |> should equal "+0.1008123e+001"
-    float(YamlExtended.FloatGlobalTag.Canonical "1.008123") |> should equal (float "1.008123")  
+    YamlExtended.FloatGlobalTag.Canonical "1.008123" |> Option.get |> should equal "+0.1008123e+001"
+    float(YamlExtended.FloatGlobalTag.Canonical "1.008123" |> Option.get) |> should equal (float "1.008123")  
 
-    YamlExtended.FloatGlobalTag.Canonical "0.8123" |> should equal "+0.8123e+000"
-    float(YamlExtended.FloatGlobalTag.Canonical "0.8123") |> should equal (float "+0.8123e+000")
+    YamlExtended.FloatGlobalTag.Canonical "0.8123"  |> Option.get |> should equal "+0.8123e+000"
+    float(YamlExtended.FloatGlobalTag.Canonical "0.8123" |> Option.get) |> should equal (float "+0.8123e+000")
 
 [<Test>]
 let ``Test YamlExtended Canonical Floats - Sexagesimal``() =
-    YamlExtended.FloatGlobalTag.Canonical "190:20:30.15" |> should equal "+0.68523015e+006"
-    float(YamlExtended.FloatGlobalTag.Canonical "190:20:30.15") |> should equal (float "685230.15")
+    YamlExtended.FloatGlobalTag.Canonical "190:20:30.15"  |> Option.get |> should equal "+0.68523015e+006"
+    float(YamlExtended.FloatGlobalTag.Canonical "190:20:30.15" |> Option.get) |> should equal (float "685230.15")
 
 [<Test>]
 let ``Test YamlExtended Canonical Floats - Specials``() =
-    YamlExtended.FloatGlobalTag.Canonical ".inf"  |> should equal "+.inf"
-    YamlExtended.FloatGlobalTag.Canonical "+.inf" |> should equal "+.inf"
-    YamlExtended.FloatGlobalTag.Canonical "-.inf" |> should equal "-.inf"
-    YamlExtended.FloatGlobalTag.Canonical ".nan"  |> should equal ".nan"
+    YamlExtended.FloatGlobalTag.Canonical ".inf"  |> Option.get |> should equal "+.inf"
+    YamlExtended.FloatGlobalTag.Canonical "+.inf" |> Option.get |> should equal "+.inf"
+    YamlExtended.FloatGlobalTag.Canonical "-.inf" |> Option.get |> should equal "-.inf"
+    YamlExtended.FloatGlobalTag.Canonical ".nan"  |> Option.get |> should equal ".nan"
 
 
 [<Test>]
@@ -347,7 +347,7 @@ let ``Test YamlExtended Timestamp - Sunny Day``() =
         ("2001-12-14 21:59:43.10 -5",       "2001-12-15T02:59:43.1000000Z")
     ]
     |> List.iter(fun (input, expect) ->
-        YamlExtended.TimestampGlobalTag.Canonical input |> should equal expect
+        YamlExtended.TimestampGlobalTag.Canonical input |> Option.get |> should equal expect
         let node = YamlParseForSchema YamlExtendedSchema input
         Some [node] |> ExtractTag |> should equal YamlExtended.TimestampGlobalTag.Uri
     )

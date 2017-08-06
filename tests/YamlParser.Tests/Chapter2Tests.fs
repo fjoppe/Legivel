@@ -455,7 +455,7 @@ application specific tag: !something |
     [
         ("not-date", "2002-04-28", "tag:yaml.org,2002:str")
         // TODO: "picture" needs to become real binary
-        ("picture", "R0lGODlhDAAMAIQAAP//9/X\n17unp5WZmZgAAAOfn515eXv\nPz7Y6OjuDg4J+fn5OTk6enp\n56enmleECcgggoBADs=\n", "tag:yaml.org,2002:binary")
+        ("picture", "R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5OTk6enp56enmleECcgggoBADs=\n", "tag:yaml.org,2002:binary")
         ("application specific tag", "The semantics of the tag\nabove may be different for\ndifferent documents.\n","!something") 
     ]
     |> List.iter(fun (k,v,t) ->

@@ -52,7 +52,7 @@ and
         Uri     : string
         Kind    : NodeKind
         Regex   : string
-        canonFn : string -> string
+        canonFn : string -> string option
         TagFunctions : TagFunctions
     }
     with
@@ -65,9 +65,9 @@ and
                 TagFunctions = tgfn
             }
 
-        static member Create (uri, nk, rgx, tgfn) = GlobalTag.Create (uri, nk, rgx, (fun s -> s), tgfn)
+        static member Create (uri, nk, rgx, tgfn) = GlobalTag.Create (uri, nk, rgx, (fun s -> Some s), tgfn)
 
-        static member Create (uri, nk, tgfn) = GlobalTag.Create (uri, nk, ".*", (fun s -> s), tgfn)
+        static member Create (uri, nk, tgfn) = GlobalTag.Create (uri, nk, ".*", (fun s -> Some s), tgfn)
 
         member this.AreEqual n1 n2 = this.TagFunctions.AreEqual n1 n2
         member this.GetHash n = this.TagFunctions.GetHash n
@@ -163,8 +163,8 @@ and
             match this with
             |   Global       gt -> gt.canonFn 
             |   Unrecognized gt -> gt.canonFn 
-            |   Local        _  -> id
-            |   NonSpecific  _  -> id
+            |   Local        _  -> id >> Some
+            |   NonSpecific  _  -> id >> Some
 
         member m.AsString = m.ToString()
 
