@@ -49,40 +49,64 @@ open System.Text.RegularExpressions
 //
 //System.DateTime.Parse("2001-12-14 21:59:43.10 -5").ToUniversalTime().ToString("o")
 
+//
+//let p = "^(y|Y)$"
+//let s = "ya"
+//Regex.Matches(s,p,RegexOptions.Singleline)
+//
+//
+//let p2 = "^([-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN))$"
+//let s2 = "2.0a"
+//IsMatch(s2, p2)
+//
+//
+//
+//let toFloatComponent (m:string) (p:string) =
+//    let mt2z s = if s = "" then "0" else s
+//
+//    let cleanMant = m.TrimStart('0') 
+//    let cleanPrec = p.TrimEnd('0')
+//
+//    if cleanMant = "" then
+//        let unshifted = cleanPrec
+//        let shifted = unshifted.TrimStart('0')
+//        let exp = shifted.Length - unshifted.Length 
+//        (shifted |> mt2z, exp)
+//    else
+//        let exp = cleanMant.Length
+//        (cleanMant + cleanPrec |> mt2z, exp)
+//
+//
+//toFloatComponent "00" "0082"
+//toFloatComponent "200" "0082"
+//toFloatComponent "0" "0"
+//toFloatComponent "0" "000"
+//toFloatComponent "0" "0001"
 
-let p = "^(y|Y)$"
-let s = "ya"
-Regex.Matches(s,p,RegexOptions.Singleline)
-
-
-let p2 = "^([-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN))$"
-let s2 = "2.0a"
-IsMatch(s2, p2)
 
 
 
-let toFloatComponent (m:string) (p:string) =
-    let mt2z s = if s = "" then "0" else s
+//  This tag can only be assigned, and is never detected; bc too many collisions with plain text.
+let base64Alphabet = RGO("A-Z") + RGO("a-z") + RGO("0-9") + RGO("+/") + RGO("=")
+//  from YamlParser, rules 24-33
+let ``b-line-feed`` = RGP "\u000a"
+let ``b-carriage-return`` = RGP "\u000d" 
+let ``b-break`` = 
+    (``b-carriage-return`` + ``b-line-feed``)   |||  //  DOS, Windows
+    ``b-carriage-return``                       |||  //  MacOS upto 9.x
+    ``b-line-feed``                                     //  UNIX, MacOS X
+let ``s-space`` = "\u0020"  // space
+let ``s-tab`` = "\u0009"    // tab
+let ``s-white`` = RGO(``s-space`` + ``s-tab``)
+let controlChar = ``b-break`` ||| ``s-white``
+let allowedChars = OOM(base64Alphabet ||| controlChar)
 
-    let cleanMant = m.TrimStart('0') 
-    let cleanPrec = p.TrimEnd('0')
+let s = "R0lGODlhDAAMAIQAAP//9/X
+ 17unp5WZmZgAAAOfn515eXv
+ Pz7Y6OjuDg4J+fn5OTk6enp
+ 56enmleECcgggoBADs=
+"
 
-    if cleanMant = "" then
-        let unshifted = cleanPrec
-        let shifted = unshifted.TrimStart('0')
-        let exp = shifted.Length - unshifted.Length 
-        (shifted |> mt2z, exp)
-    else
-        let exp = cleanMant.Length
-        (cleanMant + cleanPrec |> mt2z, exp)
-
-
-toFloatComponent "00" "0082"
-toFloatComponent "200" "0082"
-toFloatComponent "0" "0"
-toFloatComponent "0" "000"
-toFloatComponent "0" "0001"
-
-
+Regex.Replace(s, RGSFR(controlChar),"")
 
 

@@ -101,6 +101,11 @@ let ToScalar n =
     |   Some([ScalarNode nd]) -> nd.Data
     |   _ -> raise (Exception "Is no scalar")
 
+let ToCanonScalar n = 
+    match n with
+    |   Some([ScalarNode nd]) -> nd.Tag.CanonFn (nd.Data) |> Option.get
+    |   _ -> raise (Exception "Is no scalar")
+
 let ToSequence n =
     match n with
     |   Some([SeqNode nd]) -> nd.Data

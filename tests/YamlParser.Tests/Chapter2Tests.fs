@@ -434,10 +434,10 @@ date: 2002-12-14
         yml |> p.Select |> ToScalar |> should equal v
     )
 
-[<Ignore "TODO: Implement real binary">]
+//[<Ignore "TODO: Implement real binary">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761694")>]
 let ``Example 2.23. Various Explicit Tags``() =
-    let yml = YamlParse "
+    let yml = YamlParseForSchema YamlExtendedSchema "
 ---
 not-date: !!str 2002-04-28
 
@@ -455,12 +455,12 @@ application specific tag: !something |
     [
         ("not-date", "2002-04-28", "tag:yaml.org,2002:str")
         // TODO: "picture" needs to become real binary
-        ("picture", "R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5OTk6enp56enmleECcgggoBADs=\n", "tag:yaml.org,2002:binary")
+        ("picture", "R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5OTk6enp56enmleECcgggoBADs=", "tag:yaml.org,2002:binary")
         ("application specific tag", "The semantics of the tag\nabove may be different for\ndifferent documents.\n","!something") 
     ]
     |> List.iter(fun (k,v,t) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToCanonScalar |> should equal v
         yml |> p.Select |> ExtractTag |> should equal t
     )
 

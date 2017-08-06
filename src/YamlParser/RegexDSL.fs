@@ -140,11 +140,15 @@ let RGO c = OneInSet(OneInSet.Create c)
 /// Exclude Set regex pattern, eg: NOT(RGO("a-zA-Z")) := [^a-zA-Z]
 let NOT (c:RGXType) = c.Not
 
+
 /// Regex ToString - match from string start
 let RGS p = sprintf "\\A(%O)" p
 
 /// Regex ToString - full string match
 let RGSF p = sprintf "\\A(%O)\\z" p
+
+/// Regex ToString - match anywhere in the string (FR = free)
+let RGSFR p = sprintf "(%O)" p
 
 /// Creates Regex group, eg GRP(RGP("abc")) := (abc)
 let GRP p = Group(p)

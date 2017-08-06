@@ -5,6 +5,7 @@ open RepresentationGraph
 open RegexDSL
 open ErrorsAndWarnings
 open YamlParser.Internals
+open System.Text.RegularExpressions
 
 exception TagResolutionException of string
 
@@ -556,7 +557,7 @@ module internal YamlExtended =
     //  http://yaml.org/type/binary.html
     let BinaryGlobalTag =
         //  This tag can only be assigned, and is never detected; bc too many collisions with plain text.
-        let base64Alphabet = RGO("A-Z") + RGO("a-z") + RGO("+/")
+        let base64Alphabet = RGO("A-Z") + RGO("a-z") + RGO("0-9") + RGO("+/") + RGO("=")
         //  from YamlParser, rules 24-33
         let ``b-line-feed`` = RGP "\u000a"
         let ``b-carriage-return`` = RGP "\u000d" 
@@ -567,15 +568,15 @@ module internal YamlExtended =
         let ``s-space`` = "\u0020"  // space
         let ``s-tab`` = "\u0009"    // tab
         let ``s-white`` = RGO(``s-space`` + ``s-tab``)
-        let controlChar = ``b-break`` ||| ``s-white`` ||| RGP("=")
+        let controlChar = ``b-break`` ||| ``s-white``
         let allowedChars = OOM(base64Alphabet ||| controlChar)
 
         let binaryToCanonical s =
             match s with
-            | Regex (RGSF allowedChars) [_] -> Some "<<"
+            | Regex (RGSF allowedChars) [_] -> Regex.Replace(s, RGSFR(controlChar),"") |> Some
             | _ -> None
         GlobalTag.Create("tag:yaml.org,2002:binary", Scalar, RGSF(allowedChars), 
-            binaryToCanonical, formattedScalarTag)
+            binaryToCanonical, { formattedScalarTag with IsMatch = fun _ _ -> false })
 
 
     let isMatchUnorderedSet (n:Node) _ = 
@@ -693,7 +694,7 @@ module internal YamlExtended =
    
     //  order is important, !!pairs is a superset of !!omap
     let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag; YESequenceGlobalTag]
-    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag; ValueGlobalTag; MergeGlobalTag; Failsafe.StringGlobalTag]
+    let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag; ValueGlobalTag; MergeGlobalTag; BinaryGlobalTag; Failsafe.StringGlobalTag]
     let providedMappingTags = [UnOrderedSetGlobalTag;YEMappingGlobalTag]
 
 

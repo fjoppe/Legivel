@@ -244,12 +244,12 @@ module ParseState =
         if outErrors.Length = 0 then NoResult
         else ErrorResult outErrors
 
-    let printResult pso =
-        pso |> 
-        function 
-        |   Value _ -> printfn "Value"
-        |   NoResult    -> printfn "NoResult"
-        |   ErrorResult _ -> printfn "ErrorResult"
+//    let printResult pso =
+//        pso |> 
+//        function 
+//        |   Value _ -> printfn "Value"
+//        |   NoResult    -> printfn "NoResult"
+//        |   ErrorResult _ -> printfn "ErrorResult"
 
     let PreserveErrors _ (ct,pso) = 
         let outErrors = ct.Messages.Error //|> List.sort
@@ -368,7 +368,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         match pso with
         |   Value (any,prs) -> sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) |> loggingFunction; Value (any,prs)
         |   NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction; NoResult
-        |   ErrorResult e -> sprintf "/%s (ErrorResult) l:%d i:%d c:%A &a:%d e:%d+%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Errors) (ps.Messages.Warn.Length) |> loggingFunction; ErrorResult e
+        |   ErrorResult e -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d" str (e |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Errors) (ps.Messages.Warn.Length) |> loggingFunction; ErrorResult e
 
 
     //  Utility functions
@@ -2221,10 +2221,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   ErrorResult e -> ErrorResult e
 
         let noResult psp =
-            psp |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs ->
-                (this.ResolveTag prs NonSpecificQM (prs.Location) (PlainEmptyNode (getParseInfo ps prs))) 
-                |> FallibleOption.bind(matchValue)
-            )
+            if (ParseState.HasNoTerminatingError psp) then
+                psp |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs ->
+                    (this.ResolveTag prs NonSpecificQM (prs.Location) (PlainEmptyNode (getParseInfo ps prs))) 
+                    |> FallibleOption.bind(matchValue)
+                )
+            else
+                let prsc = psp |> ParseState.ProcessErrors
+                ErrorResult (prsc.Messages.Error)
 
         match (this.``ns-s-block-map-implicit-key`` ps) with
         |   Value (ck, prs1) -> matchValue(ck, prs1)
@@ -2252,9 +2256,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps |> ParseState.``Match and Advance`` (RGP ":" ) (fun prs ->
             let prs = prs.SetStyleContext ``Block-out``
             let noResult prs =
-                prs |> ParseState.``Match and Advance`` (this.``e-node`` +  this.``s-l-comments``) (fun prs ->
-                    this.ResolveTag prs NonSpecificQM (prs.Location) (PlainEmptyNode (getParseInfo ps prs))
-                )
+                if (ParseState.HasNoTerminatingError prs) then
+                    prs |> ParseState.``Match and Advance`` (this.``e-node`` +  this.``s-l-comments``) (fun prs ->
+                        this.ResolveTag prs NonSpecificQM (prs.Location) (PlainEmptyNode (getParseInfo ps prs))
+                    )
+                else
+                    let prsc = prs |> ParseState.ProcessErrors
+                    ErrorResult (prsc.Messages.Error)
+
             match (this.``s-l+block-node`` prs) with
             |   Value (c, prs2) -> Value(c, prs2)
             |   NoResult        -> prs |> noResult
