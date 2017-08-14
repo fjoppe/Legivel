@@ -1,4 +1,6 @@
-﻿#I __SOURCE_DIRECTORY__ 
+﻿module Yaml
+
+#I __SOURCE_DIRECTORY__ 
 #I "../../packages"
 
 #r @"bin/Debug/YamlParser.dll"
@@ -17,7 +19,7 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let engine = Yaml12Parser(fun s -> logger.Trace(s))
+let engine = Yaml12Parser()
 
 let WarnMsg (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
 let ErrMsg  (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -42,7 +44,6 @@ let PrintNode crr =
         printfn "Document was empty"
         rr.StopLocation |>  TotLns
         rr.Warn |> WarnMsg
-
 
 let YamlParse s =
     try
@@ -70,13 +71,4 @@ let YamlParseList s =
         e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
         raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
-
-
-YamlParse "
-- l1e1
-- - l2e1
-\t- l2e2
-"
-
-
 

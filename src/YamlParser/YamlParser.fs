@@ -91,6 +91,9 @@ type ParseState = {
         /// Current Indentation
         n           : int
         
+        /// Indentation levels
+        IndentLevels: int list
+
         /// Current Sub-Indentation, nested under ParseState.n
         m           : int
         
@@ -170,7 +173,7 @@ type ParseState = {
         
         member this.SetStyleContext cn = { this with c = cn}
 
-        member this.SetIndent nn = { this with n = nn}
+        member this.SetIndent nn = { this with n = nn; IndentLevels = this.n :: this.IndentLevels}
 
         member this.SetSubIndent mn = { this with m = mn}
 
@@ -205,6 +208,7 @@ type ParseState = {
                 GlobalTagSchema = schema; LocalTagSchema = None; NodePath = [];
                 TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
                 Restrictions = ParseRestrictions.Create(); TrackLength = 0
+                IndentLevels = []
             }
 
 [<NoEquality; NoComparison>]
@@ -217,6 +221,8 @@ module ParseState =
     let SetStyleContext cn (ps:ParseState) = ps.SetStyleContext cn
     let SetIndent nn (ps:ParseState) = ps.SetIndent nn
     let SetSubIndent mn (ps:ParseState) = ps.SetSubIndent mn
+    let RevokeIndentation idl (ps:ParseState) =
+        {ps with IndentLevels = idl }
 
     let SetRestString s (ps:ParseState) = ps.SetRestString s
 
@@ -225,6 +231,8 @@ module ParseState =
         |> SetStyleContext (ps.c)
         |> SetIndent (ps.n)
         |> SetSubIndent (ps.m)
+        |> RevokeIndentation (ps.IndentLevels)
+
     let ResetEnv ps pso = pso |> FallibleOption.map(fun (any, prt) -> (any, (renv(prt,ps))))
     let ResetDocumentParseState ps = 
         { ps with 
@@ -243,13 +251,6 @@ module ParseState =
     let PreserveNoResult (outErrors:MessageAtLine list) =
         if outErrors.Length = 0 then NoResult
         else ErrorResult outErrors
-
-//    let printResult pso =
-//        pso |> 
-//        function 
-//        |   Value _ -> printfn "Value"
-//        |   NoResult    -> printfn "NoResult"
-//        |   ErrorResult _ -> printfn "ErrorResult"
 
     let PreserveErrors _ (ct,pso) = 
         let outErrors = ct.Messages.Error //|> List.sort
@@ -298,7 +299,7 @@ module ParseState =
 
     let ProcessErrors (ps:ParseState) =
         let freeForm = ps.Messages.Error   |> List.filter(fun m -> m.Code = Freeform)     |> List.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
-        let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform && m.Location <> ps.Location)   |> List.distinct
+        let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform (* && m.Location <> ps.Location *) )   |> List.distinct
         let filteredErrors = 
             cancelable 
             |> List.filter(fun m -> not(ps.Messages.Cancel |> List.exists(fun k -> m.Location = k)))
@@ -306,8 +307,16 @@ module ParseState =
 
 
     let PostProcessErrors fr =
-        fr |> FallibleOption.map(fun (node, ps:ParseState) ->(node,ProcessErrors ps))
-
+        fr
+        |> FallibleOption.map(fun (node, ps:ParseState) ->(node,ProcessErrors ps))
+        |> FallibleOption.map(fun (node, ps:ParseState) ->
+            if ps.InputString.StartsWith("---") || ps.InputString.StartsWith("...") then
+                let errs = ps.Messages.Error |> List.filter(fun m -> m.Action = MessageAction.Continue && m.Location <> ps.Location)
+                let psne = {ps with Messages = {ps.Messages with Error = errs}}
+                (node,psne)
+            else
+                (node,ps)
+        )
 
     let ToRepresentation (pso:ParseState) no =
         let mal2pm (ml:MessageAtLine list) = (ml |> List.map(fun w -> ParseMessageAtLine.Create (w.Location) (w.Message)))
@@ -355,6 +364,13 @@ let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
         let groups = lst |> List.tail
         Some(MatchResult.Create fullMatch rest groups, ps |> ParseState.TrackPosition fullMatch |> ParseState.SetRestString rest)
     else None
+
+
+type CreateErrorMessage() =
+    static member TabIndentError ps = MessageAtLine.CreateContinue (ps.Location) ErrTabCannotIndent "A tab cannot be used for indentation, use spaces instead."        
+    static member IndentLevelError ps = MessageAtLine.CreateTerminate (ps.Location) ErrIndentationError (sprintf "This line is indented incorrectly, expected %d spaces." (ps.n + ps.m))
+
+
 
 type Yaml12Parser(loggingFunction:string->unit) =
 
@@ -2040,7 +2056,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l+block-sequence`` (ps:ParseState) = 
         logger "l+block-sequence" ps
         let m = this.``auto detect indent in line`` ps
-        if m < 1 then NoResult
+        if m < 1 then 
+            if ps.InputString.StartsWith("\t") then
+                ErrorResult [CreateErrorMessage.TabIndentError ps]
+            else
+                NoResult
         else
             let rec ``l+block-sequence`` (psp:ParseState) (acc: Node list) =
                 let contentOrNone rs psr = 
@@ -2054,7 +2074,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         let prsc = psr |> ParseState.ProcessErrors
                         ErrorResult (prsc.Messages.Error)
 
-                (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``c-l-block-seq-entry``)
+                let pspf = psp.FullIndented
+                pspf |> ParseState.``Match and Advance`` (this.``s-indent(n)`` pspf) (this.``c-l-block-seq-entry``)
                 |>  function
                     |   Value(c, prs2)   -> ``l+block-sequence`` prs2 (c :: acc)
                     |   NoResult        -> contentOrNone NoResult psp
@@ -2121,12 +2142,20 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
                     |> this.ResolveTag psr NonSpecificQM (psr.Location)
                     |> this.PostProcessAndValidateNode
-            
-            psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
-            |>  function
-                |   Value(c, prs2)  -> ``ns-l-compact-sequence`` prs2 (c :: acc)
-                |   NoResult        -> contentOrNone NoResult psp
-                |   ErrorResult e   -> psp |> ParseState.AddErrorMessageList e |> contentOrNone (ErrorResult e)
+
+            if not(IsMatch(psp.InputString, (this.``s-indent(n)`` psp))) then
+                let sp = Match(psp.InputString, ZOM(RGP this.``s-space``))
+                let ilen = sp.[0].Length
+                if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
+                    contentOrNone NoResult psp
+                else
+                    ErrorResult [CreateErrorMessage.IndentLevelError psp] 
+            else
+                psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
+                |>  function
+                    |   Value(c, prs2)  -> ``ns-l-compact-sequence`` prs2 (c :: acc)
+                    |   NoResult        -> contentOrNone NoResult psp
+                    |   ErrorResult e   -> psp |> ParseState.AddErrorMessageList e |> contentOrNone (ErrorResult e)
         match (this.``c-l-block-seq-entry`` ps) with
         |   Value (c, prs) -> ``ns-l-compact-sequence`` prs [c]
         |   NoResult   -> NoResult
@@ -2138,7 +2167,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l+block-mapping`` ps =
         logger "l+block-mapping" ps
         let m = this.``auto detect indent in line`` ps
-        if m < 1 then NoResult 
+        if m < 1 then 
+            if ps.InputString.StartsWith("\t") then
+                ErrorResult [CreateErrorMessage.TabIndentError ps]
+            else
+                NoResult 
         else
             let rec ``l+block-mapping`` (psp:ParseState) (acc:(Node*Node) list) = 
                 let contentOrNone rs psr = 

@@ -26,6 +26,8 @@ type MessageCode =
     |   ErrDquoteIllegalChars
     |   ErrMissingSquote
     |   ErrMissingMappingSymbol
+    |   ErrTabCannotIndent
+    |   ErrIndentationError
 
 
     

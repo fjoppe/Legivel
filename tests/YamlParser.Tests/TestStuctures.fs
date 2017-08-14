@@ -613,3 +613,53 @@ let ``Test block folded illegal chomping 2 - Rainy Day``() =
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> should be (greaterThan 0)
 
+
+[<Test>]
+let ``Test unnested tab indent error - rainy day``() =
+    // should error at l1e1
+    let err = YamlParseWithErrors "
+\t- l1e1
+\t- l1e2
+\t\t- l2e1
+\t\t- l2e2
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test nested tab indent error block in block - rainy day``() =
+    // should error at l2e1
+    let err = YamlParseWithErrors "
+- l1e1
+-
+\t- l2e1
+\t- l2e2
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test nested tab indent error compact in block - rainy day``() =
+    // should error at l2e1
+    let err = YamlParseWithErrors "
+- l1e1
+- - l2e1
+\t- l2e2
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test nested indent error compact in block - rainy day``() =
+    // should error at l2e1
+    let err = YamlParseWithErrors "
+- l1e1
+- - l2e1
+  - l2e3
+ - l2e2
+"
+    err.Error.Length |> should be (greaterThan 0)
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("This line is indented incorrectly")) |> List.length |> should be (greaterThan 0)
