@@ -1,11 +1,11 @@
-﻿module RegexDSL
+﻿module RegexDSL 
+
+#nowarn "52" // "value has been copied to ensure the original is not mutated"
 
 open System.Diagnostics
 open System.Text.RegularExpressions
 open System
 open System.Globalization
-
-#nowarn "52" // "value has been copied to ensure the original is not mutated"
 
 exception RegexException of string
 
@@ -44,7 +44,7 @@ type OneInSet =
         failwith "Unsupported RGX addition"
 
     static member Create r =
-         {mainset= r; subtractset = ""; not = false}
+            {mainset= r; subtractset = ""; not = false}
     member this.Not() = 
         {this with not = true}
 

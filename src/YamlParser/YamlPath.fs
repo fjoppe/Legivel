@@ -2,7 +2,6 @@
 
 open RegexDSL
 open RepresentationGraph
-open YamlParse
 
 exception YamlPathException of string
 
@@ -150,6 +149,54 @@ type TagEvaluation =
             |> fun lst ->
                 if lst.Length = 0 then None
                 else (Some lst)
+module YP =
+    let ``s-space`` = "\u0020"
+    let ``s-tab`` = "\u0009"
+    let ``start-of-line`` = RGP "^"
+    let ``s-white`` = RGO(``s-space`` + ``s-tab``)
+    let ``b-line-feed`` = RGP "\u000a"
+    let ``b-carriage-return`` = RGP "\u000d"
+    let ``b-break`` = 
+            (``b-carriage-return`` + ``b-line-feed``) |||  //  DOS, Windows
+             ``b-carriage-return``                    |||  //  MacOS upto 9.x
+             ``b-line-feed``
+    let ``s-separate-in-line`` = OOM(``s-white``) ||| ``start-of-line``
+    let ``b-as-line-feed`` = ``b-break``
+    let ``b-non-content`` = ``b-break``
+    let ``b-as-space`` = ``b-break``
+    let ``s-indent(n)`` = Repeat(RGP ``s-space``, 0)
+    let ``s-indent(<n)`` = Range(RGP ``s-space``, 0, -1)
+    let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(``s-separate-in-line``)
+    let ``l-empty`` = ((``s-flow-line-prefix``) ||| (``s-indent(<n)`` )) + ``b-as-line-feed``
+    let ``b-l-trimmed`` = ``b-non-content`` + OOM(``l-empty``)
+    let ``b-l-folded`` = (``b-l-trimmed``) ||| ``b-as-space``
+    let ``s-flow-folded`` = OPT(``s-separate-in-line``) + (``b-l-folded``) + (``s-flow-line-prefix``)
+    let ``c-quoted-quote`` = RGP "\'\'"
+    let ``nb-json`` = RGO "\u0009\u0020-\uffff"
+    let ``ns-single-char`` = ``c-quoted-quote`` ||| (``nb-json`` - (RGO "\'") - ``s-white``)
+    let ``nb-ns-single-in-line`` = ZOM(ZOM(``s-white``) + ``ns-single-char``)
+    let ``s-single-next-line`` =
+        ZOM((``s-flow-folded``) + ``ns-single-char`` + ``nb-ns-single-in-line``) + (``s-flow-folded``) |||
+        OOM((``s-flow-folded``) + ``ns-single-char`` + ``nb-ns-single-in-line``) + ZOM(``s-white``)
+
+    let ``nb-single-multi-line`` = ``nb-ns-single-in-line`` + ((``s-single-next-line``) ||| ZOM(``s-white``))
+    let ``ns-dec-digit`` = RGO "\u0030-\u0039"
+    let ``ns-ascii-letter`` = 
+        RGO "\u0041-\u005A" +   //  A-Z
+        RGO "\u0061-\u007A"     //  a-z
+    let ``ns-hex-digit`` =
+        ``ns-dec-digit`` +
+        RGO "\u0041-\u0046"  +  //  A-F
+        RGO "\u0061-\u0066"     //  a-f
+    let ``ns-word-char`` =
+        ``ns-dec-digit`` + (RGO @"\-") + ``ns-ascii-letter``
+    let ``ns-uri-char`` = 
+        (RGP @"%") + ``ns-hex-digit`` + ``ns-hex-digit``  |||
+        (RGO @"#;/?:@&=+$,_.!~*\'\(\)\[\]") + ``ns-word-char``
+    let ``c-primary-tag-handle`` = RGP "!"
+    let ``ns-tag-char`` = 
+        (RGP @"%") + ``ns-hex-digit`` + ``ns-hex-digit``  |||
+        (RGO @"#;/?:@&=+$_.~*\'\(\)") + ``ns-word-char``
 
 type EvaluationExpression =
     |   Map of MappingEvaluation
@@ -169,15 +216,10 @@ type YamlPath = private {
         Evaluation : EvaluationExpression list
     }
     with
-        static member ``single quote regex`` =
-            let y = Yaml12Parser()
-            let ps = ParseState.Create "" (TagResolution.FailsafeSchema)
-            y.``nb-single-multi-line`` ps
+        static member ``single quote regex`` = YP.``nb-single-multi-line``
 
         static member tagrx =
-            let y = Yaml12Parser()
-//            let ps = ParseState.Create "" (TagResolution.FailsafeSchema)
-            OOM(y.``ns-uri-char``) ||| y.``c-primary-tag-handle`` + OOM(y.``ns-tag-char``)
+            OOM(YP.``ns-uri-char``) ||| YP.``c-primary-tag-handle`` + OOM(YP.``ns-tag-char``)
 
 
         static member Create (s:string) =
