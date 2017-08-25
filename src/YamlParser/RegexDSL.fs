@@ -82,15 +82,15 @@ type RGXType =
         |   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
         |   Optional   t -> sprintf "(?:%O)?" t
         |   Group      t -> sprintf "(%O)" t
-    static member (|||) (r1:RGXType, r2:RGXType) =
-        match r1 with
-        | Or     l ->   Or(r2 :: l)
-        | _       ->    Or([r2; r1])
-
     static member private DoConcat (r1:RGXType, r2:RGXType) = 
         match (r1,r2) with
         |   (Concat c1, _) -> Concat(r2 :: c1)
         |   _   -> Concat([r2; r1])
+
+    static member (|||) (r1:RGXType, r2:RGXType) =
+        match r1 with
+        | Or     l ->   Or(r2 :: l)
+        | _       ->    Or([r2; r1])
 
     static member (-) (r1:RGXType, r2:RGXType) =
         match (r1,r2) with

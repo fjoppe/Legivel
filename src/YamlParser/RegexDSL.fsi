@@ -4,8 +4,8 @@ type RGXType
 type RGXType
     with
         static member (|||) : RGXType * RGXType -> RGXType
-        static member (-) : RGXType * RGXType -> RGXType
         static member (+) : RGXType * RGXType -> RGXType
+        static member (-) : RGXType * RGXType -> RGXType
 
 
 /// Regex pattern must repeat exactly given value, eg: Range(RGP("abc"), 2) := (abc){2}

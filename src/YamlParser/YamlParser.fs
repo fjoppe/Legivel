@@ -211,9 +211,6 @@ type ParseState = {
                 IndentLevels = []
             }
 
-[<NoEquality; NoComparison>]
-exception DocumentException of ParseState
-
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module ParseState = 
@@ -298,8 +295,8 @@ module ParseState =
 
 
     let ProcessErrors (ps:ParseState) =
-        let freeForm = ps.Messages.Error   |> List.filter(fun m -> m.Code = Freeform)     |> List.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
-        let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform (* && m.Location <> ps.Location *) )   |> List.distinct
+        let freeForm = ps.Messages.Error   |> List.filter(fun m -> m.Code = Freeform) |> List.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
+        let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> Freeform) |> List.distinct
         let filteredErrors = 
             cancelable 
             |> List.filter(fun m -> not(ps.Messages.Cancel |> List.exists(fun k -> m.Location = k)))
@@ -367,7 +364,7 @@ let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
 
 
 type CreateErrorMessage() =
-    static member TabIndentError ps = MessageAtLine.CreateContinue (ps.Location) ErrTabCannotIndent "A tab cannot be used for indentation, use spaces instead."        
+    static member TabIndentError ps = MessageAtLine.CreateTerminate (ps.Location) ErrTabCannotIndent "A tab cannot be used for indentation, use spaces instead."        
     static member IndentLevelError ps = MessageAtLine.CreateTerminate (ps.Location) ErrIndentationError (sprintf "This line is indented incorrectly, expected %d spaces." (ps.n + ps.m))
 
 
@@ -2147,7 +2144,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let sp = Match(psp.InputString, ZOM(RGP this.``s-space``))
                 let ilen = sp.[0].Length
                 if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
-                    contentOrNone NoResult psp
+                    let ws = if psp.InputString.Length >= (psp.n) then psp.InputString.Substring(0,psp.n) else psp.InputString
+                    let ws = ws.TrimStart([|' '|])
+                    if ws.StartsWith("\t") then
+                        ErrorResult [CreateErrorMessage.TabIndentError psp]
+                    else
+                        contentOrNone NoResult psp
                 else
                     ErrorResult [CreateErrorMessage.IndentLevelError psp] 
             else

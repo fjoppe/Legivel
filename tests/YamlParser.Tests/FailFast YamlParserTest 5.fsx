@@ -50,10 +50,6 @@ let YamlParse s =
         let crr = repr.Head
         PrintNode crr
     with
-    | DocumentException e -> 
-        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
-        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
-        raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 let YamlParseList s =
@@ -65,17 +61,13 @@ let YamlParseList s =
             printfn "..."
         )
     with
-    | DocumentException e -> 
-        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
-        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
-        raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
 YamlParse "
-- l1e1
-- - l2e1
-\t- l2e2
+{ a : b,
+\t[l2e1, l2e2] : c
+}
 "
 
 

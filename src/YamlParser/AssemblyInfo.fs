@@ -3,7 +3,7 @@ namespace System
 open System.Reflection
 open System.Runtime.CompilerServices
 
-[<assembly: AssemblyTitleAttribute("YamlParser")>]
+[<assembly: AssemblyTitleAttribute("YamlParser.net45")>]
 [<assembly: AssemblyProductAttribute("YamlParser")>]
 [<assembly: AssemblyDescriptionAttribute("F# Yaml deserializer")>]
 [<assembly: AssemblyVersionAttribute("0.0.1")>]
@@ -13,7 +13,7 @@ open System.Runtime.CompilerServices
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] AssemblyTitle = "YamlParser"
+    let [<Literal>] AssemblyTitle = "YamlParser.net45"
     let [<Literal>] AssemblyProduct = "YamlParser"
     let [<Literal>] AssemblyDescription = "F# Yaml deserializer"
     let [<Literal>] AssemblyVersion = "0.0.1"

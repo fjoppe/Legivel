@@ -5,6 +5,7 @@ open TestUtils
 open YamlParser
 open FsUnit
 open RepresentationGraph
+open TagResolution
 
 
 [<Test>]
@@ -640,7 +641,6 @@ let ``Test nested tab indent error block in block - rainy day``() =
     err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> should be (greaterThan 0)
 
 
-[<Ignore("Does not work yet")>]
 [<Test>]
 let ``Test nested tab indent error compact in block - rainy day``() =
     // should error at l2e1
@@ -664,3 +664,26 @@ let ``Test nested indent error compact in block - rainy day``() =
 "
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("This line is indented incorrectly")) |> List.length |> should be (greaterThan 0)
+
+
+[<Test>]
+let ``Test block mapping with indented sequence - sunny day``() =
+    // should error at l2e1
+    let yml = YamlParse "
+{ a : b,
+[l2e1, l2e2] : c
+}
+"
+    [yml] |> Some |> ExtractTag |> should equal Failsafe.MappingGlobalTag.Uri
+
+
+[<Test>]
+let ``Test block mapping with tab indented sequence - sunny day``() =
+    // should error at l2e1
+    let yml = YamlParse "
+{ a : b,
+\t[l2e1, l2e2] : c
+}
+"
+    [yml] |> Some |> ExtractTag |> should equal Failsafe.MappingGlobalTag.Uri
+
