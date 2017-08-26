@@ -509,7 +509,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         this.``flow fold lines`` convertPrainEscapedMultiLine ps str
 
     member this.ResolveTag (ps:ParseState) tag tagLocation (node:Node) : FallibleOption<Node * ParseState, ErrorMessage> =
-        let checkTagKindMatch t rs =
+        let checkTagKindMatch (t:GlobalTag) rs =
             if t.Kind = node.Kind then Value(rs)
             else ErrorResult [MessageAtLine.CreateContinue (tagLocation) ErrTagKindMismatch (sprintf "Tag-kind mismatch, tag: %A, node: %A" (t.Kind) (node.Kind))]
 

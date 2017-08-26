@@ -2,10 +2,10 @@
 
 open RepresentationGraph
 
-let Deserialize (node:Node) (shorthands:TagShorthand list) =
+let internal Deserialize (node:Node) (shorthands:TagShorthand list) =
     let indent l = [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
     let tagString (lt:TagKind) =
-        let strGlobal gt =
+        let strGlobal (gt:GlobalTag) =
             shorthands
             |> List.tryFind(fun e -> gt.Uri.StartsWith(e.MappedTagBase)) 
             |> function

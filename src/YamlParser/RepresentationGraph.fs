@@ -3,17 +3,12 @@
 open System.Diagnostics
 open YamlParser.Internals
 
-
-
-
-
 type ParseInfo = {
         Start : DocumentLocation
         End   : DocumentLocation
     }
     with
         static member Create s e = { Start = s; End = e}
-
 
 type NodeKind = 
     | Mapping
@@ -49,58 +44,68 @@ and
     [<CustomEquality; CustomComparison>]
     [<StructuredFormatDisplay("{AsString}")>]
     GlobalTag = {
-        Uri     : string
-        Kind    : NodeKind
-        Regex   : string
+        Uri'    : string
+        Kind'   : NodeKind
+        Regex'  : string
         canonFn : string -> string option
-        TagFunctions : TagFunctions
+        TagFunctions' : TagFunctions
     }
     with
         static member Create (uri, nk, rgx, canon, tgfn) =
             { 
-                Uri = uri; 
-                Kind = nk;
-                Regex = sprintf "\\A(%s)\\z" rgx
+                Uri' = uri; 
+                Kind' = nk;
+                Regex' = sprintf "\\A(%s)\\z" rgx
                 canonFn = canon
-                TagFunctions = tgfn
+                TagFunctions' = tgfn
             }
+
+        member this.Uri with get() = this.Uri'
+        member this.Kind with get() = this.Kind'
+        member this.Regex with get() = this.Regex'
+
 
         static member Create (uri, nk, rgx, tgfn) = GlobalTag.Create (uri, nk, rgx, (fun s -> Some s), tgfn)
 
         static member Create (uri, nk, tgfn) = GlobalTag.Create (uri, nk, ".*", (fun s -> Some s), tgfn)
 
-        member this.AreEqual n1 n2 = this.TagFunctions.AreEqual n1 n2
-        member this.GetHash n = this.TagFunctions.GetHash n
-        member this.PostProcessAndValidateNode n = this.TagFunctions.PostProcessAndValidateNode n
-        member this.IsMatch n = this.TagFunctions.IsMatch n this
+        member this.AreEqual n1 n2 = this.TagFunctions'.AreEqual n1 n2
+        member this.GetHash n = this.TagFunctions'.GetHash n
+        member this.PostProcessAndValidateNode n = this.TagFunctions'.PostProcessAndValidateNode n
+        member this.IsMatch n = this.TagFunctions'.IsMatch n this
 
         member this.Canonical s = this.canonFn s
+
+        member this.TagFunctions with get() = this.TagFunctions'
+        member this.SetTagFunctions v = {this with TagFunctions' = v}
 
         override this.ToString() = sprintf "<%A::%s>" this.Kind this.Uri
         member m.AsString = m.ToString()
 
-        override this.Equals(other) = other |> InternalUtil.equalsOn(fun that -> this.Uri = that.Uri && this.Kind = that.Kind)
+        override this.Equals(other) = other |> InternalUtil.equalsOn(fun (that:GlobalTag) -> this.Uri = that.Uri && this.Kind = that.Kind)
 
         override this.GetHashCode() = this.Uri.GetHashCode() ^^^ this.Kind.GetHashCode()
 
         interface System.IComparable with
-            member this.CompareTo other = other |> InternalUtil.compareOn(fun that -> this.Uri.CompareTo(that.Uri))
+            member this.CompareTo other = other |> InternalUtil.compareOn(fun (that:GlobalTag) -> this.Uri.CompareTo(that.Uri))
 
 and
     [<CustomEquality; CustomComparison>]
     LocalTag = {
-        Handle      : string
+        Handle'     : string
         LocalTag    : LocalTagsFuncs
     }
     with
-        static member Create h f = { Handle = h; LocalTag = f}
+        member this.Handle with get() = this.Handle'
 
-        override this.Equals(other) = other |> InternalUtil.equalsOn(fun that -> this.Handle = that.Handle)
+        static member Create h f = { Handle' = h; LocalTag = f}
+
+        override this.Equals(other) = other |> InternalUtil.equalsOn(fun (that:LocalTag) -> this.Handle = that.Handle)
 
         override this.GetHashCode() = this.Handle.GetHashCode() 
 
         interface System.IComparable with
-            member this.CompareTo other = other |> InternalUtil.compareOn(fun that -> this.Handle.CompareTo(that.Handle))
+            member this.CompareTo other = other |> InternalUtil.compareOn(fun (that:LocalTag) -> this.Handle.CompareTo(that.Handle))
         
 and
     [<StructuredFormatDisplay("{AsString}")>]
@@ -306,6 +311,10 @@ type TagShorthand = {
         ShortHand : string
         MappedTagBase : string
     }
+    with
+        static member Create (short, full) = { ShortHand = short; MappedTagBase = full}
+        static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagBase = "tag:yaml.org,2002:"}
+
 
 type ParsedDocumentResult = {
         Warn        : ParseMessageAtLine list

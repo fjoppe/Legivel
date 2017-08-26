@@ -1,5 +1,6 @@
 source https://nuget.org/api/v2
 
+nuget FAKE
 nuget FSharp.Core redirects: force
 nuget fsunit
 nuget NLog

@@ -19,13 +19,13 @@ let TagResolveScalar schema s  =
 
 [<Test>]
 let ``Test JSON Schema Tags - Sunny Day``() =
-    JSON.NullGlobalTag.canonFn "null" |> Option.get |> should equal "null"
+    JSON.NullGlobalTag.Canonical "null" |> Option.get |> should equal "null"
 
-    JSON.BooleanGlobalTag.canonFn "true" |> Option.get |> should equal "true"
-    JSON.BooleanGlobalTag.canonFn "false" |> Option.get |> should equal "false"
+    JSON.BooleanGlobalTag.Canonical "true" |> Option.get |> should equal "true"
+    JSON.BooleanGlobalTag.Canonical "false" |> Option.get |> should equal "false"
 
     [("1234","+1234"); ("-1234", "-1234"); ("0","+0"); ("-0" ,"+0")]
-    |> List.iter(fun (i,e) -> JSON.IntegerGlobalTag.canonFn i |> Option.get |> should equal e)
+    |> List.iter(fun (i,e) -> JSON.IntegerGlobalTag.Canonical i |> Option.get |> should equal e)
 
     //  http://www.yaml.org/spec/1.2/spec.html#id2804318
     [
@@ -34,7 +34,7 @@ let ``Test JSON Schema Tags - Sunny Day``() =
         ("3.141500","+0.31415e+001");("100.01500","+0.100015e+003");("-1.","-0.1e+001")
         ("2.3e+4", "+0.23e+005")
     ]
-    |> List.iter(fun (i,e) -> JSON.FloatGlobalTag.canonFn i |> Option.get |> should equal e)
+    |> List.iter(fun (i,e) -> JSON.FloatGlobalTag.Canonical i |> Option.get |> should equal e)
 
 [<Test>]
 let ``Test JSON Schema Tags - Rainy Day``() =
@@ -80,17 +80,17 @@ let ``Test JSON TagResolution``() =
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2805712
 let ``Test Yaml Core Schema Tags``() =
     ["null"; "NULL"; "Null"; ""; "~" ]
-    |> List.iter(fun i -> YamlCore.NullGlobalTag.canonFn i |> Option.get |> should equal "~")
+    |> List.iter(fun i -> YamlCore.NullGlobalTag.Canonical i |> Option.get |> should equal "~")
 
     ["true";"True";"TRUE"]
-    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> Option.get  |> should equal "true")
+    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.Canonical i |> Option.get  |> should equal "true")
 
     ["false";"False";"FALSE"]
-    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.canonFn i |> Option.get  |> should equal "false")
+    |> List.iter(fun i -> YamlCore.BooleanGlobalTag.Canonical i |> Option.get  |> should equal "false")
 
 
     [("0","+0"); ("-0","+0"); ("0o7", "+7"); ("0x3A","+58"); ("-19" ,"-19")]
-    |> List.iter(fun (i,e) -> YamlCore.IntegerGlobalTag.canonFn i |> Option.get  |> should equal e)
+    |> List.iter(fun (i,e) -> YamlCore.IntegerGlobalTag.Canonical i |> Option.get  |> should equal e)
 
     //  http://www.yaml.org/spec/1.2/spec.html#id2804318
     [
@@ -99,7 +99,7 @@ let ``Test Yaml Core Schema Tags``() =
         (".inf","+.inf");("-.Inf","-.inf");("+.INF","+.inf")
         (".NAN", ".nan")
     ]
-    |> List.iter(fun (i,e) -> YamlCore.FloatGlobalTag.canonFn i |> Option.get  |> should equal e)
+    |> List.iter(fun (i,e) -> YamlCore.FloatGlobalTag.Canonical i |> Option.get  |> should equal e)
 
 
 [<Test>]

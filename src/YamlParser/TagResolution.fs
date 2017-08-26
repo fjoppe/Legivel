@@ -34,10 +34,10 @@ type GlobalTagSchema = {
 }
 
 
-type TagShorthand 
-    with
-        static member Create (short, full) = { ShortHand = short; MappedTagBase = full}
-        static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagBase = "tag:yaml.org,2002:"}
+//type TagShorthand 
+//    with
+//        static member Create (short, full) = { ShortHand = short; MappedTagBase = full}
+//        static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagBase = "tag:yaml.org,2002:"}
 
 
 module internal SchemaUtils =
@@ -168,7 +168,7 @@ module internal Failsafe =
 
     let isScalarValid (n: Node) = Value(n)
 
-    let isScalarMatch n t = 
+    let isScalarMatch n (t:GlobalTag) = 
         match n with
         |   ScalarNode nd ->  IsMatch (nd.Data, t.Regex)
         |   _    -> false
@@ -214,9 +214,9 @@ module internal Failsafe =
 
 
 module internal NonSpecific =
-    let NonSpecificTagQT = TagKind.NonSpecific {Handle ="!"; LocalTag =Failsafe.localtagFunctions}
-    let NonSpecificTagQM = TagKind.NonSpecific {Handle ="?"; LocalTag = Failsafe.localtagFunctions}
-    let UnresolvedTag = TagKind.NonSpecific {Handle ="?"; LocalTag = Failsafe.localtagFunctions}
+    let NonSpecificTagQT = TagKind.NonSpecific (LocalTag.Create "!" Failsafe.localtagFunctions)
+    let NonSpecificTagQM = TagKind.NonSpecific (LocalTag.Create "?" Failsafe.localtagFunctions)
+    let UnresolvedTag = TagKind.NonSpecific (LocalTag.Create "?" Failsafe.localtagFunctions)
 
 
 module internal JSON =
@@ -682,8 +682,8 @@ module internal YamlExtended =
                 |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot be used in the sequence at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
                 |>  ErrorResult
 
-    let YEMappingGlobalTag = { Failsafe.MappingGlobalTag with TagFunctions = { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }}
-    let YESequenceGlobalTag = { Failsafe.SequenceGlobalTag with TagFunctions = { Failsafe.SequenceGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }}
+    let YEMappingGlobalTag = Failsafe.MappingGlobalTag.SetTagFunctions { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }
+    let YESequenceGlobalTag = Failsafe.SequenceGlobalTag.SetTagFunctions { Failsafe.SequenceGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }
 
     let YEFailSafeResolution nst =
         match nst.NodeKind with
