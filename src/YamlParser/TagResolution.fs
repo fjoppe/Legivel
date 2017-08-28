@@ -7,7 +7,6 @@ open ErrorsAndWarnings
 open YamlParser.Internals
 open System.Text.RegularExpressions
 
-exception TagResolutionException of string
 
 [<NoEquality; NoComparison>]
 type TagResolutionInfo = {
@@ -34,12 +33,6 @@ type GlobalTagSchema = {
 }
 
 
-//type TagShorthand 
-//    with
-//        static member Create (short, full) = { ShortHand = short; MappedTagBase = full}
-//        static member DefaultSecondaryTagHandler = { ShortHand = "!!" ; MappedTagBase = "tag:yaml.org,2002:"}
-
-
 module internal SchemaUtils =
     let getMapNode (n:Node) =
         match n with
@@ -49,7 +42,7 @@ module internal SchemaUtils =
     let getSeqNode (n:Node) =
         match n with
         |   SeqNode n ->  n.Data 
-        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting e Seq Node"
+        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting a Seq Node"
 
     let getScalarNode (n:Node) =
         match n with
@@ -82,7 +75,27 @@ module internal SchemaUtils =
         n.NodeTag.CanonFn data |> tagFormatCheckError n data
 
 
-module internal Failsafe =
+    let tagResolution (failsafe:TagResolutionInfo->GlobalTag option) (fsMap, fsSeq, fsScal) (mappingTags:GlobalTag list) (seqTags:GlobalTag list) (scalarTags:GlobalTag list) : TagResolutionFunc = fun nst -> 
+        match nst.NonSpecificTag with
+        |   "!" -> failsafe nst
+        |   "?" ->  
+            match nst.Content with
+            |   MapNode _ -> 
+                mappingTags
+                |> List.tryFind(fun t -> t.IsMatch (nst.Content))
+                |> Option.ifnone(Some fsMap)
+            |   SeqNode _ -> 
+                seqTags
+                |> List.tryFind(fun t -> t.IsMatch (nst.Content))
+                |> Option.ifnone(Some fsSeq)
+            |   ScalarNode _ -> 
+                scalarTags
+                |> List.tryFind(fun t -> t.IsMatch (nst.Content))
+                |> Option.ifnone(Some fsScal)
+        |   _ -> failwith (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag)
+
+
+module Failsafe =
     let areUnorderedMappingsEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
         n1.Kind = n2.Kind &&
@@ -212,14 +225,24 @@ module internal Failsafe =
 
     let providedTags = [MappingGlobalTag; SequenceGlobalTag; StringGlobalTag]
 
+    let tagResolutionWithDefaultFailsafe = 
+        SchemaUtils.tagResolution defaultFailSafeResolution (MappingGlobalTag, SequenceGlobalTag, StringGlobalTag)
 
-module internal NonSpecific =
+    //    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
+    let Schema = {
+        GlobalTags = providedTags
+        TagResolution = tagResolutionWithDefaultFailsafe [] [] []
+        UnresolvedResolution = getUnresolvedTag
+        LocalTags = localtagFunctions
+    }
+
+module NonSpecific =
     let NonSpecificTagQT = TagKind.NonSpecific (LocalTag.Create "!" Failsafe.localtagFunctions)
     let NonSpecificTagQM = TagKind.NonSpecific (LocalTag.Create "?" Failsafe.localtagFunctions)
     let UnresolvedTag = TagKind.NonSpecific (LocalTag.Create "?" Failsafe.localtagFunctions)
 
 
-module internal JSON =
+module JSON =
     let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
 
     let NullGlobalTag =
@@ -245,7 +268,7 @@ module internal JSON =
         GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "[-]?(0|[1-9][0-9]*)",
             (fun s ->
                 match s with
-                | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is))) |> Some
+                | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int64.Parse(String.Concat(sign, is))) |> Some
                 | _ -> None
             ), formattedScalarTag
         )
@@ -264,9 +287,29 @@ module internal JSON =
             ), formattedScalarTag
         )
 
+
+    let MappingGlobalTag = Failsafe.MappingGlobalTag
+    let SequenceGlobalTag = Failsafe.SequenceGlobalTag
+    let StringGlobalTag = Failsafe.StringGlobalTag
+
     let providedScalarTags = [NullGlobalTag; BooleanGlobalTag;IntegerGlobalTag;FloatGlobalTag]
 
-module internal YamlCore =
+    //    Json schema:  http://www.yaml.org/spec/1.2/spec.html#id2803231
+    let Schema = {
+        GlobalTags = Failsafe.providedTags @ providedScalarTags 
+        TagResolution = 
+            (fun nst ->
+                match (nst.NonSpecificTag, nst.Content) with
+                |   ("?", ScalarNode _) -> 
+                    providedScalarTags  |> List.tryFind(fun t -> t.IsMatch (nst.Content))
+                |   _ -> Failsafe.tagResolutionWithDefaultFailsafe [] [] providedScalarTags nst
+            )
+        UnresolvedResolution = Failsafe.getUnresolvedTag
+        LocalTags = Failsafe.localtagFunctions
+    }
+
+
+module YamlCore =
     let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
 
     let NullGlobalTag =
@@ -293,13 +336,13 @@ module internal YamlCore =
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
-                let convertToCanonical sign number = sprintf "%+d" (Int32.Parse(String.Concat(sign, number.ToString())))
+                let convertToCanonical sign number = sprintf "%+d" (Int64.Parse(String.Concat(sign, number.ToString())))
                 match s with
                 | Regex "^0o([0-7]+)$"  [os] -> 
                     let ps = os.ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 3) + (digitToValue  c)) 0
                     convertToCanonical "" ic |> Some
-                | Regex "^([-+])?([0-9]+)$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is))) |> Some
+                | Regex "^([-+])?([0-9]+)$" [sign; is] -> sprintf "%+d" (Int64.Parse(String.Concat(sign, is))) |> Some
                 | Regex "^(0x[0-9a-fA-F]+)$"  [hs] -> 
                     let ps = hs.Substring(2).ToUpper().ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 4) + (digitToValue  c)) 0
@@ -327,9 +370,21 @@ module internal YamlCore =
             toCanonical, formattedScalarTag
         )
 
+    let MappingGlobalTag = Failsafe.MappingGlobalTag
+    let SequenceGlobalTag = Failsafe.SequenceGlobalTag
+    let StringGlobalTag = Failsafe.StringGlobalTag
+
     let providedScalarTags = [BooleanGlobalTag;IntegerGlobalTag;FloatGlobalTag;NullGlobalTag]
 
-module internal YamlExtended =
+    //  Core Schema:    http://www.yaml.org/spec/1.2/spec.html#id2804923
+    let Schema = {
+        GlobalTags = Failsafe.providedTags @ providedScalarTags
+        TagResolution = Failsafe.tagResolutionWithDefaultFailsafe [] [] providedScalarTags
+        UnresolvedResolution = Failsafe.getUnresolvedTag
+        LocalTags = Failsafe.localtagFunctions
+    }
+
+module YamlExtended =
     let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
 
     let getPairs nl =
@@ -430,7 +485,7 @@ module internal YamlExtended =
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
-                let convertToCanonical sign number = sprintf "%+d" (Int32.Parse(String.Concat(sign, number.ToString())))
+                let convertToCanonical sign number = sprintf "%+d" (Int64.Parse(String.Concat(sign, number.ToString())))
                 match s with
                 | Regex "^(?:([-+])?0b([0-1_]+))$" [sign; bs] -> 
                     let ps = bs.Replace("_","").ToCharArray() |> List.ofArray
@@ -440,7 +495,7 @@ module internal YamlExtended =
                     let ps = os.Replace("_","").ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 3) + (digitToValue  c)) 0
                     convertToCanonical sign ic |> Some 
-                | Regex "^(?:([-+])?(0|[1-9][0-9_]*))$" [sign; is] -> sprintf "%+d" (Int32.Parse(String.Concat(sign, is.Replace("_","")))) |> Some 
+                | Regex "^(?:([-+])?(0|[1-9][0-9_]*))$" [sign; is] -> sprintf "%+d" (Int64.Parse(String.Concat(sign, is.Replace("_","")))) |> Some 
                 | Regex "^(?:([-+])?(0x[0-9a-fA-F_]+))$"  [sign; hs] -> 
                     let ps = hs.Substring(2).ToUpper().Replace("_","").ToCharArray() |> List.ofArray
                     let ic = ps |> List.fold(fun s c -> (s <<< 4) + (digitToValue  c)) 0
@@ -449,7 +504,7 @@ module internal YamlExtended =
                     let sign = List.item 0 ssl
                     let ss   = List.item 1 ssl
                     let ps = ss.Replace("_","").Split([|":"|], StringSplitOptions.RemoveEmptyEntries)
-                    let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
+                    let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60L) + (Int64.Parse(t))) 0L
                     convertToCanonical sign ic |> Some 
                 | _ -> None
             ), formattedScalarTag
@@ -466,7 +521,7 @@ module internal YamlExtended =
                 sprintf "%s0.%se%+04d" canSign fullMantissa (canExp+givenExp) |> Some 
             | Regex "^(?:([-+]?)((?:[0-9][0-9_]*)(?::[0-5]?[0-9])+)\.([0-9_]*))$"  [sign; mantissa; prec] -> 
                 let ps = mantissa.Replace("_","").Split([|":"|], StringSplitOptions.RemoveEmptyEntries)
-                let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60) + (Int32.Parse(t))) 0
+                let ic = ps |> List.ofArray  |> List.fold(fun s t -> (s * 60L) + (Int64.Parse(t))) 0L
                 let canSign = canonicalSign sign
                 let canMantissa = ic.ToString()
                 let canExp = canMantissa.Length
@@ -682,90 +737,30 @@ module internal YamlExtended =
                 |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot be used in the sequence at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
                 |>  ErrorResult
 
-    let YEMappingGlobalTag = Failsafe.MappingGlobalTag.SetTagFunctions { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }
-    let YESequenceGlobalTag = Failsafe.SequenceGlobalTag.SetTagFunctions { Failsafe.SequenceGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }
+    let MappingGlobalTag = Failsafe.MappingGlobalTag.SetTagFunctions { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }
+    let SequenceGlobalTag = Failsafe.SequenceGlobalTag.SetTagFunctions { Failsafe.SequenceGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }
+    let StringGlobalTag = Failsafe.StringGlobalTag
 
     let YEFailSafeResolution nst =
         match nst.NodeKind with
-        |   Mapping -> Some YEMappingGlobalTag
-        |   Sequence-> Some YESequenceGlobalTag
+        |   Mapping -> Some MappingGlobalTag
+        |   Sequence-> Some SequenceGlobalTag
         |   Scalar  -> Some Failsafe.StringGlobalTag
 
    
     //  order is important, !!pairs is a superset of !!omap
-    let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag; YESequenceGlobalTag]
+    let providedSeqTags = [OrderedMappingGlobalTag;OrderedPairsGlobalTag; SequenceGlobalTag]
     let providedScalarTags = [BooleanGlobalTag; IntegerGlobalTag; FloatGlobalTag; TimestampGlobalTag; NullGlobalTag; ValueGlobalTag; MergeGlobalTag; BinaryGlobalTag; Failsafe.StringGlobalTag]
-    let providedMappingTags = [UnOrderedSetGlobalTag;YEMappingGlobalTag]
+    let providedMappingTags = [UnOrderedSetGlobalTag;MappingGlobalTag]
 
+    let tagResolutionYamlExtended = SchemaUtils.tagResolution YEFailSafeResolution (MappingGlobalTag, SequenceGlobalTag, Failsafe.StringGlobalTag)
 
-let private tagResolution (failsafe:TagResolutionInfo->GlobalTag option) (fsMap, fsSeq, fsScal) (mappingTags:GlobalTag list) (seqTags:GlobalTag list) (scalarTags:GlobalTag list) : TagResolutionFunc = fun nst -> 
-    match nst.NonSpecificTag with
-    |   "!" -> failsafe nst
-    |   "?" ->  
-        match nst.Content with
-        |   MapNode _ -> 
-            mappingTags
-            |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-            |> Option.ifnone(Some fsMap)
-        |   SeqNode _ -> 
-            seqTags
-            |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-            |> Option.ifnone(Some fsSeq)
-        |   ScalarNode _ -> 
-            scalarTags
-            |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-            |> Option.ifnone(Some fsScal)
-    |   _ -> failwith (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag)
-
-
-let private tagResolutionWithDefaultFailsafe = 
-    tagResolution Failsafe.defaultFailSafeResolution (Failsafe.MappingGlobalTag, Failsafe.SequenceGlobalTag, Failsafe.StringGlobalTag)
-
-
-//    Failsafe schema:  http://www.yaml.org/spec/1.2/spec.html#id2802346
-let FailsafeSchema =
-    {
-        GlobalTags = Failsafe.providedTags
-        TagResolution = tagResolutionWithDefaultFailsafe [] [] []
-        UnresolvedResolution = Failsafe.getUnresolvedTag
-        LocalTags = Failsafe.localtagFunctions
-    }
-
-
-//    Json schema:  http://www.yaml.org/spec/1.2/spec.html#id2803231
-let JSONSchema =
-    {
-        GlobalTags = Failsafe.providedTags @ JSON.providedScalarTags 
-        TagResolution = 
-        // TagResolution
-            (fun nst ->
-                match (nst.NonSpecificTag, nst.Content) with
-                |   ("?", ScalarNode _) -> 
-                    JSON.providedScalarTags  |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-                |   _ -> tagResolutionWithDefaultFailsafe [] [] JSON.providedScalarTags nst
-            )
-        UnresolvedResolution = Failsafe.getUnresolvedTag
-        LocalTags = Failsafe.localtagFunctions
-    }
-
-
-//  Core Schema:    http://www.yaml.org/spec/1.2/spec.html#id2804923
-let YamlCoreSchema =
-    {
-        GlobalTags = Failsafe.providedTags @ YamlCore.providedScalarTags
-        TagResolution = tagResolutionWithDefaultFailsafe [] [] YamlCore.providedScalarTags
-        UnresolvedResolution = Failsafe.getUnresolvedTag
-        LocalTags = Failsafe.localtagFunctions
-    }
-
-
-//  'Extended' schema (not official name):  http://yaml.org/type/
-let YamlExtendedSchema =
-    let tagResolutionYamlExtended = tagResolution YamlExtended.YEFailSafeResolution (YamlExtended.YEMappingGlobalTag, YamlExtended.YESequenceGlobalTag, Failsafe.StringGlobalTag)
-    {
+    //  'Extended' schema (not official name):  http://yaml.org/type/
+    let Schema = {
         //  note that failsafe tags are overriden in this schema        
-        GlobalTags = YamlExtended.providedScalarTags @ YamlExtended.providedSeqTags @ YamlExtended.providedMappingTags
-        TagResolution = tagResolutionYamlExtended YamlExtended.providedMappingTags YamlExtended.providedSeqTags YamlExtended.providedScalarTags
+        GlobalTags = providedScalarTags @ providedSeqTags @ providedMappingTags
+        TagResolution = tagResolutionYamlExtended providedMappingTags providedSeqTags providedScalarTags
         UnresolvedResolution = Failsafe.getUnresolvedTag
         LocalTags = Failsafe.localtagFunctions
     }
+

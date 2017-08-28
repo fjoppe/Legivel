@@ -43,7 +43,7 @@ let ``Test JSON Schema Tags - Rainy Day``() =
         "!!bool a"; "!!bool ya"; "!!bool onb"
         "!!float a"; "!!float 2.a"; "!!float 2.0a"
     ]
-    |>  List.map (YamlParseForSchemaWithErrors JSONSchema)
+    |>  List.map (YamlParseForSchemaWithErrors JSON.Schema)
     |>  List.iter(fun en -> 
         en.Error.Length |> should equal 1
         en.Error |> List.filter(fun m -> m.Message.StartsWith("Incorrect format:")) |> List.length |> should equal 1
@@ -52,7 +52,7 @@ let ``Test JSON Schema Tags - Rainy Day``() =
 
 [<Test>]
 let ``Test JSON TagResolution``() =
-    let tagResolveScalar = TagResolveScalar JSONSchema.TagResolution 
+    let tagResolveScalar = TagResolveScalar JSON.Schema.TagResolution 
 
     tagResolveScalar "null" 
         |> Option.map(fun e -> (e.Uri |> should equal (JSON.NullGlobalTag.Uri)); e) |> Option.isSome |> should equal true
@@ -104,7 +104,7 @@ let ``Test Yaml Core Schema Tags``() =
 
 [<Test>]
 let ``Test YamlCore TagResolution``() =
-    let tagResolveScalar = TagResolveScalar YamlCoreSchema.TagResolution 
+    let tagResolveScalar = TagResolveScalar YamlCore.Schema.TagResolution 
 
     ["null"; "NULL"; "Null"; ""; "~" ]
     |> List.iter(fun s ->
@@ -143,7 +143,7 @@ let ``Test YamlCore Schema Tags - Rainy Day``() =
         "!!bool a"; "!!bool ya"; "!!bool onb"
         "!!float a"; "!!float 2.a"; "!!float 2.0a"
     ]
-    |>  List.map (YamlParseForSchemaWithErrors YamlCoreSchema)
+    |>  List.map (YamlParseForSchemaWithErrors YamlCore.Schema)
     |>  List.iter(fun en -> 
         en.Error.Length |> should equal 1
         en.Error |> List.filter(fun m -> m.Message.StartsWith("Incorrect format:")) |> List.length |> should equal 1
@@ -211,7 +211,7 @@ let ``Test YamlExtended Canonical Floats - Specials``() =
 let ``Test YamlExtended Null - Sunny Day``() =
     ["null"; "NULL"; "Null"]
     |> List.iter(fun input ->
-        let node = YamlParseForSchema YamlExtendedSchema input
+        let node = YamlParseForSchema YamlExtended.Schema input
         Some [node] |> ToScalar      |> should equal input
         Some [node] |> ExtractTag |> should equal YamlExtended.NullGlobalTag.Uri
     )
@@ -261,7 +261,7 @@ let ``Test YamlExtended Null - Rainy Day``() =
         "\"null\nand more text\""
     ]
     |> List.iter(fun input ->
-        let node = YamlParseForSchema YamlExtendedSchema  input
+        let node = YamlParseForSchema YamlExtended.Schema  input
         Some [node] |> ToScalar   |> should equal (input.Replace("\"", "").Replace("\n", " "))
         Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
     )
@@ -274,7 +274,7 @@ let ``Test YamlExtended Bool - Sunny Day``() =
         "on";"off";"On";"Off";"ON";"OFF"
     ]
     |> List.iter(fun input ->
-        let node = YamlParseForSchema YamlExtendedSchema  input
+        let node = YamlParseForSchema YamlExtended.Schema  input
         Some [node] |> ToScalar      |> should equal input
         Some [node] |> ExtractTag |> should equal YamlExtended.BooleanGlobalTag.Uri
     )
@@ -286,7 +286,7 @@ let ``Test YamlExtended Bool - Rainy Day``() =
         "\"true\nand more text\""
     ]
     |> List.iter(fun input ->
-        let node = YamlParseForSchema YamlExtendedSchema  input
+        let node = YamlParseForSchema YamlExtended.Schema  input
         Some [node] |> ToScalar   |> should equal (input.Replace("\"", "").Replace("\n", " "))
         Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
     )
@@ -306,7 +306,7 @@ let ``Test YamlExtended Integer - Sunny Day``() =
         "190:20:30"
     ]
     |> List.iter(fun input ->
-        let node = YamlParseForSchema YamlExtendedSchema  input
+        let node = YamlParseForSchema YamlExtended.Schema  input
         Some [node] |> ToScalar   |> should equal input
         Some [node] |> ExtractTag |> should equal YamlExtended.IntegerGlobalTag.Uri
     )
@@ -318,7 +318,7 @@ let ``Test YamlExtended Integer - Rainy Day``() =
         "\"100\nand more text\""
     ]
     |> List.iter(fun input ->
-        let node = YamlParseForSchema YamlExtendedSchema  input
+        let node = YamlParseForSchema YamlExtended.Schema  input
         Some [node] |> ToScalar   |> should equal (input.Replace("\"", "").Replace("\n", " "))
         Some [node] |> ExtractTag |> should equal Failsafe.StringGlobalTag.Uri
     )
@@ -331,7 +331,7 @@ let ``Test YamlExtended Schema Tags - Rainy Day``() =
         "!!bool a"; "!!bool ya"; "!!bool onb"
         "!!float a"; "!!float 2.a"; "!!float 2.0a"
     ]
-    |>  List.map (YamlParseForSchemaWithErrors YamlExtendedSchema)
+    |>  List.map (YamlParseForSchemaWithErrors YamlExtended.Schema)
     |>  List.iter(fun en -> 
         en.Error.Length |> should equal 1
         en.Error |> List.filter(fun m -> m.Message.StartsWith("Incorrect format:")) |> List.length |> should equal 1
@@ -348,14 +348,14 @@ let ``Test YamlExtended Timestamp - Sunny Day``() =
     ]
     |> List.iter(fun (input, expect) ->
         YamlExtended.TimestampGlobalTag.Canonical input |> Option.get |> should equal expect
-        let node = YamlParseForSchema YamlExtendedSchema input
+        let node = YamlParseForSchema YamlExtended.Schema input
         Some [node] |> ExtractTag |> should equal YamlExtended.TimestampGlobalTag.Uri
     )
 
 
 [<Test>]
 let ``Test YamlExtended value sunny day - value detected``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 link with:
   - = : library1.dll
     version: 1.2"
@@ -367,7 +367,7 @@ link with:
 
 [<Test>]
 let ``Test YamlExtended merge sunny day``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 ---
 - &CENTER { x: 1, ! y: 2 }
 - &LEFT { x: 0, ! y: 2 }
@@ -415,19 +415,19 @@ let ``Test YamlExtended merge sunny day``() =
     )
 [<Test>]
 let ``Test YamlExtended merge rainy day - cannot use << in seq``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "[1,2, << ]"
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "[1,2, << ]"
 
     err.Error.Length |> should be (greaterThan 0)
     err.Error |> List.filter(fun m -> m.Message.StartsWith("Merge tag or << cannot be used in the sequence")) |> List.length |> should equal 1
 
 [<Test>]
 let ``Test YamlExtended merge sunny day - can use << in seq with !``() =
-    YamlParseForSchema TagResolution.YamlExtendedSchema "[1,2, ! << ]" |> ignore
+    YamlParseForSchema TagResolution.YamlExtended.Schema "[1,2, ! << ]" |> ignore
     // no exception..
 
 [<Test>]
 let ``Test YamlExtended merge rainy day - cannot merge non-mappings in seq``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
 ---
 - &CENTER { x: 1, ! y: 2 }
 - &LEFT { x: 0, ! y: 2 }

@@ -9,7 +9,7 @@ open FsUnit
 let YamlParse s =
     let engine = Yaml12Parser()
     try
-        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
         let crrp = repr.Head
         match crrp with
         |   CompleteRepresentaton cr -> cr.Document
@@ -20,7 +20,7 @@ let YamlParse s =
 let YamlParseWithErrors s =
     let engine = Yaml12Parser()
     try
-        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
         let crrp = repr.Head
         match crrp with
         |   NoRepresentation nr -> 
@@ -34,7 +34,7 @@ let YamlParseWithErrors s =
 let YamlParseWithWarning s =
     let engine = Yaml12Parser()
     try
-        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
         let crrp = repr.Head
         match crrp with
             |   NoRepresentation _ -> failwith "Unexpected error"
@@ -48,7 +48,7 @@ let YamlParseWithWarning s =
 let YamlParseEmpty s =
     let engine = Yaml12Parser()
     try
-        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
         let crrp = repr.Head
         match crrp with
         |   EmptyRepresentation _ -> true
@@ -59,7 +59,7 @@ let YamlParseEmpty s =
 let YamlParseList s =
     let engine = Yaml12Parser()
     try
-        let repr = (engine.``l-yaml-stream`` YamlCoreSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
         repr |> List.map(fun e ->
             match e with
             |   NoRepresentation _ -> failwith "Unexpected error"

@@ -142,7 +142,7 @@ type MessageAction =
     |   Terminate
                         
 [<DebuggerDisplay("{this.DebuggerInfo}")>]
-type MessageAtLine = {
+type internal MessageAtLine = {
         Location: DocumentLocation
         Code    : MessageCode
         Action  : MessageAction
@@ -155,8 +155,10 @@ type MessageAtLine = {
         member this.DebuggerInfo 
                     with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
 
-type ErrorMessage = MessageAtLine list
-        
+
+type internal ErrorMessage = MessageAtLine list
+
+
 module Option =
     let ifnone f v=
         match v with

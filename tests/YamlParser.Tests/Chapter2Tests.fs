@@ -437,7 +437,7 @@ date: 2002-12-14
 //[<Ignore "TODO: Implement real binary">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761694")>]
 let ``Example 2.23. Various Explicit Tags``() =
-    let yml = YamlParseForSchema YamlExtendedSchema "
+    let yml = YamlParseForSchema YamlExtended.Schema "
 ---
 not-date: !!str 2002-04-28
 
@@ -505,7 +505,7 @@ let ``Example 2.24. Global Tags``() =
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761758")>]
 let ``Example 2.25. Unordered Sets``() =
-    let yml = YamlParseForSchema YamlExtendedSchema "
+    let yml = YamlParseForSchema YamlExtended.Schema "
 # Sets are represented as a
 # Mapping where each key is
 # associated with a null value
@@ -529,7 +529,7 @@ let ``Example 2.25. Unordered Sets``() =
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761780")>]
 let ``Example 2.26. Ordered Mappings``() =
-    let yml = YamlParseForSchema YamlExtendedSchema  "
+    let yml = YamlParseForSchema YamlExtended.Schema  "
 # Ordered maps are represented as
 # A sequence of mappings, with
 # each mapping having one key

@@ -239,7 +239,7 @@ let ``Test YamlCore Map ill formed - missing comma``() =
 
 [<Test>]
 let ``Test YamlExtended omap sunny day - omap assigned``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 # Ordered maps are represented as
 # A sequence of mappings, with
 # each mapping having one key
@@ -263,7 +263,7 @@ let ``Test YamlExtended omap sunny day - omap assigned``() =
 
 [<Test>]
 let ``Test YamlExtended omap sunny day - omap detected``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 # Ordered maps are represented as
 # A sequence of mappings, with
 # each mapping having one key
@@ -287,7 +287,7 @@ let ``Test YamlExtended omap sunny day - omap detected``() =
 
 [<Test>]
 let ``Test YamlExtended omap sunny day - pairs detected because of duplicate key``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 # Ordered maps are represented as
 # A sequence of mappings, with
 # each mapping having one key
@@ -312,7 +312,7 @@ let ``Test YamlExtended omap sunny day - pairs detected because of duplicate key
 
 [<Test>]
 let ``Test YamlExtended omap rainy day - omap assinged - voilating duplicate key``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
 # Ordered maps are represented as
 # A sequence of mappings, with
 # each mapping having one key
@@ -328,7 +328,7 @@ let ``Test YamlExtended omap rainy day - omap assinged - voilating duplicate key
 
 [<Test>]
 let ``Test YamlExtended omap rainy day - omap assigned - equality``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
 
     {
         ? !!omap [ a : 1, b : 1] 
@@ -343,7 +343,7 @@ let ``Test YamlExtended omap rainy day - omap assigned - equality``() =
 
 [<Test>]
 let ``Test YamlExtended omap sunny day - omap assigned - equality - reordered``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
     {
         ? !!omap [ a : 1, b : 1] 
         : value,
@@ -370,7 +370,7 @@ let ``Test YamlExtended omap sunny day - omap assigned - equality - reordered``(
 
 [<Test>]
 let ``Test YamlExtended pairs sunny day - pairs assigned``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 # Explicitly typed pairs.
 Block tasks: !!pairs
   - meeting: with team.
@@ -395,7 +395,7 @@ Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
 
 [<Test>]
 let ``Test YamlExtended pairs sunny day - pairs detected``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 # Explicitly typed pairs.
 Block tasks:    # no pairs tag
   - meeting: with team.
@@ -420,7 +420,7 @@ Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
 
 [<Test>]
 let ``Test YamlExtended pairs rainy day - pairs assinged - voilating pair constraint``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
 --- !!pairs
 - meeting: with team.
 - 1     # not a pair
@@ -432,7 +432,7 @@ let ``Test YamlExtended pairs rainy day - pairs assinged - voilating pair constr
 
 [<Test>]
 let ``Test YamlExtended pairs rainy day - pairs assigned - equality``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
 
     {
         ? !!pairs [ a : 1, b : 1] 
@@ -446,7 +446,7 @@ let ``Test YamlExtended pairs rainy day - pairs assigned - equality``() =
 
 [<Test>]
 let ``Test YamlExtended pairs sunny day - pairs assigned - equality - reordered``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 
     {
         ? !!pairs [ a : 1, b : 1] 
@@ -473,7 +473,7 @@ let ``Test YamlExtended pairs sunny day - pairs assigned - equality - reordered`
 
 [<Test>]
 let ``Test YamlExtended set sunny day - set assigned``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 # Explicitly typed set.
 baseball players: !!set
   ? Mark McGwire
@@ -499,7 +499,7 @@ baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }
 
 [<Test>]
 let ``Test YamlExtended set sunny day - set detected``() =
-    let yml = YamlParseForSchema TagResolution.YamlExtendedSchema "
+    let yml = YamlParseForSchema TagResolution.YamlExtended.Schema "
 # Explicitly typed set.
 baseball players:
   ? Mark McGwire
@@ -524,7 +524,7 @@ baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }
 
 [<Test>]
 let ``Test YamlExtended set rainy day - set assinged - voilating set unique constraint``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
 --- !!set
     ?   duplicate
     ?   duplicate
@@ -535,7 +535,7 @@ let ``Test YamlExtended set rainy day - set assinged - voilating set unique cons
 
 [<Test>]
 let ``Test YamlExtended set rainy day - set assinged - voilating set no-value constraint``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
 --- !!set
     ?   some value
     ?   has illegal
@@ -547,7 +547,7 @@ let ``Test YamlExtended set rainy day - set assinged - voilating set no-value co
 
 [<Test>]
 let ``Test YamlExtended set rainy day - set assigned - equality``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
     {
         ? !!set { a, b }
         : value,
@@ -560,7 +560,7 @@ let ``Test YamlExtended set rainy day - set assigned - equality``() =
 
 [<Test>]
 let ``Test YamlExtended set rainy day - set assigned - equality - reordered``() =
-    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtendedSchema "
+    let err = YamlParseForSchemaWithErrors TagResolution.YamlExtended.Schema "
     {
         ? !!set { a, b }
         : value,

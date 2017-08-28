@@ -59,6 +59,7 @@
     <Compile Include="TestStringScalars.fs" />
     <Compile Include="TestStuctures.fs" />
     <Compile Include="Test Directives.fs" />
+    <Compile Include="YamlToNativeConstructor.Tests.fs" />
     <None Include="FailFast Scalar.fsx" />
     <None Include="FailFast LineFolding.fsx" />
     <None Include="FailFast LineFolding2.fsx" />
@@ -72,6 +73,7 @@
     <None Include="FailFast SpookyHash.fsx" />
     <None Include="FailFast YamlPath.fsx" />
     <None Include="FailFast SchemaTest.fsx" />
+    <None Include="Failfast Constructor.fsx" />
     <None Include="nlog.fsx" />
     <None Include="YamlParserFuncs.fsx" />
     <Content Include="nlog.config" />
