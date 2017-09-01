@@ -14,10 +14,13 @@ open RepresentationGraph
 open System.Reflection
 
 
-//let typaMappings = [
-//    (YamlExtended.StringGlobalTag, typeof<string>, fun s -> box s)
-//    (YamlExtended.IntegerGlobalTag, typeof<int>, fun s -> YamlExtended.IntegerGlobalTag.c
-//    ]
+let typeMappings = [
+    (YamlExtended.StringGlobalTag, typeof<string>, fun (s:string) -> box s)
+    (YamlExtended.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
+    (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get |> Double.Parse |> box)
+    (YamlExtended.BooleanGlobalTag, typeof<bool>, fun (s:string) -> YamlExtended.BooleanGlobalTag.ToCanonical s |> Option.get |> Boolean.Parse |> box)
+    ]
+
 
 //  https://stackoverflow.com/questions/44804767/f-create-custom-attribute-to-expression
 type YamlFieldAttribute(Name : string)  = 
@@ -33,7 +36,7 @@ type MyRec = {
 
 
 type FieldMapping = {
-        YamlToNative : Map<string,string>
+        YamlToNative : Map<string,string*Type>
     }
 
 let getMapNode (n:Node) =
@@ -62,12 +65,25 @@ type RecordMappingInfo = {
             mn.Data
             |>  List.map(fun (k,v) ->
                 let kf = getScalarNode k
-                match v with
-                |   ScalarNode sn -> 
-                    sn.Data
-                |   _ -> failwith "Expecting a scalar node"
+                if this.FieldMapping.YamlToNative.ContainsKey(kf.Data) then
+                    let (constructingFieldName, constructingType) = this.FieldMapping.YamlToNative.[kf.Data]
+                    match v with
+                    |   ScalarNode sn -> 
+                        let convOpt = 
+                            typeMappings 
+                            |>  List.tryFind(fun (tg,tp,cf) -> v.NodeTag.Uri = tg.Uri && constructingType.GUID = tp.GUID)
+                            |>  Option.map(fun (_,_,cf) -> cf)
+                        match convOpt with
+                        |   None -> failwith (sprintf "Incompatible type for field: %s" constructingFieldName)
+                        |   Some conv ->
+                            let constructingFiedValue = conv sn.Data
+                            Some(constructingFieldName, constructingFiedValue)
+                    |   _ -> failwith "Expecting a scalar node"
+                else
+                    None
                 )
-            |   _ -> failwith "Expecting a mapping node"
+                |>  List.filter(fun e -> e <> None)
+                |>  List.map(Option.get)
 
 
 type NativeTypeKind =
@@ -91,11 +107,11 @@ let CreatTypeMappings<'tp>() =
         let fields = FSharpType.GetRecordFields typeof<'tp> |> List.ofArray
         let mappings =
             fields
-            |>  List.fold(fun (s:Map<string,string>) f ->
+            |>  List.fold(fun (s:Map<string,string*Type>) f ->
                 match (GetCustomAttribute<YamlFieldAttribute> f) with
-                |   None    -> s.Add(f.Name, f.Name)
-                |   Some at -> s.Add(at.Name', f.Name)
-            ) Map.empty<string,string>
+                |   None    -> s.Add(f.Name, (f.Name, f.PropertyType))
+                |   Some at -> s.Add(at.Name', (f.Name, f.PropertyType))
+            ) Map.empty<string,string*Type>
         let fieldMapping = { YamlToNative = mappings }
         Record({Target = typeof<'tp>; FieldMapping = fieldMapping })
         |> Some
@@ -116,16 +132,18 @@ let Deserialize<'tp> yml =
     match ymlpl with
     |   NoRepresentation err -> failwith "Exited with parse errors"
     |   EmptyRepresentation mt -> None
-    |   PartialRepresentaton pdr
-    |   CompleteRepresentaton pdr -> mappings.map <| pdr.Document
+    |   PartialRepresentaton pdr 
+    |   CompleteRepresentaton pdr -> 
+            mappings.map (pdr.Document)
+            |> Some
 
 
-let yml = "{ Name: 'Frank', Age: 43 }"
+let yml = "{ name: 'Frank', age: 43 }"
 
-Deserialize typeof<MyRec> yml
+Deserialize<MyRec> yml
     
 
-
+FSharpType.GetRecordFields typeof<MyRec> 
 
 let f = FSharpType.GetRecordFields typeof<MyRec> |> List.ofArray |> List.head
 
@@ -136,6 +154,8 @@ let a =
     |> List.head
 
 
+(5).GetType().GUID = typeof<int>.GUID
 
 
 FSharpValue.MakeRecord (typeof<MyRec>, [|box("Frank"); box(43)|])
+

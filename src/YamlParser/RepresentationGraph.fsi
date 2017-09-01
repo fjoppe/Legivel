@@ -45,13 +45,13 @@ and
         member Uri  : string with get 
         member Kind : NodeKind with get 
         member Regex : string with get 
+        member ToCanonical : string -> string option
         static member internal Create : string * NodeKind * string * (string -> string option) * TagFunctions -> GlobalTag
         static member internal Create : string * NodeKind * string * TagFunctions -> GlobalTag
         static member internal Create : string * NodeKind * TagFunctions -> GlobalTag
         member internal TagFunctions : TagFunctions with get
         member internal SetTagFunctions : TagFunctions -> GlobalTag
         member internal IsMatch : Node -> bool
-        member internal Canonical : string -> string option
 and
     [<Sealed>]
     LocalTag =

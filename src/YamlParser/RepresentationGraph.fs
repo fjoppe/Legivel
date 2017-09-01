@@ -74,7 +74,7 @@ and
         member this.PostProcessAndValidateNode n = this.TagFunctions'.PostProcessAndValidateNode n
         member this.IsMatch n = this.TagFunctions'.IsMatch n this
 
-        member this.Canonical s = this.canonFn s
+        member this.ToCanonical s = this.canonFn s
 
         member this.TagFunctions with get() = this.TagFunctions'
         member this.SetTagFunctions v = {this with TagFunctions' = v}
