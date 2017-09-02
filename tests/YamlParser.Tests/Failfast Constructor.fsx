@@ -1,8 +1,9 @@
 ﻿#I __SOURCE_DIRECTORY__ 
 #I "../../packages"
+#I "../.."
 
-#r @"bin/Debug/YamlParser.dll"
-#r @"bin/Debug/YamlToNativeConstructor.dll"
+#r @"bin/YamlParser/YamlParser.dll"
+#r @"bin/YamlToNativeConstructor/YamlToNativeConstructor.dll"
 #r @"NLog/lib/net45/NLog.dll"
 
 open YamlParse
@@ -28,7 +29,10 @@ Deserialize<MyRec> yml
 
 FSharpType.GetRecordFields typeof<MyRec> 
 
-let f = FSharpType.GetRecordFields typeof<MyRec> |> List.ofArray |> List.head
+// let fields = FSharpType.GetRecordFields typeof<'tp> |> List.ofArray
+let  fields = FSharpType.GetRecordFields typeof<MyRec> |> List.ofArray |> List.head
+
+fields.PropertyType.FullName = typeof<FSharp.Core.Option<obj>>.FullName
 
 let a =
     f.CustomAttributes
@@ -48,17 +52,20 @@ myrec.Age
 let r = FSharp.Core.Option<int>.None
 
 
-typeof<FSharp.Core.Option<int>>.GUID = typeof<FSharp.Core.Option<string>>.GUID
+typeof<FSharp.Core.Option<int>>.BaseType = typeof<FSharp.Core.Option<string>>.FullName
 
 typeof<Option<int>> = typeof<Option<int>>
 typeof<Option<int>> = typeof<Option<string>>
 
+typeof<MyRec>.GetProperty("Age").PropertyType.GUID = typeof<FSharp.Core.Option<string>>.GUID
 
-typeof<MyRec>.GetProperty("Age").PropertyType
+typeof<MyRec>.GetProperty("Age").PropertyType.GetConstructors()
 
 
 let g = "{2f31d2f5-62af-3b46-8520-5b7c4151745d}"
 
 { Name = "f"; Age =  Option<int>.None}
 
+
+typeof<FSharp.Core.Option<int>>.Name = typeof<FSharp.Core.Option<string>>.Name
 

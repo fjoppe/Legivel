@@ -133,7 +133,11 @@ let GetCustomAttribute<'T when 'T :> Attribute> (st:MemberInfo) =
 
 
 let CreatTypeMappings<'tp>() =
-    let IsOptional (t:Type) = t.GUID = typeof<FSharp.Core.Option<obj>>.GUID
+    let IsOptional (t:Type) = 
+        let o = typeof<FSharp.Core.Option<obj>>
+        let c1 = sprintf "%s%s" t.Namespace t.Name
+        let c2 = sprintf "%s%s" o.Namespace o.Name
+        c1 = c2
 
     if FSharpType.IsRecord typeof<'tp> then
         let fields = FSharpType.GetRecordFields typeof<'tp> |> List.ofArray
