@@ -8,11 +8,20 @@ open Microsoft.FSharp.Reflection
 open System.Reflection
 
 
-let typeMappings = [
-    (YamlExtended.StringGlobalTag, typeof<string>, fun (s:string) -> box s)
-    (YamlExtended.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
-    (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get |> Double.Parse |> box)
-    (YamlExtended.BooleanGlobalTag, typeof<bool>, fun (s:string) -> YamlExtended.BooleanGlobalTag.ToCanonical s |> Option.get |> Boolean.Parse |> box)
+type YamlMapping = {
+        YamlTag     : GlobalTag
+        TargetType  : Type
+        ToNative    : (string -> obj)
+    }
+    with
+        static member Create (yt, tt, tn) = { YamlTag = yt; TargetType = tt; ToNative = tn}
+
+
+let YamlTypeMappings = [
+    YamlMapping.Create (YamlExtended.StringGlobalTag, typeof<string>, fun (s:string) -> box s)
+    YamlMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
+    YamlMapping.Create (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get |> Double.Parse |> box)
+    YamlMapping.Create (YamlExtended.BooleanGlobalTag, typeof<bool>, fun (s:string) -> YamlExtended.BooleanGlobalTag.ToCanonical s |> Option.get |> Boolean.Parse |> box)
     ]
 
 
@@ -21,11 +30,26 @@ type YamlFieldAttribute(Name : string)  =
     inherit System.Attribute()
     member this.Name' = Name
 
+type RefTypeInfo = {
+    Constructor     : ConstructorInfo
+}
+
+type ValTypeInfo = class end
+
+type TypeStructure =
+    |   ValueType // of ValTypeInfo
+    |   RefType of RefTypeInfo
 
 
 type FieldMapping = {
-        YamlToNative : Map<string,string*Type>
+        SortOrder       : int
+        YamlName        : string
+        PropertyName    : string
+        PropertyType    : Type
+        Optional        : bool
+        TypeStructure   : TypeStructure
     }
+
 
 let getMapNode (n:Node) =
     match n with
@@ -45,7 +69,7 @@ let getScalarNode (n:Node) =
 
 type RecordMappingInfo = {
         Target       : Type
-        FieldMapping : FieldMapping
+        FieldMapping : FieldMapping list
     }
     with
         member this.map (n:Node) =
@@ -54,37 +78,42 @@ type RecordMappingInfo = {
                 mn.Data
                 |>  List.map(fun (k,v) ->
                     let kf = getScalarNode k
-                    if this.FieldMapping.YamlToNative.ContainsKey(kf.Data) then
-                        let (constructingFieldName, constructingType) = this.FieldMapping.YamlToNative.[kf.Data]
+                    this.FieldMapping
+                    |> List.tryFind(fun fm -> fm.YamlName = kf.Data)
+                    |> Option.map(fun fm -> 
                         match v with
                         |   ScalarNode sn -> 
-                            let convOpt = 
-                                typeMappings 
-                                |>  List.tryFind(fun (tg,tp,cf) -> v.NodeTag.Uri = tg.Uri && constructingType.GUID = tp.GUID)
-                                |>  Option.map(fun (_,_,cf) -> cf)
-                            match convOpt with
-                            |   None -> failwith (sprintf "Incompatible type for field: %s" constructingFieldName)
-                            |   Some conv ->
-                                let constructingFiedValue = conv sn.Data
-                                Some(constructingFieldName, constructingFiedValue)
+                            let yamlTag = 
+                                YamlTypeMappings 
+                                |>  List.tryFind(fun yt -> v.NodeTag.Uri = yt.YamlTag.Uri && fm.PropertyType.GUID = yt.TargetType.GUID)
+                            match yamlTag with
+                            |   None -> failwith (sprintf "Incompatible type for field: %s" fm.PropertyName)
+                            |   Some yt ->
+                                let constructingFiedValue = yt.ToNative sn.Data
+                                if fm.Optional then
+                                    let (RefType rt) = fm.TypeStructure
+                                    (fm.PropertyName, rt.Constructor.Invoke([|constructingFiedValue|]) |> box)
+                                else
+                                    (fm.PropertyName, constructingFiedValue)
                         |   _ -> failwith "Expecting a scalar node"
-                    else
-                        None
-                    )
+                    ))
                     |>  List.filter(fun e -> e <> None)
                     |>  List.map(Option.get)
-            FSharpType.GetRecordFields (this.Target) 
-            |> List.ofArray
-            |>  List.map(fun f -> (f.Name, f.PropertyType))
-            |>  List.map(fun (fn, ft) -> 
-                let dfs =
-                    dataToFieldMapping
-                    |>  List.filter(fun (dfn, _) -> dfn = fn)
-                if dfs.Length = 0 then Activator.CreateInstance(ft) |> box
-                else dfs |> List.head |> snd
-            )
-            |>  fun values ->
-                FSharpValue.MakeRecord(this.Target,values |> List.toArray)
+            let values = 
+                this.FieldMapping
+                |> List.sortBy(fun fm -> fm.SortOrder) 
+                |>  List.map(fun fm -> 
+                    let dfs =
+                        dataToFieldMapping
+                        |>  List.filter(fun (dfn, _) -> dfn = fm.PropertyName)
+                    if dfs.Length = 0 then
+                        if fm.Optional then
+                            None |> box
+                        else
+                            Activator.CreateInstance(fm.PropertyType) |> box
+                    else dfs |> List.head |> snd
+                )
+            FSharpValue.MakeRecord(this.Target,values |> List.toArray)
 
 
 type NativeTypeKind =
@@ -100,21 +129,35 @@ let GetCustomAttribute<'T when 'T :> Attribute> (st:MemberInfo) =
     match at.Length with
     |   0   -> None
     |   1   -> Some (at.Head :?> 'T)
-    |   x   -> failwith (sprintf "'%s.%s' has more than one attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName))
+    |   _   -> failwith (sprintf "'%s.%s' has more than one attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName))
 
 
 let CreatTypeMappings<'tp>() =
+    let IsOptional (t:Type) = t.GUID = typeof<FSharp.Core.Option<obj>>.GUID
+
     if FSharpType.IsRecord typeof<'tp> then
         let fields = FSharpType.GetRecordFields typeof<'tp> |> List.ofArray
         let mappings =
             fields
-            |>  List.fold(fun (s:Map<string,string*Type>) f ->
+            |>  List.mapi(fun i f ->
+                let optional = f.PropertyType |> IsOptional
+                let propertyType = 
+                    if optional then
+                        f.PropertyType.GenericTypeArguments.[0]
+                    else
+                        f.PropertyType
+                let typeStructure =
+                    if f.PropertyType.IsClass then
+                        let ctorInfo = f.PropertyType.GetConstructors() |> Array.head
+                        RefType { Constructor = ctorInfo }
+                    else
+                        ValueType
+
                 match (GetCustomAttribute<YamlFieldAttribute> f) with
-                |   None    -> s.Add(f.Name, (f.Name, f.PropertyType))
-                |   Some at -> s.Add(at.Name', (f.Name, f.PropertyType))
-            ) Map.empty<string,string*Type>
-        let fieldMapping = { YamlToNative = mappings }
-        Record({Target = typeof<'tp>; FieldMapping = fieldMapping })
+                |   None    -> { SortOrder = i; YamlName = f.Name; PropertyName = f.Name; PropertyType = propertyType; Optional = optional; TypeStructure = typeStructure}
+                |   Some at -> { SortOrder = i; YamlName = at.Name'; PropertyName = f.Name; PropertyType = propertyType; Optional = optional; TypeStructure = typeStructure}
+            ) 
+        Record({Target = typeof<'tp>; FieldMapping = mappings })
         |> Some
     else
         None
