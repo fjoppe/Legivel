@@ -2,8 +2,8 @@
 #I "../../packages"
 #I "../.."
 
-#r @"bin/YamlParser/YamlParser.dll"
-#r @"bin/YamlToNativeConstructor/YamlToNativeConstructor.dll"
+#r @"bin/Debug/YamlParser.dll"
+#r @"bin/Debug/YamlToNativeConstructor.dll"
 #r @"NLog/lib/net45/NLog.dll"
 
 open YamlParse
@@ -25,7 +25,7 @@ type MyRec = {
 let yml = "{ name: 'Frank', age: 43 }"
 
 Deserialize<MyRec> yml
-    
+   
 
 FSharpType.GetRecordFields typeof<MyRec> 
 
@@ -68,4 +68,6 @@ let g = "{2f31d2f5-62af-3b46-8520-5b7c4151745d}"
 
 
 typeof<FSharp.Core.Option<int>>.Name = typeof<FSharp.Core.Option<string>>.Name
+
+typeof<FSharp.Core.Option<MyRec>>.GenericTypeArguments.[0].FullName
 

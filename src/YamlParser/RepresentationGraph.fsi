@@ -91,9 +91,9 @@ and
     with
         member ParseInfo : ParseInfo with get
         member NodeTag : TagKind with get
+        member Kind : NodeKind with get
         member internal ToPrettyString : unit -> string
         member internal Hash : NodeHash with get
-        member internal Kind : NodeKind with get
         member internal SetTag : TagKind -> Node
 
 type ParseMessageAtLine = {

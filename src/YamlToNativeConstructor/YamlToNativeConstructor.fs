@@ -8,6 +8,11 @@ open Microsoft.FSharp.Reflection
 open System.Reflection
 
 
+type ConstructionSettings = {
+        UsePrimitiveDefaultWhenMissing : bool   // use default value for missing source data (primitive types only)
+    }
+
+
 type YamlMapping = {
         YamlTag     : GlobalTag
         TargetType  : Type
@@ -34,22 +39,11 @@ type RefTypeInfo = {
     Constructor     : ConstructorInfo
 }
 
-type ValTypeInfo = class end
 
-type TypeStructure =
-    |   ValueType // of ValTypeInfo
-    |   RefType of RefTypeInfo
-
-
-type FieldMapping = {
-        SortOrder       : int
-        YamlName        : string
-        PropertyName    : string
-        PropertyType    : Type
-        Optional        : bool
-        TypeStructure   : TypeStructure
-    }
-
+let AreTypesEqual (t1:Type) (t2:Type) =
+    let c1 = sprintf "%s%s" t1.Namespace t1.Name
+    let c2 = sprintf "%s%s" t2.Namespace t2.Name
+    c1 = c2
 
 let getMapNode (n:Node) =
     match n with
@@ -66,64 +60,6 @@ let getScalarNode (n:Node) =
     |   ScalarNode n ->  n 
     |   _    -> failwith "Expecting a Scalar Node"
 
-
-type RecordMappingInfo = {
-        Target       : Type
-        FieldMapping : FieldMapping list
-    }
-    with
-        member this.map (n:Node) =
-            let mn = getMapNode n
-            let dataToFieldMapping =
-                mn.Data
-                |>  List.map(fun (k,v) ->
-                    let kf = getScalarNode k
-                    this.FieldMapping
-                    |> List.tryFind(fun fm -> fm.YamlName = kf.Data)
-                    |> Option.map(fun fm -> 
-                        match v with
-                        |   ScalarNode sn -> 
-                            let yamlTag = 
-                                YamlTypeMappings 
-                                |>  List.tryFind(fun yt -> v.NodeTag.Uri = yt.YamlTag.Uri && fm.PropertyType.GUID = yt.TargetType.GUID)
-                            match yamlTag with
-                            |   None -> failwith (sprintf "Incompatible type for field: %s" fm.PropertyName)
-                            |   Some yt ->
-                                let constructingFiedValue = yt.ToNative sn.Data
-                                if fm.Optional then
-                                    let (RefType rt) = fm.TypeStructure
-                                    (fm.PropertyName, rt.Constructor.Invoke([|constructingFiedValue|]) |> box)
-                                else
-                                    (fm.PropertyName, constructingFiedValue)
-                        |   _ -> failwith "Expecting a scalar node"
-                    ))
-                    |>  List.filter(fun e -> e <> None)
-                    |>  List.map(Option.get)
-            let values = 
-                this.FieldMapping
-                |> List.sortBy(fun fm -> fm.SortOrder) 
-                |>  List.map(fun fm -> 
-                    let dfs =
-                        dataToFieldMapping
-                        |>  List.filter(fun (dfn, _) -> dfn = fm.PropertyName)
-                    if dfs.Length = 0 then
-                        if fm.Optional then
-                            None |> box
-                        else
-                            Activator.CreateInstance(fm.PropertyType) |> box
-                    else dfs |> List.head |> snd
-                )
-            FSharpValue.MakeRecord(this.Target,values |> List.toArray)
-
-
-type NativeTypeKind =
-    |   Record of RecordMappingInfo
-    with
-        member this.map (n:Node) =
-            match this with
-            |   Record rc -> rc.map n
-
-
 let GetCustomAttribute<'T when 'T :> Attribute> (st:MemberInfo) =
     let at = Attribute.GetCustomAttributes(st, typeof<'T>) |> List.ofArray
     match at.Length with
@@ -132,48 +68,151 @@ let GetCustomAttribute<'T when 'T :> Attribute> (st:MemberInfo) =
     |   _   -> failwith (sprintf "'%s.%s' has more than one attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName))
 
 
-let CreatTypeMappings<'tp>() =
-    let IsOptional (t:Type) = 
-        let o = typeof<FSharp.Core.Option<obj>>
-        let c1 = sprintf "%s%s" t.Namespace t.Name
-        let c2 = sprintf "%s%s" o.Namespace o.Name
-        c1 = c2
 
-    if FSharpType.IsRecord typeof<'tp> then
-        let fields = FSharpType.GetRecordFields typeof<'tp> |> List.ofArray
-        let mappings =
-            fields
-            |>  List.mapi(fun i f ->
-                let optional = f.PropertyType |> IsOptional
-                let propertyType = 
-                    if optional then
-                        f.PropertyType.GenericTypeArguments.[0]
-                    else
-                        f.PropertyType
-                let typeStructure =
-                    if f.PropertyType.IsClass then
-                        let ctorInfo = f.PropertyType.GetConstructors() |> Array.head
-                        RefType { Constructor = ctorInfo }
-                    else
-                        ValueType
+type NodeKindToIdiomaticMapper = (NodeKindToIdiomaticMappers -> Type -> YamlToNativeMapping option)
+and NodeKindToIdiomaticMappers = private {
+        PotentialMappers : NodeKindToIdiomaticMapper list
+    }
+    with
+        static member Create ml = {PotentialMappers = ml}
+        member this.TryFindMapper (t:Type) =
+            this.PotentialMappers
+            |>  List.choose(fun pmf -> pmf this t)
+            |>  function
+                |   []  -> failwith (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName))
+                |   [e] -> e
+                |   _ -> failwith(sprintf "Ambigous: too many converters found for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName))
 
-                match (GetCustomAttribute<YamlFieldAttribute> f) with
-                |   None    -> { SortOrder = i; YamlName = f.Name; PropertyName = f.Name; PropertyType = propertyType; Optional = optional; TypeStructure = typeStructure}
-                |   Some at -> { SortOrder = i; YamlName = at.Name'; PropertyName = f.Name; PropertyType = propertyType; Optional = optional; TypeStructure = typeStructure}
-            ) 
-        Record({Target = typeof<'tp>; FieldMapping = mappings })
-        |> Some
-    else
-        None
+
+and PrimitiveMappingInfo = {
+        ScalarMapping   : YamlMapping
+    }
+    with
+        static member TryFindMapper (mappers:NodeKindToIdiomaticMappers) (t:Type) =
+            YamlTypeMappings
+            |> List.tryFind(fun yt -> AreTypesEqual t yt.TargetType) 
+            |> Option.map(fun yt -> PrimitiveMapping {ScalarMapping = yt })
+
+        member this.map (n:Node) =
+            if n.NodeTag.Uri = this.ScalarMapping.YamlTag.Uri then
+                let scalar = getScalarNode n
+                this.ScalarMapping.ToNative scalar.Data
+            else
+                failwith (sprintf "Incompatible type '%s' for tag: %s" n.NodeTag.Uri this.ScalarMapping.TargetType.Name)
+
+        member this.Default
+            with get() = Activator.CreateInstance(this.ScalarMapping.TargetType) |> box
+
+
+and FieldMapping = {
+        YamlName        : string
+        PropertyName    : string
+        PropertyMapping : YamlToNativeMapping
+    }
+
+and RecordMappingInfo = {
+        Target       : Type
+        FieldMapping : FieldMapping list
+    }
+    with
+        static member TryFindMapper (mappers:NodeKindToIdiomaticMappers) (t:Type) =
+            if FSharpType.IsRecord t then
+                let mappings = 
+                    FSharpType.GetRecordFields t
+                    |>  List.ofArray
+                    |>  List.map(fun fld ->
+                        let yamlName = 
+                            GetCustomAttribute<YamlFieldAttribute> fld
+                            |>  function
+                                |   None    -> fld.Name
+                                |   Some ya -> ya.Name'
+                        { YamlName = yamlName; PropertyName = fld.Name; PropertyMapping = mappers.TryFindMapper fld.PropertyType } )
+                RecordMapping { Target = t; FieldMapping = mappings } |> Some
+            else
+                None
+
+        member this.map (n:Node) =
+            let mn = getMapNode n
+            let dataToFieldMapping =
+                mn.Data
+                |>  List.choose(fun (k,v) ->
+                    if k.NodeTag.Uri = YamlExtended.StringGlobalTag.Uri then
+                        let kf = getScalarNode k
+                        this.FieldMapping
+                        |>  List.tryFind(fun fm -> fm.YamlName = kf.Data)
+                        |>  Option.map(fun fm -> kf.Data, fm.PropertyMapping.map v)
+                    else
+                        None
+                )
+                |>  Map.ofList
+            let values = 
+                this.FieldMapping
+                |>  List.map(fun fm ->
+                    if dataToFieldMapping.ContainsKey fm.YamlName then
+                        dataToFieldMapping.[fm.YamlName]
+                    else
+                        fm.PropertyMapping.Default
+                )
+            FSharpValue.MakeRecord(this.Target,values |> List.toArray)
+
+        member this.Default with get() = failwith "Unsupported: default record value"
+
+
+and OptionalInfo = {
+        OptionType    : Type
+        OptionMapping : YamlToNativeMapping
+    }
+    with
+        static member TryFindMapper (mappers:NodeKindToIdiomaticMappers) (t:Type) =
+            let IsOptional (t:Type) = AreTypesEqual typeof<FSharp.Core.Option<obj>> t
+            if IsOptional t then
+                let mapping = mappers.TryFindMapper t.GenericTypeArguments.[0]
+                OptionMapping {OptionType=t; OptionMapping = mapping} |> Some
+            else
+                None
+
+        member this.map (n:Node) = 
+            let ctor = this.OptionType.GetConstructors() |> Array.head
+            ctor.Invoke([| this.OptionMapping.map n |]) |> box
+
+        member this.Default with get() = None |> box
+
+
+and YamlToNativeMapping =
+    |   PrimitiveMapping of PrimitiveMappingInfo
+    |   RecordMapping of RecordMappingInfo
+    |   OptionMapping of OptionalInfo
+    with
+        member this.map (n:Node) =
+            match this with
+            |   PrimitiveMapping pm -> pm.map n
+            |   RecordMapping rm    -> rm.map n
+            |   OptionMapping om    -> om.map n
+
+        member this.Default 
+            with get() =
+                match this with
+                |   PrimitiveMapping pm -> pm.Default
+                |   RecordMapping rm    -> rm.Default
+                |   OptionMapping om    -> om.Default
+
+let TryFindMappers =
+    [
+        PrimitiveMappingInfo.TryFindMapper
+        RecordMappingInfo.TryFindMapper
+        OptionalInfo.TryFindMapper
+    ]
+
+
+
+let CreateTypeMappings<'tp>() =
+    let tryFindMapper = NodeKindToIdiomaticMappers.Create TryFindMappers
+    tryFindMapper.TryFindMapper typeof<'tp>
 
 
 let Deserialize<'tp> yml : 'tp option =
     let yamlParser = Yaml12Parser()
-    let mappings = 
-        CreatTypeMappings<'tp>()
-        |>  function
-        |   None    -> failwith (sprintf "Unsupported type: '%s'" (typeof<'tp>.FullName))
-        |   Some mp -> mp
+    let mappings = CreateTypeMappings<'tp>()
 
     let ymlpl = (yamlParser.``l-yaml-stream`` YamlExtended.Schema yml) |> List.head
     match ymlpl with

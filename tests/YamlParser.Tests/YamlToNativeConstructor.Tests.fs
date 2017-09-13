@@ -46,7 +46,7 @@ let ``Deserialize - Annotated Record Fields - default values - Sunny Day`` () =
     res.Age     |> should equal 0
 
 
-type OptionalFields = {
+type OptionalField = {
     Name   : string
     Age    : int option
 }
@@ -54,15 +54,21 @@ type OptionalFields = {
 [<Test>]
 let ``Deserialize - Optional Record Field - present - Sunny Day`` () =
     let yml = "{ Name: 'Frank', Age: 43 }"
-    let res = Deserialize<OptionalFields> yml |> Option.get
+    let res = Deserialize<OptionalField> yml |> Option.get
     res.Name    |> should equal "Frank"
     res.Age     |> should equal (Some 43)
 
 
 [<Test>]
-let ``Deserialize - Naked Record Fields - missing - Sunny Day`` () =
+let ``Deserialize - Optional Record Fields - missing - Sunny Day`` () =
     let yml = "{ Name: 'Frank' }"
-    let res = Deserialize<OptionalFields> yml |> Option.get
+    let res = Deserialize<OptionalField> yml |> Option.get
     res.Name    |> should equal "Frank"
     res.Age     |> should equal None
 
+
+
+type ListField = {
+    Name   : string
+    Age    : int option
+}
