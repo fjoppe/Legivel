@@ -158,7 +158,7 @@ and RecordMappingInfo = {
         member this.Default with get() = failwith "Unsupported: default record value"
 
 
-and OptionalInfo = {
+and OptionalMappingInfo = {
         OptionType    : Type
         OptionMapping : YamlToNativeMapping
     }
@@ -177,17 +177,44 @@ and OptionalInfo = {
 
         member this.Default with get() = None |> box
 
+and ListMappingInfo = {
+        ListType    : Type
+        ListMapping : YamlToNativeMapping
+    }
+    with
+        static member TryFindMapper (mappers:NodeKindToIdiomaticMappers) (t:Type) =
+            let IsList (t:Type) = AreTypesEqual typeof<FSharp.Collections.List<obj>> t
+            if IsList t then
+                let mapping = mappers.TryFindMapper t.GenericTypeArguments.[0]
+                ListMapping {ListType = t; ListMapping = mapping} |> Some
+            else
+                None
+
+        member this.map (n:Node) = 
+            let sn = getSeqNode n
+            sn.Data
+            |>  List.rev
+            |>  List.fold(fun s e -> s.GetType().GetMethod("Cons").Invoke(null, [|this.ListMapping.map e;s|])) this.Default
+            |>  box
+
+        member this.Default
+            with get() :obj = 
+                this.ListType.GetProperty("Empty", BindingFlags.Static ||| BindingFlags.Public).GetGetMethod().Invoke(null, [||]) 
+                |> box
+
 
 and YamlToNativeMapping =
     |   PrimitiveMapping of PrimitiveMappingInfo
     |   RecordMapping of RecordMappingInfo
-    |   OptionMapping of OptionalInfo
+    |   OptionMapping of OptionalMappingInfo
+    |   ListMapping of ListMappingInfo
     with
         member this.map (n:Node) =
             match this with
             |   PrimitiveMapping pm -> pm.map n
             |   RecordMapping rm    -> rm.map n
             |   OptionMapping om    -> om.map n
+            |   ListMapping lm      -> lm.map n
 
         member this.Default 
             with get() =
@@ -195,12 +222,14 @@ and YamlToNativeMapping =
                 |   PrimitiveMapping pm -> pm.Default
                 |   RecordMapping rm    -> rm.Default
                 |   OptionMapping om    -> om.Default
+                |   ListMapping lm      -> lm.Default
 
 let TryFindMappers =
     [
         PrimitiveMappingInfo.TryFindMapper
         RecordMappingInfo.TryFindMapper
-        OptionalInfo.TryFindMapper
+        OptionalMappingInfo.TryFindMapper
+        ListMappingInfo.TryFindMapper
     ]
 
 
