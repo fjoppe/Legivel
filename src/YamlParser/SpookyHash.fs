@@ -1,4 +1,4 @@
-﻿module SpookyHash
+﻿module YamlParser.Utilities.SpookyHash
 
 //  Based on Rob Jenkins code:
 //  http://burtleburtle.net/bob/hash/spooky.html

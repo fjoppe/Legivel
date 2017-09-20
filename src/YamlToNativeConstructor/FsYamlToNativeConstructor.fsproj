@@ -6,12 +6,12 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f1048c7d-0ad1-41e2-86ef-d8aa4bae982d</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>YamlToNativeConstructor</RootNamespace>
-    <AssemblyName>YamlToNativeConstructor</AssemblyName>
+    <RootNamespace>FsYamlToNativeConstructor</RootNamespace>
+    <AssemblyName>FsYamlToNativeConstructor</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
-    <Name>YamlToNativeConstructor</Name>
+    <Name>FsYamlToNativeConstructor</Name>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -34,7 +34,6 @@
     <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  
   <ItemGroup>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
@@ -45,8 +44,8 @@
     <Compile Include="YamlToNativeConstructor.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\YamlParser\YamlParser.fsproj">
-      <Name>YamlParser</Name>
+    <ProjectReference Include="..\YamlParser\FsYamlParser.fsproj">
+      <Name>FsYamlParser</Name>
       <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
       <Private>True</Private>
     </ProjectReference>

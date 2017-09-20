@@ -2,8 +2,8 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Name>YamlParser</Name>
-    <AssemblyName>YamlParser</AssemblyName>
-    <RootNamespace>YamlParser</RootNamespace>
+    <AssemblyName>FsYamlParser</AssemblyName>
+    <RootNamespace>FsYamlParser</RootNamespace>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
@@ -24,7 +24,7 @@
     <OtherFlags>--warnon:1182</OtherFlags>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
-    <DocumentationFile>.\bin\Debug\YamlParser.XML</DocumentationFile>
+    <DocumentationFile>.\bin\Debug\FsYamlParser.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>PdbOnly</DebugType>
@@ -34,7 +34,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <OtherFlags>--warnon:1182</OtherFlags>
-    <DocumentationFile>.\bin\Release\YamlParser.XML</DocumentationFile>
+    <DocumentationFile>.\bin\Release\FsYamlParser.XML</DocumentationFile>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
@@ -58,6 +58,7 @@
     <Compile Include="RegexDSL.fsi" />
     <Compile Include="RegexDSL.fs" />
     <Compile Include="ErrorsAndWarnings.fs" />
+    <Compile Include="Common.fs" />
     <Compile Include="Internals.fs" />
     <Compile Include="RepresentationGraph.fsi" />
     <Compile Include="RepresentationGraph.fs" />

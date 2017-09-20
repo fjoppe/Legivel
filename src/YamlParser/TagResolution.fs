@@ -2,8 +2,9 @@
 
 open System
 open RepresentationGraph
-open RegexDSL
+open YamlParser.Utilities.RegexDSL
 open ErrorsAndWarnings
+open YamlParser.Common
 open YamlParser.Internals
 open System.Text.RegularExpressions
 

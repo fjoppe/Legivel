@@ -2,10 +2,11 @@
 
 open System
 open System.Text.RegularExpressions
+open YamlParser.Common
 open YamlParser.Internals
 open YamlParser.Internals.ParserMonads
 open TagResolution
-open RegexDSL
+open YamlParser.Utilities.RegexDSL
 open RepresentationGraph
 open ErrorsAndWarnings
 open System.Diagnostics

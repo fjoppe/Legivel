@@ -1,4 +1,4 @@
-﻿module RegexDSL 
+﻿module YamlParser.Utilities.RegexDSL 
 
 type RGXType
 type RGXType

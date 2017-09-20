@@ -28,7 +28,7 @@ open SourceLink
 
 // The name of the project
 // (used by attributes in AssemblyInfo, name of a NuGet package and directory in 'src')
-let project = "YamlParser"
+let project = "FsYamlParser"
 
 // Short summary of the project
 // (used as description in AssemblyInfo and as a short summary for NuGet package)
@@ -89,7 +89,7 @@ Target "AssemblyInfo" (fun _ ->
           Attribute.Version release.AssemblyVersion
           Attribute.FileVersion release.AssemblyVersion
           Attribute.Configuration configuration
-          Attribute.InternalsVisibleTo "YamlParser.Tests"
+          Attribute.InternalsVisibleTo "FsYamlParser.Tests"
           ]
 
     let getProjectDetails projectPath =

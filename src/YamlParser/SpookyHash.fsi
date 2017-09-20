@@ -1,4 +1,4 @@
-﻿module SpookyHash
+﻿module YamlParser.Utilities.SpookyHash
 
 open System
 

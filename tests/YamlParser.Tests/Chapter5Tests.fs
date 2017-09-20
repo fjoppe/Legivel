@@ -7,7 +7,7 @@
 open NUnit.Framework
 open FsUnit
 open TestUtils
-open YamlParser
+open Traverse
 
 (*
     BOM / byte order mark => currently is assumed that .Net will take care of this

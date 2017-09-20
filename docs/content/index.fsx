@@ -26,7 +26,7 @@ Example
 This example demonstrates using a function defined in this sample library.
 
 *)
-#r "YamlParser.dll"
+#r "FsYamlParser.dll"
 open YamlParser
 
 printfn "hello = %i" <| Library.hello 0

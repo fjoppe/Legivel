@@ -2,7 +2,7 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Name>YamlParser.Tests</Name>
-    <AssemblyName>YamlParser.Tests</AssemblyName>
+    <AssemblyName>FsYamlParser.Tests</AssemblyName>
     <RootNamespace>YamlParser.Tests</RootNamespace>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -42,11 +42,11 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\YamlParser\YamlParser.fsproj">
+    <ProjectReference Include="..\..\src\YamlParser\FsYamlParser.fsproj">
       <Name>YamlParser.fsproj</Name>
       <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\YamlToNativeConstructor\YamlToNativeConstructor.fsproj">
+    <ProjectReference Include="..\..\src\YamlToNativeConstructor\FsYamlToNativeConstructor.fsproj">
       <Name>YamlToNativeConstructor</Name>
       <Project>{f1048c7d-0ad1-41e2-86ef-d8aa4bae982d}</Project>
       <Private>True</Private>

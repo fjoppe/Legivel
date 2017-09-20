@@ -1,6 +1,7 @@
 ﻿module RepresentationGraph
 
 open YamlParser.Internals
+open YamlParser.Common
 
 type ParseInfo = {
         Start : DocumentLocation

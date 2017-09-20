@@ -1,6 +1,6 @@
-﻿namespace YamlParser
+﻿namespace Traverse
 
-open RegexDSL
+open YamlParser.Utilities.RegexDSL
 open RepresentationGraph
 
 

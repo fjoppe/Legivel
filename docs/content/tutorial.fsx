@@ -10,7 +10,7 @@ Introducing your project
 Say more
 
 *)
-#r "YamlParser.dll"
+#r "FsYamlParser.dll"
 open YamlParser
 
 Library.hello 0

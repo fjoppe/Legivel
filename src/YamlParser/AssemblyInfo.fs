@@ -3,20 +3,20 @@ namespace System
 open System.Reflection
 open System.Runtime.CompilerServices
 
-[<assembly: AssemblyTitleAttribute("YamlParser")>]
-[<assembly: AssemblyProductAttribute("YamlParser")>]
+[<assembly: AssemblyTitleAttribute("FsYamlParser")>]
+[<assembly: AssemblyProductAttribute("FsYamlParser")>]
 [<assembly: AssemblyDescriptionAttribute("F# Yaml deserializer")>]
 [<assembly: AssemblyVersionAttribute("0.0.1")>]
 [<assembly: AssemblyFileVersionAttribute("0.0.1")>]
 [<assembly: AssemblyConfigurationAttribute("Release")>]
-[<assembly: InternalsVisibleToAttribute("YamlParser.Tests")>]
+[<assembly: InternalsVisibleToAttribute("FsYamlParser.Tests")>]
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] AssemblyTitle = "YamlParser"
-    let [<Literal>] AssemblyProduct = "YamlParser"
+    let [<Literal>] AssemblyTitle = "FsYamlParser"
+    let [<Literal>] AssemblyProduct = "FsYamlParser"
     let [<Literal>] AssemblyDescription = "F# Yaml deserializer"
     let [<Literal>] AssemblyVersion = "0.0.1"
     let [<Literal>] AssemblyFileVersion = "0.0.1"
     let [<Literal>] AssemblyConfiguration = "Release"
-    let [<Literal>] InternalsVisibleTo = "YamlParser.Tests"
+    let [<Literal>] InternalsVisibleTo = "FsYamlParser.Tests"

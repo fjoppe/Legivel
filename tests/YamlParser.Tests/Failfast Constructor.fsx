@@ -84,3 +84,5 @@ el.GetType().GetMethod("Cons").GetParameters() |> List.ofArray |> List.map(fun p
 
 el.GetType().GetMethod("Cons").Invoke(null, [|1;el|])
 
+typeof<FSharp.Collections.seq<int>>.Module
+

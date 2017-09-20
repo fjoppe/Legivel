@@ -1,4 +1,4 @@
-﻿module RegexDSL 
+﻿module YamlParser.Utilities.RegexDSL 
 
 #nowarn "52" // "value has been copied to ensure the original is not mutated"
 

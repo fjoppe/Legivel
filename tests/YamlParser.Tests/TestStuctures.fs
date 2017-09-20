@@ -2,7 +2,7 @@
 
 open NUnit.Framework
 open TestUtils
-open YamlParser
+open Traverse
 open FsUnit
 open RepresentationGraph
 open TagResolution

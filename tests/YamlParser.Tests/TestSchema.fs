@@ -4,8 +4,8 @@ open NUnit.Framework
 open FsUnit
 open TagResolution
 open RepresentationGraph
-open YamlParser
-open YamlParser.Internals
+open Traverse
+open YamlParser.Common
 open TestUtils
 
 let TagResolveScalar schema s  =

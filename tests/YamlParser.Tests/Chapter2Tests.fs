@@ -7,7 +7,7 @@
 open NUnit.Framework
 open FsUnit
 open TestUtils
-open YamlParser
+open Traverse
 open TagResolution
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760118")>]

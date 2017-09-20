@@ -2,7 +2,7 @@
 
 //  http://burtleburtle.net/bob/c/TestSpookyV2.cpp
 open System
-open SpookyHash
+open YamlParser.Utilities.SpookyHash
 open NUnit.Framework
 open FsUnit
 
