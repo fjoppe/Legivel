@@ -1,8 +1,8 @@
-﻿module Deserialization
+﻿module internal Deserialization
 
 open RepresentationGraph
 
-let internal Deserialize (node:Node) (shorthands:TagShorthand list) =
+let Deserialize (node:Node) (shorthands:TagShorthand list) =
     let indent l = [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
     let tagString (lt:TagKind) =
         let strGlobal (gt:GlobalTag) =

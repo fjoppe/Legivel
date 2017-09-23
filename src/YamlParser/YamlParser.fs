@@ -515,7 +515,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             else ErrorResult [MessageAtLine.CreateContinue (tagLocation) ErrTagKindMismatch (sprintf "Tag-kind mismatch, tag: %A, node: %A" (t.Kind) (node.Kind))]
 
         let ResolveNonSpecificTag nst = 
-            TagResolutionInfo.Create nst (ps.NodePath) (node) (node.Kind)
+            TagResolutionInfo.Create nst (ps.NodePath) (node)
             |> ps.GlobalTagSchema.TagResolution
             |> function
             |   Some t -> checkTagKindMatch t (node.SetTag (Global t), ps)

@@ -14,11 +14,10 @@ type TagResolutionInfo = {
         NonSpecificTag  : string
         Path            : Node list
         Content         : Node
-        NodeKind        : NodeKind
     }
     with
-        static member Create nst p c nk =
-            { NonSpecificTag = nst; Path = p; Content = c; NodeKind = nk }
+        static member Create nst p c =
+            { NonSpecificTag = nst; Path = p; Content = c }
 
 
 type TagResolutionFunc = (TagResolutionInfo -> GlobalTag option)
@@ -219,7 +218,7 @@ module Failsafe =
 
 
     let defaultFailSafeResolution nst =
-        match nst.NodeKind with
+        match nst.Content.Kind with
         |   Mapping -> Some MappingGlobalTag
         |   Sequence-> Some SequenceGlobalTag
         |   Scalar  -> Some StringGlobalTag
@@ -743,7 +742,7 @@ module YamlExtended =
     let StringGlobalTag = Failsafe.StringGlobalTag
 
     let YEFailSafeResolution nst =
-        match nst.NodeKind with
+        match nst.Content.Kind with
         |   Mapping -> Some MappingGlobalTag
         |   Sequence-> Some SequenceGlobalTag
         |   Scalar  -> Some Failsafe.StringGlobalTag

@@ -14,7 +14,7 @@ let TagResolveScalar schema s  =
         let dl = DocumentLocation.Create 0 0
         ScalarNode(NodeData<string>.Create nst s (ParseInfo.Create dl dl))
     let scalar = makeScalar s
-    TagResolutionInfo.Create ("?") ([]) (scalar) (scalar.Kind)
+    TagResolutionInfo.Create ("?") ([]) (scalar)
     |> schema 
 
 [<Test>]

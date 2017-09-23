@@ -1,5 +1,6 @@
 ﻿module YamlParser.Utilities.RegexDSL 
 
+/// Contains a Regular Expression
 type RGXType
 type RGXType
     with
@@ -54,6 +55,7 @@ val internal GRP : RGXType -> RGXType
 val internal Advance : string * string -> string
 
 
+/// MatchResult of a regex match
 type internal MatchResult = {
         FullMatch   : string
         Rest        : string
@@ -70,7 +72,6 @@ type internal MatchResult = {
 /// Returns list of match groups, for pattern p on string s
 val internal Match : string*'a -> string list
 
-
 /// Returns whether pattern p matches on string s
 val internal IsMatch : string*'a -> bool
 
@@ -78,15 +79,21 @@ val internal IsMatch : string*'a -> bool
 /// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
 val internal HasMatches : string*'a -> bool*string*string
 
+/// Regex Active pattern to match string pattern on string input, and returns a list of matches
 val internal (|Regex|_|) : string -> string -> string list option
 
+/// Regex Active Pattern to match RGXType pattern on string input, and returns a match result
 val internal (|Regex2|_|) : RGXType -> string -> MatchResult option
 
+/// Converts string-literal encoded unicode characters as "\u0000" or "\U00000000" to the char they represent
 val internal DecodeEncodedUnicodeCharacters : string -> string
 
+/// Converts string-literal encoded hex characters as "\x00" to the char they represent
 val internal DecodeEncodedHexCharacters  : string -> string
 
+/// Converts uri encoded hex characters as "%00" to the char they represent
 val internal DecodeEncodedUriHexCharacters : string -> string
 
+/// Converts string-literal encoded escape characters as "\n" to the char they represent
 val internal DecodeEncodedEscapedCharacters : string -> string
 
