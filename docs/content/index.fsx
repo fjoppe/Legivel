@@ -4,7 +4,7 @@
 #I "../../bin"
 
 (**
-YamlParser
+FsYamlParser
 ======================
 
 Documentation
@@ -13,8 +13,8 @@ Documentation
   <div class="span1"></div>
   <div class="span6">
     <div class="well well-small" id="nuget">
-      The YamlParser library can be <a href="https://nuget.org/packages/YamlParser">installed from NuGet</a>:
-      <pre>PM> Install-Package YamlParser</pre>
+      The YamlParser library can be <a href="https://nuget.org/packages/FsYamlParser">installed from NuGet</a>:
+      <pre>PM> Install-Package FsYamlParser</pre>
     </div>
   </div>
   <div class="span1"></div>
@@ -26,10 +26,18 @@ Example
 This example demonstrates using a function defined in this sample library.
 
 *)
-#r "FsYamlParser.dll"
-open YamlParser
+#r "FsYamlParser/FsYamlParser.dll"
+open YamlParse
+open TagResolution
 
-printfn "hello = %i" <| Library.hello 0
+let engine = Yaml12Parser()
+let YamlParse s = (engine.``l-yaml-stream`` YamlExtended.Schema s)
+
+let yaml = "{ a: 2, b: [9, 6, 3] }" 
+
+YamlParse yaml
+
+
 
 (**
 Some more info
