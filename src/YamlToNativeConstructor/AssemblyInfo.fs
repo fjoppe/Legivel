@@ -10,6 +10,7 @@ open System.Runtime.CompilerServices
 [<assembly: AssemblyFileVersionAttribute("0.0.1")>]
 [<assembly: AssemblyConfigurationAttribute("Release")>]
 [<assembly: InternalsVisibleToAttribute("FsYamlParser.Tests")>]
+[<assembly: InternalsVisibleToAttribute("FsYamlToNativeConstructor")>]
 do ()
 
 module internal AssemblyVersionInformation =
@@ -20,3 +21,4 @@ module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyFileVersion = "0.0.1"
     let [<Literal>] AssemblyConfiguration = "Release"
     let [<Literal>] InternalsVisibleTo = "FsYamlParser.Tests"
+    let [<Literal>] InternalsVisibleTo_1 = "FsYamlToNativeConstructor"

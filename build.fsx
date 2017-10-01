@@ -90,6 +90,7 @@ Target "AssemblyInfo" (fun _ ->
           Attribute.FileVersion release.AssemblyVersion
           Attribute.Configuration configuration
           Attribute.InternalsVisibleTo "FsYamlParser.Tests"
+          Attribute.InternalsVisibleTo "FsYamlToNativeConstructor"
           ]
 
     let getProjectDetails projectPath =

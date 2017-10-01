@@ -21,3 +21,4 @@ module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyFileVersion = "0.0.1"
     let [<Literal>] AssemblyConfiguration = "Release"
     let [<Literal>] InternalsVisibleTo = "FsYamlParser.Tests"
+    let [<Literal>] InternalsVisibleTo_1 = "FsYamlToNativeConstructor"
