@@ -73,6 +73,7 @@
     <None Include="FailFast LineFolding2.fsx" />
     <None Include="FailFast RegxDSL.fsx" />
     <None Include="FailFast MonadTest.fsx" />
+    <None Include="FailFast FaillableMonad.fsx" />
     <None Include="FailFast YamlParserTest 1 - dead.fsx" />
     <None Include="FailFast YamlParserTest 2  - dead.fsx" />
     <None Include="FailFast YamlParserTest 3 - dead.fsx" />

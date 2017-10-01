@@ -163,7 +163,7 @@ and
         member internal SetTag : TagKind -> Node
 
 
-/// Contains a warning or error messag
+/// Contains a warning or error message
 type ParseMessageAtLine = {
         Location: DocumentLocation
         Message : string

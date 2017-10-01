@@ -15,6 +15,7 @@ type internal FallibleOption<'a,'b> =
             |   Value v -> v
             |   _ -> failwith "This instance has no value"
 
+
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module internal FallibleOption =
     let bind<'a,'b,'c> (f:'a -> FallibleOption<'b,'c>) o =
@@ -63,6 +64,7 @@ module internal ParserMonads =
                 let ctn = addErr ct e            
                 if contAfterErr ctn then (ctn,nw) else (ctn,NoResult)
 
+
 type internal MessageAction =
     |   Continue
     |   Terminate
@@ -79,7 +81,7 @@ type internal MessageAtLine = {
         static member CreateTerminate dl cd s = {Location = dl; Code = cd; Action = Terminate; Message = s}
 
         member this.DebuggerInfo 
-                    with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
+            with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
 
 
 type internal ErrorMessage = MessageAtLine list

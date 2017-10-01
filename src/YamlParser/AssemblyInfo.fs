@@ -10,6 +10,7 @@ open System.Runtime.CompilerServices
 [<assembly: AssemblyFileVersionAttribute("0.0.1")>]
 [<assembly: AssemblyConfigurationAttribute("Release")>]
 [<assembly: InternalsVisibleToAttribute("FsYamlParser.Tests")>]
+[<assembly: InternalsVisibleToAttribute("FsYamlToNativeConstructor")>]
 do ()
 
 module internal AssemblyVersionInformation =
