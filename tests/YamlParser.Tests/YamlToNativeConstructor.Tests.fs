@@ -12,10 +12,11 @@ type SimpleRecord = {
 
 
 let DeserializeSuccess<'tp> yml = 
-    Deserialize<'tp> yml
+    let r = Deserialize<'tp> yml
+    r
     |>  function
         |   Succes s -> s.Data
-        |   Error _ -> failwith "Unexpected error"
+        |   Error e -> failwith "Unexpected error"
         
 let DeserializeError<'tp> yml = 
     Deserialize<'tp> yml
@@ -139,4 +140,46 @@ let ``Deserialize - Record with List - Sunny Day`` () =
     res.Name    |> should equal "Frank"
     res.Scores  |> should equal [1; 1; 3; 5; 8; 9]
 
+type UnionCaseNoData =
+    |   Zero
+    |   One
+    |   Two
+    |   Three
 
+[<Test>]
+let ``Deserialize - Discriminated Union Simple - Sunny Day`` () =
+    let yml = "One"
+    let res = DeserializeSuccess<UnionCaseNoData> yml 
+    res |> should equal UnionCaseNoData.One
+
+
+type UCData1 = {
+    Name : string
+    Age  : int
+}
+
+[<YamlField("TypeOf")>]
+type UnionCaseWithData =
+    |   One of UCData1
+    |   Two of int
+
+
+[<Test>]
+let ``Deserialize - Discriminated Union With Data - Sunny Day`` () =
+    let yml = "
+        Name: 'Frank'
+        Age:  43
+        TypeOf : One
+    "
+    let res = DeserializeSuccess<UnionCaseWithData> yml
+    match res with
+    |   One d -> d.Name |> should equal "Frank"
+                 d.Age  |> should equal 43
+    | _ -> failwith "Incorrect value!"
+
+
+//type UnionCaseEnum =
+//    |   Zero=0      
+//    |   One=1
+//    |   Two=2
+//    |   Three=3

@@ -3,14 +3,14 @@
 #I __SOURCE_DIRECTORY__ 
 #I "../../packages"
 
-#r @"bin/Debug/YamlParser.dll"
+#r @"bin/Debug/FsYamlParser.dll"
 #r @"NLog/lib/net45/NLog.dll"
 
 open YamlParse
 open TagResolution
 open Deserialization
 open RepresentationGraph
-open YamlParser.Internals
+open YamlParser.Common
 open NLog
 
 
@@ -46,29 +46,18 @@ let PrintNode crr =
         rr.Warn |> WarnMsg
 
 let YamlParse s =
-    try
-        let repr = (engine.``l-yaml-stream`` YamlExtendedSchema s)
-        let crr = repr.Head
-        PrintNode crr
-    with
-    | DocumentException e -> 
-        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
-        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
-        raise (DocumentException e)
-    | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
+    let repr = (engine.``l-yaml-stream`` YamlExtended.Schema s)
+    let crr = repr.Head
+    PrintNode crr
 
 let YamlParseList s =
     try
-        let repr = (engine.``l-yaml-stream`` YamlExtendedSchema s)
+        let repr = (engine.``l-yaml-stream`` YamlExtended.Schema s)
         printfn "Total Documents: %d" (repr.Length)
         repr |> List.iter(fun crr ->
             PrintNode crr
             printfn "..."
         )
     with
-    | DocumentException e -> 
-        e.Messages.Warn  |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
-        e.Messages.Error |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column)  (s.Message))
-        raise (DocumentException e)
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 

@@ -2,8 +2,8 @@
 #I "../../packages"
 #I "../.."
 
-#r @"bin/Debug/YamlParser.dll"
-#r @"bin/Debug/YamlToNativeConstructor.dll"
+#r @"bin/Debug/FsYamlParser.dll"
+#r @"bin/Debug/FsYamlToNativeConstructor.dll"
 #r @"NLog/lib/net45/NLog.dll"
 
 open YamlParse
@@ -16,6 +16,7 @@ open RepresentationGraph
 open System.Reflection
 open YamlToNativeConstructor
 open System.Dynamic
+open NLog.Config
 
 
 type MyRec = {
@@ -35,12 +36,6 @@ let  fields = FSharpType.GetRecordFields typeof<MyRec> |> List.ofArray |> List.h
 
 fields.PropertyType.FullName = typeof<FSharp.Core.Option<obj>>.FullName
 
-let a =
-    f.CustomAttributes
-    |> List.ofSeq
-    |> List.filter(fun fa -> fa.AttributeType = typeof<YamlFieldAttribute>)
-    |> List.head
-
 
 (5).GetType().GUID = typeof<int>.GUID
 
@@ -52,8 +47,6 @@ myrec.Age
 
 let r = FSharp.Core.Option<int>.None
 
-
-typeof<FSharp.Core.Option<int>>.BaseType = typeof<FSharp.Core.Option<string>>.FullName
 
 typeof<Option<int>> = typeof<Option<int>>
 typeof<Option<int>> = typeof<Option<string>>
@@ -85,4 +78,69 @@ el.GetType().GetMethod("Cons").GetParameters() |> List.ofArray |> List.map(fun p
 el.GetType().GetMethod("Cons").Invoke(null, [|1;el|])
 
 typeof<FSharp.Collections.seq<int>>.Module
+
+
+//
+//  Wrapped style
+//      post: data  (post is DU-case, data is contained data)
+//
+//  Contained style:
+//      type : int (and other pairs in the mapping form the data - excluding field "type")
+//
+
+type YamlUnionCaseFormat =
+    |   WithData=0      //  post: data
+    |   InData=1        //  type : int (and other pairs in the mapping form the data - excluding field "type")
+    |   Plain=2         //  duValue: one
+    |   Literal=3       //  duValue: One  
+
+
+type problem = int list
+
+FSharpType.IsRecord(typeof<problem>)
+
+
+FSharpType.IsUnion(typeof<YamlUnionCaseFormat>)
+
+typeof<YamlUnionCaseFormat>.IsEnum
+
+
+type YamlValueAttribute(Id : string)  = 
+    inherit System.Attribute()
+    new() = YamlValueAttribute("")
+    member this.Id' = Id
+
+
+type DUTest =
+    | [<YamlValue>] One of string
+    | [<YamlValue("two")>] Two 
+    | [<YamlValue("fld3")>] Three
+
+
+FSharpType.IsUnion(typeof<DUTest>)
+FSharpType.IsUnion(typeof<problem>)
+
+FSharpType.GetUnionCases(typeof<problem>)
+
+typeof<DUTest>.IsClass
+typeof<problem>.IsClass
+
+
+let h = FSharpType.GetUnionCases(typeof<DUTest>) |> Array.head
+
+FSharpType.GetUnionCases(typeof<DUTest>)
+|>  List.ofArray
+|>  List.map(fun e -> e.Name)
+
+
+let f = h.GetFields() |> Array.head
+
+f.PropertyType
+
+
+
+
+let a = h.GetCustomAttributes() |> Array.head
+
+a.GetType().FullName = typeof<YamlValueAttribute>.FullName
 

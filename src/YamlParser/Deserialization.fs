@@ -1,4 +1,4 @@
-﻿module internal Deserialization
+﻿module Deserialization
 
 open RepresentationGraph
 

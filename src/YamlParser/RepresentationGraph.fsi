@@ -209,7 +209,7 @@ type TagReport = {
         static member internal Create : Unrecognized -> int -> int -> TagReport
 
 /// Mapping of tag shorthands, with the TAG directive
-type internal TagShorthand = {
+type TagShorthand = {
         ShortHand : string
         MappedTagBase : string
     }
