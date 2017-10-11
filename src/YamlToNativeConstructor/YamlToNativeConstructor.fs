@@ -69,9 +69,9 @@ module List =
             | []    ->  NoResult
             | h::_  ->  f h
 
-type ConstructionSettings = {
-        UsePrimitiveDefaultWhenMissing : bool   // use default value for missing source data (primitive types only)
-    }
+//type ConstructionSettings = {
+//        UsePrimitiveDefaultWhenMissing : bool   // use default value for missing source data (primitive types only)
+//    }
 
 
 type YamlMapping = {
@@ -92,14 +92,13 @@ let YamlTypeMappings = [
 
 
 //  https://stackoverflow.com/questions/44804767/f-create-custom-attribute-to-expression
-type YamlFieldAttribute(Name : string)  = 
+type YamlFieldAttribute(Name : string) = 
     inherit System.Attribute()
     member this.Name' = Name
 
 
-type YamlValueAttribute(Id : string)  = 
+type YamlValueAttribute(Id : string) = 
     inherit System.Attribute()
-    new() = YamlValueAttribute("")
     member this.Id' = Id
 
 
@@ -159,6 +158,12 @@ let GetCustomAttributeMmbr<'T when 'T :> Attribute> (st:MemberInfo) =
     |   1   -> Value (at.Head :?> 'T)
     |   _   -> ErrorResult [(ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))]
 
+let GetCustomAttributeFld<'T when 'T :> Attribute> (st:FieldInfo) =
+    let at = [for i in st.GetCustomAttributes(typeof<'T>) do yield i]
+    match at.Length with
+    |   0   -> NoResult
+    |   1   -> Value (at.Head :?> 'T)
+    |   _   -> ErrorResult [(ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))]
 
 let GetCustomAttributeDU<'T when 'T :> Attribute> (st:UnionCaseInfo) =
     let at = st.GetCustomAttributes(typeof<'T>) |> List.ofArray
@@ -170,7 +175,7 @@ let GetCustomAttributeDU<'T when 'T :> Attribute> (st:UnionCaseInfo) =
 
 type IYamlToNativeMapping =
     abstract member map : n:Node -> FallibleOption<obj, ParseMessageAtLine list>
-    abstract member Default : obj with get
+    abstract member Default : FallibleOption<obj, ParseMessageAtLine list> with get
 
 
 type internal MapperReturnType = FallibleOption<IYamlToNativeMapping,ParseMessageAtLine list>
@@ -209,10 +214,14 @@ type PrimitiveMappingInfo = {
                         return this.ScalarMapping.ToNative scalar.Data
                     }
                 else
-                    ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) (sprintf "Incompatible type '%s' for tag: %s" n.NodeTag.Uri this.ScalarMapping.TargetType.Name))]
+                    ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) (sprintf "Type mismatch '%s' for tag: %s" n.NodeTag.Uri this.ScalarMapping.TargetType.Name))]
 
             member this.Default
-                with get() = Activator.CreateInstance(this.ScalarMapping.TargetType) |> box
+                with get() = 
+                    try
+                        Activator.CreateInstance(this.ScalarMapping.TargetType) |> box |> Value
+                    with
+                    |   e -> NoResult
 
 
 type RecordFieldMapping = {
@@ -279,19 +288,26 @@ type RecordMappingInfo = {
                         possibleDataToFieldMapping
                         |>  List.map(fun e -> e.Data)
                         |>  Map.ofList
-                    let values = 
+                    let possibleValues = 
                         this.FieldMapping
                         |>  List.map(fun fm ->
                             if dataToFieldMapping.ContainsKey fm.YamlName then
-                                dataToFieldMapping.[fm.YamlName]
+                                dataToFieldMapping.[fm.YamlName] |> Value
                             else
-                                fm.PropertyMapping.Default
+                                let err = [(ParseMessageAtLine.Create (n.ParseInfo.Start) (sprintf "Missing value for field: '%s'" fm.YamlName))]
+                                match fm.PropertyMapping.Default with
+                                |   Value v -> Value v
+                                |   NoResult -> ErrorResult err
+                                |   ErrorResult e -> ErrorResult (err @ e)
                         )
-                    FSharpValue.MakeRecord(this.Target,values |> List.toArray) |> Value 
+                    possibleValues
+                    |>  FallibleOption.errorsOrValues(fun values ->
+                        let vs = values |> List.map(fun e -> e.Data) 
+                        FSharpValue.MakeRecord(this.Target, vs |> List.toArray) |> Value
+                    )
                 )
 
-
-            member this.Default with get() = failwith "Unsupported: default record value"
+            member this.Default with get() = NoResult
 
 
 type OptionalMappingInfo = {
@@ -315,7 +331,7 @@ type OptionalMappingInfo = {
                     return ctor.Invoke([| v |]) |> box
                 }
 
-            member this.Default with get() = None |> box
+            member this.Default with get() = None |> box |> Value
 
 
 type ListMappingInfo = {
@@ -343,16 +359,73 @@ type ListMappingInfo = {
                 |>  FallibleOption.errorsOrValues(fun possibleData ->
                     possibleData
                     |>  List.map(fun pd -> pd.Data)
-                    |>  List.fold(fun (s:obj) e -> s.GetType().GetMethod("Cons").Invoke(null, [|e;s|])) (this:> IYamlToNativeMapping).Default
+                    |>  List.fold(fun (s:obj) e -> s.GetType().GetMethod("Cons").Invoke(null, [|e;s|])) (this:> IYamlToNativeMapping).Default.Data
                     |>  box
                     |>  Value
                 )
 
 
             member this.Default
-                with get() : obj = 
+                with get() = 
                     this.ListType.GetProperty("Empty", BindingFlags.Static ||| BindingFlags.Public).GetGetMethod().Invoke(null, [||]) 
-                    |> box
+                    |> box |> Value
+
+
+type EnumFieldMapping = {
+        YamlName   : string
+        EnumName   : string
+        EnumValue  : obj
+    }
+
+type EnumMappingInfo = {
+        EnumType  : Type
+        EnumCases : EnumFieldMapping list
+    }
+    with
+        static member TryFindMapper (mappers:NodeKindToIdiomaticMappers) (t:Type) =
+            if t.IsEnum then
+                let enml =  [for i in t.GetEnumValues() do yield i]
+
+                let mappedValues =
+                    enml 
+                    |>  List.map(fun e -> 
+                        let es = e.ToString()
+                        let fi = t.GetField(es)
+                        GetCustomAttributeFld<YamlValueAttribute> fi
+                        |>  function
+                            |   NoResult -> Value { YamlName = es; EnumName = es; EnumValue = e}
+                            |   Value ya -> Value { YamlName = ya.Id'; EnumName = es; EnumValue = e}
+                            |   ErrorResult e -> ErrorResult e 
+                        )
+
+                mappedValues
+                |>  FallibleOption.errorsOrValues(fun ecm -> 
+                    let um = ecm |> List.map(fun d -> d.Data)
+                    { EnumType = t; EnumCases = um} :> IYamlToNativeMapping |> Value
+                )
+            else
+                NoResult
+
+        interface IYamlToNativeMapping with
+            member this.map (n:Node) = 
+                let FindUnionCase s =
+                    this.EnumCases 
+                    |>  List.tryFind(fun ucm -> s = ucm.YamlName)
+                    |>  function
+                        |   Some v  ->  Value v
+                        |   None    ->  ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) (sprintf "Union case '%s' not availble in type: '%s'" s this.EnumType.FullName))]
+
+                let WrappedStyle() =
+                    faillableSequence {
+                        let! d = getScalarNodeQuiet n
+                        let! uc = FindUnionCase d.Data
+                        return uc.EnumValue |> box
+                    }
+
+                WrappedStyle()
+
+            member this.Default
+                with get() = NoResult
 
 
 type DUFieldMapping = {
@@ -412,13 +485,13 @@ type DiscriminatedUnionMappingInfo = {
 
         //
         //  Plain Style
-        //      field: UCValue  (UCValue is union case without data)
+        //      field: UCValue  (UCValue is union-case without data, not enum)
         //
         //      NodeKind = Scalar
         //
         //  Wrapped style
         //      post: data1  ('post' is DU-case, 'data1' is contained data)
-        //      get:  data2  ('post' and 'get' are in a sequence)
+        //      get:  data2  ('post' and 'get' are in a sequence in this example)
         //
         //      NodeKind = Mapping, where each key is a DUCase
         //
@@ -440,12 +513,20 @@ type DiscriminatedUnionMappingInfo = {
                         |   Some v  ->  Value v
                         |   None    ->  ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) (sprintf "Union case '%s' not availble in type: '%s'" s this.DUType.FullName))]
 
-                let WrappedStyle() =
+                let PlainStyle() =
                     faillableSequence {
                         let! d = getScalarNodeQuiet n
                         let! uc = FindUnionCase d.Data
                         return FSharpValue.MakeUnion (uc.UCI, [||]) |> box
                     }
+
+                //let WrappedStyle() =
+                //    faillableSequence {
+                //        let! d = getMapNodeQuiet n
+                //        let! k = getScalarNode (fst d.Data)
+
+                //        return d
+                //    }
 
                 let ContainedStyle() =
                     match this.DUField with
@@ -472,22 +553,20 @@ type DiscriminatedUnionMappingInfo = {
                             let! data = y.map n
                             return FSharpValue.MakeUnion (duid.UCI, [|data|]) |> box
                         }
-                let r = [WrappedStyle; ContainedStyle] |>  List.tryFindFo(fun f -> f())
+                let r = [PlainStyle; ContainedStyle] |>  List.tryFindFo(fun f -> f())
                 r
 
 
             member this.Default
-                with get() : obj = failwith "No default for union cases"
-                    //this.ListType.GetProperty("Empty", BindingFlags.Static ||| BindingFlags.Public).GetGetMethod().Invoke(null, [||]) 
-                    //|> box
+                with get() = NoResult
 
 
-let private TryFindMappers =
-    [
+let private TryFindMappers = [
         PrimitiveMappingInfo.TryFindMapper
         RecordMappingInfo.TryFindMapper
         OptionalMappingInfo.TryFindMapper
         ListMappingInfo.TryFindMapper
+        EnumMappingInfo.TryFindMapper
 
         //  Do discriminated union last:
         //  FSharpType.IsUnion(typeof<obj list>) = true, there could be other cases?

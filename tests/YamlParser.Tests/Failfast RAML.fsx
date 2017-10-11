@@ -12,15 +12,17 @@ mediaType: [ application/json, application/xml ]
 types:
   Person:
   Another:
-/list:
+/books:
   get:
-    responses:
-      200:
-        body: Person[]
-/send:
+  put:
   post:
-    body:
-      application/json:
-        type: Another
+  /{bookTitle}:
+    get:
+    put:
+    delete:
+    /author:
+      get:
+    /publisher:
+      get:
 "
 

@@ -40,7 +40,6 @@ let ``Deserialize - Naked Record Fields - default values - Sunny Day`` () =
     res.Age     |> should equal 0
 
 
-
 type SimpleAnnotatedRecord = {
     [<YamlField(Name = "name")>] Name   : string
     [<YamlField(Name = "age")>] Age     : int
@@ -86,6 +85,7 @@ type NestedRecord = {
         Street      : string
         HouseNumber : int
     }
+
 type ContainingNested = {
         Name    : string
         Address : NestedRecord
@@ -99,6 +99,7 @@ let ``Deserialize - Nested Record - Sunny Day`` () =
     res.Name    |> should equal "Frank"
     res.Address.Street |> should equal "Rosegarden"
     res.Address.HouseNumber |> should equal 5
+
 
 type ContainingOptionalNested = {
         Name    : string
@@ -120,12 +121,46 @@ let ``Deserialize - Nested Optional Record - missing - Sunny Day`` () =
     res.Name    |> should equal "Frank"
     res.Address |> should equal None
 
-
 [<Test>]
 let ``Deserialize - List - Sunny Day`` () =
-    let yml = "[1, 1, 3, 5, 8, 9]" // anti pattern :)
+    let yml = "[1, 1, 3, 5, 8, 9]" // not a pattern
     let res = DeserializeSuccess<int list> yml 
     res |> should equal [1; 1; 3; 5; 8; 9]
+
+[<Test>]
+let ``Deserialize - List with type mismatch scalar element - Rainy Day`` () =
+    let yml = "[1, 1, a]" 
+    let res = DeserializeError<int list> yml 
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Type mismatch") |> should equal true
+
+[<Test>]
+let ``Deserialize - List with type mismatch map element - Rainy Day`` () =
+    let yml = "[1, 1, {1 : 2}]"
+    let res = DeserializeError<int list> yml 
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Type mismatch") |> should equal true
+
+[<Test>]
+let ``Deserialize - List with type mismatch seq element - Rainy Day`` () =
+    let yml = "[1, 1, [1, 2]]"
+    let res = DeserializeError<int list> yml 
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Type mismatch") |> should equal true
+
+[<Test>]
+let ``Deserialize - List with general type mismatch, given scalar for seq - Rainy Day`` () =
+    let yml = "wrongtype"
+    let res = DeserializeError<int list> yml 
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Expecting a Sequence Node") |> should equal true
+
+[<Test>]
+let ``Deserialize - List with general type mismatch, given map for seq - Rainy Day`` () =
+    let yml = "{ a : 1}"
+    let res = DeserializeError<int list> yml 
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Expecting a Sequence Node") |> should equal true
 
 
 type ListField = {
@@ -140,6 +175,7 @@ let ``Deserialize - Record with List - Sunny Day`` () =
     res.Name    |> should equal "Frank"
     res.Scores  |> should equal [1; 1; 3; 5; 8; 9]
 
+
 type UnionCaseNoData =
     |   Zero
     |   One
@@ -153,16 +189,26 @@ let ``Deserialize - Discriminated Union Simple - Sunny Day`` () =
     res |> should equal UnionCaseNoData.One
 
 
+[<Test>]
+let ``Deserialize - Discriminated Union - Bad value - Rainy Day`` () =
+    let yml = "Four"    //  does not exist
+    let res = DeserializeError<UnionCaseNoData> yml 
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Union case 'Four' not availble in type") |> should equal true
+
+
+
+
 type UCData1 = {
     Name : string
     Age  : int
 }
 
+
 [<YamlField("TypeOf")>]
 type UnionCaseWithData =
     |   One of UCData1
-    |   Two of int
-
+    |   [<YamlValue("two")>] Two of UCData1
 
 [<Test>]
 let ``Deserialize - Discriminated Union With Data - Sunny Day`` () =
@@ -178,8 +224,55 @@ let ``Deserialize - Discriminated Union With Data - Sunny Day`` () =
     | _ -> failwith "Incorrect value!"
 
 
-//type UnionCaseEnum =
-//    |   Zero=0      
-//    |   One=1
-//    |   Two=2
-//    |   Three=3
+[<Test>]
+let ``Deserialize - Discriminated Union With Bad Data - Rainy Day`` () =
+    let yml = "
+        Bad:  Value
+        TypeOf : One
+    "
+    let res = DeserializeError<UnionCaseWithData> yml
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Missing value for field") |> should equal true
+
+
+[<Test>]
+let ``Deserialize - Discriminated Union-Alias With Data - Sunny Day`` () =
+    let yml = "
+        Name: 'Frank'
+        Age:  43
+        TypeOf : two    # alias
+    "
+    let res = DeserializeSuccess<UnionCaseWithData> yml
+    match res with
+    |   Two d -> d.Name |> should equal "Frank"
+                 d.Age  |> should equal 43
+    | _ -> failwith "Incorrect value!"
+
+
+type UnionCaseEnum =
+    |   Zero=0      
+    |   One=1
+    |   [<YamlValue("two")>] Two=2
+    |   Three=3
+
+[<Test>]
+let ``Deserialize - Discriminated Union Enum Simple - Sunny Day`` () =
+    let yml = "One"
+    let res = DeserializeSuccess<UnionCaseEnum> yml
+    res |> should equal UnionCaseEnum.One
+
+[<Test>]
+let ``Deserialize - Discriminated Union Enum-Alias - Sunny Day`` () =
+    let yml = "two # alias"
+    let res = DeserializeSuccess<UnionCaseEnum> yml
+    res |> should equal UnionCaseEnum.Two
+
+
+[<Test>]
+let ``Deserialize - Discriminated Union Enum - Bad value - Rainy Day`` () =
+    let yml = "Four"    //  does not exist
+    let res = DeserializeError<UnionCaseEnum> yml 
+    res.Error.Length |> should be (greaterThan 0)
+    res.Error.Head |> fun m -> m.Message.StartsWith("Union case 'Four' not availble in type") |> should equal true
+
+
