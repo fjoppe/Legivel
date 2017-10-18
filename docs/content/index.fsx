@@ -1,7 +1,8 @@
 (*** hide ***)
 // This block of code is omitted in the generated HTML documentation. Use 
 // it to define helpers that you do not want to show in the documentation.
-#I "../../bin"
+#I __SOURCE_DIRECTORY__
+#I "../../src/YamlParser/bin/Release"
 
 (**
 FsYamlParser
@@ -26,7 +27,7 @@ Example
 This example demonstrates using a function defined in this sample library.
 
 *)
-#r "FsYamlParser/FsYamlParser.dll"
+#r "FsYamlParser.dll"
 open YamlParse
 open TagResolution
 
@@ -36,7 +37,6 @@ let YamlParse s = (engine.``l-yaml-stream`` YamlExtended.Schema s)
 let yaml = "{ a: 2, b: [9, 6, 3] }" 
 
 YamlParse yaml
-
 
 
 (**

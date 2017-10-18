@@ -28,7 +28,7 @@ open SourceLink
 
 // The name of the project
 // (used by attributes in AssemblyInfo, name of a NuGet package and directory in 'src')
-let project = "FsYamlParser"
+let project = "Legivel"
 
 // Short summary of the project
 // (used as description in AssemblyInfo and as a short summary for NuGet package)
@@ -36,16 +36,16 @@ let summary = "F# Yaml deserializer"
 
 // Longer description of the project
 // (used as a description for NuGet package; line breaks are automatically cleaned up)
-let description = "FsYamlParser"
+let description = "Legivel is a yaml to native mapper, which targets F# types like DU, record,list, option, and primitive types."
 
 // List of author names (for NuGet package)
 let authors = [ "Frank Joppe" ]
 
 // Tags for your project (for NuGet package)
-let tags = "fsharp yaml"
+let tags = "fsharp yaml legivel"
 
 // File system information
-let solutionFile  = "YamlParser.sln"
+let solutionFile  = "Legivel.sln"
 
 // Default target configuration
 let configuration = "Release"
@@ -89,8 +89,8 @@ Target "AssemblyInfo" (fun _ ->
           Attribute.Version release.AssemblyVersion
           Attribute.FileVersion release.AssemblyVersion
           Attribute.Configuration configuration
-          Attribute.InternalsVisibleTo "FsYamlParser.Tests"
-          Attribute.InternalsVisibleTo "FsYamlToNativeConstructor"
+          Attribute.InternalsVisibleTo "Legivel.Tests"
+          Attribute.InternalsVisibleTo "Legivel.Mapper"
           ]
 
     let getProjectDetails projectPath =
