@@ -2,10 +2,10 @@
 // This block of code is omitted in the generated HTML documentation. Use 
 // it to define helpers that you do not want to show in the documentation.
 #I __SOURCE_DIRECTORY__
-#I "../../src/YamlParser/bin/Release"
+#I "../../src/Legivel.Parser/bin/Release"
 
 (**
-FsYamlParser
+Legivel
 ======================
 
 Documentation
@@ -14,8 +14,8 @@ Documentation
   <div class="span1"></div>
   <div class="span6">
     <div class="well well-small" id="nuget">
-      The YamlParser library can be <a href="https://nuget.org/packages/FsYamlParser">installed from NuGet</a>:
-      <pre>PM> Install-Package FsYamlParser</pre>
+      The Legivel library can be <a href="https://nuget.org/packages/Legivel">installed from NuGet</a>:
+      <pre>PM> Install-Package Legivel</pre>
     </div>
   </div>
   <div class="span1"></div>
@@ -27,8 +27,8 @@ Example
 This example demonstrates using a function defined in this sample library.
 
 *)
-#r "FsYamlParser.dll"
-open YamlParse
+#r "Legivel.Parser.dll"
+open Legivel.Parser
 open TagResolution
 
 let engine = Yaml12Parser()
@@ -67,9 +67,9 @@ The library is available under Public Domain license, which allows modification 
 redistribution for both commercial and non-commercial purposes. For more information see the 
 [License file][license] in the GitHub repository. 
 
-  [content]: https://github.com/fsprojects/YamlParser/tree/master/docs/content
-  [gh]: https://github.com/fsprojects/YamlParser
-  [issues]: https://github.com/fsprojects/YamlParser/issues
-  [readme]: https://github.com/fsprojects/YamlParser/blob/master/README.md
-  [license]: https://github.com/fsprojects/YamlParser/blob/master/LICENSE.txt
+  [content]: https://github.com/fjoppe/Legivel/tree/master/docs/content
+  [gh]: https://github.com/fjoppe/Legivel
+  [issues]: https://github.com/fjoppe/Legivel/issues
+  [readme]: https://github.com/fjoppe/Legivel/blob/master/README.md
+  [license]: https://github.com/fjoppe/Legivel/blob/master/LICENSE.txt
 *)

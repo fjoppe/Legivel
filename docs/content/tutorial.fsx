@@ -2,15 +2,15 @@
 // This block of code is omitted in the generated HTML documentation. Use 
 // it to define helpers that you do not want to show in the documentation.
 #I "../../bin"
-#I "../../bin/FsYamlParser"
-#I "../../bin/FsYamlToNativeConstructor"
+#I "../../bin/Legivel.Parser"
+#I "../../bin/Legivel.Mapper"
 
 
 (**
-FsYamlParser 
+Legivel 
 ============
 
-FsYamlParser, parses Yaml strings into a generic ```Node``` structure.
+Legivel, parses Yaml strings into a generic ```Node``` structure.
 The ```Node``` structure is a binary representation of the oiginal Yaml document,
 however is generic enough to support all possible Yaml constructs.
 
@@ -19,9 +19,9 @@ Yaml structures are incompatible with type constraints in F# and C#. So a ```Nod
 
 See the following example:
 *)
-#r "FsYamlParser.dll"
-open YamlParse
-open TagResolution
+#r "Legivel.Parser.dll"
+open Legivel.Parser
+open Legivel.TagResolution
 
 let engine = Yaml12Parser()
 let YamlParse s = (engine.``l-yaml-stream`` YamlExtended.Schema s)
