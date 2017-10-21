@@ -2,8 +2,8 @@ module Legivel.Tests
 
 open NUnit.Framework
 open FsUnit
+open Legivel.Attributes
 open Legivel.Mapper
-
 
 
 type SimpleRecord = {
@@ -15,12 +15,14 @@ type SimpleRecord = {
 let DeserializeSuccess<'tp> yml = 
     let r = Deserialize<'tp> yml
     r
+    |> List.head
     |>  function
         |   Succes s -> s.Data
         |   Error e -> failwith "Unexpected error"
         
 let DeserializeError<'tp> yml = 
     Deserialize<'tp> yml
+    |> List.head
     |>  function
         |   Succes _ -> failwith "Unexpected success"
         |   Error e -> e

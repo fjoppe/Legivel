@@ -11,17 +11,17 @@
 // (This is the original behaviour of ProjectScaffold prior to multi project support)
 let referenceBinaries = []
 // Web site location for the generated documentation
-let website = ""
+let website = "Legivel"
 
-let githubLink = "https://github.com/fjoppe/FsYamlParser"
+let githubLink = "https://github.com/fjoppe/Legivel"
 
 // Specify more information about your project
 let info =
-  [ "project-name", "FsYamlParser"
+  [ "project-name", "Legivel"
     "project-author", "Frank Joppe"
     "project-summary", "F# Yaml deserializer"
     "project-github", githubLink
-    "project-nuget", "http://nuget.org/packages/FsYamlParser" ]
+    "project-nuget", "http://nuget.org/packages/Legivel" ]
 
 // --------------------------------------------------------------------------------------
 // For typical project, no changes are needed below
