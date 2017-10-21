@@ -2,13 +2,18 @@
 // This block of code is omitted in the generated HTML documentation. Use 
 // it to define helpers that you do not want to show in the documentation.
 #I __SOURCE_DIRECTORY__
-#I "../../src/Legivel.Parser/bin/Release"
+#I "../../bin/Legivel.Parser"
+#I "../../bin/Legivel.Mapper"
+
 
 (**
 Legivel
 ======================
 
-Documentation
+A Yaml to Native processor in F#, producing F# types.
+
+"Legivel" is the Portugese word for "readable"; ie Yaml was invented to create a
+human readable data-format.
 
 <div class="row">
   <div class="span1"></div>
@@ -24,20 +29,38 @@ Documentation
 Example
 -------
 
-This example demonstrates using a function defined in this sample library.
-
+This example demonstrates Yaml to Native conversion using this library:
 *)
+(*** define-output: example ***)
+
 #r "Legivel.Parser.dll"
-open Legivel.Parser
-open TagResolution
+#r "Legivel.Mapper.dll"
+open Legivel.Serialization
 
-let engine = Yaml12Parser()
-let YamlParse s = (engine.``l-yaml-stream`` YamlExtended.Schema s)
+type PlayEvent = {
+  time   : string
+  player : string
+  action : string
+}
 
-let yaml = "{ a: 2, b: [9, 6, 3] }" 
+//  example : http://www.yaml.org/spec/1.2/spec.html#id2760519
+let yaml = "---
+time: 20:03:20
+player: Sammy Sosa
+action: strike (miss)
+...
+---
+time: 20:03:47
+player: Sammy Sosa
+action: grand slam
+..." 
 
-YamlParse yaml
+Deserialize<PlayEvent> yaml
 
+(**
+Which results in:
+*)
+(*** include-it: example ***)
 
 (**
 Some more info

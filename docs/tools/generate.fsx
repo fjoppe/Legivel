@@ -113,7 +113,7 @@ let buildDocumentation () =
   Literate.ProcessDirectory
     ( content, docTemplate, output, replacements = ("root", root)::info,
       layoutRoots = layoutRootsAll.["en"],
-      generateAnchors = true,
+      generateAnchors = true, fsiEvaluator = FsiEvaluator(),
       processRecursive = false)
 
   // And then process files which are placed in the sub directories
@@ -132,7 +132,7 @@ let buildDocumentation () =
 
     Literate.ProcessDirectory
       ( dir, docTemplate, output @@ dirname, replacements = ("root", root)::info,
-        layoutRoots = layoutRoots,
+        layoutRoots = layoutRoots, fsiEvaluator = FsiEvaluator(),
         generateAnchors = true )
 
 // Generate
