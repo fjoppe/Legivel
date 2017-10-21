@@ -1,4 +1,5 @@
-﻿module Legivel.Customization.Utilities
+﻿/// Contains various utility functions
+module Legivel.Customization.Utilities
 
 open System
 open Legivel.Common
@@ -6,7 +7,7 @@ open Legivel.RepresentationGraph
 open Microsoft.FSharp.Reflection
 open System.Reflection
 
-let internal NoDocumentLocation = (DocumentLocation.Create 0 0)
+let NoDocumentLocation = (DocumentLocation.Create 0 0)
 
 let GetErrors l = l |> List.choose(fun pmf -> match pmf with | ErrorResult e -> Some e | _ -> None) |> List.collect(id)
 
@@ -32,6 +33,12 @@ let getSeqNode (n:Node) =
     match n with
     |   SeqNode n ->  Value n 
     |   _    -> ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a Sequence Node")]
+
+
+let getSeqNodeQuiet (n:Node) =
+    match n with
+    |   SeqNode n ->  Value n 
+    |   _    -> NoResult
 
 
 let getScalarNode (n:Node) =

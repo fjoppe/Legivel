@@ -3,7 +3,7 @@ module Legivel.Tests
 open NUnit.Framework
 open FsUnit
 open Legivel.Attributes
-open Legivel.Mapper
+open Legivel.Serialization
 
 
 type SimpleRecord = {

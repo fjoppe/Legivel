@@ -68,7 +68,7 @@
     <Compile Include="YamlParser.fs" />
     <Compile Include="YamlPath.fsi" />
     <Compile Include="YamlPath.fs" />
-    <Compile Include="Deserialization.fs" />
+    <Compile Include="Serialization.fs" />
     <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>

@@ -2,7 +2,8 @@
 
 open Legivel.RepresentationGraph
 
-let Serialize (node:Node) (shorthands:TagShorthand list) =
+/// Serialize Node to Yaml string in canonical (not very readable) format
+let SerializeToCanonical (node:Node) (shorthands:TagShorthand list) =
     let indent l = [1 .. l] |> List.fold(fun s _ -> s + "  ") ""
     let tagString (lt:TagKind) =
         let strGlobal (gt:GlobalTag) =
