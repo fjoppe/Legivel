@@ -11,7 +11,7 @@
 // (This is the original behaviour of ProjectScaffold prior to multi project support)
 let referenceBinaries = []
 // Web site location for the generated documentation
-let website = "Legivel"
+let website = "https://fjoppe.github.io/Legivel/"
 
 let githubLink = "https://github.com/fjoppe/Legivel"
 
