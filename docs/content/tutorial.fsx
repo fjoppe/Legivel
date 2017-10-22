@@ -129,8 +129,10 @@ Below an example of plain-style yaml which maps to a enum-DU:
 type UnionCaseEnum =
     |   One=1
     |   [<YamlValue("two")>] Two=2
-let yml = "two # alias"
+
+let yaml = "two # alias"
 Deserialize<UnionCaseEnum> yaml
+
 (**
 Which results in:
 *)

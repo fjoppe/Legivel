@@ -11,7 +11,7 @@
 Legivel Features
 ================
 
-Legivel is spit into two parts:
+Legivel is split into two parts:
 
 *  ``Legivel.Parser``: parses any Yaml-1.2, into a generic native structure (representation graph)
 *  ``Legivel.Mapper``: maps the output of ``Legivel.Parser`` to specific native types.
@@ -19,7 +19,7 @@ Legivel is spit into two parts:
 #   Legivel.Parser
 
 The ``Legivel.Parser`` can parse any Yaml1.2 string to a native format - this includes any Yaml construct which
-may not be supported by the F# or C # languages. The yaml string may contain any number of yaml documents, 
+may not be supported by the F# or C# languages. The yaml string may contain any number of yaml documents, 
 as demonstrated in [example 2.8](http://www.yaml.org/spec/1.2/spec.html#id2761866).
 
 The parser implements all [recommended schema's](http://www.yaml.org/spec/1.2/spec.html#Schema). 

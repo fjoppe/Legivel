@@ -14,9 +14,11 @@ Legivel is spit into two parts:
 
 #   Legivel.Parser
 
-This is the generic Yaml parser, which parses any Yaml - complieing to the 1.2 specification.
+TODO
 
 
 #   Legivel.Mapper
+
+TODO 
 
 *)
