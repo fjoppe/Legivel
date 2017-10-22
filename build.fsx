@@ -224,19 +224,19 @@ let executeFAKEWithOutput workingDirectory script fsiargs envArgs =
 // Documentation
 let buildDocumentationTarget fsiargs target =
     trace (sprintf "Building documentation (%s), this could take some time, please wait..." target)
-    let exit = executeFAKEWithOutput "docs/tools" "generate.fsx" fsiargs ["target", target]
-    if exit <> 0 then
+    let exit = executeFSIWithArgs "docs/tools" "generate.fsx" fsiargs ["target", target]
+    if not(exit) then
         failwith "generating reference documentation failed"
     ()
 
 Target "GenerateReferenceDocs" (fun _ ->
-    buildDocumentationTarget "-d:RELEASE -d:REFERENCE" "Default"
+    buildDocumentationTarget ["--define:RELEASE" ;"--define:REFERENCE"] "Default"
 )
 
 let generateHelp' fail debug =
     let args =
-        if debug then "--define:HELP"
-        else "--define:RELEASE --define:HELP"
+        if debug then ["--define:HELP"]
+        else ["--define:RELEASE"; "--define:HELP"]
     try
         buildDocumentationTarget args "Default"
         traceImportant "Help generated"
