@@ -1,5 +1,5 @@
-[![Issue Stats](http://issuestats.com/github/fjoppe/FsYamlParser/badge/issue)](http://issuestats.com/github/fjoppe/FsYamlParser)
-[![Issue Stats](http://issuestats.com/github/fjoppe/FsYamlParser/badge/pr)](http://issuestats.com/github/fjoppe/FsYamlParser)
+[![Issue Stats](http://issuestats.com/github/fjoppe/Legivel/badge/issue)](http://issuestats.com/github/fjoppe/Legivel)
+[![Issue Stats](http://issuestats.com/github/fjoppe/Legivel/badge/pr)](http://issuestats.com/github/fjoppe/Legivel)
 
 # Legivel
 
@@ -22,7 +22,7 @@ Legivel requires a local git installation. You can download git from [Git Downlo
 
 Mono | .NET
 ---- | ----
-[![Mono CI Build Status](https://img.shields.io/travis/fjoppe/FsYamlParser/master.svg)](https://travis-ci.org/fjoppe/FsYamlParser) | [![.NET Build Status](https://img.shields.io/appveyor/ci/fjoppe/fsyamlparser/master.svg)](https://ci.appveyor.com/project/fjoppe/FsYamlParser)
+[![Mono CI Build Status](https://img.shields.io/travis/fjoppe/Legivel/master.svg)](https://travis-ci.org/fjoppe/Legivel) | [![.NET Build Status](https://img.shields.io/appveyor/ci/fjoppe/Legivel/master.svg)](https://ci.appveyor.com/project/fjoppe/Legivel)
 
 ## Maintainer(s)
 

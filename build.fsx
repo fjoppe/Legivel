@@ -56,10 +56,10 @@ let testAssemblies = "tests/**/bin" </> configuration </> "*Tests*.dll"
 // Git configuration (used for publishing documentation in gh-pages branch)
 // The profile where the project is posted
 let gitOwner = "fjoppe"
-let gitHome = sprintf "%s/%s" "https://github.com/fjoppe/Legivel" gitOwner
+let gitHome = sprintf "%s/%s" "https://github.com" gitOwner
 
 // The name of the project on GitHub
-let gitName = "FsYamlParser"
+let gitName = "Legivel"
 
 // The url for the raw files hosted
 let gitRaw = environVarOrDefault "gitRaw" "https://raw.githubusercontent.com/fjoppe"

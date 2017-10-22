@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Name>Legivel.Parser</Name>
     <AssemblyName>Legivel.Parser</AssemblyName>
-    <RootNamespace>FsYamlParser</RootNamespace>
+    <RootNamespace>Legivel</RootNamespace>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
