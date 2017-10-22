@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Utilities - Legivel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content=""/>
+    <meta name="author" content="Frank Joppe"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="Legivel/content/style.css" />
+    <script type="text/javascript" src="Legivel/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+          <li><a href="https://github.com/fjoppe/Legivel">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="Legivel/index.html">Legivel</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+
+
+
+<h1>Utilities</h1>
+<p>
+  <span>Namespace: Legivel.Customization</span><br />
+</p>
+<div class="xmldoc">
+<p>Contains various utility functions</p>
+
+</div>
+
+<!-- Render nested types and modules, if there are any -->
+
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '56', 56)" onmouseover="showTip(event, '56', 56)">
+            AreTypesEqual t1 t2
+          </code>
+          <div class="tip" id="56">
+            <strong>Signature:</strong> t1:Type -&gt; t2:Type -&gt; bool<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L14-14" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '57', 57)" onmouseover="showTip(event, '57', 57)">
+            GetCustomAttributeDU st
+          </code>
+          <div class="tip" id="57">
+            <strong>Signature:</strong> st:UnionCaseInfo -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
+                          <strong>Type parameters:</strong> 'T          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L78-78" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '58', 58)" onmouseover="showTip(event, '58', 58)">
+            GetCustomAttributeFld st
+          </code>
+          <div class="tip" id="58">
+            <strong>Signature:</strong> st:FieldInfo -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
+                          <strong>Type parameters:</strong> 'T          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L71-71" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '59', 59)" onmouseover="showTip(event, '59', 59)">
+            GetCustomAttributeMmbr st
+          </code>
+          <div class="tip" id="59">
+            <strong>Signature:</strong> st:MemberInfo -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
+                          <strong>Type parameters:</strong> 'T          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L64-64" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '60', 60)" onmouseover="showTip(event, '60', 60)">
+            GetCustomAttributeTp st
+          </code>
+          <div class="tip" id="60">
+            <strong>Signature:</strong> st:Type -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
+                          <strong>Type parameters:</strong> 'T          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L56-56" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '61', 61)" onmouseover="showTip(event, '61', 61)">
+            GetErrors l
+          </code>
+          <div class="tip" id="61">
+            <strong>Signature:</strong> l:FallibleOption&lt;&#39;d,&#39;e list&gt; list -&gt; &#39;e list<br />
+                          <strong>Type parameters:</strong> 'd, 'e          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L12-12" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '62', 62)" onmouseover="showTip(event, '62', 62)">
+            getMapNode n
+          </code>
+          <div class="tip" id="62">
+            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;(Node * Node) list&gt;,ParseMessageAtLine list&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L20-20" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '63', 63)" onmouseover="showTip(event, '63', 63)">
+            getMapNodeQuiet n
+          </code>
+          <div class="tip" id="63">
+            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;(Node * Node) list&gt;,&#39;a&gt;<br />
+                          <strong>Type parameters:</strong> 'a          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L26-26" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '64', 64)" onmouseover="showTip(event, '64', 64)">
+            getScalarNode n
+          </code>
+          <div class="tip" id="64">
+            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;string&gt;,ParseMessageAtLine list&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L44-44" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '65', 65)" onmouseover="showTip(event, '65', 65)">
+            getScalarNodeQuiet n
+          </code>
+          <div class="tip" id="65">
+            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;string&gt;,&#39;a&gt;<br />
+                          <strong>Type parameters:</strong> 'a          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L50-50" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '66', 66)" onmouseover="showTip(event, '66', 66)">
+            getSeqNode n
+          </code>
+          <div class="tip" id="66">
+            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;Node list&gt;,ParseMessageAtLine list&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L32-32" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '67', 67)" onmouseover="showTip(event, '67', 67)">
+            getSeqNodeQuiet n
+          </code>
+          <div class="tip" id="67">
+            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;Node list&gt;,&#39;?7392&gt;<br />
+                          <strong>Type parameters:</strong> '?7392          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L38-38" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '68', 68)" onmouseover="showTip(event, '68', 68)">
+            NoDocumentLocation 
+          </code>
+          <div class="tip" id="68">
+            <strong>Signature:</strong> DocumentLocation<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L10-10" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+        </div>
+        <div class="span3">
+          <img src="Legivel/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />  
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">Legivel</li>
+            <li><a href="Legivel/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/Legivel">Get Library via NuGet</a></li>
+            <li><a href="https://github.com/fjoppe/Legivel">Source Code on GitHub</a></li>
+            <li><a href="Legivel/license.html">License</a></li>
+            <li><a href="Legivel/release-notes.html">Release Notes</a></li>
+            
+            <li class="nav-header">Getting started</li>
+            <li><a href="Legivel/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="Legivel/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="https://github.com/fjoppe/Legivel"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>

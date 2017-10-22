@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Legivel
+</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="F# Yaml deserializer"/>
+    <meta name="author" content="Frank Joppe"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/content/style.css" />
+    <script type="text/javascript" src="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+          <li><a href="https://github.com/fjoppe/Legivel">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/index.html">Legivel</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+<h1><a name="Legivel" class="anchor" href="#Legivel">Legivel</a></h1>
+<p>A Yaml to Native processor in F#, producing F# types.</p>
+<p>"Legivel" is the Portugese word for "readable"; ie Yaml was invented to create a
+human readable data-format.</p>
+<div class="row">
+  <div class="span1"></div>
+  <div class="span6">
+    <div class="well well-small" id="nuget">
+      The Legivel library can be <a href="https://nuget.org/packages/Legivel">installed from NuGet</a>:
+      <pre>PM> Install-Package Legivel</pre>
+    </div>
+  </div>
+  <div class="span1"></div>
+</div>
+<h2><a name="Example" class="anchor" href="#Example">Example</a></h2>
+<p>This example demonstrates Yaml to Native conversion using this library:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+<span class="l">22: </span>
+<span class="l">23: </span>
+<span class="l">24: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="prep">#r</span> <span class="s">&quot;Legivel.Parser.dll&quot;</span>
+<span class="prep">#r</span> <span class="s">&quot;Legivel.Mapper.dll&quot;</span>
+<span class="k">open</span> <span class="i">Legivel</span><span class="o">.</span><span class="i">Serialization</span>
+
+<span class="k">type</span> <span class="i">PlayEvent</span> <span class="o">=</span> {
+  <span class="i">time</span>   <span class="o">:</span> <span class="i">string</span>
+  <span class="i">player</span> <span class="o">:</span> <span class="i">string</span>
+  <span class="i">action</span> <span class="o">:</span> <span class="i">string</span>
+}
+
+<span class="c">//  example : http://www.yaml.org/spec/1.2/spec.html#id2760519</span>
+<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="s">---</span>
+<span class="s">time: 20:03:20</span>
+<span class="s">player: Sammy Sosa</span>
+<span class="s">action: strike (miss)</span>
+<span class="s">...</span>
+<span class="s">---</span>
+<span class="s">time: 20:03:47</span>
+<span class="s">player: Sammy Sosa</span>
+<span class="s">action: grand slam</span>
+<span class="s">...&quot;</span> 
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">PlayEvent</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes {Data = {time = "20:03:20";
+                 player = "Sammy Sosa";
+                 action = "strike (miss)";};
+         Warn = [];
+         StopLocation = (l5, c1);}; Succes {Data = {time = "20:03:47";
+                                                    player = "Sammy Sosa";
+                                                    action = "grand slam";};
+                                            Warn = [];
+                                            StopLocation = (l5, c1);}]</code></pre></td></tr></table>
+<h2><a name="Examples-amp-documentation" class="anchor" href="#Examples-amp-documentation">Examples &amp; documentation</a></h2>
+<p>Legivel comes with comprehensible documentation.</p>
+<ul>
+<li><p><a href="tutorial.html">Tutorial</a> contains more examples how to use this library.</p></li>
+<li>
+<p><a href="reference/index.html">API Reference</a> contains automatically generated documentation for all types, modules
+and functions in the library.</p>
+</li>
+<li><p><a href="customization.html">Customization</a> contains information to customize yaml-processing.</p></li>
+<li><p><a href="features.html">Features</a> documents the details of implemented features.</p></li>
+</ul>
+<h2><a name="Contributing-and-copyright" class="anchor" href="#Contributing-and-copyright">Contributing and copyright</a></h2>
+<p>The project is hosted on <a href="https://github.com/fjoppe/Legivel">GitHub</a> where you can <a href="https://github.com/fjoppe/Legivel/issues">report issues</a>, fork
+the project and submit pull requests. If you're adding a new public API, please also
+consider adding <a href="https://github.com/fjoppe/Legivel/tree/master/docs/content">samples</a> that can be turned into a documentation. You might
+also want to read the <a href="https://github.com/fjoppe/Legivel/blob/master/README.md">library design notes</a> to understand how it works.</p>
+<p>The library is available under Public Domain license, which allows modification and
+redistribution for both commercial and non-commercial purposes. For more information see the
+<a href="https://github.com/fjoppe/Legivel/blob/master/LICENSE.txt">License file</a> in the GitHub repository.</p>
+
+
+        </div>
+        <div class="span3">
+          <img src="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />  
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">Legivel</li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/Legivel">Get Library via NuGet</a></li>
+            <li><a href="https://github.com/fjoppe/Legivel">Source Code on GitHub</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/license.html">License</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/release-notes.html">Release Notes</a></li>
+            
+            <li class="nav-header">Getting started</li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="https://github.com/fjoppe/Legivel"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>

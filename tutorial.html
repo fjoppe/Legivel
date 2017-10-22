@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Legivel Tutorial
+</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="F# Yaml deserializer"/>
+    <meta name="author" content="Frank Joppe"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/content/style.css" />
+    <script type="text/javascript" src="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+          <li><a href="https://github.com/fjoppe/Legivel">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/index.html">Legivel</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+<h1><a name="Legivel-Tutorial" class="anchor" href="#Legivel-Tutorial">Legivel Tutorial</a></h1>
+<p>Yaml comes with a technical challenge; it supports structures which are
+not suported in F# and C#. For example in Yaml you can create a list where each element is of a different type.
+<code>List&lt;obj&gt;</code> is seen as an undesired type - we wish static types, which are the main target for this library.</p>
+<p>Legivel provides an F#-idiomatic Yaml to Native conversion. This simply means that
+it does not support all Yaml structures. This tutorial demonstrates all supported
+mappings. Note that prerequisite statements as #I/#r/open are left out of these examples.</p>
+<h1><a name="Primitive-mapping" class="anchor" href="#Primitive-mapping">Primitive mapping</a></h1>
+<p>Consider the folowing examples, which map a Yaml scalar to a primitive:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">int</span><span class="o">&gt;</span> <span class="s">&quot;1&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">float</span><span class="o">&gt;</span> <span class="s">&quot;3.14&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">bool</span><span class="o">&gt;</span> <span class="s">&quot;True&quot;</span>
+</code></pre></td>
+</tr>
+</table>
+<h1><a name="List-mapping" class="anchor" href="#List-mapping">List mapping</a></h1>
+<p>In the examples below, an integer list is parsed. However you can use any supported type as list element.</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">int</span> <span class="i">list</span><span class="o">&gt;</span> <span class="s">&quot;[ 1, 1, 2, 3, 5, 8, 13 ]&quot;</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes {Data = [1; 1; 2; 3; 5; 8; 13];
+         Warn = [];
+         StopLocation = (l1, c25);}]</code></pre></td></tr></table>
+<p>Yaml flow style:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">int</span> <span class="i">list</span><span class="o">&gt;</span> <span class="s">&quot;</span>
+<span class="s">- 1</span>
+<span class="s">- 2</span>
+<span class="s">- 3</span>
+<span class="s">&quot;</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes {Data = [1; 2; 3];
+         Warn = [];
+         StopLocation = (l4, c1);}]</code></pre></td></tr></table>
+<h1><a name="Record-mapping" class="anchor" href="#Record-mapping">Record mapping</a></h1>
+<p>In the example below, Yaml from <a href="http://www.yaml.org/spec/1.2/spec.html#id2760193">example 2.4</a> is mapped to a record type.
+You can use attributes in the type definition, if the field name in Yaml is different than the record field name.</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">open</span> <span class="i">Legivel</span><span class="o">.</span><span class="i">Attributes</span>
+
+<span class="k">type</span> <span class="i">PlayerStats</span> <span class="o">=</span> {
+    <span class="i">name</span>    <span class="o">:</span> <span class="i">string</span>
+    <span class="i">hr</span>      <span class="o">:</span> <span class="i">int</span>
+    [&lt;<span class="i">YamlField</span>(<span class="s">&quot;avg&quot;</span>)&gt;] <span class="i">average</span> <span class="o">:</span> <span class="i">float</span>
+}
+
+<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="s">-</span>
+<span class="s">  name: Mark McGwire</span>
+<span class="s">  hr:   65</span>
+<span class="s">  avg:  0.278</span>
+<span class="s">-</span>
+<span class="s">  name: Sammy Sosa</span>
+<span class="s">  hr:   63</span>
+<span class="s">  avg:  0.288&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">PlayerStats</span> <span class="i">list</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes {Data = [{name = "Mark McGwire";
+                  hr = 65;
+                  average = 278.0;}; {name = "Sammy Sosa";
+                                      hr = 63;
+                                      average = 288.0;}];
+         Warn = [];
+         StopLocation = (l8, c14);}]</code></pre></td></tr></table>
+<h1><a name="Option-mapping" class="anchor" href="#Option-mapping">Option mapping</a></h1>
+<p>In the example below, an option is parsed. When a value is available, it is mapped to Some(data).
+If the value is absent, it is mapped to None.</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">OptionExample</span> <span class="o">=</span> {
+  <span class="i">opt1</span> <span class="o">:</span> <span class="i">int</span> <span class="i">option</span>
+  <span class="i">opt2</span> <span class="o">:</span> <span class="i">int</span> <span class="i">option</span>
+}
+
+<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="s">opt1: 31</span>
+<span class="s">&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">OptionExample</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes {Data = {opt1 = Some 31;
+                 opt2 = None;};
+         Warn = [];
+         StopLocation = (l2, c1);}]</code></pre></td></tr></table>
+<h1><a name="Discriminated-Union-mapping" class="anchor" href="#Discriminated-Union-mapping">Discriminated Union mapping</a></h1>
+<p>Discriminated unions can be compiled to a C# enum, or to an ordinary DU.
+They can also be appear as a value in Yaml (plain style), or one key/value pair in a mapping
+determines both Union Case and contained data (embedded style). You can also use an attribute
+to customize the yaml-to-union-case mapping.</p>
+<p>Below an example of plain-style yaml which maps to a enum-DU:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">UnionCaseEnum</span> <span class="o">=</span>
+    |   <span class="i">One</span><span class="o">=</span><span class="n">1</span>
+    |   [&lt;<span class="i">YamlValue</span>(<span class="s">&quot;two&quot;</span>)&gt;] <span class="i">Two</span><span class="o">=</span><span class="n">2</span>
+<span class="k">let</span> <span class="i">yml</span> <span class="o">=</span> <span class="s">&quot;two # alias&quot;</span>
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">UnionCaseEnum</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Error {Warn = [];
+        Error = [{Location = (l0, c0);
+                  Message = "Document cannot be mapped";}];
+        StopLocation = (l2, c1);}]</code></pre></td></tr></table>
+<p>The following example demonstrates embedded style yaml which maps
+to a Union Case with record data:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">SomeData</span> <span class="o">=</span> {
+    <span class="i">Name</span> <span class="o">:</span> <span class="i">string</span>
+    <span class="i">Age</span>  <span class="o">:</span> <span class="i">int</span>
+}
+
+[&lt;<span class="i">YamlField</span>(<span class="s">&quot;TypeOf&quot;</span>)&gt;]
+<span class="k">type</span> <span class="i">UnionCaseWithData</span> <span class="o">=</span>
+    |   <span class="i">One</span> <span class="k">of</span> <span class="i">SomeData</span>
+    |   [&lt;<span class="i">YamlValue</span>(<span class="s">&quot;two&quot;</span>)&gt;] <span class="i">Two</span> <span class="k">of</span> <span class="i">SomeData</span>
+
+<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="s">    Name: &#39;Frank&#39;</span>
+<span class="s">    Age:  43</span>
+<span class="s">    TypeOf : One</span>
+<span class="s">&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">UnionCaseWithData</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes {Data = One {Name = "Frank";
+                     Age = 43;};
+         Warn = [];
+         StopLocation = (l4, c1);}]</code></pre></td></tr></table>
+
+
+        </div>
+        <div class="span3">
+          <img src="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />  
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">Legivel</li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/Legivel">Get Library via NuGet</a></li>
+            <li><a href="https://github.com/fjoppe/Legivel">Source Code on GitHub</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/license.html">License</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/release-notes.html">Release Notes</a></li>
+            
+            <li class="nav-header">Getting started</li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="https://github.com/fjoppe/Legivel"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>
