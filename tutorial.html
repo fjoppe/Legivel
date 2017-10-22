@@ -182,20 +182,21 @@ to customize the yaml-to-union-case mapping.</p>
 <span class="l">3: </span>
 <span class="l">4: </span>
 <span class="l">5: </span>
+<span class="l">6: </span>
 </pre></td>
 <td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">UnionCaseEnum</span> <span class="o">=</span>
     |   <span class="i">One</span><span class="o">=</span><span class="n">1</span>
     |   [&lt;<span class="i">YamlValue</span>(<span class="s">&quot;two&quot;</span>)&gt;] <span class="i">Two</span><span class="o">=</span><span class="n">2</span>
-<span class="k">let</span> <span class="i">yml</span> <span class="o">=</span> <span class="s">&quot;two # alias&quot;</span>
+
+<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;two # alias&quot;</span>
 <span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">UnionCaseEnum</span><span class="o">&gt;</span> <span class="i">yaml</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>[Error {Warn = [];
-        Error = [{Location = (l0, c0);
-                  Message = "Document cannot be mapped";}];
-        StopLocation = (l2, c1);}]</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = Two;
+         Warn = [];
+         StopLocation = (l1, c12);}]</code></pre></td></tr></table>
 <p>The following example demonstrates embedded style yaml which maps
 to a Union Case with record data:</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
@@ -245,7 +246,6 @@ to a Union Case with record data:</p>
 
         </div>
         <div class="span3">
-          <!-- <img src="https://fjoppe.github.io/Legivel/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />   -->
           <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
             <li class="nav-header">Legivel</li>
             <li><a href="https://fjoppe.github.io/Legivel/index.html">Home page</a></li>
