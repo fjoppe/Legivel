@@ -1,13 +1,14 @@
 [![Issue Stats](http://issuestats.com/github/fjoppe/FsYamlParser/badge/issue)](http://issuestats.com/github/fjoppe/FsYamlParser)
 [![Issue Stats](http://issuestats.com/github/fjoppe/FsYamlParser/badge/pr)](http://issuestats.com/github/fjoppe/FsYamlParser)
 
-# FsYamlParser
+# Legivel
 
 This project primarily aims to be an **exact** Yaml 1.2 deserializer, according to [Yaml 1.2 specification](http://www.yaml.org/spec/1.2/spec.html)
 
-Currently, this project is in high fluent state, however I've entered the era of tests and stabilization.
+Currently, this project is reaching end-of-development state; changing the API, writing documentation and preparing for 
+initial release on Nuget
 
-In order to build FsYamlParser, run 
+In order to build Legivel, run 
 
     > build.cmd // on windows    
     $ ./build.sh  // on unix
@@ -15,7 +16,7 @@ In order to build FsYamlParser, run
 
 ## Requirements
 
-FsYamlParser requires a local git installation. You can download git from [Git Downloads](https://git-scm.com/downloads).
+Legivel requires a local git installation. You can download git from [Git Downloads](https://git-scm.com/downloads).
 
 ## Build Status
 

@@ -44,7 +44,8 @@ type PlayEvent = {
 }
 
 //  example : http://www.yaml.org/spec/1.2/spec.html#id2760519
-let yaml = "---
+let yaml = "
+---
 time: 20:03:20
 player: Sammy Sosa
 action: strike (miss)
@@ -63,21 +64,20 @@ Which results in:
 (*** include-it: example ***)
 
 (**
-Some more info
 
-Samples & documentation
+Examples & documentation
 -----------------------
 
-The library comes with comprehensible documentation. 
-It can include tutorials automatically generated from `*.fsx` files in [the content folder][content]. 
-The API reference is automatically generated from Markdown comments in the library implementation.
+Legivel comes with comprehensible documentation. 
 
- * [Tutorial](tutorial.html) contains a further explanation of this sample library.
+ * [Tutorial](tutorial.html) contains more examples how to use this library.
 
  * [API Reference](reference/index.html) contains automatically generated documentation for all types, modules
-   and functions in the library. This includes additional brief samples on using most of the
-   functions.
- 
+   and functions in the library.
+*  [Customization](customization.html) contains information to customize yaml-processing.
+*  [Features](features.html) documents the details of implemented features.
+
+
 Contributing and copyright
 --------------------------
 

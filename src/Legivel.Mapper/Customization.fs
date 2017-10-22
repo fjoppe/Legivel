@@ -395,13 +395,13 @@ type DiscriminatedUnionMappingInfo = {
         //
         //      NodeKind = Mapping, where each key is a DUCase
         //
-        //  Contained style:
+        //  Embedded style:
         //      field1 : value1
         //      typeid : unioncase (and other pairs in the mapping form the data - excluding field "typeid")
         //      field2 : value2
         //
         //      NodeKind = Mapping, where one k/v pair identifies the DU case, 
-        //                          other pairs form the record data contained inthe union-case
+        //                          other pairs form the record data contained in the union-case
         //      Remarks: requires [<YamlField("fieldid")>] for DU type, and preferably [<YamlValue("unioncase")>] per union-case
 
         interface IYamlToNativeMapping with
@@ -430,7 +430,7 @@ type DiscriminatedUnionMappingInfo = {
                 //        return d
                 //    }
 
-                let ContainedStyle() =
+                let EmbeddedStyle() =
                     match this.DUField with
                     |   None -> NoResult
                     |   Some duf ->
@@ -455,7 +455,7 @@ type DiscriminatedUnionMappingInfo = {
                             let! data = y.map n
                             return FSharpValue.MakeUnion (duid.UCI, [|data|]) |> box
                         }
-                let r = [PlainStyle; ContainedStyle] |>  List.tryFindFo(fun f -> f())
+                let r = [PlainStyle; EmbeddedStyle] |>  List.tryFindFo(fun f -> f())
                 r
 
             /// Returns the default value of the target type - which is unavailable for DU's
