@@ -1,0 +1,14 @@
+type project
+licenseUrl http://opensource.org/licenses/MIT
+id Legivel
+authors Frank Joppe
+include-referenced-projects true
+
+frameworkAssemblies
+    System
+    System.Core
+    System.Numerics
+
+dependencies
+  FSharp.Core >= 4.4.0    
+
