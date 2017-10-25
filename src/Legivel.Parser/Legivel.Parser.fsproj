@@ -69,7 +69,6 @@
     <Compile Include="YamlPath.fsi" />
     <Compile Include="YamlPath.fs" />
     <Compile Include="Serialization.fs" />
-    <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
