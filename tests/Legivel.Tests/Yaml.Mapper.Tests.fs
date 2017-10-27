@@ -88,6 +88,14 @@ let ``Deserialize - Optional Record Fields - missing - Sunny Day`` () =
     res.Age     |> should equal None
 
 
+[<Test>]
+let ``Deserialize - Optional Record Fields - null value - Sunny Day`` () =
+    let yml = "{ Name: 'Frank', Age: null }"
+    let res = DeserializeSuccess<OptionalField> yml 
+    res.Name    |> should equal "Frank"
+    res.Age     |> should equal None
+
+
 type NestedRecord = {
         Street      : string
         HouseNumber : int

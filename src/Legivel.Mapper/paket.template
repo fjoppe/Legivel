@@ -18,6 +18,9 @@ tags
 
 summary
   Legivel is a Yaml1.2 to Native processor, which emits Fsharp types.
+  
+description
+  Legivel is a Yaml1.2 to Native processor, which emits Fsharp types.
 
 dependencies
   FSharp.Core >= 4.1.0   

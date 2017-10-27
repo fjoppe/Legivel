@@ -47,9 +47,10 @@ type TryFindIdiomaticMapperForType = (AllTryFindIdiomaticMappers -> Type -> TryF
 /// Structure containing all TryFindMapper functions available
 and AllTryFindIdiomaticMappers = private {
         PotentialMappers : TryFindIdiomaticMapperForType list
+        NullTagUri : string
     }
     with
-        static member Create ml = {PotentialMappers = ml}
+        static member Create ml nt = {PotentialMappers = ml; NullTagUri = nt}
 
         /// Try to find a mapper for the given type, look in all potential mappers
         member this.TryFindMapper (t:Type) : TryFindMapperReturnType =
@@ -197,6 +198,7 @@ type RecordMappingInfo = {
 type OptionalMappingInfo = {
         OptionType    : Type
         OptionMapping : IYamlToNativeMapping
+        NullTagUri    : string
     }
     with
         /// Return a OptionalMappingInfo when the given type is an option and the option-data type can be mapped
@@ -204,7 +206,7 @@ type OptionalMappingInfo = {
             let IsOptional (t:Type) = AreTypesEqual typeof<FSharp.Core.Option<obj>> t
             if IsOptional t then
                 mappers.TryFindMapper t.GenericTypeArguments.[0]
-                |>  FallibleOption.map(fun mapping -> {OptionType=t; OptionMapping = mapping} :> IYamlToNativeMapping)
+                |>  FallibleOption.map(fun mapping -> {OptionType=t; OptionMapping = mapping;NullTagUri = mappers.NullTagUri} :> IYamlToNativeMapping)
             else
                 NoResult
 
@@ -212,11 +214,14 @@ type OptionalMappingInfo = {
 
             /// Map the given Node to the target option type
             member this.map (n:Node) = 
-                let ctor = this.OptionType.GetConstructors() |> Array.head
-                faillableSequence {
-                    let! v = this.OptionMapping.map n
-                    return ctor.Invoke([| v |]) |> box
-                }
+                if n.NodeTag.Uri = this.NullTagUri then
+                    (this:> IYamlToNativeMapping).Default
+                else
+                    let ctor = this.OptionType.GetConstructors() |> Array.head
+                    faillableSequence {
+                        let! v = this.OptionMapping.map n
+                        return ctor.Invoke([| v |]) |> box
+                    }
 
             /// Returns the default value of the target type - which is None for option
             member this.Default with get() = None |> box |> Value
@@ -478,8 +483,8 @@ let BuildInTryFindMappers : TryFindIdiomaticMapperForType list = [
 
 
 /// Creates a yaml-to-native-mapper for the given type 'tp
-let CreateTypeMappings<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) =
-    let tryFindMapper = AllTryFindIdiomaticMappers.Create tryFindMappers
+let CreateTypeMappings<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) nullTagUri =
+    let tryFindMapper = AllTryFindIdiomaticMappers.Create tryFindMappers nullTagUri
     tryFindMapper.TryFindMapper typeof<'tp>
 
 
@@ -532,8 +537,8 @@ let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema y
 
 
 /// Customized yaml deserialization, where one can inject everything required
-let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:(ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema yml : Result<'tp> list =
-    CreateTypeMappings<'tp> tryFindMappers
+let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:(ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri yml : Result<'tp> list =
+    CreateTypeMappings<'tp> tryFindMappers nullTagUri
     |>  function
         |   NoResult -> [Error.Create ([ParseMessageAtLine.Create (DocumentLocation.Create 0 0) "Cannot find yaml to type mappers"]) [] NoDocumentLocation |> Bad]
         |   ErrorResult e -> [Error.Create (e) [] NoDocumentLocation |> Bad]
