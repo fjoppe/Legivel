@@ -13,8 +13,8 @@
     <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
     <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
 
-    <link type="text/css" rel="stylesheet" href="https://fjoppe.github.io/Legivel/content/style.css" />
-    <script type="text/javascript" src="https://fjoppe.github.io/Legivel/content/tips.js"></script>
+    <link type="text/css" rel="stylesheet" href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/content/style.css" />
+    <script type="text/javascript" src="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/content/tips.js"></script>
     <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
@@ -26,7 +26,7 @@
         <ul class="nav nav-pills pull-right">
           <li><a href="https://github.com/fjoppe/Legivel">github page</a></li>
         </ul>
-        <h3 class="muted"><a href="https://fjoppe.github.io/Legivel/index.html">Legivel</a></h3>
+        <h3 class="muted"><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/index.html">Legivel</a></h3>
       </div>
       <hr />
       <div class="row">
@@ -42,27 +42,225 @@ yaml to native mapping, perhaps non-generic, but specific to your application.</
 <li><code>Legivel.Mapper</code>: maps the output of <code>Legivel.Parser</code> to specific native types.</li>
 </ul>
 <h1><a name="Legivel-Parser" class="anchor" href="#Legivel-Parser">Legivel.Parser</a></h1>
-<p>TODO</p>
+<p>The Yaml parser is called with the injection of a Yaml Schema (and the Yaml itself). The Yaml schema
+defines the types applied to the document which is to be parsed. These types are resolved either
+via <a href="http://www.yaml.org/spec/1.2/spec.html#id2768011">Explicit or Implicit</a> Global Tags. You can
+also use Local Tags, but these do not depend on Yaml Schema and must be processed after Legivel.Parser (successful) output.</p>
+<p>A Yaml schema defines all supported data-types, which are implemented as Yaml Global Tags.</p>
+<p>A schema is defined as follows (in <code>Legivel.TagResolution</code>):</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">GlobalTagSchema</span> <span class="o">=</span> {
+    <span class="i">GlobalTags</span>              <span class="o">:</span> <span class="i">GlobalTag</span> <span class="i">list</span>
+    <span class="i">TagResolution</span>           <span class="o">:</span> <span class="i">TagResolutionFunc</span>
+    <span class="i">UnresolvedResolution</span>    <span class="o">:</span> <span class="i">UnresolvedTagResolutionFunc</span>
+    <span class="i">LocalTags</span>               <span class="o">:</span> <span class="i">LocalTagsFuncs</span>
+}
+</code></pre></td>
+</tr>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>Field</p></th>
+<th align="left"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><code>GlobalTags</code></p></td>
+<td align="left"><p>All global tags supported by the schema</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><code>TagResolution</code></p></td>
+<td align="left"><p>The function that is called when a tag requires resolution, this usually is the case when a node received an implicit tag</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><code>UnresolvedResolution</code></p></td>
+<td align="left"><p>The function that is called when a tag cannot be resolved, should return a global tag</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><code>LocalTags</code></p></td>
+<td align="left"><p>A set of function which are applicable for local tags, ie the 'AreEqual' function for a node with local tag</p></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+<p>A GlobalTag is defined in <code>Legivel.RepresentationGraph</code> as:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">GlobalTag</span> <span class="o">=</span> {
+        <span class="i">Uri&#39;</span>    <span class="o">:</span> <span class="i">string</span>
+        <span class="i">Kind&#39;</span>   <span class="o">:</span> <span class="i">NodeKind</span>
+        <span class="i">Regex&#39;</span>  <span class="o">:</span> <span class="i">string</span>
+        <span class="i">canonFn</span> <span class="o">:</span> <span class="i">string</span> <span class="k">-&gt;</span> <span class="i">string</span> <span class="i">option</span>
+        <span class="i">TagFunctions&#39;</span> <span class="o">:</span> <span class="i">TagFunctions</span>
+    }
+</code></pre></td>
+</tr>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>Field</p></th>
+<th align="left"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><code>Uri'</code></p></td>
+<td align="left"><p>The tag uri, ie "tag:yaml.org,2002:str" for strings</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><code>Kind'</code></p></td>
+<td align="left"><p>The kind of node which may match this tag - ie NodeKind scalar for strings</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><code>Regex'</code></p></td>
+<td align="left"><p>If Yaml content string matches this regex pattern then the node may be resolved to this tag, in the tag resolution process</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><code>canonFn'</code></p></td>
+<td align="left"><p>Convert the input (yaml content) string to the canonical format of this tag. This may fail if the input string does not comply. In case of an explicit tag, this was not detected earlier</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><code>TagFunctions'</code></p></td>
+<td align="left"><p>A set of functions, which apply for this tag</p></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+<p>The <code>TagFunctions</code> is defined in <code>Legivel.RepresentationGraph</code> as:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">TagFunctions</span> <span class="o">=</span> {
+       <span class="i">AreEqual</span>    <span class="o">:</span> <span class="i">Node</span> <span class="k">-&gt;</span> <span class="i">Node</span> <span class="k">-&gt;</span> <span class="i">bool</span>
+       <span class="i">GetHash</span>     <span class="o">:</span> <span class="i">Node</span> <span class="k">-&gt;</span> <span class="i">Lazy</span><span class="o">&lt;</span><span class="i">NodeHash</span><span class="o">&gt;</span>
+       <span class="i">PostProcessAndValidateNode</span>     <span class="o">:</span> <span class="i">Node</span> <span class="k">-&gt;</span> <span class="i">FallibleOption</span><span class="o">&lt;</span><span class="i">Node</span>, <span class="i">ErrorMessage</span><span class="o">&gt;</span>
+       <span class="i">IsMatch</span>     <span class="o">:</span> <span class="i">Node</span> <span class="k">-&gt;</span> <span class="i">GlobalTag</span> <span class="k">-&gt;</span> <span class="i">bool</span>
+   }
+</code></pre></td>
+</tr>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>Field</p></th>
+<th align="left"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><code>AreEqual</code></p></td>
+<td align="left"><p>Should return true if both input nodes <a href="http://www.yaml.org/spec/1.2/spec.html#id2764652">are equal</a></p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><code>GetHash</code></p></td>
+<td align="left"><p>Returns the hash of a node - this value is used in AreEqual functions</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><code>PostProcessAndValidateNode</code></p></td>
+<td align="left"><p>Is called after node construction and tag-resolution. This function may do some extra checks or transformations.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><code>IsMatch</code></p></td>
+<td align="left"><p>true if the Node matches the specified tag</p></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+<p>The above mentioned <code>TagResolutionFunc</code>, is the function which is called for tag resolution, and is defined as:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">TagResolutionFunc</span> <span class="o">=</span> (<span class="i">TagResolutionInfo</span> <span class="k">-&gt;</span> <span class="i">GlobalTag</span> <span class="i">option</span>)
+</code></pre></td>
+</tr>
+</table>
+<p>A <code>GlobalTag</code> is returned when it was resolved, otherwise <code>None</code></p>
+<hr />
+<p>The <code>TagResolutionInfo</code> is defined as follows:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">TagResolutionInfo</span> <span class="o">=</span> {
+        <span class="i">NonSpecificTag</span>  <span class="o">:</span> <span class="i">string</span>
+        <span class="i">Path</span>            <span class="o">:</span> <span class="i">Node</span> <span class="i">list</span>
+        <span class="i">Content</span>         <span class="o">:</span> <span class="i">Node</span>
+    }
+</code></pre></td>
+</tr>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>Field</p></th>
+<th align="left"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><code>NonSpecificTag</code></p></td>
+<td align="left"><p>The non-specific tag, "!" or "?", see <a href="http://www.yaml.org/spec/1.2/spec.html#id2768011">tag resolution</a></p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><code>Path</code></p></td>
+<td align="left"><p>The parent path to the node, only mentioning keys from mapping nodes, the List.Head is the most direct parent</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><code>Content</code></p></td>
+<td align="left"><p>The Node for which a tag needs to be resolved</p></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+<p>This covers the most important aspects from Schema and tag resolution.</p>
 <h1><a name="Legivel-Mapper" class="anchor" href="#Legivel-Mapper">Legivel.Mapper</a></h1>
-<p>TODO</p>
+<p>The <code>Legivel.Mapper</code> takes output from the <code>Legivel.Parser</code>, and tries to map it to a given type.
+You can decide not to use this component at all, ie when you require a C# mapper.</p>
+<p>The mapping proces can be tweaked at different levels:
+<em>   Parsing level: the mapper can define which Yaml Schema to use in the Parser;
+</em>   Mapping level: you can choose your own set of mappers</p>
 
 
         </div>
         <div class="span3">
           <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
             <li class="nav-header">Legivel</li>
-            <li><a href="https://fjoppe.github.io/Legivel/index.html">Home page</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/index.html">Home page</a></li>
             <li class="divider"></li>
             <li><a href="http://nuget.org/packages/Legivel">Get Library via NuGet</a></li>
             <li><a href="https://github.com/fjoppe/Legivel">Source Code on GitHub</a></li>
-            <li><a href="https://fjoppe.github.io/Legivel/license.html">License</a></li>
-            <li><a href="https://fjoppe.github.io/Legivel/release-notes.html">Release Notes</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/license.html">License</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/release-notes.html">Release Notes</a></li>
             
             <li class="nav-header">Getting started</li>
-            <li><a href="https://fjoppe.github.io/Legivel/tutorial.html">Sample tutorial</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/tutorial.html">Sample tutorial</a></li>
 
             <li class="nav-header">Documentation</li>
-            <li><a href="https://fjoppe.github.io/Legivel/reference/index.html">API Reference</a></li>
+            <li><a href="file://C:\Users\frank\Desktop\Projecten\YamlParser\docs\tools\../output/reference/index.html">API Reference</a></li>
           </ul>
         </div>
       </div>
