@@ -65,8 +65,7 @@ mappings. Note that prerequisite statements as #I/#r/open are left out of these 
 </table>
 <p>Which results in:</p>
 <table class="pre"><tr><td><pre><code>[Succes {Data = [1; 1; 2; 3; 5; 8; 13];
-         Warn = [];
-         StopLocation = (l1, c25);}]</code></pre></td></tr></table>
+         Warn = [];}]</code></pre></td></tr></table>
 <p>Yaml flow style:</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
 <span class="l">2: </span>
@@ -84,8 +83,7 @@ mappings. Note that prerequisite statements as #I/#r/open are left out of these 
 </table>
 <p>Which results in:</p>
 <table class="pre"><tr><td><pre><code>[Succes {Data = [1; 2; 3];
-         Warn = [];
-         StopLocation = (l4, c1);}]</code></pre></td></tr></table>
+         Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Record-mapping" class="anchor" href="#Record-mapping">Record mapping</a></h1>
 <p>In the example below, Yaml from <a href="http://www.yaml.org/spec/1.2/spec.html#id2760193">example 2.4</a> is mapped to a record type.
 You can use attributes in the type definition, if the field name in Yaml is different than the record field name.</p>
@@ -137,30 +135,25 @@ You can use attributes in the type definition, if the field name in Yaml is diff
                   average = 278.0;}; {name = "Sammy Sosa";
                                       hr = 63;
                                       average = 288.0;}];
-         Warn = [];
-         StopLocation = (l8, c14);}]</code></pre></td></tr></table>
+         Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Option-mapping" class="anchor" href="#Option-mapping">Option mapping</a></h1>
 <p>In the example below, an option is parsed. When a value is available, it is mapped to Some(data).
 If the value is absent, it is mapped to None.</p>
-<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
-<span class="l"> 2: </span>
-<span class="l"> 3: </span>
-<span class="l"> 4: </span>
-<span class="l"> 5: </span>
-<span class="l"> 6: </span>
-<span class="l"> 7: </span>
-<span class="l"> 8: </span>
-<span class="l"> 9: </span>
-<span class="l">10: </span>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
 </pre></td>
 <td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">OptionExample</span> <span class="o">=</span> {
   <span class="i">opt1</span> <span class="o">:</span> <span class="i">int</span> <span class="i">option</span>
   <span class="i">opt2</span> <span class="o">:</span> <span class="i">int</span> <span class="i">option</span>
 }
 
-<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
-<span class="s">opt1: 31</span>
-<span class="s">&quot;</span>
+<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;opt1: 31&quot;</span>
 
 <span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">OptionExample</span><span class="o">&gt;</span> <span class="i">yaml</span>
 </code></pre></td>
@@ -169,8 +162,22 @@ If the value is absent, it is mapped to None.</p>
 <p>Which results in:</p>
 <table class="pre"><tr><td><pre><code>[Succes {Data = {opt1 = Some 31;
                  opt2 = None;};
-         Warn = [];
-         StopLocation = (l2, c1);}]</code></pre></td></tr></table>
+         Warn = [];}]</code></pre></td></tr></table>
+<p>Also "null" is translated to None:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;{ opt1: 31, opt2: null }&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">OptionExample</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes {Data = {opt1 = Some 31;
+                 opt2 = None;};
+         Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Discriminated-Union-mapping" class="anchor" href="#Discriminated-Union-mapping">Discriminated Union mapping</a></h1>
 <p>Discriminated unions can be compiled to a C# enum, or to an ordinary DU.
 They can also be appear as a value in Yaml (plain style), or one key/value pair in a mapping
@@ -195,8 +202,7 @@ to customize the yaml-to-union-case mapping.</p>
 </table>
 <p>Which results in:</p>
 <table class="pre"><tr><td><pre><code>[Succes {Data = Two;
-         Warn = [];
-         StopLocation = (l1, c12);}]</code></pre></td></tr></table>
+         Warn = [];}]</code></pre></td></tr></table>
 <p>The following example demonstrates embedded style yaml which maps
 to a Union Case with record data:</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
@@ -240,8 +246,7 @@ to a Union Case with record data:</p>
 <p>Which results in:</p>
 <table class="pre"><tr><td><pre><code>[Succes {Data = One {Name = "Frank";
                      Age = 43;};
-         Warn = [];
-         StopLocation = (l4, c1);}]</code></pre></td></tr></table>
+         Warn = [];}]</code></pre></td></tr></table>
 
 
         </div>

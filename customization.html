@@ -38,7 +38,7 @@ your own yaml-schema, in which you add, or remove a yaml-tag (data type). Maybe 
 yaml to native mapping, perhaps non-generic, but specific to your application.</p>
 <p>Legivel is spit into two parts:</p>
 <ul>
-<li><code>Legivel.Parser</code>: parses any Yaml-1.2, into a generic native structure (representation graph)</li>
+<li><code>Legivel.Parser</code>: parses any Yaml-1.2, into a generic native structure and supports non-idiomatic structures.</li>
 <li><code>Legivel.Mapper</code>: maps the output of <code>Legivel.Parser</code> to specific native types.</li>
 </ul>
 <h1><a name="Legivel-Parser" class="anchor" href="#Legivel-Parser">Legivel.Parser</a></h1>
@@ -240,9 +240,16 @@ also use Local Tags, but these do not depend on Yaml Schema and must be processe
 <h1><a name="Legivel-Mapper" class="anchor" href="#Legivel-Mapper">Legivel.Mapper</a></h1>
 <p>The <code>Legivel.Mapper</code> takes output from the <code>Legivel.Parser</code>, and tries to map it to a given type.
 You can decide not to use this component at all, ie when you require a C# mapper.</p>
-<p>The mapping proces can be tweaked at different levels:
-<em>   Parsing level: the mapper can define which Yaml Schema to use in the Parser;
-</em>   Mapping level: you can choose your own set of mappers</p>
+<p><code>Legivel.Mapper</code> disregards non-idiomatic yaml structures like heterogeneous lists, and provides dedicated
+yaml-to-native mappings. This libaray only supports idiomatic mappings and is in that sense generic within the
+FSharp context. You could add or inject some application specific mapping, to suit your own needs.</p>
+<p>The mapping proces can be customized at different levels:</p>
+<ul>
+<li>Parsing level: the mapper can define which Yaml Schema to use in the Parser;</li>
+<li>Mapping level: you can choose your own set of mappers, or even create your own mappers and add it to the build-in set</li>
+</ul>
+<p>For any customization - when you want to use <code>Legivel.Mapper</code> - you can start looking into the modules
+<code>Legivel.Customization.Mapping</code> and <code>Legivel.Customization.Utilities</code>.</p>
 
 
         </div>
