@@ -492,10 +492,9 @@ let CreateTypeMappings<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) 
 type Success<'tp> = {
         Data : 'tp
         Warn : ParseMessageAtLine list
-        StopLocation : DocumentLocation
     }
     with
-        static member Create d w sl =  {Data = d; Warn = w; StopLocation = sl}
+        static member Create d w =  {Data = d; Warn = w}
 
 /// Returned when deserialization contained errors
 type Error = {
@@ -508,19 +507,19 @@ type Error = {
 
 /// Result of customized yaml to native mapping
 type Result<'tp> =
-    |   Good of Success<'tp>
-    |   Bad of Error
+    |   Processed of Success<'tp>
+    |   WithErrors of Error
 
 
 /// Maps a (parsed) yaml document to a native type-instance, using the given mapper
 let MapYamlDocumentToNative (mapper:IYamlToNativeMapping) (pdr:ParsedDocumentResult) =
     mapper.map (pdr.Document)
     |>  function
-        |   NoResult -> Error.Create ([ParseMessageAtLine.Create NoDocumentLocation  "Document cannot be mapped"]) (pdr.Warn) (pdr.StopLocation) |> Bad
-        |   ErrorResult e -> Error.Create (e) (pdr.Warn) (pdr.StopLocation) |> Bad
+        |   NoResult -> Error.Create ([ParseMessageAtLine.Create NoDocumentLocation  "Document cannot be mapped"]) (pdr.Warn) (pdr.StopLocation) |> WithErrors
+        |   ErrorResult e -> Error.Create (e) (pdr.Warn) (pdr.StopLocation) |> WithErrors
         |   Value v -> 
             let d = unbox<'tp> v
-            Success<'tp>.Create d (pdr.Warn) (pdr.StopLocation) |> Good
+            Success<'tp>.Create d (pdr.Warn) |> Processed
 
 
 /// Parses a yaml string, for the given yaml-schema and maps it to a native type instance
@@ -529,8 +528,8 @@ let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema y
     (yamlParser.``l-yaml-stream`` schema yml) 
     |> List.map(fun ymlpl ->
         match ymlpl with
-        |   NoRepresentation err -> Error.Create (err.Error) (err.Warn) (err.StopLocation) |> Bad
-        |   EmptyRepresentation mt -> Error.Create ([ParseMessageAtLine.Create NoDocumentLocation  "Document was empty"]) (mt.Warn) (mt.StopLocation) |> Bad
+        |   NoRepresentation err -> Error.Create (err.Error) (err.Warn) (err.StopLocation) |> WithErrors
+        |   EmptyRepresentation mt -> Error.Create ([ParseMessageAtLine.Create NoDocumentLocation  "Document was empty"]) (mt.Warn) (mt.StopLocation) |> WithErrors
         |   PartialRepresentaton pdr
         |   CompleteRepresentaton pdr -> mapToNative pdr
     )
@@ -540,8 +539,8 @@ let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema y
 let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:(ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri yml : Result<'tp> list =
     CreateTypeMappings<'tp> tryFindMappers nullTagUri
     |>  function
-        |   NoResult -> [Error.Create ([ParseMessageAtLine.Create (DocumentLocation.Create 0 0) "Cannot find yaml to type mappers"]) [] NoDocumentLocation |> Bad]
-        |   ErrorResult e -> [Error.Create (e) [] NoDocumentLocation |> Bad]
+        |   NoResult -> [Error.Create ([ParseMessageAtLine.Create (DocumentLocation.Create 0 0) "Cannot find yaml to type mappers"]) [] NoDocumentLocation |> WithErrors]
+        |   ErrorResult e -> [Error.Create (e) [] NoDocumentLocation |> WithErrors]
         |   Value mappings -> parseYmlToNative (mapYmlDocToNative mappings) schema yml
 
 

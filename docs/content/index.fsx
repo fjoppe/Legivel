@@ -12,7 +12,7 @@ Legivel
 
 A Yaml to Native processor in F#, producing F# types.
 
-"Legivel" is the Portugese word for "readable"; ie Yaml was invented to create a
+"Legivel" is the Portugese word for ["readable"](https://translate.google.com/?hl=nl#en/pt/readable); ie Yaml was invented to create a
 human readable data-format.
 
 <div class="row">
@@ -32,8 +32,6 @@ Example
 This example demonstrates Yaml to Native conversion using this library:
 *)
 (*** define-output: example ***)
-
-#r "Legivel.Parser.dll"
 #r "Legivel.Mapper.dll"
 open Legivel.Serialization
 
@@ -57,7 +55,6 @@ action: grand slam
 ..." 
 
 Deserialize<PlayEvent> yaml
-
 (**
 Which results in:
 *)
@@ -76,7 +73,7 @@ Legivel comes with comprehensible documentation.
    and functions in the library.
 *  [Customization](customization.html) contains information to customize yaml-processing.
 *  [Features](features.html) documents the details of implemented features.
-
+*  [Wish List](wishlist.html) contains pending ideas, which may be added in future.
 
 Contributing and copyright
 --------------------------

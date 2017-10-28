@@ -8,7 +8,6 @@ open Legivel.Common
 type SuccessInfo<'tp> = {
         Data : 'tp
         Warn : ParseMessageAtLine list
-        StopLocation : DocumentLocation
     }
 
 /// Returned when deserialization contained errors

@@ -8,7 +8,7 @@ yaml to native mapping, perhaps non-generic, but specific to your application.
 
 Legivel is spit into two parts:
 
-*  ``Legivel.Parser``: parses any Yaml-1.2, into a generic native structure (representation graph)
+*  ``Legivel.Parser``: parses any Yaml-1.2, into a generic native structure and supports non-idiomatic structures.
 *  ``Legivel.Mapper``: maps the output of ``Legivel.Parser`` to specific native types.
 
 
@@ -114,8 +114,16 @@ This covers the most important aspects from Schema and tag resolution.
 The ``Legivel.Mapper`` takes output from the ``Legivel.Parser``, and tries to map it to a given type.
 You can decide not to use this component at all, ie when you require a C# mapper.
 
-The mapping proces can be tweaked at different levels:
+``Legivel.Mapper`` disregards non-idiomatic yaml structures like heterogeneous lists, and provides dedicated
+yaml-to-native mappings. This libaray only supports idiomatic mappings and is in that sense generic within the
+FSharp context. You could add or inject some application specific mapping, to suit your own needs.
+
+The mapping proces can be customized at different levels:
+
 *   Parsing level: the mapper can define which Yaml Schema to use in the Parser; 
-*   Mapping level: you can choose your own set of mappers
+*   Mapping level: you can choose your own set of mappers, or even create your own mappers and add it to the build-in set
+
+For any customization - when you want to use ``Legivel.Mapper`` - you can start looking into the modules 
+``Legivel.Customization.Mapping`` and ``Legivel.Customization.Utilities``.
 
 *)

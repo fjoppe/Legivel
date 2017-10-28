@@ -15,10 +15,9 @@ open Legivel.Customization.Mapping
 type SuccessInfo<'tp> = {
         Data : 'tp
         Warn : ParseMessageAtLine list
-        StopLocation : DocumentLocation
     }
     with
-        static member Create d w sl =  {Data = d; Warn = w; StopLocation = sl}
+        static member Create d w =  {Data = d; Warn = w}
 
 
 type ErrorInfo = {
@@ -39,8 +38,8 @@ let Deserialize<'tp> yml : DeserializeResult<'tp> list =
     CustomDeserializeYaml BuildInTryFindMappers MapYamlDocumentToNative ParseYamlToNative (YamlCore.Schema) (YamlCore.NullGlobalTag.Uri) yml
     |>  List.map(fun r ->
         match r with
-        |   Good d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn d.StopLocation)
-        |   Bad  d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
+        |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
+        |   WithErrors d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
     )
 
 

@@ -104,15 +104,25 @@ type OptionExample = {
   opt2 : int option
 }
 
-let yaml = "
-opt1: 31
-"
+let yaml = "opt1: 31"
 
 Deserialize<OptionExample> yaml
 (**
 Which results in:
 *)
 (*** include-it: optionexample ***)
+(**
+
+Also "null" is translated to None:
+*)
+(*** define-output: optionnullexample ***)
+let yaml = "{ opt1: 31, opt2: null }"
+
+Deserialize<OptionExample> yaml
+(**
+Which results in:
+*)
+(*** include-it: optionnullexample ***)
 (**
 
 
