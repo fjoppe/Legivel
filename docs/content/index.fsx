@@ -73,7 +73,7 @@ Legivel comes with comprehensible documentation.
    and functions in the library.
 *  [Customization](customization.html) contains information to customize yaml-processing.
 *  [Features](features.html) documents the details of implemented features.
-*  [Wish List](wishlist.html) contains pending ideas, which may be added in future.
+*  [Wish List](WishList.html) contains pending ideas, which may be added in future.
 
 Contributing and copyright
 --------------------------
