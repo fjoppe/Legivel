@@ -29,6 +29,7 @@ Deserialize<float> "3.14"
 
 Deserialize<bool> "True"
 
+Deserialize<DateTime> "2014-09-12"
 
 (**
 
