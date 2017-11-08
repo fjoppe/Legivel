@@ -9,6 +9,7 @@ open Legivel.Customization.Utilities
 open Legivel.Attributes
 open Microsoft.FSharp.Reflection
 open System.Reflection
+open System.Globalization
 
 
 /// To register one yaml scalar to native mapping
@@ -20,13 +21,42 @@ type ScalarToNativeMapping = {
     with
         static member Create (yt, tt, tn) = { YamlTag = yt; TargetType = tt; ToNative = tn}
 
+module YamlMapped =
+    //  order is important, !!pairs is a superset of !!omap
+    let providedSeqTags = [YamlExtended.SequenceGlobalTag]
+    let providedScalarTags = [YamlExtended.BooleanGlobalTag; YamlExtended.IntegerGlobalTag; YamlExtended.FloatGlobalTag; YamlExtended.TimestampGlobalTag; YamlExtended.NullGlobalTag; YamlExtended.MergeGlobalTag; YamlExtended.StringGlobalTag]
+    let providedMappingTags = [YamlExtended.UnOrderedSetGlobalTag;YamlExtended.MappingGlobalTag]
+
+    let YEFailSafeResolution nst =
+        match nst.Content.Kind with
+        |   Mapping -> Some YamlExtended.MappingGlobalTag
+        |   Sequence-> Some YamlExtended.SequenceGlobalTag
+        |   Scalar  -> Some YamlExtended.StringGlobalTag
+
+    let tagResolutionYamlExtended = Legivel.TagResolution.SchemaUtils.tagResolution YEFailSafeResolution (YamlExtended.MappingGlobalTag, YamlExtended.SequenceGlobalTag, YamlExtended.StringGlobalTag)
+
+
+    let Schema = {
+        //  note that failsafe tags are overriden in this schema        
+        GlobalTags = providedScalarTags @ providedSeqTags @ providedMappingTags
+        TagResolution = tagResolutionYamlExtended providedMappingTags providedSeqTags providedScalarTags
+        UnresolvedResolution = YamlExtended.Schema.UnresolvedResolution
+        LocalTags = YamlExtended.Schema.LocalTags
+    }
+
+
 
 /// All yaml-scalar to native mappings
 let YamlScalarToNativeMappings = [
     ScalarToNativeMapping.Create (YamlExtended.StringGlobalTag, typeof<string>, fun (s:string) -> box s)
     ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
-    ScalarToNativeMapping.Create (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get |> Double.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> 
+        let value = YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get
+        Double.Parse(value, CultureInfo.InvariantCulture) |> box)
     ScalarToNativeMapping.Create (YamlExtended.BooleanGlobalTag, typeof<bool>, fun (s:string) -> YamlExtended.BooleanGlobalTag.ToCanonical s |> Option.get |> Boolean.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.TimestampGlobalTag, typeof<DateTime>, fun (s:string) -> 
+        let value = YamlExtended.TimestampGlobalTag.ToCanonical s |> Option.get 
+        DateTime.Parse(value, CultureInfo.InvariantCulture).ToUniversalTime() |> box)
     ]
 
 
@@ -48,9 +78,10 @@ type TryFindIdiomaticMapperForType = (AllTryFindIdiomaticMappers -> Type -> TryF
 and AllTryFindIdiomaticMappers = private {
         PotentialMappers : TryFindIdiomaticMapperForType list
         NullTagUri : string
+        StringTagUri : string
     }
     with
-        static member Create ml nt = {PotentialMappers = ml; NullTagUri = nt}
+        static member Create ml nt st = {PotentialMappers = ml; NullTagUri = nt; StringTagUri=st}
 
         /// Try to find a mapper for the given type, look in all potential mappers
         member this.TryFindMapper (t:Type) : TryFindMapperReturnType =
@@ -114,6 +145,7 @@ type RecordFieldMapping = {
 type RecordMappingInfo = {
         Target       : Type
         FieldMapping : RecordFieldMapping list
+        StringTagUri : string
     }
     with
         /// Return a RecordMappingInfo when the given type is a record and all record-fields can be mapped
@@ -135,7 +167,7 @@ type RecordMappingInfo = {
                 )
                 |>  FallibleOption.errorsOrValues(fun possibleMappings ->
                         let m = possibleMappings |>  List.map(fun pm -> pm.Data)
-                        Value ( { Target = t; FieldMapping = m } :> IYamlToNativeMapping)
+                        Value ( { Target = t; FieldMapping = m; StringTagUri = mappers.StringTagUri } :> IYamlToNativeMapping)
                     )
             else
                 NoResult
@@ -158,7 +190,8 @@ type RecordMappingInfo = {
                     |>  FallibleOption.forCollection(fun dt ->
                         dt.Data
                         |>  List.map(fun (k,v) -> 
-                            if k.NodeTag.Uri = YamlExtended.StringGlobalTag.Uri then
+                            //  k = record field name, should always be of type string
+                            if k.NodeTag.Uri =  this.StringTagUri then
                                 getScalarNode k
                                 |>  FallibleOption.bind(fun kf -> mapKeyValue (kf.Data) v)
                             else
@@ -483,8 +516,8 @@ let BuildInTryFindMappers : TryFindIdiomaticMapperForType list = [
 
 
 /// Creates a yaml-to-native-mapper for the given type 'tp
-let CreateTypeMappings<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) nullTagUri =
-    let tryFindMapper = AllTryFindIdiomaticMappers.Create tryFindMappers nullTagUri
+let CreateTypeMappings<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) nullTagUri stringTagUri =
+    let tryFindMapper = AllTryFindIdiomaticMappers.Create tryFindMappers nullTagUri stringTagUri
     tryFindMapper.TryFindMapper typeof<'tp>
 
 
@@ -536,8 +569,8 @@ let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema y
 
 
 /// Customized yaml deserialization, where one can inject everything required
-let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:(ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri yml : Result<'tp> list =
-    CreateTypeMappings<'tp> tryFindMappers nullTagUri
+let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:(ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri stringTagUri yml : Result<'tp> list =
+    CreateTypeMappings<'tp> tryFindMappers nullTagUri stringTagUri
     |>  function
         |   NoResult -> [Error.Create ([ParseMessageAtLine.Create (DocumentLocation.Create 0 0) "Cannot find yaml to type mappers"]) [] NoDocumentLocation |> WithErrors]
         |   ErrorResult e -> [Error.Create (e) [] NoDocumentLocation |> WithErrors]

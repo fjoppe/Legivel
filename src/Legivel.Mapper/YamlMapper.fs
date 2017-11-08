@@ -35,7 +35,7 @@ type DeserializeResult<'tp> =
 
 
 let Deserialize<'tp> yml : DeserializeResult<'tp> list =
-    CustomDeserializeYaml BuildInTryFindMappers MapYamlDocumentToNative ParseYamlToNative (YamlCore.Schema) (YamlCore.NullGlobalTag.Uri) yml
+    CustomDeserializeYaml BuildInTryFindMappers MapYamlDocumentToNative ParseYamlToNative (Legivel.Customization.Mapping.YamlMapped.Schema) (YamlExtended.NullGlobalTag.Uri) (YamlExtended.StringGlobalTag.Uri) yml
     |>  List.map(fun r ->
         match r with
         |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
