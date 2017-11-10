@@ -33,10 +33,6 @@
         <div class="span9" id="main">
           
 <h1><a name="Legivel-Wish-List" class="anchor" href="#Legivel-Wish-List">Legivel Wish List</a></h1>
-<h2><a name="More-build-in-primitive-data-types" class="anchor" href="#More-build-in-primitive-data-types">More build-in primitive data types</a></h2>
-<p>The Legivel Mapper should support more build-in primitive data types. Some consideration is required when approaching this.
-You cannot use the YamlExtended schema as-is, because the non-scalar tags distort the suitabilityy of the required output.
-Either use the pure set of the YamlCore schema, or do some cherry-picking in the YamlExtended schema.</p>
 <h2><a name="Processing-options" class="anchor" href="#Processing-options">Processing options</a></h2>
 <p>The processing of the Legivel Mapper should be configurable with attributes and processing options.</p>
 <p>The following options are desired:</p>
@@ -56,6 +52,21 @@ Either use the pure set of the YamlCore schema, or do some cherry-picking in the
 get:  data2     #   'post' and 'get' are in a sequence in this example
 </code></pre></td></tr></table>
 <p>Implementation is tricky; probably requires a dedicated list-of-DU mapper.</p>
+<h2><a name="More-FSharp-types-support" class="anchor" href="#More-FSharp-types-support">More FSharp types support</a></h2>
+<p>Support for:</p>
+<ul>
+<li>FSharp Map</li>
+<li>FSharp Set (using YamlExtended tag "!!set"?)</li>
+<li>Tuples? (not sure about this one)</li>
+</ul>
+<h2><a name="Multi-platform-support" class="anchor" href="#Multi-platform-support">Multi-platform support</a></h2>
+<p>This library currently supports net461, obviously it should also support netstandard16 or something higher.</p>
+<h2><a name="Readable-Serialization" class="anchor" href="#Readable-Serialization">Readable Serialization</a></h2>
+<p>Currently, Legivel only supports Yaml parsing. The Legivel.Parser also has a ToCanonical serializer, but this
+is in machine format, not in human-readable format. This feature should be taken into two steps,
+in the Legivel.Mapper a mapper must convert native to the generic format, and the Legivel.Parser
+should get the generic to readable string function. Adding this feature contradicts "Parser" in the name Legivel.Parser,
+but let's solve that naming problem later.</p>
 
 
         </div>

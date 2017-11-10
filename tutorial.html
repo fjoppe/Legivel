@@ -46,12 +46,16 @@ mappings. Note that prerequisite statements as #I/#r/open are left out of these 
 <span class="l">3: </span>
 <span class="l">4: </span>
 <span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
 </pre></td>
 <td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">int</span><span class="o">&gt;</span> <span class="s">&quot;1&quot;</span>
 
 <span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">float</span><span class="o">&gt;</span> <span class="s">&quot;3.14&quot;</span>
 
 <span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">bool</span><span class="o">&gt;</span> <span class="s">&quot;True&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">DateTime</span><span class="o">&gt;</span> <span class="s">&quot;2014-09-12&quot;</span>
 </code></pre></td>
 </tr>
 </table>
@@ -132,9 +136,9 @@ You can use attributes in the type definition, if the field name in Yaml is diff
 <p>Which results in:</p>
 <table class="pre"><tr><td><pre><code>[Succes {Data = [{name = "Mark McGwire";
                   hr = 65;
-                  average = 278.0;}; {name = "Sammy Sosa";
+                  average = 0.278;}; {name = "Sammy Sosa";
                                       hr = 63;
-                                      average = 288.0;}];
+                                      average = 0.288;}];
          Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Option-mapping" class="anchor" href="#Option-mapping">Option mapping</a></h1>
 <p>In the example below, an option is parsed. When a value is available, it is mapped to Some(data).

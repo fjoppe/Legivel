@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>SuccessInfo<'tp> - Legivel</title>
+    <title>SchemaUtils - Legivel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Frank Joppe"/>
@@ -34,33 +34,34 @@
 
 
 
-<h1>SuccessInfo<'tp></h1>
+<h1>SchemaUtils</h1>
 <p>
   <span>Namespace: Legivel</span><br />
-  <span>Parent Module: <a href="legivel-serialization.html">Serialization</a></span>
+  <span>Parent Module: <a href="legivel-tagresolution.html">TagResolution</a></span>
 </p>
 <div class="xmldoc">
-<p>Returned when deserialization was succesful</p>
-
 </div>
-  <h3>Record Fields</h3>
+
+<!-- Render nested types and modules, if there are any -->
+
+  <h3>Functions and values</h3>
   <table class="table table-bordered member-list">
     <thead>
-      <tr><td>Record Field</td><td>Description</td></tr>
+      <tr><td>Function or value</td><td>Description</td></tr>
     </thead>
     <tbody>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '96', 96)" onmouseover="showTip(event, '96', 96)">
-            Data
+          <code onmouseout="hideTip(event, '28', 28)" onmouseover="showTip(event, '28', 28)">
+            getMapNode arg1
           </code>
-          <div class="tip" id="96">
-            <strong>Signature:</strong> &#39;tp<br />
+          <div class="tip" id="28">
+            <strong>Signature:</strong> Node -&gt; (Node * Node) list<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/YamlMapper.fsi#L9-9" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/TagResolution.fs#L37-37" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -70,15 +71,51 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '97', 97)" onmouseover="showTip(event, '97', 97)">
-            Warn
+          <code onmouseout="hideTip(event, '29', 29)" onmouseover="showTip(event, '29', 29)">
+            getScalarNode arg1
           </code>
-          <div class="tip" id="97">
-            <strong>Signature:</strong> ParseMessageAtLine list<br />
+          <div class="tip" id="29">
+            <strong>Signature:</strong> Node -&gt; string<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/YamlMapper.fsi#L10-10" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/TagResolution.fs#L47-47" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '30', 30)" onmouseover="showTip(event, '30', 30)">
+            getSeqNode arg1
+          </code>
+          <div class="tip" id="30">
+            <strong>Signature:</strong> Node -&gt; Node list<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/TagResolution.fs#L42-42" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '31', 31)" onmouseover="showTip(event, '31', 31)">
+            tagResolution arg1 arg2 arg3 arg4 arg5
+          </code>
+          <div class="tip" id="31">
+            <strong>Signature:</strong> (TagResolutionInfo -&gt; GlobalTag option) -&gt; (GlobalTag * GlobalTag * GlobalTag) -&gt; GlobalTag list -&gt; GlobalTag list -&gt; GlobalTag list -&gt; TagResolutionFunc<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/TagResolution.fs#L78-78" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
