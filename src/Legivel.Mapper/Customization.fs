@@ -324,11 +324,11 @@ type MapMappingInfo = {
             with get() =
                 let mm = [ for i in Assembly.GetAssembly(this.MapType).ExportedTypes do yield i]|> List.find(fun m -> m.Name.Contains("MapModule"))
                 let mt = mm.GetMethod("Empty")
-                mt.MakeGenericMethod([|typeof<string>; typeof<string>|]).Invoke(null, [||])
+                mt.MakeGenericMethod(this.MapType.GetGenericArguments()).Invoke(null, [||])
 
         interface IYamlToNativeMapping with
 
-            /// Map the given Node to the target list type
+            /// Map the given Node to the target map type
             member this.map (n:Node) = 
                 getMapNode n
                 |>  FallibleOption.forCollection(fun dt ->
@@ -345,7 +345,9 @@ type MapMappingInfo = {
                 |>  FallibleOption.errorsOrValues(fun possibleData ->
                     possibleData
                     |>  List.map(fun pd -> pd.Data)
-                    |>  List.fold(fun (s:obj) (k,v) -> s.GetType().GetMethod("Add").Invoke(null, [|k;v|])) this.EmptyMap
+                    |>  List.fold(fun (s:obj) (k,v) -> 
+                            this.MapType.GetMethod("Add").Invoke(s, [|k;v|])
+                        ) this.EmptyMap
                     |>  box
                     |>  Value
                 )
@@ -562,7 +564,7 @@ let BuildInTryFindMappers : TryFindIdiomaticMapperForType list = [
         OptionalMappingInfo.TryFindMapper
         ListMappingInfo.TryFindMapper
         EnumMappingInfo.TryFindMapper
-
+        MapMappingInfo.TryFindMapper
         //  Do discriminated union last:
         //  FSharpType.IsUnion(typeof<obj list>) = true, there could be other cases?
         DiscriminatedUnionMappingInfo.TryFindMapper 
