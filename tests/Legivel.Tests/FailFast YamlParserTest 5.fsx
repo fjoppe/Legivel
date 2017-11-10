@@ -3,7 +3,8 @@
 
 #r @"bin/Debug/Legivel.Parser.dll"
 #r @"NLog/lib/net45/NLog.dll"
-
+open System
+open System.Globalization
 open Legivel.Parser
 open Legivel.TagResolution
 open Legivel.Serialization
@@ -13,6 +14,10 @@ open NLog
 
 
 #load "nlog.fsx"
+
+open System
+open System.Globalization
+
 NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
@@ -64,11 +69,7 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-YamlParse "
-{ a : b,
-\t[l2e1, l2e2] : c
-}
-"
+YamlParse "2014-09-12"
 
-
-
+DateTime.Parse("2014-09-12T00:00:00.0000000Z").ToUniversalTime()
+DateTime(2014, 09, 12, 0, 0, 0)

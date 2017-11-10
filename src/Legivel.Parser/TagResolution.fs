@@ -33,7 +33,7 @@ type GlobalTagSchema = {
 }
 
 
-module internal SchemaUtils =
+module SchemaUtils =
     let getMapNode (n:Node) =
         match n with
         |   MapNode n ->  n.Data 
@@ -745,7 +745,7 @@ module YamlExtended =
         match nst.Content.Kind with
         |   Mapping -> Some MappingGlobalTag
         |   Sequence-> Some SequenceGlobalTag
-        |   Scalar  -> Some Failsafe.StringGlobalTag
+        |   Scalar  -> Some StringGlobalTag
 
    
     //  order is important, !!pairs is a superset of !!omap

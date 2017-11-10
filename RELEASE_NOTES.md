@@ -1,3 +1,9 @@
+#### 0.0.7 - November 08 2017
+* Legivel.Mapper: Made "string" detection injectable (for record fieldnames)
+* Legivel.Mapper: Fixed bug in strig to float parsing
+* Legivel.Mapper: Added Timestamp primitive type
+* Legivel.Mapper: Added Merge tag
+
 #### 0.0.6 - October 28 2017
 * Legivel.Mapper: map "null" for option types to "None"
 * Legivel.Mapper: Made "null" detection generic/injectable

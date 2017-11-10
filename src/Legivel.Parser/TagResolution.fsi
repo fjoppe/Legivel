@@ -36,6 +36,12 @@ type GlobalTagSchema = {
     LocalTags               : LocalTagsFuncs
 }
 
+module SchemaUtils =
+    val getMapNode : Node -> (Node*Node) list
+    val getSeqNode : Node -> Node list
+    val getScalarNode : Node -> string
+    val tagResolution : (TagResolutionInfo->GlobalTag option) -> (GlobalTag*GlobalTag*GlobalTag) -> GlobalTag list -> GlobalTag list -> GlobalTag list -> TagResolutionFunc
+
 
 /// Non specific tags, "!", "?" and unresolved
 module internal NonSpecific =
@@ -87,6 +93,7 @@ module YamlExtended =
     val FloatGlobalTag : GlobalTag
     val TimestampGlobalTag : GlobalTag
     val ValueGlobalTag : GlobalTag
+    val MergeGlobalTag : GlobalTag
     val BinaryGlobalTag : GlobalTag
     val OrderedMappingGlobalTag : GlobalTag
     val OrderedPairsGlobalTag : GlobalTag

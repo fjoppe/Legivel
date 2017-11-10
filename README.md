@@ -5,8 +5,7 @@
 
 This project primarily aims to be an **exact** Yaml 1.2 deserializer, according to [Yaml 1.2 specification](http://www.yaml.org/spec/1.2/spec.html)
 
-Currently, this project is reaching end-of-development state; changing the API, writing documentation and preparing for 
-initial release on Nuget
+This project has been releasen to [Nuget](https://www.nuget.org/packages/Legivel/), please read the [documentaton](https://fjoppe.github.io/Legivel/) for usage examples.
 
 In order to build Legivel, run 
 

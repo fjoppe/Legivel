@@ -4,6 +4,7 @@ open NUnit.Framework
 open FsUnit
 open Legivel.Attributes
 open Legivel.Serialization
+open System
 
 
 type SimpleRecord = {
@@ -26,6 +27,32 @@ let DeserializeError<'tp> yml =
     |>  function
         |   Succes _ -> failwith "Unexpected success"
         |   Error e -> e
+
+
+[<Test>]
+let ``Deserialize - int - Sunny Day`` () =
+    let yml = "43"
+    let res = DeserializeSuccess<int> yml 
+    res |> should equal 43
+
+[<Test>]
+let ``Deserialize - float - Sunny Day`` () =
+    let yml = "43.5"
+    let res = DeserializeSuccess<float> yml 
+    res |> should equal 43.5
+
+[<Test>]
+let ``Deserialize - bool - Sunny Day`` () =
+    let yml = "true"
+    let res = DeserializeSuccess<bool> yml 
+    res |> should equal true
+
+
+[<Test>]
+let ``Deserialize - DateTime - Sunny Day`` () =
+    let yml = "2014-09-12"
+    let res = DeserializeSuccess<DateTime> yml 
+    res |> should equal (DateTime(2014, 09, 12))
 
 
 [<Test>]

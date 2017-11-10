@@ -1,13 +1,5 @@
 #   Legivel Wish List
 
-
-##  More build-in primitive data types 
-
-The Legivel Mapper should support more build-in primitive data types. Some consideration is required when approaching this. 
-You cannot use the YamlExtended schema as-is, because the non-scalar tags distort the suitabilityy of the required output.
-Either use the pure set of the YamlCore schema, or do some cherry-picking in the YamlExtended schema.
-
-
 ##  Processing options
 
 The processing of the Legivel Mapper should be configurable with attributes and processing options.
@@ -36,7 +28,8 @@ Implementation is tricky; probably requires a dedicated list-of-DU mapper.
 
 Support for:
 
-*   FSharp Map (using YamlExtended tag "!!set"?)
+*   FSharp Map
+*   FSharp Set (using YamlExtended tag "!!set"?)
 *   Tuples? (not sure about this one)
 
 

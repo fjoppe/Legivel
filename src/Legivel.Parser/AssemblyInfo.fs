@@ -6,8 +6,8 @@ open System.Runtime.CompilerServices
 [<assembly: AssemblyTitleAttribute("Legivel.Parser")>]
 [<assembly: AssemblyProductAttribute("Legivel")>]
 [<assembly: AssemblyDescriptionAttribute("F# Yaml deserializer")>]
-[<assembly: AssemblyVersionAttribute("0.0.6")>]
-[<assembly: AssemblyFileVersionAttribute("0.0.6")>]
+[<assembly: AssemblyVersionAttribute("0.0.7")>]
+[<assembly: AssemblyFileVersionAttribute("0.0.7")>]
 [<assembly: AssemblyConfigurationAttribute("Release")>]
 [<assembly: InternalsVisibleToAttribute("Legivel.Tests")>]
 [<assembly: InternalsVisibleToAttribute("Legivel.Mapper")>]
@@ -17,8 +17,8 @@ module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyTitle = "Legivel.Parser"
     let [<Literal>] AssemblyProduct = "Legivel"
     let [<Literal>] AssemblyDescription = "F# Yaml deserializer"
-    let [<Literal>] AssemblyVersion = "0.0.6"
-    let [<Literal>] AssemblyFileVersion = "0.0.6"
+    let [<Literal>] AssemblyVersion = "0.0.7"
+    let [<Literal>] AssemblyFileVersion = "0.0.7"
     let [<Literal>] AssemblyConfiguration = "Release"
     let [<Literal>] InternalsVisibleTo = "Legivel.Tests"
     let [<Literal>] InternalsVisibleTo_1 = "Legivel.Mapper"
