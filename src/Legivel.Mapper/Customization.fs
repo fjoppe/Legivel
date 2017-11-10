@@ -301,8 +301,6 @@ type ListMappingInfo = {
                     |> box |> Value
 
 
-(*
-/// for the next release
 type MapMappingInfo = {
         MapType     : Type
         KeyType     : IYamlToNativeMapping
@@ -322,6 +320,11 @@ type MapMappingInfo = {
             else
                 NoResult
 
+        member private this.EmptyMap 
+            with get() =
+                let mm = [ for i in Assembly.GetAssembly(this.MapType).ExportedTypes do yield i]|> List.find(fun m -> m.Name.Contains("MapModule"))
+                let mt = mm.GetMethod("Empty")
+                mt.MakeGenericMethod([|typeof<string>; typeof<string>|]).Invoke(null, [||])
 
         interface IYamlToNativeMapping with
 
@@ -342,7 +345,7 @@ type MapMappingInfo = {
                 |>  FallibleOption.errorsOrValues(fun possibleData ->
                     possibleData
                     |>  List.map(fun pd -> pd.Data)
-                    |>  List.fold(fun (s:obj) e -> s.GetType().GetMethod("Cons").Invoke(null, [|e;s|])) (this:> IYamlToNativeMapping).Default.Data
+                    |>  List.fold(fun (s:obj) (k,v) -> s.GetType().GetMethod("Add").Invoke(null, [|k;v|])) this.EmptyMap
                     |>  box
                     |>  Value
                 )
@@ -350,7 +353,7 @@ type MapMappingInfo = {
             /// Returns the default value of the target type
             member this.Default
                 with get() = NoResult
-*)
+
 
 type EnumFieldMapping = {
         YamlName   : string

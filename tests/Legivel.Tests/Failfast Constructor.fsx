@@ -149,6 +149,18 @@ ct.Invoke([|[]|])
 typeof<Mapping>.BaseType.GetProperty("empty")
 
 
+typeof<Mapping>.Namespace
+
+
+let mm = [ for i in Assembly.GetAssembly(typeof<Mapping>).ExportedTypes do yield i]|> List.find(fun m -> m.Name.Contains("MapModule"))
+let mt = mm.GetMethod("Empty")
+mt.MakeGenericMethod([|typeof<string>; typeof<string>|]).Invoke(null, [||])
+
+typeof<Mapping>.GetProperty("Empty", BindingFlags.Static ||| BindingFlags.Public)
+typeof<Mapping>.GetMethod("Add").GetParameters()
+
+
+
 
 type DUTest =
     | [<YamlValue>] One of string
