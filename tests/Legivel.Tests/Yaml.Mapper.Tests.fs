@@ -28,6 +28,13 @@ let DeserializeError<'tp> yml =
         |   Succes _ -> failwith "Unexpected success"
         |   Error e -> e
 
+[<Test>]
+let ``Deserialize - check docs - time to string - Sunny Day`` () =
+    let yml = "20:03:20"
+    let res = DeserializeSuccess<string> yml 
+    res |> should equal "20:03:20"
+
+
 
 [<Test>]
 let ``Deserialize - int - Sunny Day`` () =

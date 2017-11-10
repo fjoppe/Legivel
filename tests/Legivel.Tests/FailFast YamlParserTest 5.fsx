@@ -51,7 +51,7 @@ let PrintNode crr =
 
 let YamlParse s =
     try
-        let repr = (engine.``l-yaml-stream`` YamlExtended.Schema s)
+        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
         let crr = repr.Head
         PrintNode crr
     with
@@ -59,7 +59,7 @@ let YamlParse s =
 
 let YamlParseList s =
     try
-        let repr = (engine.``l-yaml-stream`` YamlExtended.Schema s)
+        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
         printfn "Total Documents: %d" (repr.Length)
         repr |> List.iter(fun crr ->
             PrintNode crr
@@ -73,3 +73,16 @@ YamlParse "2014-09-12"
 
 DateTime.Parse("2014-09-12T00:00:00.0000000Z").ToUniversalTime()
 DateTime(2014, 09, 12, 0, 0, 0)
+
+
+YamlParse "
+---
+time: 20:03:20
+player: Sammy Sosa
+action: strike (miss)
+...
+---
+time: 20:03:47
+player: Sammy Sosa
+action: grand slam
+..." 

@@ -1,3 +1,7 @@
+#### 0.0.8 - November 10 2017
+* Fix: using YamlCore schema for int and float, as "20:30:56" was translated to a numeric
+* Added unittest to check correct docs/tutorial output
+
 #### 0.0.7 - November 08 2017
 * Legivel.Mapper: Made "string" detection injectable (for record fieldnames)
 * Legivel.Mapper: Fixed bug in strig to float parsing

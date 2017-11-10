@@ -24,7 +24,7 @@ type ScalarToNativeMapping = {
 module YamlMapped =
     //  order is important, !!pairs is a superset of !!omap
     let providedSeqTags = [YamlExtended.SequenceGlobalTag]
-    let providedScalarTags = [YamlExtended.BooleanGlobalTag; YamlExtended.IntegerGlobalTag; YamlExtended.FloatGlobalTag; YamlExtended.TimestampGlobalTag; YamlExtended.NullGlobalTag; YamlExtended.MergeGlobalTag; YamlExtended.StringGlobalTag]
+    let providedScalarTags = [YamlExtended.BooleanGlobalTag; YamlCore.IntegerGlobalTag; YamlCore.FloatGlobalTag; YamlExtended.TimestampGlobalTag; YamlExtended.NullGlobalTag; YamlExtended.MergeGlobalTag; YamlExtended.StringGlobalTag]
     let providedMappingTags = [YamlExtended.UnOrderedSetGlobalTag;YamlExtended.MappingGlobalTag]
 
     let YEFailSafeResolution nst =
@@ -49,8 +49,8 @@ module YamlMapped =
 /// All yaml-scalar to native mappings
 let YamlScalarToNativeMappings = [
     ScalarToNativeMapping.Create (YamlExtended.StringGlobalTag, typeof<string>, fun (s:string) -> box s)
-    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
-    ScalarToNativeMapping.Create (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> 
+    ScalarToNativeMapping.Create (YamlCore.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
+    ScalarToNativeMapping.Create (YamlCore.FloatGlobalTag, typeof<float>, fun (s:string) -> 
         let value = YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get
         Double.Parse(value, CultureInfo.InvariantCulture) |> box)
     ScalarToNativeMapping.Create (YamlExtended.BooleanGlobalTag, typeof<bool>, fun (s:string) -> YamlExtended.BooleanGlobalTag.ToCanonical s |> Option.get |> Boolean.Parse |> box)
