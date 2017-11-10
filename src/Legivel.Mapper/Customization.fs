@@ -301,6 +301,57 @@ type ListMappingInfo = {
                     |> box |> Value
 
 
+(*
+/// for the next release
+type MapMappingInfo = {
+        MapType     : Type
+        KeyType     : IYamlToNativeMapping
+        ValueType   : IYamlToNativeMapping
+    }
+    with
+        /// Return a MapMappingInfo when the given type is a Map
+        static member TryFindMapper (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType =
+            let IsMap (t:Type) = AreTypesEqual typeof<FSharp.Collections.Map<int, int>> t
+            if IsMap t then
+                faillableSequence {
+                    let! keyType = mappers.TryFindMapper t.GenericTypeArguments.[0]
+                    let! valType = mappers.TryFindMapper t.GenericTypeArguments.[1]
+                    return (keyType,valType)
+                }
+                |>  FallibleOption.map(fun (kt,vt) -> {MapType = t; KeyType = kt; ValueType = vt} :> IYamlToNativeMapping)
+            else
+                NoResult
+
+
+        interface IYamlToNativeMapping with
+
+            /// Map the given Node to the target list type
+            member this.map (n:Node) = 
+                getMapNode n
+                |>  FallibleOption.forCollection(fun dt ->
+                    dt.Data
+                    |>  List.rev
+                    |>  List.map(fun (k,v) ->
+                        faillableSequence {
+                            let! km = this.KeyType.map k
+                            let! vm = this.ValueType.map v
+                            return (km,vm)
+                        }
+                    )
+                )
+                |>  FallibleOption.errorsOrValues(fun possibleData ->
+                    possibleData
+                    |>  List.map(fun pd -> pd.Data)
+                    |>  List.fold(fun (s:obj) e -> s.GetType().GetMethod("Cons").Invoke(null, [|e;s|])) (this:> IYamlToNativeMapping).Default.Data
+                    |>  box
+                    |>  Value
+                )
+
+            /// Returns the default value of the target type
+            member this.Default
+                with get() = NoResult
+*)
+
 type EnumFieldMapping = {
         YamlName   : string
         EnumName   : string

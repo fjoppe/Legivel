@@ -28,7 +28,8 @@ Implementation is tricky; probably requires a dedicated list-of-DU mapper.
 
 Support for:
 
-*   FSharp Map (using YamlExtended tag "!!set"?)
+*   FSharp Map
+*   FSharp Set (using YamlExtended tag "!!set"?)
 *   Tuples? (not sure about this one)
 
 

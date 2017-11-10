@@ -14,7 +14,8 @@ open System
 open NLog
 open Legivel.RepresentationGraph
 open System.Reflection
-open Legivel.Mapper
+open Legivel.Attributes
+open Legivel.Serialization
 open System.Dynamic
 open NLog.Config
 
@@ -124,14 +125,28 @@ h.GetValue(0)
 
 type problem = int list
 
-FSharpType.IsRecord(typeof<problem>)
 
 
-FSharpType.IsUnion(typeof<YamlUnionCaseFormat>)
+type Mapping = Map<string,string>
+
+FSharpType.IsUnion(typeof<Mapping>)
+FSharpType.IsRecord(typeof<Mapping>)
 
 typeof<YamlUnionCaseFormat>.IsEnum
 
+typeof<Mapping>.GenericTypeArguments |> Array.length
 
+typeof<Mapping>.GetMethods() |> Array.toList |> List.map(fun m -> m.Name)
+
+typeof<Mapping>.GetMembers() |> Array.toList |> List.map(fun m -> m.Name)
+
+let ct =typeof<Mapping>.GetConstructors() |> Array.head
+
+ct.GetParameters()
+
+ct.Invoke([|[]|])
+
+typeof<Mapping>.BaseType.GetProperty("empty")
 
 
 
