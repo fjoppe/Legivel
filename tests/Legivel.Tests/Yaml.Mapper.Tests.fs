@@ -325,3 +325,41 @@ let ``Deserialize - Discriminated Union Enum - Bad value - Rainy Day`` () =
     res.Error.Head |> fun m -> m.Message.StartsWith("Union case 'Four' not availble in type") |> should equal true
 
 
+[<Test>]
+let ``Deserialize - Mapping blockstyle - Sunny Day`` () =
+    let yml = "{a : b, c : d}"
+    let res = DeserializeSuccess<Map<string,string>> yml
+    res.["a"] |> should equal "b"
+    res.["c"] |> should equal "d"
+
+
+[<Test>]
+let ``Deserialize - Mapping flowstyle - Sunny Day`` () =
+    let yml = "
+    a : b
+    c : d"
+    let res = DeserializeSuccess<Map<string,string>> yml
+    res.["a"] |> should equal "b"
+    res.["c"] |> should equal "d"
+
+
+[<Test>]
+let ``Deserialize - Mapping with DU enum - Sunny Day`` () =
+    let yml = "{a : Zero, c : two}"
+    let res = DeserializeSuccess<Map<string,UnionCaseEnum>> yml
+    res.["a"] |> should equal UnionCaseEnum.Zero
+    res.["c"] |> should equal UnionCaseEnum.Two
+
+
+[<Test>]
+let ``Deserialize - Mapping with DU and record - Sunny Day`` () =
+    let yml = "
+        Zero : { Name: 'Frank', Age:  43 }
+        two  : { Name: 'Rosi', Age:  45 } "
+
+    let res = DeserializeSuccess<Map<UnionCaseEnum,UCData1>> yml
+    res.[UnionCaseEnum.Zero] |> should equal {UCData1.Name = "Frank"; Age = 43 }
+    res.[UnionCaseEnum.Two] |> should equal {UCData1.Name = "Rosi"; Age = 45 }
+
+
+

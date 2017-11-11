@@ -7,6 +7,7 @@
 #r "Legivel.Parser.dll"
 #r "Legivel.Mapper.dll"
 open Legivel.Serialization
+open System
 
 (**
 Legivel Tutorial
@@ -175,3 +176,33 @@ Deserialize<UnionCaseWithData> yaml
 Which results in:
 *)
 (*** include-it: duembeddedexample ***)
+(**
+
+
+# Map mapping
+
+Yaml mapping Nodes can be converted to an FSharp Map type as follows:
+*)
+(*** define-output: mapexample ***)
+type ProductType =
+    |   Zero=0      
+    |   Light=1
+    |   [<YamlValue("normal")>] Normal=2
+
+
+type Contents = {
+    Name     : string
+    SugarMg  : int
+}
+
+let yaml = "
+    Zero  : { Name: 'RefreshBubbles No Sugar', SugarMg:  10 }
+    Light : { Name: 'RefreshBubbles Light', SugarMg:  40 }
+    normal : { Name: 'RefreshBubbles Heroes', SugarMg:  150 }
+"
+
+Deserialize<Map<ProductType,Contents>> yaml
+(**
+Which results in:
+*)
+(*** include-it: mapexample ***)

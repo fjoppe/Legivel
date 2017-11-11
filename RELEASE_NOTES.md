@@ -1,3 +1,8 @@
+#### 0.1.0 - November 11 2017
+* Legivel.Mapper: Added support for FSharp Map type
+* Updated documentation for Map type
+
+
 #### 0.0.8 - November 10 2017
 * Fix: using YamlCore schema for int and float, as "20:30:56" was translated to a numeric
 * Added unittest to check correct docs/tutorial output

@@ -20,30 +20,30 @@ open System.Dynamic
 open NLog.Config
 
 
-type MyRec = {
-    [<YamlField(Name = "name")>] Name   : string
-    [<YamlField(Name = "age")>] Age     : int option
-}
+//type MyRec = {
+//    [<YamlField(Name = "name")>] Name   : string
+//    [<YamlField(Name = "age")>] Age     : int option
+//}
 
-let yml = "{ name: 'Frank', age: 43 }"
+//let yml = "{ name: 'Frank', age: 43 }"
 
-Deserialize<MyRec> yml
+//Deserialize<MyRec> yml
    
 
-FSharpType.GetRecordFields typeof<MyRec> 
+//FSharpType.GetRecordFields typeof<MyRec> 
 
-// let fields = FSharpType.GetRecordFields typeof<'tp> |> List.ofArray
-let  fields = FSharpType.GetRecordFields typeof<MyRec> |> List.ofArray |> List.head
+//// let fields = FSharpType.GetRecordFields typeof<'tp> |> List.ofArray
+//let  fields = FSharpType.GetRecordFields typeof<MyRec> |> List.ofArray |> List.head
 
-fields.PropertyType.FullName = typeof<FSharp.Core.Option<obj>>.FullName
-
-
-(5).GetType().GUID = typeof<int>.GUID
+//fields.PropertyType.FullName = typeof<FSharp.Core.Option<obj>>.FullName
 
 
-let myrec = FSharpValue.MakeRecord (typeof<MyRec>, [|box("Frank"); box(None)|]) :?> MyRec
+//(5).GetType().GUID = typeof<int>.GUID
 
-myrec.Age
+
+//let myrec = FSharpValue.MakeRecord (typeof<MyRec>, [|box("Frank"); box(None)|]) :?> MyRec
+
+//myrec.Age
 
 
 //let r = FSharp.Core.Option<int>.None
@@ -81,10 +81,10 @@ myrec.Age
 //typeof<FSharp.Collections.seq<int>>.Module
 
 
-type YamlValueAttribute(Id : string)  = 
-    inherit System.Attribute()
-    new() = YamlValueAttribute("")
-    member this.Id' = Id
+//type YamlValueAttribute(Id : string)  = 
+//    inherit System.Attribute()
+//    new() = YamlValueAttribute("")
+//    member this.Id' = Id
 
 //
 //  Wrapped style
@@ -94,92 +94,58 @@ type YamlValueAttribute(Id : string)  =
 //      type : int (and other pairs in the mapping form the data - excluding field "type")
 //
 
-type YamlUnionCaseFormat =
-    |   [<YamlValue("two")>] WithData=0      //  post: data
-    |   InData=1        //  type : int (and other pairs in the mapping form the data - excluding field "type")
-    |   Plain=2         //  duValue: one
-    |   Literal=3       //  duValue: One  
 
 
-
-Enum.GetValues(typeof<YamlUnionCaseFormat>) 
-
-let h1 = typeof<YamlUnionCaseFormat>.GetEnumValues()
-let h2 = typeof<YamlUnionCaseFormat>.GetEnumNames()
-let lf = [for i in h1 do yield i]
-typeof<YamlUnionCaseFormat>.GetEnumNames()
-let a = lf.Item 0
-a.GetType().GetCustomAttributes()
-
-typeof<YamlUnionCaseFormat>.GetField("WithData").GetCustomAttributes(typeof<YamlValueAttribute>)
-
-a.ToString()
+//FSharpType.IsUnion(typeof<Mapping>)
+//FSharpType.IsRecord(typeof<Mapping>)
 
 
-h2 |> Array.head
+//typeof<Mapping>.GenericTypeArguments |> Array.length
 
-lf.Head.GetType()
+//typeof<Mapping>.GetMethods() |> Array.toList |> List.map(fun m -> m.Name)
 
-h.GetValue(0)
+//typeof<Mapping>.GetMembers() |> Array.toList |> List.map(fun m -> m.Name)
+
+//let ct =typeof<Mapping>.GetConstructors() |> Array.head
+
+//ct.GetParameters()
+
+//ct.Invoke([|[]|])
+
+//typeof<Mapping>.BaseType.GetProperty("empty")
 
 
-type problem = int list
+//typeof<Mapping>.Namespace
 
 
+type Mapping = Map<int,string>
+
+let mm = [ for i in Assembly.GetAssembly(typeof<Mapping>).ExportedTypes do yield i]|> List.find(fun m -> m.Name.Contains("MapModule"))
+let mt = mm.GetMethod("Empty", BindingFlags.Static ||| BindingFlags.Public)
+let am = mm.GetMethod("Add", BindingFlags.Static ||| BindingFlags.Public)
+let mymap = mt.MakeGenericMethod([|typeof<int>; typeof<string>|]).Invoke(null, [||])
+let addmethod = typeof<Mapping>.GetMethod("Add")
+
+addmethod.Invoke(mymap, [|box(1);box("astring")|])
+
+
+am.MakeGenericMethod([|typeof<int>; typeof<string>|]).Invoke(mymap, [|box 1; box "astring"; mymap|])
+
+am.MakeGenericMethod([|typeof<int>; typeof<string>|]).GetParameters()
+
+let addmethod = typeof<Mapping>.GetMethod("Add")
+addmethod.Invoke(mymap, [|box(1);box("astring")|])
+addmethod.Invoke(mymap, [|1;"astring"|])
+addmethod.Invoke(mymap, [|1 :> obj; "astring" :> obj|])
 
 type Mapping = Map<string,string>
 
-FSharpType.IsUnion(typeof<Mapping>)
-FSharpType.IsRecord(typeof<Mapping>)
+let mm = [ for i in Assembly.GetAssembly(typeof<Mapping>).ExportedTypes do yield i]|> List.find(fun m -> m.Name.Contains("MapModule"))
+let mt = mm.GetMethod("Empty", BindingFlags.Static ||| BindingFlags.Public)
+let mymap = mt.MakeGenericMethod([|typeof<string>; typeof<string>|]).Invoke(null, [||])
 
-typeof<YamlUnionCaseFormat>.IsEnum
-
-typeof<Mapping>.GenericTypeArguments |> Array.length
-
-typeof<Mapping>.GetMethods() |> Array.toList |> List.map(fun m -> m.Name)
-
-typeof<Mapping>.GetMembers() |> Array.toList |> List.map(fun m -> m.Name)
-
-let ct =typeof<Mapping>.GetConstructors() |> Array.head
-
-ct.GetParameters()
-
-ct.Invoke([|[]|])
-
-typeof<Mapping>.BaseType.GetProperty("empty")
+let addmethod = typeof<Mapping>.GetMethod("Add")
+addmethod.Invoke(mymap, [|box("a");box("b")|])
 
 
-
-type DUTest =
-    | [<YamlValue>] One of string
-    | [<YamlValue("two")>] Two 
-    | [<YamlValue("fld3")>] Three
-
-
-FSharpType.IsUnion(typeof<DUTest>)
-FSharpType.IsUnion(typeof<problem>)
-
-FSharpType.GetUnionCases(typeof<problem>)
-
-typeof<DUTest>.IsClass
-typeof<problem>.IsClass
-
-
-let h = FSharpType.GetUnionCases(typeof<DUTest>) |> Array.head
-
-FSharpType.GetUnionCases(typeof<DUTest>)
-|>  List.ofArray
-|>  List.map(fun e -> e.Name)
-
-
-let f = h.GetFields() |> Array.head
-
-f.PropertyType
-
-
-
-
-let a = h.GetCustomAttributes() |> Array.head
-
-a.GetType().FullName = typeof<YamlValueAttribute>.FullName
 
