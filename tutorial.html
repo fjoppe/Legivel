@@ -251,6 +251,58 @@ to a Union Case with record data:</p>
 <table class="pre"><tr><td><pre><code>[Succes {Data = One {Name = "Frank";
                      Age = 43;};
          Warn = [];}]</code></pre></td></tr></table>
+<h1><a name="Map-mapping" class="anchor" href="#Map-mapping">Map mapping</a></h1>
+<p>Yaml mapping Nodes can be converted to an FSharp Map type as follows:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">ProductType</span> <span class="o">=</span>
+    |   <span class="i">Zero</span><span class="o">=</span><span class="n">0</span>      
+    |   <span class="i">Light</span><span class="o">=</span><span class="n">1</span>
+    |   [&lt;<span class="i">YamlValue</span>(<span class="s">&quot;normal&quot;</span>)&gt;] <span class="i">Normal</span><span class="o">=</span><span class="n">2</span>
+
+
+<span class="k">type</span> <span class="i">Contents</span> <span class="o">=</span> {
+    <span class="i">Name</span>     <span class="o">:</span> <span class="i">string</span>
+    <span class="i">SugarMg</span>  <span class="o">:</span> <span class="i">int</span>
+}
+
+<span class="k">let</span> <span class="i">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="s">    Zero  : { Name: &#39;RefreshBubbles No Sugar&#39;, SugarMg:  10 }</span>
+<span class="s">    Light : { Name: &#39;RefreshBubbles Light&#39;, SugarMg:  40 }</span>
+<span class="s">    normal : { Name: &#39;RefreshBubbles Heroes&#39;, SugarMg:  150 }</span>
+<span class="s">&quot;</span>
+
+<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">Map</span><span class="o">&lt;</span><span class="i">ProductType</span>,<span class="i">Contents</span><span class="o">&gt;</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes
+   {Data =
+     map
+       [(Zero, {Name = "RefreshBubbles No Sugar";
+                SugarMg = 10;}); (Light, {Name = "RefreshBubbles Light";
+                                          SugarMg = 40;});
+        (Normal, {Name = "RefreshBubbles Heroes";
+                  SugarMg = 150;})];
+    Warn = [];}]</code></pre></td></tr></table>
 
 
         </div>

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>YamlPathException - Legivel</title>
+    <title>MapMappingInfo - Legivel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Frank Joppe"/>
@@ -34,13 +34,12 @@
 
 
 
-<h1>YamlPathException</h1>
+<h1>MapMappingInfo</h1>
 <p>
-  <span>Namespace: Legivel.Traverse</span><br />
+  <span>Namespace: Legivel.Customization</span><br />
+  <span>Parent Module: <a href="legivel-customization-mapping.html">Mapping</a></span>
 </p>
 <div class="xmldoc">
-<p>Thrown when there are YamlPath related issues</p>
-
 </div>
   <h3>Record Fields</h3>
   <table class="table table-bordered member-list">
@@ -51,19 +50,83 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '234', 234)" onmouseover="showTip(event, '234', 234)">
-            Data0
+          <code onmouseout="hideTip(event, '206', 206)" onmouseover="showTip(event, '206', 206)">
+            KeyType
           </code>
-          <div class="tip" id="234">
-            <strong>Signature:</strong> string<br />
+          <div class="tip" id="206">
+            <strong>Signature:</strong> IYamlToNativeMapping<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/YamlPath.fsi#L6-6" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L306-306" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '207', 207)" onmouseover="showTip(event, '207', 207)">
+            MapType
+          </code>
+          <div class="tip" id="207">
+            <strong>Signature:</strong> Type<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L305-305" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '208', 208)" onmouseover="showTip(event, '208', 208)">
+            ValueType
+          </code>
+          <div class="tip" id="208">
+            <strong>Signature:</strong> IYamlToNativeMapping<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L307-307" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <h3>Static members</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Static member</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '209', 209)" onmouseover="showTip(event, '209', 209)">
+            TryFindMapper(mappers t)
+          </code>
+          <div class="tip" id="209">
+            <strong>Signature:</strong> mappers:AllTryFindIdiomaticMappers -&gt; t:Type -&gt; TryFindMapperReturnType<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L311-311" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Return a MapMappingInfo when the given type is a Map</p>
+
+
         </td>
       </tr>
     </tbody>
