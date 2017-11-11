@@ -64,6 +64,7 @@ The Legivel mapper supports the following F# native types, which may be nested w
 *   F# record type
 *   F# option type
 *   F# discriminated union type
+*   F# Map type
 
 Please refer to the [Tutorials](tutorial.html), for mapping specifications.
 
