@@ -1,7 +1,6 @@
 ﻿namespace Legivel.Internals
 
 open Legivel.Common
-open ErrorsAndWarnings
 open System.Diagnostics
 
 
@@ -31,27 +30,6 @@ module internal ParserMonads =
                 let ctn = addErr ct e            
                 if contAfterErr ctn then (ctn,nw) else (ctn,NoResult)
 
-
-type internal MessageAction =
-    |   Continue
-    |   Terminate
-                        
-[<DebuggerDisplay("{this.DebuggerInfo}")>]
-type internal MessageAtLine = {
-        Location: DocumentLocation
-        Code    : MessageCode
-        Action  : MessageAction
-        Message : string
-    }
-    with
-        static member CreateContinue dl cd s = {Location = dl; Code = cd; Action = Continue; Message = s}
-        static member CreateTerminate dl cd s = {Location = dl; Code = cd; Action = Terminate; Message = s}
-
-        member this.DebuggerInfo 
-            with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
-
-
-type internal ErrorMessage = MessageAtLine list
 
 
 module internal Option =

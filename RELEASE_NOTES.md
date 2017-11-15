@@ -1,3 +1,16 @@
+#### 0.1.1 - November 12 2017
+*   Legivel.Parser: Made RegexDSL public
+*   Legivel.Parser: Added CloneWith methods to GlobalTag
+*   Legivel.Parser: Made GlobalTag.Create public
+*   Legivel.Parser: Made GlobalTag.TagFunctions public
+*   Legivel.Parser: Made NodeData.Create public
+*   Legivel.Parser: Made ParseInfo.Create public
+*   Legivel.Parser: Created extra SchemaUtils convenience functions for customization
+*   Legivel.Parser: Moved MessageAtLine from Internals to Common namespace and made public
+*   Legvel.Mapper: Made SuccessInfo.Create public
+*   Legvel.Mapper: Made ErrorInfo.Create public
+
+
 #### 0.1.0 - November 11 2017
 * Legivel.Mapper: Added support for FSharp Map type
 * Updated documentation for Map type
@@ -7,11 +20,13 @@
 * Fix: using YamlCore schema for int and float, as "20:30:56" was translated to a numeric
 * Added unittest to check correct docs/tutorial output
 
+
 #### 0.0.7 - November 08 2017
 * Legivel.Mapper: Made "string" detection injectable (for record fieldnames)
 * Legivel.Mapper: Fixed bug in strig to float parsing
 * Legivel.Mapper: Added Timestamp primitive type
 * Legivel.Mapper: Added Merge tag
+
 
 #### 0.0.6 - October 28 2017
 * Legivel.Mapper: map "null" for option types to "None"

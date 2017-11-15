@@ -44,6 +44,7 @@
     <Compile Include="Attributes.fs" />
     <Compile Include="CustomizationUtils.fs" />
     <Compile Include="Common.fs" />
+    <Compile Include="Model.fs" />
     <Compile Include="Customization.fs" />
     <Compile Include="YamlMapper.fsi" />
     <Compile Include="YamlMapper.fs" />

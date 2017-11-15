@@ -36,10 +36,27 @@ type GlobalTagSchema = {
     LocalTags               : LocalTagsFuncs
 }
 
+
 module SchemaUtils =
+    //  Retrieve the data from a Map Node; throws exception if NodeKind is incorrect
     val getMapNode : Node -> (Node*Node) list
+
+    //  Retrieve the data from a Seq Node; throws exception if NodeKind is incorrect
     val getSeqNode : Node -> Node list
+
+    //  Retrieve the data from a Scalar Node; throws exception if NodeKind is incorrect
     val getScalarNode : Node -> string
+
+    //  Retrieve the NodeData<_> from a Map Node; throws exception if NodeKind is incorrect
+    val getMapNodeData : Node -> NodeData<(Node*Node) list>
+
+    //  Retrieve the NodeData<_> from a Seq Node; throws exception if NodeKind is incorrect
+    val getSeqNodeData : Node -> NodeData<Node list>
+
+    //  Retrieve the NodeData<_> from a Scalar Node; throws exception if NodeKind is incorrect
+    val getScalarNodeData : Node -> NodeData<string>
+
+    //  Called to resolve an unresolved tag, ie "!" and "?"
     val tagResolution : (TagResolutionInfo->GlobalTag option) -> (GlobalTag*GlobalTag*GlobalTag) -> GlobalTag list -> GlobalTag list -> GlobalTag list -> TagResolutionFunc
 
 
@@ -99,5 +116,4 @@ module YamlExtended =
     val OrderedPairsGlobalTag : GlobalTag
     val UnOrderedSetGlobalTag : GlobalTag
     val Schema : GlobalTagSchema
-
 

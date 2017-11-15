@@ -7,6 +7,7 @@ open Legivel.TagResolution
 open Legivel.RepresentationGraph
 open Legivel.Customization.Utilities
 open Legivel.Attributes
+open Legivel.Mapper.Model
 open Microsoft.FSharp.Reflection
 open System.Reflection
 open System.Globalization
@@ -22,7 +23,6 @@ type ScalarToNativeMapping = {
         static member Create (yt, tt, tn) = { YamlTag = yt; TargetType = tt; ToNative = tn}
 
 module YamlMapped =
-    //  order is important, !!pairs is a superset of !!omap
     let providedSeqTags = [YamlExtended.SequenceGlobalTag]
     let providedScalarTags = [YamlExtended.BooleanGlobalTag; YamlCore.IntegerGlobalTag; YamlCore.FloatGlobalTag; YamlExtended.TimestampGlobalTag; YamlExtended.NullGlobalTag; YamlExtended.MergeGlobalTag; YamlExtended.StringGlobalTag]
     let providedMappingTags = [YamlExtended.UnOrderedSetGlobalTag;YamlExtended.MappingGlobalTag]
@@ -36,14 +36,10 @@ module YamlMapped =
     let tagResolutionYamlExtended = Legivel.TagResolution.SchemaUtils.tagResolution YEFailSafeResolution (YamlExtended.MappingGlobalTag, YamlExtended.SequenceGlobalTag, YamlExtended.StringGlobalTag)
 
 
-    let Schema = {
-        //  note that failsafe tags are overriden in this schema        
+    let Schema = { YamlExtended.Schema with
         GlobalTags = providedScalarTags @ providedSeqTags @ providedMappingTags
         TagResolution = tagResolutionYamlExtended providedMappingTags providedSeqTags providedScalarTags
-        UnresolvedResolution = YamlExtended.Schema.UnresolvedResolution
-        LocalTags = YamlExtended.Schema.LocalTags
     }
-
 
 
 /// All yaml-scalar to native mappings
@@ -59,14 +55,6 @@ let YamlScalarToNativeMappings = [
         DateTime.Parse(value, CultureInfo.InvariantCulture).ToUniversalTime() |> box)
     ]
 
-
-/// Base type for any yaml to native mapping, for simple and compex types.
-type IYamlToNativeMapping =
-    /// Map a Node to the target type-instance (boxed into type obj)
-    abstract member map : n:Node -> FallibleOption<obj, ParseMessageAtLine list>
-
-    /// Return a default value for the target type
-    abstract member Default : FallibleOption<obj, ParseMessageAtLine list> with get
 
 /// The return type of a TryFindMapper function
 type TryFindMapperReturnType = FallibleOption<IYamlToNativeMapping,ParseMessageAtLine list>

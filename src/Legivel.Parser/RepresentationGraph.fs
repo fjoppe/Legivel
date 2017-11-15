@@ -62,14 +62,30 @@ and
                 TagFunctions' = tgfn
             }
 
+        static member Create (uri, nk, rgx, tgfn) = GlobalTag.Create (uri, nk, rgx, (fun s -> Some s), tgfn)
+
+        static member Create (uri, nk, tgfn) = GlobalTag.Create (uri, nk, ".*", (fun s -> Some s), tgfn)
+
+
         member this.Uri with get() = this.Uri'
         member this.Kind with get() = this.Kind'
         member this.Regex with get() = this.Regex'
 
 
-        static member Create (uri, nk, rgx, tgfn) = GlobalTag.Create (uri, nk, rgx, (fun s -> Some s), tgfn)
+        member this.CloneWith (uri, nk, rgx, canon) =
+            { this with
+                Uri' = uri; 
+                Kind' = nk;
+                Regex' = sprintf "\\A(%s)\\z" rgx
+                canonFn = canon
+            }
 
-        static member Create (uri, nk, tgfn) = GlobalTag.Create (uri, nk, ".*", (fun s -> Some s), tgfn)
+        member this.CloneWith(uri, rgx, canon) =
+            { this with
+                Uri' = uri; 
+                Regex' = sprintf "\\A(%s)\\z" rgx
+                canonFn = canon
+            }
 
         member this.AreEqual n1 n2 = this.TagFunctions'.AreEqual n1 n2
         member this.GetHash n = this.TagFunctions'.GetHash n
