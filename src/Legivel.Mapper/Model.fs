@@ -1,7 +1,9 @@
 ﻿module Legivel.Mapper.Model
 
+open System
 open Legivel.Common
 open Legivel.RepresentationGraph
+
 
 /// Base type for any yaml to native mapping, for simple and compex types.
 type IYamlToNativeMapping =
@@ -11,18 +13,24 @@ type IYamlToNativeMapping =
     /// Return a default value for the target type
     abstract member Default : FallibleOption<obj, ParseMessageAtLine list> with get
 
-type ReferenceGenerator = private {
-        id : int
-    }
-    with
-        static member Create() = { id = 1 }
-        member this.CreateReference() = (this.id,{ this with id = this.id + 1})
 
 type MappedTypes = private {
-        TypeToRef   : Map<string, int>
-        RefToMapper : Map<int,IYamlToNativeMapping>
-        RefGen      : ReferenceGenerator
+        TypeToMapper: Map<string, IYamlToNativeMapping>
     }
     with
-        static member Create() = { TypeToRef = Map.empty; RefToMapper = Map.empty ; RefGen = ReferenceGenerator.Create() }
-        //member this.RegisterType t = 
+        static member Create() = { TypeToMapper = Map.empty}
+
+        member private this.TypeString (t:Type) = sprintf "%s%s" t.Namespace t.Name
+
+        member this.RegisterTypeMapping t m = 
+            let typeId = this.TypeString t
+            { this with TypeToMapper = this.TypeToMapper.Add(typeId, m)}  
+
+        member this.HasMapper t = 
+            let typeId = this.TypeString t
+            this.TypeToMapper.ContainsKey typeId
+
+        member this.GetMapper t =
+            let typeId = this.TypeString t
+            this.TypeToMapper.[typeId]
+
