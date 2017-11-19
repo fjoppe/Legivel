@@ -3,7 +3,7 @@
 open NUnit.Framework
 open TestUtils
 open Legivel.Traverse
-open FsUnit
+open FsUnitTyped
 open Legivel.RepresentationGraph
 open Legivel.TagResolution
 open Legivel
@@ -12,94 +12,94 @@ open Legivel
 let ``Test Scalars at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//#'scalar'"
 
-    YamlParse "\"not found\"" |> pth.Select |> should equal None
-    YamlParse "\"scalar\""    |> pth.Select |> ToScalar |> should equal "scalar"
-    YamlParse "'scalar'"      |> pth.Select |> ToScalar |> should equal "scalar"
-    YamlParse "scalar"        |> pth.Select |> ToScalar |> should equal "scalar"
+    YamlParse "\"not found\"" |> pth.Select |> shouldEqual None
+    YamlParse "\"scalar\""    |> pth.Select |> ToScalar |> shouldEqual "scalar"
+    YamlParse "'scalar'"      |> pth.Select |> ToScalar |> shouldEqual "scalar"
+    YamlParse "scalar"        |> pth.Select |> ToScalar |> shouldEqual "scalar"
 
 [<Test>]
 let ``Test Scalars at Root Level - Rainy Day Simple``() =
     let pth = YamlPath.Create "//#'scalar'"
-    YamlParse "[a, b]" |> pth.Select |> should equal None 
-    YamlParse "{a: b}" |> pth.Select |> should equal None 
+    YamlParse "[a, b]" |> pth.Select |> shouldEqual None 
+    YamlParse "{a: b}" |> pth.Select |> shouldEqual None 
 
 [<Test>]
 let ``Test Seq at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//[]/#'a'"
-    YamlParse "[ a, b ]" |> pth.Select |> ToScalar |> should equal "a"
+    YamlParse "[ a, b ]" |> pth.Select |> ToScalar |> shouldEqual "a"
     
 [<Test>]
 let ``Test Seq at Root Level - Rainy Day Simple``() =
     let pth = YamlPath.Create "//[]/#'a'"
-    YamlParse "[ not, found ]" |> pth.Select |> should equal None 
+    YamlParse "[ not, found ]" |> pth.Select |> shouldEqual None 
 
 [<Test>]
 let ``Test Map key at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//{#'a'}"
-    YamlParse "{ a: b }" |> pth.Select |> ToScalar |> should equal "a"
+    YamlParse "{ a: b }" |> pth.Select |> ToScalar |> shouldEqual "a"
 
 [<Test>]
 let ``Test Map value at Root Level - Sunny Day Simple``() =
     let pth = YamlPath.Create "//{#'a'}?"
-    YamlParse "{ a: b }" |> pth.Select |> ToScalar |> should equal "b" 
+    YamlParse "{ a: b }" |> pth.Select |> ToScalar |> shouldEqual "b" 
 
 [<Test>]
 let ``Test Map key at Root Level - Rainy Day Simple``() =
     let pth = YamlPath.Create "//{#'a'}"
-    YamlParse "[ a, b ]" |> pth.Select |> should equal None
-    YamlParse "a" |> pth.Select |> should equal None
+    YamlParse "[ a, b ]" |> pth.Select |> shouldEqual None
+    YamlParse "a" |> pth.Select |> shouldEqual None
 
 [<Test>]
 let ``Test Hybrid Seq with Seq at Root Level - Sunnny Day Simple``() =
     let yml = YamlParse "- simple\n- text\n- [ testing, one, two, three ]"
 
     let pth1 = YamlPath.Create "//[]/#'simple'"
-    yml |> pth1.Select |> ToScalar |> should equal "simple"
+    yml |> pth1.Select |> ToScalar |> shouldEqual "simple"
 
     let pth2 = YamlPath.Create "//[]/#'text'"
-    yml |> pth2.Select |> ToScalar |> should equal "text"
+    yml |> pth2.Select |> ToScalar |> shouldEqual "text"
 
     let pth3 = YamlPath.Create "//[]/[]/#'one'"
-    yml |> pth3.Select |> ToScalar |> should equal "one"
+    yml |> pth3.Select |> ToScalar |> shouldEqual "one"
 
 [<Test>]
 let ``Test Hybrid Seq with Map at Root Level - Sunnny Day Simple``() =
     let yml = YamlParse "- simple\n- text\n- { testing: 0, one: 1, two: 2, three : 3 }"
 
     let pth1 = YamlPath.Create "//[]/#'simple'"
-    yml |> pth1.Select |> ToScalar |> should equal "simple"
+    yml |> pth1.Select |> ToScalar |> shouldEqual "simple"
 
     let pth2 = YamlPath.Create "//[]/#'text'"
-    yml |> pth2.Select |> ToScalar |> should equal "text"
+    yml |> pth2.Select |> ToScalar |> shouldEqual "text"
 
     let pth3 = YamlPath.Create "//[]/{#'one'}"
-    yml |> pth3.Select |> ToScalar |> should equal "one"
+    yml |> pth3.Select |> ToScalar |> shouldEqual "one"
 
     let pth4 = YamlPath.Create "//[]/{#'three'}?"
-    yml |> pth4.Select |> ToScalar |>  should equal "3"
+    yml |> pth4.Select |> ToScalar |>  shouldEqual "3"
 
 [<Test>]
 let ``Test Map Hybrid Notation - Sunnny Day Simple``() =
     let yml = YamlParse "{\"adjacent\":value1, \"readable\": value2,  \"empty\":}"
 
     let pth = YamlPath.Create "//{#'adjacent'}?"
-    yml |> pth.Select |> ExtractTag  |>  should equal TagResolution.Failsafe.StringGlobalTag.Uri
-    yml |> pth.Select |> ToScalar |>  should equal "value1"
+    yml |> pth.Select |> ExtractTag  |>  shouldEqual TagResolution.Failsafe.StringGlobalTag.Uri
+    yml |> pth.Select |> ToScalar |>  shouldEqual "value1"
 
     let pth = YamlPath.Create "//{#'readable'}?"
-    yml |> pth.Select |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
-    yml |> pth.Select |> ToScalar |> should equal "value2"
+    yml |> pth.Select |> ExtractTag |> shouldEqual TagResolution.Failsafe.StringGlobalTag.Uri
+    yml |> pth.Select |> ToScalar |> shouldEqual "value2"
 
     let pth = YamlPath.Create "//{#'empty'}?"
-    yml |> pth.Select |> ExtractTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
+    yml |> pth.Select |> ExtractTag |> shouldEqual TagResolution.JSON.NullGlobalTag.Uri
 
 [<Test>]
 let ``Test Map Null : Null - Sunnny Day Simple``() =
     let ptk = YamlPath.Create "//{#''}"
     let ptv = YamlPath.Create "//{#''}?"
     let yml = YamlParse ":"
-    yml |> ptk.Select |> ExtractTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
-    yml |> ptv.Select |> ExtractTag |> should equal TagResolution.JSON.NullGlobalTag.Uri
+    yml |> ptk.Select |> ExtractTag |> shouldEqual TagResolution.JSON.NullGlobalTag.Uri
+    yml |> ptv.Select |> ExtractTag |> shouldEqual TagResolution.JSON.NullGlobalTag.Uri
 
 [<Test>]
 let ``Test Map key : Map - Sunnny Day Simple``() =
@@ -107,35 +107,35 @@ let ``Test Map key : Map - Sunnny Day Simple``() =
     let pt2 = YamlPath.Create "//{#'mainkey'}?/{#'key'}?"
     let yml = YamlParse "mainkey:\n key: value\n"
 
-    yml |> pt1.Select |> ToScalar |> should equal "mainkey"
-    yml |> pt2.Select |> ToScalar |> should equal "value"
+    yml |> pt1.Select |> ToScalar |> shouldEqual "mainkey"
+    yml |> pt2.Select |> ToScalar |> shouldEqual "value"
 
 [<Test>]
 let ``Test Map indented implicit entries - Sunnny Day Simple``() =
     let yml = YamlParse "  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
     let pt3 = YamlPath.Create "//{#'hr'}?"
-    yml |> pt3.Select |> ToScalar |> should equal "65"
+    yml |> pt3.Select |> ToScalar |> shouldEqual "65"
 
     let pt4 = YamlPath.Create "//{#'avg'}?"
-    yml |> pt4.Select |> ToScalar |> should equal "0.278"
+    yml |> pt4.Select |> ToScalar |> shouldEqual "0.278"
 
 [<Test>]
 let ``Test Map indented implicit entries and comments - Sunnny Day Simple``() =
     let yml = YamlParse "\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
     let pt3 = YamlPath.Create "//{#'hr'}?"
-    yml |> pt3.Select |> ToScalar |> should equal "65"
+    yml |> pt3.Select |> ToScalar |> shouldEqual "65"
 
     let pt4 = YamlPath.Create "//{#'avg'}?"
-    yml |> pt4.Select |> ToScalar |> should equal "0.278"
+    yml |> pt4.Select |> ToScalar |> shouldEqual "0.278"
 
 [<Test>]    //  http://www.yaml.org/spec/1.2/spec.html#id2797382
 let ``Test Map implicit entries with indented seq value - Sunnny Day Simple``() =
     let yml = YamlParse "block sequence:\n  - one\n  - two : three\n"
     let pt1 = YamlPath.Create "//{#'block sequence'}?/[]/#'one'"
-    yml |> pt1.Select |> ToScalar |> should equal "one"
+    yml |> pt1.Select |> ToScalar |> shouldEqual "one"
 
     let pt2 = YamlPath.Create "//{#'block sequence'}?/[]/{#'two'}?"
-    yml |> pt2.Select |> ToScalar |> should equal "three"
+    yml |> pt2.Select |> ToScalar |> shouldEqual "three"
 
 
 //  Test !!seq
@@ -161,7 +161,7 @@ Flow style: !!seq [ Mercury, Venus, Earth, Mars,      # Rocks
     let ftpth = YamlPath.Create "//{#'Flow style'}?"
     [btpth;ftpth]
     |> List.iter(fun pth -> 
-        yml |> pth.Select |> ExtractTag |> should equal TagResolution.Failsafe.SequenceGlobalTag.Uri
+        yml |> pth.Select |> ExtractTag |> shouldEqual TagResolution.Failsafe.SequenceGlobalTag.Uri
     )
 
     
@@ -173,52 +173,52 @@ Flow style: !!seq [ Mercury, Venus, Earth, Mars,      # Rocks
 let ``Test YamlCore Map duplicate key - Simple``() =
     let err = YamlParseWithErrors " { a : b, a : c } "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldEqual 1
 
 [<Test>]
 let ``Test YamlCore Map triple key - Simple``() =
     let err = YamlParseWithErrors " { a : b, a : c, a : d } "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 2
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldEqual 2
 
 [<Test>]
 let ``Test YamlCore Map duplicate key - Adjacent``() =
     let err = YamlParseWithErrors " { a : b, b : d, a : c } "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldEqual 1
 
 [<Test>]
 let ``Test YamlCore Map duplicate key - Seq keys identical``() =
     let err = YamlParseWithErrors " { [ 1 , 2 ] : b, [ 1 , 2 ] : c } "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldEqual 1
 
 [<Test>]
 let ``Test YamlCore Map duplicate key - Seq keys unordered``() =
     let err = YamlParseWithErrors " { [ 1 , 2 ] : b, [ 2 , 1 ] : c } "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldEqual 1
 
     
 [<Test>]
 let ``Test YamlCore Map duplicate key - Map keys identical``() =
     let err = YamlParseWithErrors " { { 1 : 2 } : b, { 1 : 2 } : c } "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldEqual 1
 
 
 [<Test>]
 let ``Test YamlCore Map duplicate key - Map keys unordered``() =
     let err = YamlParseWithErrors " { {1 : 2, 2 : 1} : b, {2 : 1, 1 : 2} : c } "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldEqual 1
 
 //  Ill formed
 [<Test>]
@@ -231,8 +231,8 @@ let ``Test YamlCore Map ill formed - missing comma``() =
         : value        
     }
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message ="Incorrect mapping syntax, are you missing a comma, or }?") |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message ="Incorrect mapping syntax, are you missing a comma, or }?") |> List.length |> shouldEqual 1
 
 
 //  YamlExtended - !!omap
@@ -256,10 +256,10 @@ let ``Test YamlExtended omap sunny day - omap assigned``() =
     |> List.iter(fun (k,v) -> 
         let ypath = (sprintf "//[]/{#'%s'}?" k)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> ToScalar |> should equal v
+        yml |> pth.Select |> ToScalar |> shouldEqual v
     )
 
-    Some([yml]) |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri
 
 [<Test>]
 let ``Test YamlExtended omap sunny day - omap detected``() =
@@ -280,10 +280,10 @@ let ``Test YamlExtended omap sunny day - omap detected``() =
     |> List.iter(fun (k,v) -> 
         let ypath = (sprintf "//[]/{#'%s'}?" k)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> ToScalar |> should equal v
+        yml |> pth.Select |> ToScalar |> shouldEqual v
     )
 
-    Some([yml]) |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri
 
 [<Test>]
 let ``Test YamlExtended omap sunny day - pairs detected because of duplicate key``() =
@@ -305,10 +305,10 @@ let ``Test YamlExtended omap sunny day - pairs detected because of duplicate key
     |> List.iter(fun (k,v) -> 
         let ypath = (sprintf "//[]/{#'%s'}?" k)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> Option.get |> List.length |> should be (greaterThan 0)
+        yml |> pth.Select |> Option.get |> List.length |> shouldBeGreaterThan 0
     )
 
-    Some([yml]) |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
 
 [<Test>]
 let ``Test YamlExtended omap rainy day - omap assinged - voilating duplicate key``() =
@@ -323,8 +323,8 @@ let ``Test YamlExtended omap rainy day - omap assinged - voilating duplicate key
 - Ken Griffy: 58    # duplicate
 "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldBeGreaterThan 0
 
 [<Test>]
 let ``Test YamlExtended omap rainy day - omap assigned - equality``() =
@@ -337,8 +337,8 @@ let ``Test YamlExtended omap rainy day - omap assigned - equality``() =
         : value
     }
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -351,7 +351,7 @@ let ``Test YamlExtended omap sunny day - omap assigned - equality - reordered``(
         : value
     }
 "
-    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.MappingGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.Failsafe.MappingGlobalTag.Uri
 
     let pth = YamlPath.Create "//{}"
 
@@ -362,7 +362,7 @@ let ``Test YamlExtended omap sunny day - omap assigned - equality - reordered``(
             [n]
             |> Some
             |> ExtractTag 
-            |> should equal TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri)
+            |> shouldEqual TagResolution.YamlExtended.OrderedMappingGlobalTag.Uri)
     
 
 
@@ -383,14 +383,14 @@ Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
     |> List.iter(fun (k,l) -> 
         let ypath = (sprintf "//{#'Block tasks'}?/[]/{#'%s'}" k)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> Option.get |> List.length |> should equal l
+        yml |> pth.Select |> Option.get |> List.length |> shouldEqual l
     )
 
     let btpth = YamlPath.Create "//{#'Block tasks'}?"
     let ftpth = YamlPath.Create "//{#'Flow tasks'}?"
     [btpth;ftpth]
     |> List.iter(fun pth -> 
-        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
+        yml |> pth.Select |> ExtractTag |> shouldEqual TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
     )
 
 [<Test>]
@@ -408,14 +408,14 @@ Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
     |> List.iter(fun (k,l) -> 
         let ypath = (sprintf "//{#'Block tasks'}?/[]/{#'%s'}" k)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> Option.get |> List.length |> should equal l
+        yml |> pth.Select |> Option.get |> List.length |> shouldEqual l
     )
 
     let btpth = YamlPath.Create "//{#'Block tasks'}?"
     let ftpth = YamlPath.Create "//{#'Flow tasks'}?"
     [btpth;ftpth]
     |> List.iter(fun pth -> 
-        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
+        yml |> pth.Select |> ExtractTag |> shouldEqual TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri
     )
 
 [<Test>]
@@ -426,8 +426,8 @@ let ``Test YamlExtended pairs rainy day - pairs assinged - voilating pair constr
 - 1     # not a pair
 "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Construct has incorrect syntax for tag tag:yaml.org,2002:pairs")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Construct has incorrect syntax for tag tag:yaml.org,2002:pairs")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -441,8 +441,8 @@ let ``Test YamlExtended pairs rainy day - pairs assigned - equality``() =
         : value
     }
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldBeGreaterThan 0
 
 [<Test>]
 let ``Test YamlExtended pairs sunny day - pairs assigned - equality - reordered``() =
@@ -455,7 +455,7 @@ let ``Test YamlExtended pairs sunny day - pairs assigned - equality - reordered`
         : value
     }
 "
-    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.MappingGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.Failsafe.MappingGlobalTag.Uri
 
     let pth = YamlPath.Create "//{}"
 
@@ -466,7 +466,7 @@ let ``Test YamlExtended pairs sunny day - pairs assigned - equality - reordered`
             [n]
             |> Some
             |> ExtractTag 
-            |> should equal TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri)
+            |> shouldEqual TagResolution.YamlExtended.OrderedPairsGlobalTag.Uri)
 
 
 //  YamlExtended - !!set
@@ -486,14 +486,14 @@ baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }
     |> List.iter(fun k -> 
         let ypath = (sprintf "//{#'baseball players'}?/{#'%s'}" k)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> Option.get |> List.length |> should equal 1
+        yml |> pth.Select |> Option.get |> List.length |> shouldEqual 1
     )
 
     let btpth = YamlPath.Create "//{#'baseball players'}?"
     let ftpth = YamlPath.Create "//{#'baseball teams'}?"
     [btpth;ftpth]
     |> List.iter(fun pth -> 
-        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.UnOrderedSetGlobalTag.Uri
+        yml |> pth.Select |> ExtractTag |> shouldEqual TagResolution.YamlExtended.UnOrderedSetGlobalTag.Uri
     )
 
 
@@ -512,14 +512,14 @@ baseball teams: !!set { Boston Red Sox, Detroit Tigers, New York Yankees }
     |> List.iter(fun k -> 
         let ypath = (sprintf "//{#'baseball players'}?/{#'%s'}" k)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> Option.get |> List.length |> should equal 1
+        yml |> pth.Select |> Option.get |> List.length |> shouldEqual 1
     )
 
     let btpth = YamlPath.Create "//{#'baseball players'}?"
     let ftpth = YamlPath.Create "//{#'baseball teams'}?"
     [btpth;ftpth]
     |> List.iter(fun pth -> 
-        yml |> pth.Select |> ExtractTag |> should equal TagResolution.YamlExtended.UnOrderedSetGlobalTag.Uri
+        yml |> pth.Select |> ExtractTag |> shouldEqual TagResolution.YamlExtended.UnOrderedSetGlobalTag.Uri
     )
 
 [<Test>]
@@ -529,8 +529,8 @@ let ``Test YamlExtended set rainy day - set assinged - voilating set unique cons
     ?   duplicate
     ?   duplicate
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -541,8 +541,8 @@ let ``Test YamlExtended set rainy day - set assinged - voilating set no-value co
     ?   has illegal
     :   value
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Construct has incorrect syntax for tag")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Construct has incorrect syntax for tag")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -555,8 +555,8 @@ let ``Test YamlExtended set rainy day - set assigned - equality``() =
         : value
     }
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldBeGreaterThan 0
 
 [<Test>]
 let ``Test YamlExtended set rainy day - set assigned - equality - reordered``() =
@@ -568,8 +568,8 @@ let ``Test YamlExtended set rainy day - set assigned - equality - reordered``() 
         : value
     }
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Duplicate key for node")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -579,8 +579,8 @@ let ``Test reference non existend anchor - Rainy Day``() =
     -   *invalidanchor
     "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Referenced anchor 'invalidanchor'")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Referenced anchor 'invalidanchor'")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -590,8 +590,8 @@ let ``Test literal folded illegal chomping 1 - Rainy Day``() =
     never parsed
 "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -601,8 +601,8 @@ let ``Test block folded illegal chomping 1 - Rainy Day``() =
     never parsed
 "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> shouldBeGreaterThan 0
 
 [<Test>]
 let ``Test block folded illegal chomping 2 - Rainy Day``() =
@@ -611,8 +611,8 @@ let ``Test block folded illegal chomping 2 - Rainy Day``() =
     never parsed
 "
 
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Illegal chomp indicator")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -624,8 +624,8 @@ let ``Test unnested tab indent error - rainy day``() =
 \t\t- l2e1
 \t\t- l2e2
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -637,8 +637,8 @@ let ``Test nested tab indent error block in block - rainy day``() =
 \t- l2e1
 \t- l2e2
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -649,8 +649,8 @@ let ``Test nested tab indent error compact in block - rainy day``() =
 - - l2e1
 \t- l2e2
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("A tab cannot be used for indentation")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -662,8 +662,8 @@ let ``Test nested indent error compact in block - rainy day``() =
   - l2e3
  - l2e2
 "
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("This line is indented incorrectly")) |> List.length |> should be (greaterThan 0)
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("This line is indented incorrectly")) |> List.length |> shouldBeGreaterThan 0
 
 
 [<Test>]
@@ -674,7 +674,7 @@ let ``Test block mapping with indented sequence - sunny day``() =
 [l2e1, l2e2] : c
 }
 "
-    [yml] |> Some |> ExtractTag |> should equal Failsafe.MappingGlobalTag.Uri
+    [yml] |> Some |> ExtractTag |> shouldEqual Failsafe.MappingGlobalTag.Uri
 
 
 [<Test>]
@@ -685,5 +685,5 @@ let ``Test block mapping with tab indented sequence - sunny day``() =
 \t[l2e1, l2e2] : c
 }
 "
-    [yml] |> Some |> ExtractTag |> should equal Failsafe.MappingGlobalTag.Uri
+    [yml] |> Some |> ExtractTag |> shouldEqual Failsafe.MappingGlobalTag.Uri
 

@@ -1,15 +1,11 @@
 source https://nuget.org/api/v2
+framework: net45
 
-nuget FAKE
-nuget FSharp.Core redirects: force
-nuget fsunit
-nuget NLog
-nuget NLog.Fsharp
-nuget NUnit
-nuget NUnit.ConsoleRunner
+nuget FSharp.Core ~> 4.0.0 redirects: force
 
 group Build
   source https://nuget.org/api/v2
+  framework: net45
   
   nuget SourceLink.Fake
   nuget FAKE
@@ -19,6 +15,10 @@ group Build
 
 group Test
   source https://nuget.org/api/v2
+  framework: net45
   
-  nuget NUnit ~> 2
-  nuget NUnit.Runners ~> 2
+  nuget NUnit
+  nuget NUnit.ConsoleRunner
+  nuget NLog.Fsharp
+
+  github fsprojects/FsUnit src/FsUnit.NUnit/FsUnitTyped.fs
