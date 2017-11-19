@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Name>Legivel.Tests</Name>
@@ -58,6 +58,7 @@
     <Compile Include="TestStuctures.fs" />
     <Compile Include="Test Directives.fs" />
     <Compile Include="Yaml.Mapper.Tests.fs" />
+    <Compile Include="APIs.guru.Tests.fs" />
     <None Include="FailFast Scalar.fsx" />
     <None Include="FailFast LineFolding.dead.fsx" />
     <None Include="FailFast LineFolding2.dead.fsx" />
@@ -111,6 +112,17 @@
       <ItemGroup>
         <Reference Include="FSharp.Core">
           <HintPath>..\..\packages\FSharp.Core\lib\net40\FSharp.Core.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
+      <ItemGroup>
+        <Reference Include="FSharp.Data">
+          <HintPath>..\..\packages\test\FSharp.Data\lib\net45\FSharp.Data.dll</HintPath>
           <Private>True</Private>
           <Paket>True</Paket>
         </Reference>

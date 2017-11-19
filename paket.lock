@@ -24,6 +24,7 @@ GROUP Test
 RESTRICTION: == net45
 NUGET
   remote: https://www.nuget.org/api/v2
+    FSharp.Data (2.4.2)
     NLog (4.4.12)
     NLog.FSharp (4.2.3)
       NLog (>= 4.2.3)

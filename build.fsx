@@ -1,3 +1,4 @@
+open Fake.Testing.NUnit3
 // --------------------------------------------------------------------------------------
 // FAKE build script
 // --------------------------------------------------------------------------------------
@@ -151,9 +152,10 @@ Target "Build" (fun _ ->
 
 Target "RunTests" (fun _ ->
     !! testAssemblies
-    |> Fake.Testing.NUnit3.NUnit3 (fun p ->
+    |> NUnit3 (fun p ->
         { p with
             ShadowCopy = false
+            Labels = LabelsLevel.All
             TimeOut = TimeSpan.FromMinutes 20.
             ResultSpecs = ["TestResults.xml"] })
 )
