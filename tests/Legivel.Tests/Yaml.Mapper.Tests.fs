@@ -367,15 +367,15 @@ type RecursiveType = {
         Next : RecursiveType option
     }
 
-//[<Test>]
-//let ``Deserialize - Recursive Type - Sunny Day`` () =
-//    let yml = "
-//Data: 1
-//Next:
-//    Data: 2
-//"
-//    let res = DeserializeSuccess<RecursiveType> yml
-//    res.Data            |> should equal 1
-//    res.Next.Value.Data |> should equal 2
-//    res.Next.Value.Next |> should equal None
+[<Test>]
+let ``Deserialize - Recursive Type - Sunny Day`` () =
+    let yml = "
+Data: 1
+Next:
+    Data: 2
+"
+    let res = DeserializeSuccess<RecursiveType> yml
+    res.Data            |> should equal 1
+    res.Next.Value.Data |> should equal 2
+    res.Next.Value.Next |> should equal None
 
