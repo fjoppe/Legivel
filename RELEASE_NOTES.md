@@ -1,4 +1,5 @@
-#### 0.1.1 - November 12 2017
+#### 0.1.1 - November 26 2017
+*   Legvel.Mapper: Added support for recursive types
 *   Legivel.Parser: Made RegexDSL public
 *   Legivel.Parser: Added CloneWith methods to GlobalTag
 *   Legivel.Parser: Made GlobalTag.Create public
