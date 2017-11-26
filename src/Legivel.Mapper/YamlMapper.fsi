@@ -9,6 +9,9 @@ type SuccessInfo<'tp> = {
         Data : 'tp
         Warn : ParseMessageAtLine list
     }
+    with
+        static member Create<'a> : 'a -> ParseMessageAtLine list -> SuccessInfo<'a>
+
 
 /// Returned when deserialization contained errors
 type ErrorInfo = {
@@ -16,6 +19,9 @@ type ErrorInfo = {
         Error : ParseMessageAtLine list
         StopLocation : DocumentLocation
     }
+    with
+        static member Create : ParseMessageAtLine list -> ParseMessageAtLine list -> DocumentLocation -> ErrorInfo
+
 
 /// Deserialization result
 type DeserializeResult<'tp> =

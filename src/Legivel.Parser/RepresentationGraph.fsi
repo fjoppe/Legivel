@@ -1,5 +1,6 @@
 ﻿module Legivel.RepresentationGraph
 
+
 open Legivel.Internals
 open Legivel.Common
 
@@ -14,7 +15,7 @@ type ParseInfo = {
     }
     with
         /// Create a ParseInfo instance
-        static member internal Create : DocumentLocation -> DocumentLocation -> ParseInfo
+        static member Create : DocumentLocation -> DocumentLocation -> ParseInfo
 
 
 /// A Node may be of Maping, Sequence or Scalar type
@@ -26,7 +27,7 @@ type NodeKind =
 
 /// Each Global Tag must implement the functions in this type
 [<NoEquality; NoComparison>]
-type internal TagFunctions = {
+type TagFunctions = {
         /// A function which returs true if the two given nodes are equal (according to yaml equality).
         AreEqual    : Node -> Node -> bool
 
@@ -73,19 +74,25 @@ and
         member ToCanonical : string -> string option
 
         /// Create a Global Tag based on uri, nodekind, regex, to Canonical func, tagfunctions
-        static member internal Create : uri:string * nk:NodeKind * rgx:string * toCanon:(string -> string option) * tgfn:TagFunctions -> GlobalTag
+        static member Create : uri:string * nk:NodeKind * rgx:string * toCanon:(string -> string option) * tgfn:TagFunctions -> GlobalTag
 
         /// Create a Global Tag based on uri, nodekind, regex, tagfunctions
-        static member internal Create : string * NodeKind * string * TagFunctions -> GlobalTag
+        static member Create : string * NodeKind * string * TagFunctions -> GlobalTag
 
         /// Create a Global Tag based on uri, nodekind, tagfunctions
-        static member internal Create : string * NodeKind * TagFunctions -> GlobalTag
+        static member Create : string * NodeKind * TagFunctions -> GlobalTag
+
+        /// Clone Global Tag and modify with given properties
+        member CloneWith : uri:string * nk:NodeKind * rgx:string * toCanon:(string -> string option) -> GlobalTag
+
+        /// Clone Global Tag and modify with given properties
+        member CloneWith : uri:string * rgx:string * toCanon:(string -> string option) -> GlobalTag
 
         /// Retrieve tagfunctions
-        member internal TagFunctions : TagFunctions with get
+        member TagFunctions : TagFunctions with get
 
         /// Set Tagfunctions and return new GlobalTag
-        member internal SetTagFunctions : TagFunctions -> GlobalTag
+        member SetTagFunctions : TagFunctions -> GlobalTag
 
         /// Returns true if the given Node complies to the rules o this tag 
         member internal IsMatch : Node -> bool
@@ -139,7 +146,7 @@ and
         ParseInfo : ParseInfo
     }
     with
-        static member internal Create<'a when 'a : equality and 'a :> System.IComparable> : TagKind -> 'a -> ParseInfo -> NodeData<'a>
+        static member Create<'a when 'a : equality and 'a :> System.IComparable> : TagKind -> 'a -> ParseInfo -> NodeData<'a>
         interface System.IComparable
 
 and

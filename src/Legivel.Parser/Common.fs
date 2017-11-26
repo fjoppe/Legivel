@@ -1,6 +1,8 @@
 ﻿module Legivel.Common
 
 open System
+open System.Diagnostics
+open ErrorsAndWarnings
 open Legivel.Utilities.SpookyHash
 
 module internal InternalUtil =
@@ -73,6 +75,29 @@ type    DocumentLocation = {
 
         override this.ToString() = sprintf "(l%d, c%d)" this.Line this.Column
         member m.AsString = m.ToString()
+
+
+type MessageAction =
+    |   Continue
+    |   Terminate
+                        
+[<DebuggerDisplay("{this.DebuggerInfo}")>]
+type MessageAtLine = {
+        Location: DocumentLocation
+        Code    : MessageCode
+        Action  : MessageAction
+        Message : string
+    }
+    with
+        static member CreateContinue dl cd s = {Location = dl; Code = cd; Action = Continue; Message = s}
+        static member CreateTerminate dl cd s = {Location = dl; Code = cd; Action = Terminate; Message = s}
+
+        member this.DebuggerInfo 
+            with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
+
+
+type ErrorMessage = MessageAtLine list
+
 
 
 type FallibleOption<'a,'b> =

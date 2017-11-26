@@ -49,6 +49,20 @@ module SchemaUtils =
         |   ScalarNode n ->  n.Data 
         |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting a Scalar Node"
 
+    let getMapNodeData (n:Node) =
+        match n with
+        |   MapNode n ->  n
+        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting a Map Node"
+
+    let getSeqNodeData (n:Node) =
+        match n with
+        |   SeqNode n ->  n
+        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting a Seq Node"
+
+    let getScalarNodeData (n:Node) =
+        match n with
+        |   ScalarNode n ->  n
+        |   _    -> failwith "YamlParser Defect: Tag-kind mismatch between node and tag, expecting a Scalar Node"
 
     let toFloatComponent (m:string) (p:string) =
         let mt2z s = if s = "" then "0" else s
