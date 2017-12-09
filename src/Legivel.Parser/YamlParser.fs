@@ -77,6 +77,12 @@ type ParseMessage = {
             if this.Cancel |> List.exists(fun e -> e = mal) then this
             else {this with Cancel = mal :: this.Cancel}
 
+[<NoEquality; NoComparison>]
+type StreamParser = private {
+        Reader      : TextReader 
+        Position    : int64
+
+    }
 
 [<NoEquality; NoComparison>]
 type ParseState = {

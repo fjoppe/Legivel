@@ -55,6 +55,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="SpookyHash.fsi" />
     <Compile Include="SpookyHash.fs" />
+    <Compile Include="Tokenizer.fs" />
     <Compile Include="RegexDSL.fsi" />
     <Compile Include="RegexDSL.fs" />
     <Compile Include="ErrorsAndWarnings.fs" />
