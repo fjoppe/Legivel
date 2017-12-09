@@ -3,7 +3,7 @@
 //  Extra Directives tests, not covered by the examples
 
 open NUnit.Framework
-open FsUnit
+open FsUnitTyped
 open Legivel.TagResolution
 open Legivel.RepresentationGraph
 open Legivel.Internals
@@ -15,6 +15,6 @@ let ``TAG Idrective with invalid Uri``() =
     let err = YamlParseWithErrors "
 %TAG !invalid! :not/valid/uri
 !invalid!bar"
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m -> m.Message.StartsWith("Tag is not a valid Uri")) |> List.length |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m -> m.Message.StartsWith("Tag is not a valid Uri")) |> List.length |> shouldEqual 1
 

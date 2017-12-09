@@ -4,7 +4,7 @@
 open System
 open Legivel.Utilities.SpookyHash
 open NUnit.Framework
-open FsUnit
+open FsUnitTyped
 
 [<Test>]
 let ``Test 512 SpookyHash Values``() =
@@ -83,5 +83,5 @@ let ``Test 512 SpookyHash Values``() =
     |> List.iter(fun (i, e) -> 
         let message = Array.init i (fun i -> byte(i + 128))
         let log = sprintf "Iteration: %d, Expected: %s" i e
-        Hash32 message 0u |> sprintf "0x%08x" |> should equal e
+        Hash32 message 0u |> sprintf "0x%08x" |> shouldEqual e
     )
