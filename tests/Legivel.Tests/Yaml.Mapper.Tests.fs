@@ -375,7 +375,7 @@ Next:
     Data: 2
 "
     let res = DeserializeSuccess<RecursiveType> yml
-    res.Data            |> should equal 1
-    res.Next.Value.Data |> should equal 2
-    res.Next.Value.Next |> should equal None
+    res.Data            |> shouldEqual 1
+    res.Next.Value.Data |> shouldEqual 2
+    res.Next.Value.Next |> shouldEqual None
 

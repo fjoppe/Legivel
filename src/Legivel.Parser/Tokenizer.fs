@@ -100,30 +100,30 @@ type RollingStream<'a> = private {
                 }
             read()
 
-        member this.Position 
-            with get() = List.length this.Past
 
         member private this.BufferedLength() = ((List.length this.Past) + (List.length this.Future))
 
-        member this.SetPosition v =
-            if v < this.Position then
-                let df = this.Position - v
-                let nFut = this.Future |> List.append (this.Past |> List.take df |> List.rev)
-                let nPast = this.Past |> List.skip df
-                { this with Past = nPast; Future = nFut }
-            elif v > this.Position then
-                let df = (this.BufferedLength() - v)
-                if df <= 0 then
-                    let nPast = this.Past |> List.append (this.Future |> List.rev)
-                    let nFut  = []
-                    let no = { this with Past = nPast; Future = nFut }
-                    if df < 0 then
-                        no.Stream |> Seq.take (-df) |> Seq.iter(ignore)
-                    no
-                else
-                    let nPast = this.Past |> List.append (this.Future |> List.take df |> List.rev)
-                    let nFut = this.Future |> List.skip df
-                    { this with Past = nPast; Future = nFut }
-            else
-                this
+        member this.Position 
+            with get() = List.length this.Past
+            and set v =
+                if v < this.Position then
+                    let df = this.Position - v
+                    let nFut = this.Future |> List.append (this.Past |> List.take df |> List.rev)
+                    let nPast = this.Past |> List.skip df
+                    this.Past <- nPast
+                    this.Future <- nFut
+                elif v > this.Position then
+                    let df = (this.BufferedLength() - v)
+                    if df <= 0 then
+                        let nPast = this.Past |> List.append (this.Future |> List.rev)
+                        let nFut  = []
+                        this.Past <- nPast
+                        this.Future <- nFut
+                        if df < 0 then
+                            this.Stream |> Seq.take (-df) |> Seq.iter(ignore)
+                    else
+                        let nPast = this.Past |> List.append (this.Future |> List.take df |> List.rev)
+                        let nFut = this.Future |> List.skip df
+                        this.Past <- nPast
+                        this.Future <- nFut
 
