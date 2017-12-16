@@ -1,14 +1,40 @@
 ﻿module Legivel.Tokenizer
 
 open System.IO
+open System.Collections.Generic
+
 
 type Token =
-    |   Symbol of string
-    |   Space of int
-    |   NewLine of int
-    |   Text of string
-    |   Other of char
-    |   EOF
+    //|   Symbol  = 0
+    |   Space   = 1
+    |   NewLine = 2
+    |   Text    = 3
+    |   Other   = 4
+    |   EOF     = 5
+    |   ``c-sequence-entry``    = 6
+    |   ``c-mapping-key``       = 7
+    |   ``c-mapping-value``     = 8
+    |   ``c-collect-entry``     = 9
+    |   ``c-sequence-start``    = 10
+    |   ``c-sequence-end``      = 11
+    |   ``c-mapping-start``     = 12
+    |   ``c-mapping-end``       = 13
+    |   ``c-comment``           = 14
+    |   ``c-anchor``            = 15
+    |   ``c-alias``             = 16
+    |   ``c-tag``               = 17
+    |   ``c-literal``           = 18
+    |   ``c-folded``            = 19
+    |   ``c-single-quote``      = 20
+    |   ``c-double-quote``      = 21
+    |   ``c-directive``         = 22
+    |   ``c-reserved``          = 23
+
+type TokenData =
+    |   StringData of string
+    |   IntData of int
+    |   CharData of char
+    |   NoData
 
 
 let tokenizer str = 
@@ -37,41 +63,105 @@ let tokenizer str =
                 new string(acc |> List.rev |> Array.ofList)
     
     let isSpace = (fun c -> c = ' ')
-    let isNewLine = (fun c -> c = '\n')
+    let isNewLine = (fun c -> c = '\n' || c = '\r')
     let isText = (fun c -> 
                             (c >= 'a' && c <= 'z') ||
                             (c >= 'A' && c <= 'Z') ||
                             (c >= '0' && c <= '9')
                             )
-    let isSymbol = (fun c -> "{}[]()&?:".Contains(c.ToString()))
+    //let isSymbol = (fun c -> "{}[]()&?:-,".Contains(c.ToString()))
 
+    let ``c-indicator`` c =
+        match c with
+        |   '-' -> Token.``c-sequence-entry``
+        |   '?' -> Token.``c-mapping-key``
+        |   ':' -> Token.``c-mapping-value``
+        |   ',' -> Token.``c-collect-entry``
+        |   '[' -> Token.``c-sequence-start``
+        |   ']' -> Token.``c-sequence-end``
+        |   '{' -> Token.``c-mapping-start``
+        |   '}' -> Token.``c-mapping-end``
+        |   '#' -> Token.``c-comment``
+        |   '&' -> Token.``c-anchor``
+        |   '*' -> Token.``c-alias``
+        |   '!' -> Token.``c-tag``
+        |   '|' -> Token.``c-literal``
+        |   '>' -> Token.``c-folded``
+        |   '\'' -> Token.``c-single-quote``
+        |   '\"' -> Token.``c-double-quote``
+        |   '%' -> Token.``c-directive``
+        |   '@' -> Token.``c-reserved``
+        |   '`' -> Token.``c-reserved``
+        |   _ -> Token.Other
 
     let rec reader() = seq {
         let chri = strm.Read()
-        if chri < 0 then yield EOF
+        if chri < 0 then yield (Token.EOF, NoData)
         else
             let chr = char(chri)
             if isSpace chr then
                 let cnt = charCount isSpace 1
-                yield Space cnt
+                yield (Token.Space, IntData cnt)
                 yield! reader()
             elif isNewLine chr then
                 let cnt = charCount isNewLine 1
-                yield NewLine cnt
+                yield (Token.NewLine, IntData cnt)
                 yield! reader()
             elif isText chr then
                 let txt = charRead isText [chr]
-                yield Text txt
-                yield! reader()
-            elif isSymbol chr then
-                yield Symbol (chr.ToString())
+                yield (Token.Text, StringData txt)
                 yield! reader()
             else
-                yield Other chr
-                yield! reader()
+                let sym = ``c-indicator`` chr
+                if sym <> Token.Other then
+                    yield (sym, CharData chr)
+                    yield! reader()
+                else
+                    yield (Token.Other, CharData chr)
+                    yield! reader()
         }
     let s = reader()
     (fun () -> s |> Seq.take 1 |> Seq.head)
+
+
+let tokenAggregator str =
+    let tkn = tokenizer str
+    let yq = Queue<Token*TokenData>()
+
+    let ``Aggregate c-sequence-entry`` t0 =
+        if fst(t0) = Token.``c-sequence-entry`` then
+            let t1 = tkn()
+            let tl = [t0; t1] |> List.map fst
+            if tl = [Token.``c-sequence-entry``; Token.Text] then
+                let (CharData c) = snd(t0)
+                let (StringData s) = snd(t1)
+                yq.Enqueue (Token.Text, StringData (sprintf "%c%s" c s))
+                true
+            else
+                yq.Enqueue(t0)
+                yq.Enqueue(t1)
+                true
+        else
+            false
+
+    let rec aggregator() = seq {
+        if yq.Count > 0 then
+            let t0 = yq.Dequeue()
+            yield t0
+        else
+            let t0 = tkn()
+        
+            if fst(t0) = Token.EOF then
+                yield t0
+            elif ``Aggregate c-sequence-entry`` t0 then
+                yield! aggregator()
+            else
+                yield t0
+        }
+    let s = aggregator()
+    (fun () -> s |> Seq.take 1 |> Seq.head)
+
+
 
 
 [<NoEquality; NoComparison>]

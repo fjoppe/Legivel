@@ -4,6 +4,8 @@ open NUnit.Framework
 open FsUnitTyped
 open Legivel.Tokenizer
 open System.Collections.Generic
+open System.Linq.Expressions
+
 
 
 let ReadStream() =
@@ -88,4 +90,60 @@ let ``Test RollingStream - Set Position forward - check nothing is lost``() =
     |>  Seq.take 10
     |>  Seq.toList
     |>  shouldEqual [0 .. 9]
+
+
+[<Test>]
+let ``Test Tokenizer - Flow Sequence - simple text``() =
+    let yaml = "
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey"
+
+    let stream = RollingStream<_>.Create (tokenizer yaml)
+    stream.Stream
+    |>  Seq.takeWhile (fun (e,_) -> e <> Token.EOF)
+    |>  Seq.toList
+    |>  List.map fst
+    |>  shouldEqual [
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; Token.Space; Token.Text;  
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; Token.Space; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; Token.Space; Token.Text; 
+    ]
+
+[<Test>]
+let ``Test Tokenizer - Block Sequence - simple text``() =
+    let yaml = "[ Mark McGwire, Sammy Sosa, Ken Griffey ]"
+
+    let stream = RollingStream<_>.Create (tokenizer yaml)
+    stream.Stream
+    |>  Seq.takeWhile (fun (e,_) -> e <> Token.EOF)
+    |>  Seq.toList
+    |>  List.map fst
+    |>  shouldEqual [
+        Token.``c-sequence-start``; 
+        Token.Space; Token.Text; Token.Space; Token.Text; Token.``c-collect-entry``; 
+        Token.Space; Token.Text; Token.Space; Token.Text; Token.``c-collect-entry``; 
+        Token.Space; Token.Text; Token.Space; Token.Text; 
+        Token.Space;  Token.``c-sequence-end``; 
+    ]    
+
+
+[<Test>]
+let ``Test Tokenizer - Flow Sequence - numbers``() =
+    let yaml = "
+- 5
+- 10
+- -9"
+
+    let stream = RollingStream<_>.Create (tokenAggregator yaml)
+    stream.Stream
+    |>  Seq.takeWhile (fun (e,_) -> e <> Token.EOF)
+    |>  Seq.toList
+    |>  List.map fst
+    |>  shouldEqual [
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text;
+    ]
+
 
