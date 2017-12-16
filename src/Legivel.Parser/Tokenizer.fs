@@ -94,34 +94,28 @@ let tokenizer str =
         |   '`' -> Token.``c-reserved``
         |   _ -> Token.Other
 
-    let rec reader() = seq {
+    let reader() = 
         let chri = strm.Read()
-        if chri < 0 then yield (Token.EOF, NoData)
+        if chri < 0 then 
+            (Token.EOF, NoData)
         else
             let chr = char(chri)
             if isSpace chr then
                 let cnt = charCount isSpace 1
-                yield (Token.Space, IntData cnt)
-                yield! reader()
+                (Token.Space, IntData cnt)
             elif isNewLine chr then
                 let cnt = charCount isNewLine 1
-                yield (Token.NewLine, IntData cnt)
-                yield! reader()
+                (Token.NewLine, IntData cnt)
             elif isText chr then
                 let txt = charRead isText [chr]
-                yield (Token.Text, StringData txt)
-                yield! reader()
+                (Token.Text, StringData txt)
             else
                 let sym = ``c-indicator`` chr
                 if sym <> Token.Other then
-                    yield (sym, CharData chr)
-                    yield! reader()
+                    (sym, CharData chr)
                 else
-                    yield (Token.Other, CharData chr)
-                    yield! reader()
-        }
-    let s = reader()
-    (fun () -> s |> Seq.take 1 |> Seq.head)
+                    (Token.Other, CharData chr)
+    (fun () -> reader())
 
 
 let tokenAggregator str =
@@ -144,23 +138,15 @@ let tokenAggregator str =
         else
             false
 
-    let rec aggregator() = seq {
-        if yq.Count > 0 then
-            let t0 = yq.Dequeue()
-            yield t0
+    let rec aggregator() = 
+        if yq.Count > 0 then yq.Dequeue()
         else
             let t0 = tkn()
-        
-            if fst(t0) = Token.EOF then
-                yield t0
+            if fst(t0) = Token.EOF then t0
             elif ``Aggregate c-sequence-entry`` t0 then
-                yield! aggregator()
-            else
-                yield t0
-        }
-    let s = aggregator()
-    (fun () -> s |> Seq.take 1 |> Seq.head)
-
+                aggregator()
+            else t0
+    (fun () -> aggregator())
 
 
 
