@@ -16,7 +16,7 @@ let ReadStream() =
 [<Test>]
 let ``Test RollingStream - Simple forward read all``() =
     let stream = RollingStream<_>.Create (ReadStream())
-
+    
     stream.Stream
     |>  Seq.take 100
     |>  Seq.length |> shouldEqual 100
@@ -105,9 +105,9 @@ let ``Test Tokenizer - Flow Sequence - simple text``() =
     |>  Seq.toList
     |>  List.map fst
     |>  shouldEqual [
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; Token.Space; Token.Text;  
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; Token.Space; Token.Text; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; Token.Space; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; Token.``s-space``; Token.Text;  
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; 
     ]
 
 [<Test>]
@@ -121,10 +121,10 @@ let ``Test Tokenizer - Block Sequence - simple text``() =
     |>  List.map fst
     |>  shouldEqual [
         Token.``c-sequence-start``; 
-        Token.Space; Token.Text; Token.Space; Token.Text; Token.``c-collect-entry``; 
-        Token.Space; Token.Text; Token.Space; Token.Text; Token.``c-collect-entry``; 
-        Token.Space; Token.Text; Token.Space; Token.Text; 
-        Token.Space;  Token.``c-sequence-end``; 
+        Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; Token.``c-collect-entry``; 
+        Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; Token.``c-collect-entry``; 
+        Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; 
+        Token.``s-space``;  Token.``c-sequence-end``; 
     ]    
 
 
@@ -135,15 +135,15 @@ let ``Test Tokenizer - Flow Sequence - numbers``() =
 - 10
 - -9"
 
-    let stream = RollingStream<_>.Create (tokenAggregator yaml)
+    let stream = RollingStream<_>.Create (tokenProcessor yaml)
     stream.Stream
     |>  Seq.takeWhile (fun (e,_) -> e <> Token.EOF)
     |>  Seq.toList
     |>  List.map fst
     |>  shouldEqual [
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.Space; Token.Text;
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text;
     ]
 
 

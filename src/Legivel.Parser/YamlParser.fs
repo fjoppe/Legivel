@@ -3,7 +3,7 @@
 open System
 open System.Text.RegularExpressions
 open Legivel.Common
-open Legivel.Internals
+open Legivel.Tokenizer
 open Legivel.Internals.ParserMonads
 open Legivel.TagResolution
 open Legivel.Utilities.RegexDSL
@@ -77,12 +77,17 @@ type ParseMessage = {
             if this.Cancel |> List.exists(fun e -> e = mal) then this
             else {this with Cancel = mal :: this.Cancel}
 
-[<NoEquality; NoComparison>]
-type StreamParser = private {
-        Reader      : TextReader 
-        Position    : int64
 
+[<NoEquality; NoComparison>]
+type RollingTokenizer = private {
+        Stream      : RollingStream<Token*TokenData> 
+        Position    : int
     }
+    with
+        member this.Position with get() = this.Stream.Position
+        member this.Reset() = this.Stream.Position <- this.Position
+        member this.Advance() = { this with Position = this.Stream.Position}
+        member this.EOF = this.Stream.EOF
 
 [<NoEquality; NoComparison>]
 type ParseState = {
@@ -93,7 +98,7 @@ type ParseState = {
         TrackLength : int
 
         /// String to parse (or what's left of it)
-        InputString : string
+        InputStream : RollingTokenizer
         
         /// Current Indentation
         n           : int
@@ -2536,8 +2541,17 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
-            let eofPattern = RGSF(ZOM(this.``s-white`` ||| this.``b-break``))
-            (psp.InputString.Length = 0) || IsMatch(psp.InputString, eofPattern)
+            //let eofPattern = RGSF(ZOM(this.``s-white`` ||| this.``b-break``))
+            //(psp.InputString.Length = 0) || IsMatch(psp.InputString, eofPattern)
+            psp.InputStream.Stream
+            |>  Seq.takeWhile(fun (t,_) -> t = Token.``s-space`` || Token.``s-tab``)
+            |>  ignore
+            if not psp.InputStream.EOF then
+                psp.InputStream.Reset()
+                false
+            else
+                true
+
 
         ps |> 
         ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (fun psr ->

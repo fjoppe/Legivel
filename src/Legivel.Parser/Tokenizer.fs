@@ -6,7 +6,8 @@ open System.Collections.Generic
 
 type Token =
     //|   Symbol  = 0
-    |   Space   = 1
+    |   ``s-space`` = 1
+    |   ``s-tab``   = 24
     |   NewLine = 2
     |   Text    = 3
     |   Other   = 4
@@ -63,6 +64,7 @@ let tokenizer str =
                 new string(acc |> List.rev |> Array.ofList)
     
     let isSpace = (fun c -> c = ' ')
+    let isTab = (fun c -> c = '\t')
     let isNewLine = (fun c -> c = '\n' || c = '\r')
     let isText = (fun c -> 
                             (c >= 'a' && c <= 'z') ||
@@ -102,7 +104,7 @@ let tokenizer str =
             let chr = char(chri)
             if isSpace chr then
                 let cnt = charCount isSpace 1
-                (Token.Space, IntData cnt)
+                (Token.``s-space``, IntData cnt)
             elif isNewLine chr then
                 let cnt = charCount isNewLine 1
                 (Token.NewLine, IntData cnt)
@@ -118,7 +120,7 @@ let tokenizer str =
     (fun () -> reader())
 
 
-let tokenAggregator str =
+let tokenProcessor str =
     let tkn = tokenizer str
     let yq = Queue<Token*TokenData>()
 
@@ -151,13 +153,14 @@ let tokenAggregator str =
 
 
 [<NoEquality; NoComparison>]
-type RollingStream<'a> = private {
+type RollingStream<'a when 'a : equality> = private {
         mutable Past    :   'a list
         mutable Future  :   'a list
-        Current :   (unit -> 'a)
+        Current         :   (unit -> 'a)
+        StopValue       :   'a
     }
     with
-        static member Create rdr = { Past = []; Future = []; Current = rdr}
+        static member Create rdr sv = { Past = []; Future = []; Current = rdr; StopValue = sv}
 
         member this.Stream = 
             let rec read() = 
@@ -166,13 +169,13 @@ type RollingStream<'a> = private {
                         let item = this.Current()
                         this.Past <- item :: this.Past
                         yield item
-                        yield! read()
+                        if item <> this.StopValue then yield! read()
                     else
                         let item = List.head this.Future
                         this.Future <- (List.tail this.Future)
                         this.Past <- item :: this.Past
                         yield item
-                        yield! read()
+                        if item <> this.StopValue then yield! read()
                 }
             read()
 
@@ -203,3 +206,4 @@ type RollingStream<'a> = private {
                         this.Past <- nPast
                         this.Future <- nFut
 
+        member this.EOF with get() = this.Past.Length > 0 && this.Past.Head = this.StopValue
