@@ -56,8 +56,8 @@
     <None Include="SpookyHash.fsi" />
     <None Include="SpookyHash.fs" />
     <None Include="Tokenizer.fs" />
-    <Compile Include="RegexDSL.fsi" />
-    <Compile Include="RegexDSL.fs" />
+    <None Include="RegexDSL.fsi" />
+    <None Include="RegexDSL.fs" />
     <Compile Include="ErrorsAndWarnings.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="Internals.fs" />

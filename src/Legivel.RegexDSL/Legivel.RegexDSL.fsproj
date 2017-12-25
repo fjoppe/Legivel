@@ -4,14 +4,14 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{da41ed84-2c7e-4058-b446-e93fc997a273}</ProjectGuid>
+    <ProjectGuid>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Legivel.SpookyHash</RootNamespace>
-    <AssemblyName>Legivel.SpookyHash</AssemblyName>
+    <RootNamespace>Legivel.RegexDSL</RootNamespace>
+    <AssemblyName>Legivel.RegexDSL</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
-    <Name>Legivel.SpookyHash</Name>
+    <Name>Legivel.RegexDSL</Name>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -41,8 +41,15 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Legivel.SpookyHash.fsi" />
-    <Compile Include="Legivel.SpookyHash.fs" />
+    <Compile Include="Legivel.RegexDSL.fsi" />
+    <Compile Include="Legivel.RegexDSL.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Legivel.Tokenizer\Legivel.Tokenizer.fsproj">
+      <Name>Legivel.Tokenizer</Name>
+      <Project>{9536b292-efad-4fc9-83b2-2d3c62e44860}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">14</MinimumVisualStudioVersion>

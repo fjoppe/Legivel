@@ -45,6 +45,10 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.SpookyHash", "src\L
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.Legivel.SpookyHash", "tests\Test.Legivel.SpookyHash\Test.Legivel.SpookyHash.fsproj", "{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.RegexDSL", "src\Legivel.RegexDSL\Legivel.RegexDSL.fsproj", "{996D56F6-A0F2-4A68-8E30-368BAEAA770B}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.Legivel.RegexDSL", "tests\Test.Legivel.RegexDSL\Test.Legivel.RegexDSL.fsproj", "{25F7F65A-C707-496A-92F3-EFE6F8C8E966}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +80,14 @@ Global
 		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{996D56F6-A0F2-4A68-8E30-368BAEAA770B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{996D56F6-A0F2-4A68-8E30-368BAEAA770B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{996D56F6-A0F2-4A68-8E30-368BAEAA770B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{996D56F6-A0F2-4A68-8E30-368BAEAA770B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{25F7F65A-C707-496A-92F3-EFE6F8C8E966}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25F7F65A-C707-496A-92F3-EFE6F8C8E966}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25F7F65A-C707-496A-92F3-EFE6F8C8E966}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25F7F65A-C707-496A-92F3-EFE6F8C8E966}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -86,6 +98,7 @@ Global
 		{ED4CD570-A206-4922-88AA-991A2E8C2642} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{F0A16E37-F48D-4D0B-A1D4-70ADD40B6327} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
+		{25F7F65A-C707-496A-92F3-EFE6F8C8E966} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F90B0D09-3639-4BDD-951E-89F0AA90674E}
