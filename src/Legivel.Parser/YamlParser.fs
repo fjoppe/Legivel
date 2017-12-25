@@ -21,8 +21,8 @@ type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHandSecondary of string | ShortHandPrimary of string | NonSpecificQT | NonSpecificQM | Empty
 
 
-let ``start-of-line`` = (* RGP "\n" ||| *) RGP "^"
-let ``end-of-file`` = RGP "\\z"
+let ``start-of-line`` = (* RGP "\n" ||| *) RGP ("^", Token.NoToken)
+let ``end-of-file`` = RGP ("\\z", Token.NoToken)
 
 
 let ``Read stream until stop condition`` (strm:TextReader) (stopCondition:string->bool) =
@@ -2456,10 +2456,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l-document-prefix`` = OPT(this.``c-byte-order-mark``) + ZOM(this.``l-comment``)
 
     //  [203]   http://www.yaml.org/spec/1.2/spec.html#c-directives-end
-    member this.``c-directives-end`` = RGP "---"
+    member this.``c-directives-end`` = RGP ("---", Token.``c-directives-end``)
 
     //  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
-    member this.``c-document-end`` = RGP "\\.\\.\\."
+    member this.``c-document-end`` = RGP ("\\.\\.\\.", Token.``c-document-end``)
 
     //  [205]   http://www.yaml.org/spec/1.2/spec.html#l-document-suffix
     member this.``l-document-suffix`` = this.``c-document-end`` + this.``s-l-comments``
@@ -2475,7 +2475,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l-bare-document" ps
         if ps.Errors = 0 then
             (* Excluding c-forbidden content *)
-            if IsMatch(ps.InputString, this.``c-forbidden``) then
+            if IsMatch(ps.Input., this.``c-forbidden``) then
                 NoResult
             else
                 ps 

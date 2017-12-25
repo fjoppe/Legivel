@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Name>Test.Legivel.Tokenizer</Name>
     <AssemblyName>Test.Legivel.Tokenizer</AssemblyName>
-    <RootNamespace>YamlParser.Tests</RootNamespace>
+    <RootNamespace>Test.Legivel.Tokenizer</RootNamespace>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>

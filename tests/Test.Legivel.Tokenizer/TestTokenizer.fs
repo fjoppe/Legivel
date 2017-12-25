@@ -4,6 +4,7 @@ open NUnit.Framework
 open FsUnitTyped
 open Legivel.Tokenizer
 open System.Collections.Generic
+open System.Configuration
 
 
 
@@ -104,9 +105,9 @@ let ``Test Tokenizer - Flow Sequence - simple text``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; Token.``s-space``; Token.Text;  
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``;  
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; 
     ]
 
 [<Test>]
@@ -120,9 +121,9 @@ let ``Test Tokenizer - Block Sequence - simple text``() =
     |>  List.map TokenData.token
     |>  shouldEqual [
         Token.``c-sequence-start``; 
-        Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; Token.``c-collect-entry``; 
-        Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; Token.``c-collect-entry``; 
-        Token.``s-space``; Token.Text; Token.``s-space``; Token.Text; 
+        Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; Token.``c-collect-entry``; 
+        Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; Token.``c-collect-entry``; 
+        Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; 
         Token.``s-space``;  Token.``c-sequence-end``; 
     ]    
 
@@ -140,9 +141,9 @@ let ``Test Tokenizer - Flow Sequence - numbers``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.Text;
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``ns-dec-digit``; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``ns-dec-digit``; 
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-sequence-entry``; Token.``ns-dec-digit``;
     ]
 
 [<Test>]
@@ -158,8 +159,52 @@ let ``Test Tokenizer - Yaml directives``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``c-directive`` ; Token.``ns-yaml-directive``; Token.``s-space``; Token.Text; 
-        Token.NewLine; Token.``c-directive`` ; Token.``ns-tag-directive``; Token.``s-space``; Token.Text; Token.``s-space``; Token.Text
-        Token.NewLine; Token.``c-directive`` ; Token.``ns-reserved-directive``; Token.``s-space``; Token.Text;
-
+        Token.NewLine; Token.``c-directive`` ; Token.``ns-yaml-directive``; Token.``s-space``; Token.``ns-dec-digit``; Token.``c-printable``; Token.``ns-dec-digit``
+        Token.NewLine; Token.``c-directive`` ; Token.``ns-tag-directive``; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``
+        Token.NewLine; Token.``c-directive`` ; Token.``ns-reserved-directive``; Token.``s-space``; Token.``c-printable``;
     ]
+
+
+[<Test>]
+let ``Test Tokenizer - Document/Directives end``() =
+    let yaml = "
+---
+time: 20:03:20
+player: Sammy Sosa
+...
+---
+time: 20:03:47
+player: Sammy Sosa
+...
+"
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    stream.Stream
+    |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
+    |>  Seq.toList
+    |>  List.map TokenData.token
+    |>  shouldEqual [
+        Token.NewLine; Token.``c-directives-end``
+        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``ns-dec-digit``; Token.``c-mapping-value``; Token.``ns-dec-digit``; Token.``c-mapping-value``;Token.``ns-dec-digit``
+        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``
+        Token.NewLine; Token.``c-document-end``
+
+        Token.NewLine; Token.``c-directives-end``
+        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``ns-dec-digit``; Token.``c-mapping-value``; Token.``ns-dec-digit``; Token.``c-mapping-value``;Token.``ns-dec-digit``
+        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``
+        Token.NewLine; Token.``c-document-end``
+        Token.NewLine
+    ]
+
+
+[<Test>]
+let ``Test Tokenizer - Directives end - borderline case``() =
+    let yaml = "--"
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    stream.Stream
+    |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
+    |>  Seq.toList
+    |>  List.map TokenData.token
+    |>  shouldEqual [
+        Token.``c-sequence-entry``; Token.``c-sequence-entry``
+    ]
+

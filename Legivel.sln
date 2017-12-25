@@ -41,6 +41,10 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.Legivel.Tokenizer", "t
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.Tokenizer", "src\Legivel.Tokenizer\Legivel.Tokenizer.fsproj", "{9536B292-EFAD-4FC9-83B2-2D3C62E44860}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.SpookyHash", "src\Legivel.SpookyHash\Legivel.SpookyHash.fsproj", "{DA41ED84-2C7E-4058-B446-E93FC997A273}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.Legivel.SpookyHash", "tests\Test.Legivel.SpookyHash\Test.Legivel.SpookyHash.fsproj", "{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -64,6 +68,14 @@ Global
 		{9536B292-EFAD-4FC9-83B2-2D3C62E44860}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9536B292-EFAD-4FC9-83B2-2D3C62E44860}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9536B292-EFAD-4FC9-83B2-2D3C62E44860}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA41ED84-2C7E-4058-B446-E93FC997A273}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA41ED84-2C7E-4058-B446-E93FC997A273}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA41ED84-2C7E-4058-B446-E93FC997A273}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA41ED84-2C7E-4058-B446-E93FC997A273}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -73,6 +85,7 @@ Global
 		{8E6D5255-776D-4B61-85F9-73C37AA1FB9A} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
 		{ED4CD570-A206-4922-88AA-991A2E8C2642} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{F0A16E37-F48D-4D0B-A1D4-70ADD40B6327} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
+		{F02B9BBF-D6DF-4A7A-BF7F-FF0B173EEFC5} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F90B0D09-3639-4BDD-951E-89F0AA90674E}

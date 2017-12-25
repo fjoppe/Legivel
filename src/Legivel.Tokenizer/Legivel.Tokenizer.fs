@@ -6,12 +6,13 @@ open System.Collections.Generic
 
 type Token =
     //|   Symbol  = 0
-    |   ``s-space`` = 1
-    |   ``s-tab``   = 24
-    |   NewLine = 2
-    |   Text    = 3
-    |   Other   = 4
-    |   EOF     = 5
+    |   ``s-space``             = 1
+    |   ``s-tab``               = 24
+    |   NewLine                 = 2
+    |   ``c-printable``         = 3
+    |   Other                   = 4
+    |   EOF                     = 5
+    |   NoToken                 = 32
     |   ``c-sequence-entry``    = 6
     |   ``c-mapping-key``       = 7
     |   ``c-mapping-value``     = 8
@@ -35,7 +36,9 @@ type Token =
     |   ``ns-reserved-directive`` = 26
     |   ``c-directives-end``    = 27
     |   ``c-document-end``      = 28
-
+    |   ``nb-json``             = 29
+    |   ``ns-dec-digit``        = 30
+    |   ``c-escape``            = 31
 
 type TokenData = {
         Token   : Token
@@ -77,17 +80,24 @@ let tokenizer str =
                 new string(acc |> List.rev |> Array.ofList)
     
     let isSpace = (fun c -> c = ' ')
+    let isTab = (fun c -> c = '\t')
+    let isDigit = (fun c -> c >= '0' && c <= '9')
+    let isEscape = (fun c -> c = '\\')
     let isWhite = (fun c -> c = ' ' || c = '\t')
     let isNewLine = (fun c -> c = '\x0a' || c = '\x0d')
     let isSymbol = (fun c -> "-?:,[]{}#&*!|>\'\"%@`".Contains(c.ToString()))
     
     //  c-printable
-    let isText = (fun c ->  not(isWhite c) && not(isNewLine c) && not(isSymbol c) &&
-                            (("\x09\x0a\x0d\x85".Contains(string c)) ||
-                            (c >= '\x20' && c <= '\x7e') ||
-                            (c >= '\xa0' && c <= '\ud7ff') ||
-                            (c >= '\ue000' && c <= '\ufffd'))
-                            )
+    let isText = (fun c ->
+        [isWhite; isTab;isDigit;isNewLine;isSymbol;isEscape]
+        |>  List.forall(fun cnd -> cnd c |> not) && 
+            (("\x09\x0a\x0d\x85".Contains(string c)) ||
+            (c >= '\x20' && c <= '\x7e') ||
+            (c >= '\xa0' && c <= '\ud7ff') ||
+            (c >= '\ue000' && c <= '\ufffd'))
+        )
+
+    let isJson = (fun c -> c = '\x09' || ((c >= '\x20' && c <= '\uffff')))
 
     let ``c-indicator`` c =
         match c with
@@ -118,19 +128,21 @@ let tokenizer str =
             (TokenData.Create Token.EOF "")
         else
             let chr = char(chri)
-            if isSpace chr then
-                let txt = charRead isSpace [chr]
-                TokenData.Create Token.``s-space`` txt
-            elif isNewLine chr then
-                TokenData.Create Token.NewLine (string chr)
-            elif isSymbol chr then
-                let sym = ``c-indicator`` chr
-                TokenData.Create sym (string chr)
-            elif isText chr then
-                let txt = charRead isText [chr]
-                TokenData.Create Token.Text txt
-            else
-                TokenData.Create Token.Other (string chr)
+            [
+                (isSpace, fun() -> TokenData.Create Token.``s-space`` (charRead isSpace [chr]))
+                (isTab, fun() -> TokenData.Create Token.``s-tab`` (charRead isTab [chr]))
+                (isNewLine, fun() -> TokenData.Create Token.NewLine (string chr))
+                (isEscape, fun() -> TokenData.Create Token.``c-escape`` (string chr))
+                (isSymbol, fun() -> TokenData.Create (``c-indicator`` chr) (string chr))
+                (isDigit, fun() -> TokenData.Create Token.``ns-dec-digit`` (charRead isDigit [chr]))
+                (isText, fun()-> TokenData.Create Token.``c-printable`` (charRead isText [chr]))
+                (isJson, fun()-> TokenData.Create Token.``nb-json`` (charRead isJson [chr]))
+                ((fun _ -> true), fun() -> TokenData.Create Token.Other (string chr))
+            ]
+            |>  List.skipWhile(fun (c,_) -> c chr |> not)
+            |>  List.head
+            |>  fun (_,p) -> p()
+
     (fun () -> reader())
 
 
@@ -171,9 +183,9 @@ let tokenProcessor str =
 
     let ``Try to combine c-sequence-entry and text``() =
         let tl = tokenTake 2
-        if tl |> List.map TokenData.token = [Token.``c-sequence-entry``; Token.Text] then
+        if tl |> List.map TokenData.token = [Token.``c-sequence-entry``; Token.``c-printable``] then
             let [c;s] = tl |> List.map TokenData.source
-            enqueueProcessed [TokenData.Create Token.Text (sprintf "%s%s" c s)]
+            enqueueProcessed [TokenData.Create Token.``c-printable`` (sprintf "%s%s" c s)]
             true
         else
             enqueueTodo tl
@@ -190,7 +202,7 @@ let tokenProcessor str =
 
     let ``Try conversion to c-document-end``() =
         let tl = getToken()
-        if tl = TokenData.Create Token.Text "..." then
+        if tl = TokenData.Create Token.``c-printable`` "..." then
             enqueueProcessed [TokenData.Create Token.``c-document-end`` "..."]
             true
         else
@@ -199,7 +211,7 @@ let tokenProcessor str =
 
     let ``Try conversion to l-directive``() =
         let tl = tokenTake 2
-        if tl |> List.map TokenData.token = [Token.``c-directive`` ;Token.Text] then
+        if tl |> List.map TokenData.token = [Token.``c-directive`` ;Token.``c-printable``] then
             let [t0;t1] = tl 
             let s = t1 |> TokenData.source
             match s with
