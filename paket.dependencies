@@ -1,7 +1,9 @@
 source https://nuget.org/api/v2
 framework: net45
 
+nuget FAKE
 nuget FSharp.Core ~> 4.0.0 redirects: force
+nuget NUnit
 
 group Build
   source https://nuget.org/api/v2

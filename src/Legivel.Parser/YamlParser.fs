@@ -80,14 +80,14 @@ type ParseMessage = {
 
 [<NoEquality; NoComparison>]
 type RollingTokenizer = private {
-        Stream      : RollingStream<Token*TokenData> 
+        Data        : RollingStream<Token*TokenData> 
         Position    : int
     }
     with
-        member this.Position with get() = this.Stream.Position
-        member this.Reset() = this.Stream.Position <- this.Position
-        member this.Advance() = { this with Position = this.Stream.Position}
-        member this.EOF = this.Stream.EOF
+        member this.Position with get() = this.Data.Position
+        member this.Reset() = this.Data.Position <- this.Position
+        member this.Advance() = { this with Position = this.Data.Position}
+        member this.EOF = this.Data.EOF
 
 [<NoEquality; NoComparison>]
 type ParseState = {
@@ -98,7 +98,7 @@ type ParseState = {
         TrackLength : int
 
         /// String to parse (or what's left of it)
-        InputStream : RollingTokenizer
+        Input       : RollingTokenizer
         
         /// Current Indentation
         n           : int
@@ -2541,13 +2541,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
-            //let eofPattern = RGSF(ZOM(this.``s-white`` ||| this.``b-break``))
-            //(psp.InputString.Length = 0) || IsMatch(psp.InputString, eofPattern)
-            psp.InputStream.Stream
-            |>  Seq.takeWhile(fun (t,_) -> t = Token.``s-space`` || Token.``s-tab``)
+            psp.Input.Data.Stream
+            |>  Seq.takeWhile(fun (t,_) -> t = Token.``s-space`` || t = Token.``s-tab``)
             |>  ignore
-            if not psp.InputStream.EOF then
-                psp.InputStream.Reset()
+            if not psp.Input.EOF then
+                psp.Input.Reset()
                 false
             else
                 true

@@ -1,8 +1,7 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <Name>Legivel.Tests</Name>
-    <AssemblyName>Legivel.Tests</AssemblyName>
+    <Name>Test.Legivel.Tokenizer</Name>
+    <AssemblyName>Test.Legivel.Tokenizer</AssemblyName>
     <RootNamespace>YamlParser.Tests</RootNamespace>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -31,68 +30,18 @@
     <WarningLevel>3</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="..\..\paket-files\test\fsprojects\FsUnit\src\FsUnit.NUnit\FsUnitTyped.fs">
       <Paket>True</Paket>
       <Link>paket-files/FsUnitTyped.fs</Link>
     </Compile>
-    <Compile Include="AssemblyInfo.fs" />
-    <None Include="paket.references" />
-    <Content Include="App.config" />
-    <Compile Include="TestUtils.fs" />
-    <Compile Include="Chapter2Tests.fs" />
-    <Compile Include="Chapter5Tests.fs" />
-    <Compile Include="Chapter6Tests.fs" />
-    <Compile Include="Chapter7Tests.fs" />
-    <Compile Include="Chapter8Tests.fs" />
-    <Compile Include="TestSpookyHash.fs" />
-    <Compile Include="TestSchema.fs" />
-    <Compile Include="TestStringScalars.fs" />
-    <Compile Include="TestStuctures.fs" />
-    <Compile Include="Test Directives.fs" />
-    <None Include="TestTokenizer.fs" />
-    <Compile Include="Yaml.Mapper.Tests.fs" />
-    <Compile Include="APIs.guru.Tests.fs" />
-    <None Include="FailFast Scalar.fsx" />
-    <None Include="FailFast LineFolding.dead.fsx" />
-    <None Include="FailFast LineFolding2.dead.fsx" />
-    <None Include="FailFast RegxDSL.dead.fsx" />
-    <None Include="FailFast MonadTest.fsx" />
-    <None Include="FailFast FaillableMonad.fsx" />
-    <None Include="FailFast YamlParserTest 1 - dead.fsx" />
-    <None Include="FailFast YamlParserTest 2  - dead.fsx" />
-    <None Include="FailFast YamlParserTest 3 - dead.fsx" />
-    <None Include="FailFast YamlParserTest 4 - dead.fsx" />
-    <None Include="FailFast YamlParserTest 5.fsx" />
-    <None Include="FailFast SpookyHash.fsx" />
-    <None Include="FailFast YamlPath.dead.fsx" />
-    <None Include="FailFast SchemaTest.dead.fsx" />
-    <None Include="Failfast Constructor.fsx" />
-    <None Include="Failfast RAML.fsx" />
+    <Compile Include="TestTokenizer.fs" />
     <None Include="FailFast stream.fsx" />
-    <None Include="nlog.fsx" />
-    <None Include="YamlParserFuncs.fsx" />
-    <Content Include="nlog.config" />
+    <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Legivel.Mapper\Legivel.Mapper.fsproj">
-      <Name>Legivel.Mapper</Name>
-      <Project>{f1048c7d-0ad1-41e2-86ef-d8aa4bae982d}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Legivel.Parser\Legivel.Parser.fsproj">
-      <Name>Legivel.Parser</Name>
-      <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
-      <Private>True</Private>
-    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.Tokenizer\Legivel.Tokenizer.fsproj" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '11.0'">
@@ -109,6 +58,7 @@
   <Import Project="$(FSharpTargetsPath)" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <Import Project="..\..\.paket\paket.targets" />
+  
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
       <ItemGroup>
@@ -163,5 +113,5 @@
         </Reference>
       </ItemGroup>
     </When>
-  </Choose>
+  </Choose>  
 </Project>
