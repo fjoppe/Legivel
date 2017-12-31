@@ -125,7 +125,7 @@ let ``Test Tokenizer - Block Sequence - simple text``() =
         Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; Token.``c-collect-entry``; 
         Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; 
         Token.``s-space``;  Token.``c-sequence-end``; 
-    ]    
+    ]
 
 
 [<Test>]
@@ -143,7 +143,7 @@ let ``Test Tokenizer - Flow Sequence - numbers``() =
     |>  shouldEqual [
         Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``ns-dec-digit``; 
         Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``ns-dec-digit``; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-sequence-entry``; Token.``ns-dec-digit``;
+        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``;
     ]
 
 [<Test>]
@@ -204,7 +204,5 @@ let ``Test Tokenizer - Directives end - borderline case``() =
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList
     |>  List.map TokenData.token
-    |>  shouldEqual [
-        Token.``c-sequence-entry``; Token.``c-sequence-entry``
-    ]
+    |>  shouldEqual [Token.``c-printable``]
 

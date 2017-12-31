@@ -109,6 +109,8 @@
     <Content Include="App.config" />
     <None Include="paket.references" />
     <Compile Include="Test.Legivel.RegexDSL.fs" />
+    <None Include="FailFast - RegexDSL token parse.fsx" />
+    <None Include="RegexDSL.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

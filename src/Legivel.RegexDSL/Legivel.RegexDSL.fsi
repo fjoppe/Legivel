@@ -33,10 +33,10 @@ val OOMNG : RGXType -> RGXType
 val OPT : RGXType -> RGXType
 
 /// Plain regex pattern, eg: RGP("abc") := abc
-val RGP : string  * Token -> RGXType 
+val RGP : string  * Token list -> RGXType 
 
 /// One in Set regex pattern, eg: RGO("a-zA-Z") := [a-zA-Z]
-val RGO : string  -> RGXType
+val RGO : string  * Token list -> RGXType
 
 /// Exclude Set regex pattern, eg: NOT(RGO("a-zA-Z")) := [^a-zA-Z]
 val NOT : RGXType -> RGXType

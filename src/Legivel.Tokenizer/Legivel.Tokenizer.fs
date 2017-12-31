@@ -183,11 +183,16 @@ let tokenProcessor str =
 
     let ``Try to combine c-sequence-entry and text``() =
         let tl = tokenTake 2
-        if tl |> List.map TokenData.token = [Token.``c-sequence-entry``; Token.``c-printable``] then
+        let tokens = tl |> List.map TokenData.token
+        match tokens with
+        |   [Token.``c-sequence-entry``; Token.``s-space``] ->
+            enqueueTodo tl
+            false
+        |   [Token.``c-sequence-entry``; _] -> 
             let [c;s] = tl |> List.map TokenData.source
             enqueueProcessed [TokenData.Create Token.``c-printable`` (sprintf "%s%s" c s)]
             true
-        else
+        |   _ -> 
             enqueueTodo tl
             false
 
@@ -227,12 +232,12 @@ let tokenProcessor str =
         if processed.Count > 0 then processed.Dequeue()
         else
             [
-                ``Try to combine c-sequence-entry and text``
                 ``Try conversion DOS/Windows break``
                 ``Try conversion to b-break``
                 ``Try conversion to l-directive``
                 ``Try conversion to c-directives-end``
                 ``Try conversion to c-document-end``
+                ``Try to combine c-sequence-entry and text``
             ]
             |>  List.fold(fun s (fn:unit->bool) -> if not(s) then fn() else true) false
             |>  function

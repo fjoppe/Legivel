@@ -1,18 +1,15 @@
-﻿module Legivel.Utilities.RegexDSL 
+﻿module RegexDSL
 
-#nowarn "52" // "value has been copied to ensure the original is not mutated"
+#I __SOURCE_DIRECTORY__ 
+#I "../../packages"
 
-open System.Diagnostics
-open System.Text.RegularExpressions
-open System
-open System.Globalization
+#r @"bin/Debug/Legivel.Tokenizer.dll"
 
 open Legivel.Tokenizer
 
-exception RegexException of string
 
 type Plain =
-    private {
+    {
         ``fixed`` : string
         Token     : Token list
     }
@@ -24,7 +21,7 @@ type Plain =
 
 
 type OneInSet =
-    private {
+    {
         not      : bool
         mainset  : string
         subtractset : string
@@ -159,103 +156,3 @@ let GRP p = Group(p)
 
 /// Returns rest-string, where match 'm' is removed from source 's'
 let Advance(m : string, s : string) =  s.Substring(m.Length)
-
-
-type MatchResult = {
-        FullMatch   : string
-        Rest        : string
-        Groups      : string list
-    }
-    with
-        static member Create f r g = { FullMatch = f; Rest = r ; Groups = g }
-        member this.ge1 with get() = (this.Groups.[1])
-        member this.ge2 with get() = (this.Groups.[1], this.Groups.[2])
-        member this.ge3 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3])
-        member this.ge4 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3], this.Groups.[4])
-
-
-/// Returns list of match groups, for pattern p on string s
-[<DebuggerStepThrough>]
-let Match(s, p) = 
-    let mt = Regex.Matches(s, RGS(p), RegexOptions.Multiline)
-    if mt.Count = 0 then 
-        []
-    else
-        [ for g in mt -> g.Value ]
-
-/// Returns whether pattern p matches on string s
-[<DebuggerStepThrough>]
-let IsMatch(s, p) = 
-    let ml = Match(s, p)
-    ml.Length > 0
-   
-
-/// Checks for matches of pattern p in string s.
-/// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
-[<DebuggerStepThrough>]
-let HasMatches(s,p) = 
-    let ml = Match(s, p)
-    if ml.Length > 0 then
-        let m0 = ml.[0]
-        (true, m0, Advance(m0, s))
-    else
-        (false, "",s)
-
-[<DebuggerStepThrough>]
-let (|Regex|_|) pattern input =
-    let m = Regex.Match(input, pattern, RegexOptions.Multiline)
-    if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
-    else None
-
-[<DebuggerStepThrough>]
-let (|Regex2|_|) (pattern:RGXType) input =
-    let m = Regex.Match(input, RGS(pattern), RegexOptions.Multiline)
-    if m.Success then 
-        let lst = [ for g in m.Groups -> g.Value ]
-        let fullMatch = lst |> List.head
-        let rest = Advance(fullMatch, input)
-        let groups = lst |> List.tail
-        Some(MatchResult.Create fullMatch rest groups)
-    else None
-
-let DecodeEncodedUnicodeCharacters value =
-    Regex.Replace(value,
-        @"(\\u(?<Value>[a-zA-Z0-9]{4}))|(\\U(?<Value>[a-zA-Z0-9]{8}))",
-        (fun (m:Match) -> (char(Int64.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
-
-let DecodeEncodedHexCharacters value =
-    Regex.Replace(value,
-        @"\\x(?<Value>[a-fA-F0-9]{2})",
-        (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
-
-let DecodeEncodedUriHexCharacters value =
-    Regex.Replace(value,
-        @"%(?<Value>[a-fA-F0-9]{2})",
-        (fun (m:Match) -> (char(Int32.Parse(m.Groups.["Value"].Value, NumberStyles.HexNumber))).ToString()))
-    
-let DecodeEncodedEscapedCharacters value =
-    Regex.Replace(value,
-        @"\\(?<Value>[0abtnvfre ""/N_LP])",
-        (fun (m:Match) -> 
-            match (m.Groups.["Value"].Value) with
-            |   "0" -> "\x00"
-            |   "a" -> "\a"
-            |   "b" -> "\b"
-            |   "t" -> "\t"
-            |   "n" -> "\n"
-            |   "v" -> "\v"
-            |   "f" -> "\f"
-            |   "r" -> "\r"
-            |   "e" -> "\x1b"
-            |   " " -> " "
-            |   "\"" -> "\""
-            |   "/" -> "\x2f"
-            |   "N" -> "\u0085"
-            |   "_" -> "\u00a0"
-            |   "L" -> "\u2028"
-            |   "P" -> "\u2029"
-            | _ -> sprintf "\\%s" m.Groups.["Value"].Value
-        ))
-
-
-
