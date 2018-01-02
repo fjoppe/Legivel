@@ -189,12 +189,9 @@ type ErrorResult = {
 
         /// Document location which could not be parsed
         StopLocation : DocumentLocation
-
-        /// The rest string, which was not parsed
-        RestString  : string
     }
     with
-        static member internal Create : ParseMessageAtLine list -> ParseMessageAtLine list -> DocumentLocation -> string -> ErrorResult
+        static member internal Create : ParseMessageAtLine list -> ParseMessageAtLine list -> DocumentLocation -> ErrorResult
 
 
 /// Statistics for unrecognized tags

@@ -56,15 +56,19 @@ val GRP : RGXType -> RGXType
 /// Returns rest-string, where match 'm' is removed from source 's'
 val Advance : string * string -> string
 
+/// Primary input assesment, rough input match (at token-level), if match, return the input that matched
+val AssesInput : RollingStream<TokenData> -> RGXType -> bool * TokenData list
+
+/// Matched tokens to matched string
+val TokenDataToString : bool * TokenData list -> string
 
 /// MatchResult of a regex match
 type MatchResult = {
         FullMatch   : string
-        Rest        : string
         Groups      : string list
     }
     with
-        static member Create : string -> string -> string list -> MatchResult
+        static member Create : string -> string list -> MatchResult
         member ge1 : string with get 
         member ge2 : string*string with get 
         member ge3 : string*string*string with get 
@@ -78,8 +82,8 @@ val Match : string*'a -> string list
 val IsMatch : string*'a -> bool
 
 /// Checks for matches of pattern p in string s.
-/// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
-val HasMatches : string*'a -> bool*string*string
+/// If matched, returns (true, <match-string>), otherwise (false, "")
+val HasMatches : RollingStream<TokenData>*RGXType -> bool*string
 
 /// Regex Active pattern to match string pattern on string input, and returns a list of matches
 val (|Regex|_|) : string -> string -> string list option

@@ -304,10 +304,9 @@ type ErrorResult = {
         Warn  : ParseMessageAtLine list 
         Error : ParseMessageAtLine list
         StopLocation : DocumentLocation
-        RestString  : string
     }
     with
-        static member Create w e sl rs = { Warn = w; Error = e ; StopLocation = sl; RestString = rs }
+        static member Create w e sl = { Warn = w; Error = e ; StopLocation = sl}
 
 
 type Unrecognized =  {

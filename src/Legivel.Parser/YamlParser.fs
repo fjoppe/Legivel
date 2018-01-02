@@ -21,8 +21,8 @@ type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHandSecondary of string | ShortHandPrimary of string | NonSpecificQT | NonSpecificQM | Empty
 
 
-let ``start-of-line`` = (* RGP "\n" ||| *) RGP ("^", Token.NoToken)
-let ``end-of-file`` = RGP ("\\z", Token.NoToken)
+let ``start-of-line`` = (* RGP "\n" ||| *) RGP ("^", [Token.NoToken])
+let ``end-of-file`` = RGP ("\\z", [Token.NoToken])
 
 
 let ``Read stream until stop condition`` (strm:TextReader) (stopCondition:string->bool) =
@@ -80,14 +80,17 @@ type ParseMessage = {
 
 [<NoEquality; NoComparison>]
 type RollingTokenizer = private {
-        Data        : RollingStream<Token*TokenData> 
+        Data        : RollingStream<TokenData> 
         Position    : int
     }
     with
-        member this.Position with get() = this.Data.Position
+        member this.Position 
+            with get() = this.Data.Position
+            and  set v = this.Data.Position <- v
         member this.Reset() = this.Data.Position <- this.Position
         member this.Advance() = { this with Position = this.Data.Position}
         member this.EOF = this.Data.EOF
+        static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); Position = 0}
 
 [<NoEquality; NoComparison>]
 type ParseState = {
@@ -154,7 +157,8 @@ type ParseState = {
 
         static member HasNoTerminatingError (ps:ParseState) = ps.Messages.Error |> List.exists(fun m -> m.Action = Terminate) |> not
 
-        member this.SetRestString s = { this with InputString = s }
+        member this.Advance() = { this with Input = this.Input.Advance() }
+
         member this.AddAnchor s n =  {this with Anchors = this.Anchors.Add(s, n)}
 
         member this.AddAnchors al =
@@ -177,11 +181,11 @@ type ParseState = {
 
         [<DebuggerStepThrough>]
         member this.SkipIfMatch p = 
-            match (HasMatches(this.InputString, p)) with
-            |   (true, mt,frs)  -> 
-                let res = this.SetRestString(frs)
-                (res.TrackPosition mt).MarkParseRange this
-            |   (false, _,_)    -> this
+            match (HasMatches(this.Input.Data, p)) with
+            |   (true, mt)  -> 
+                let nxt = this.Advance()
+                (nxt.TrackPosition mt).MarkParseRange this
+            |   (false, _)    -> this
         
         member this.SetStyleContext cn = { this with c = cn}
 
@@ -214,7 +218,7 @@ type ParseState = {
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
         static member Create inputStr schema = {
-                Location = DocumentLocation.Create 1 1; InputString = inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
+                Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
                 Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
                 GlobalTagSchema = schema; LocalTagSchema = None; NodePath = [];
@@ -233,7 +237,7 @@ module ParseState =
     let RevokeIndentation idl (ps:ParseState) =
         {ps with IndentLevels = idl }
 
-    let SetRestString s (ps:ParseState) = ps.SetRestString s
+    let Advance (ps:ParseState) = ps.Advance()
 
     let renv (prt, ps) =
         prt 
@@ -295,15 +299,15 @@ module ParseState =
 
     let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
     let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
-        match (HasMatches(ps.InputString, patt)) with
-        |   (true, mt, rest) -> ps |> AddCancelMessage (ps.Location) |> SetRestString rest |> TrackPosition mt |> postAdvanceFunc
-        |   (false, _, _)    -> NoResult
+        match (HasMatches(ps.Input.Data, patt)) with
+        |   (true, mt) -> ps |> AddCancelMessage (ps.Location) |> Advance |> TrackPosition mt |> postAdvanceFunc
+        |   (false, _)    -> NoResult
 
 
     let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
-        match (HasMatches(ps.InputString, patt)) with
-        |   (true, mt, rest) -> ps |> SetRestString rest |> TrackPosition mt |> parseFunc mt
-        |   (false, _, _)    -> NoResult
+        match (HasMatches(ps.Input.Data, patt)) with
+        |   (true, mt) -> ps |> Advance |> TrackPosition mt |> parseFunc mt
+        |   (false, _)    -> NoResult
 
 
     let ProcessErrors (ps:ParseState) =
@@ -319,12 +323,18 @@ module ParseState =
         fr
         |> FallibleOption.map(fun (node, ps:ParseState) ->(node,ProcessErrors ps))
         |> FallibleOption.map(fun (node, ps:ParseState) ->
-            if ps.InputString.StartsWith("---") || ps.InputString.StartsWith("...") then
-                let errs = ps.Messages.Error |> List.filter(fun m -> m.Action = MessageAction.Continue && m.Location <> ps.Location)
-                let psne = {ps with Messages = {ps.Messages with Error = errs}}
-                (node,psne)
-            else
-                (node,ps)
+            let rg = RGP("---", [Token.``c-directives-end``]) ||| RGP("...", [Token.``c-document-end``])
+            let p = ps.Input.Position
+            let rs =
+                AssesInput ps.Input.Data rg 
+                |>  function
+                    |   (false,_) -> (node,ps)
+                    |   (true, _) -> 
+                        let errs = ps.Messages.Error |> List.filter(fun m -> m.Action = MessageAction.Continue && m.Location <> ps.Location)
+                        let psne = {ps with Messages = {ps.Messages with Error = errs}}
+                        (node,psne)
+            ps.Input.Position <- p
+            rs
         )
 
     let ToRepresentation (pso:ParseState) no =
@@ -335,13 +345,13 @@ module ParseState =
         |   ErrorResult el ->
             let psr = pso |> AddErrorMessageList el 
             let er = psr.Messages.Error |> mal2pm
-            let erss = ErrorResult.Create wr er (psr.Location) (psr.InputString)
+            let erss = ErrorResult.Create wr er (psr.Location) 
             NoRepresentation(erss),pso
         |   Value (n, (ps2:ParseState)) ->
             let wr2 = wr @ (ps2.Messages.Warn  |> mal2pm)
             if ps2.Errors > 0 then
                 let er = ps2.Messages.Error |> mal2pm
-                let erss = ErrorResult.Create wr2 er (ps2.Location) (ps2.InputString)
+                let erss = ErrorResult.Create wr2 er (ps2.Location) 
                 NoRepresentation(erss),ps2
             else
                 if (ps2.TagReport.Unrecognized.Scalar > 0 || ps2.TagReport.Unresolved > 0) then
@@ -365,13 +375,18 @@ type FlowFoldPrevType = Empty | TextLine
 
 [<DebuggerStepThrough>]
 let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
-    let m = Regex.Match(ps.InputString, RGS(pattern), RegexOptions.Multiline)
-    if m.Success then 
-        let lst = [ for g in m.Groups -> g.Value ]
-        let fullMatch = lst |> List.head
-        let rest = Advance(fullMatch, ps.InputString)
-        let groups = lst |> List.tail
-        Some(MatchResult.Create fullMatch rest groups, ps |> ParseState.TrackPosition fullMatch |> ParseState.SetRestString rest)
+    let inps =
+        AssesInput (ps.Input.Data) pattern
+        |>  TokenDataToString
+    if inps <> "" then
+        let m = Regex.Match(inps, RGSF(pattern), RegexOptions.Multiline)
+        if m.Success then 
+            let lst = [ for g in m.Groups -> g.Value ]
+            let fullMatch = lst |> List.head
+            let ps = ps.Advance()
+            let groups = lst |> List.tail
+            Some(MatchResult.Create fullMatch groups, ps |> ParseState.TrackPosition fullMatch)
+        else None
     else None
 
 
@@ -384,8 +399,9 @@ type CreateErrorMessage() =
 type Yaml12Parser(loggingFunction:string->unit) =
 
     let logger s ps =
-        let str = if ps.InputString.Length > 10 then ps.InputString.Substring(0, 10) else ps.InputString
-        sprintf "%s\t\"%s\" l:%d i:%d c:%A &a:%d e:%d w:%d" s (str.Replace("\n","\\n")) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction
+        //let str = if ps.InputString.Length > 10 then ps.InputString.Substring(0, 10) else ps.InputString
+        //sprintf "%s\t\"%s\" l:%d i:%d c:%A &a:%d e:%d w:%d" s (str.Replace("\n","\\n")) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction
+        sprintf "%s\t l:%d i:%d c:%A &a:%d e:%d w:%d" s (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction
 
     new() = Yaml12Parser(fun _ -> ())
 
@@ -414,7 +430,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     member this.``auto detect indent in block`` n (slst: string list) = 
         let ``match indented content`` s = 
-            let icp = GRP(OOM(RGP this.``s-space``)) + OOM(this.``ns-char``)
+            let icp = GRP(OOM(RGP (this.``s-space``, [Token.``s-space``]))) + OOM(this.``ns-char``)
             match s with
             | Regex2(icp) mt -> Some(mt.ge1.Length - n)
             | _-> None
@@ -425,10 +441,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
             | None   -> 0
 
     member this.``auto detect indent in line`` ps =
-        let icp = GRP(ZOM(RGP this.``s-space``)) + OOM(this.``ns-char``)
-        match ps.InputString with
-        | Regex2(icp) mt -> (mt.ge1.Length - ps.n)
-        | _-> -1
+        let icp = GRP(ZOM(RGP (this.``s-space``, [Token.``s-space``]))) + OOM(this.``ns-char``)
+        let p = ps.Input.Position
+        let tkl = AssesInput (ps.Input.Data) icp
+        ps.Input.Position <- p
+        match tkl with
+        |   (true, tl) -> tl.Head.Source.Length - ps.n
+        |   (false, _) -> -1
 
 
     member this.``content with properties`` (``follow up func``: ParseFuncSignature<'a>) ps =
@@ -595,14 +614,31 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
     member this.``c-printable`` = 
         RGO ("\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
-             "\u0085\u00a0-\ud7ff\ue000-\ufffd")   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
+             "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
                                                    //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
+            [
+            Token.``s-space``; Token.``s-tab``; Token.NewLine; Token.``c-printable``; Token.``c-sequence-entry``; Token.``c-mapping-key`` 
+            Token.``c-mapping-value`` ; Token.``c-collect-entry`` ; Token.``c-sequence-start`` ; Token.``c-sequence-end`` ; Token.``c-mapping-start``
+            Token.``c-mapping-end`` ; Token.``c-comment`` ; Token.``c-anchor``; Token.``c-alias``; Token.``c-tag``; Token.``c-literal``
+            Token.``c-folded``; Token.``c-single-quote``; Token.``c-double-quote``; Token.``c-directive``; Token.``c-reserved``; Token.``ns-yaml-directive``
+            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; Token.``c-directives-end``; Token.``c-document-end``; 
+            Token.``ns-dec-digit``; Token.``c-escape``
+            ])
 
     //  [2] http://www.yaml.org/spec/1.2/spec.html#nb-json
-    member ths.``nb-json`` = RGO "\u0009\u0020-\uffff"
+    member ths.``nb-json`` = 
+        RGO ("\u0009\u0020-\uffff",
+            [
+            Token.``s-space``; Token.``s-tab``; Token.NewLine; Token.``c-printable``; Token.``c-sequence-entry``; Token.``c-mapping-key`` 
+            Token.``c-mapping-value`` ; Token.``c-collect-entry`` ; Token.``c-sequence-start`` ; Token.``c-sequence-end`` ; Token.``c-mapping-start``
+            Token.``c-mapping-end`` ; Token.``c-comment`` ; Token.``c-anchor``; Token.``c-alias``; Token.``c-tag``; Token.``c-literal``
+            Token.``c-folded``; Token.``c-single-quote``; Token.``c-double-quote``; Token.``c-directive``; Token.``c-reserved``; Token.``ns-yaml-directive``
+            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; Token.``c-directives-end``; Token.``c-document-end``; 
+            Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
+            ])
 
     //  [3] http://www.yaml.org/spec/1.2/spec.html#c-byte-order-mark
-    member this.``c-byte-order-mark`` = RGP "\ufeff"
+    member this.``c-byte-order-mark`` = RGP ("\ufeff", [])
 
     //  [4] http://www.yaml.org/spec/1.2/spec.html#c-sequence-entry
     member this.``c-sequence-entry`` = "-"
@@ -656,25 +692,40 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-directive`` = "%"
 
     //  [21]    http://www.yaml.org/spec/1.2/spec.html#c-reserved
-    member this.``c-reserved`` = RGO "\u0040\u0060"
+    member this.``c-reserved`` = RGO ("\u0040\u0060", [Token.``c-reserved``])
 
     //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
-    member this.``c-indicator`` = RGO  "\-\?:,\[\]\{\}#&\*!;>\'\"%@`"
+    member this.``c-indicator`` = 
+        RGO  ("\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
+        [ 
+        Token.``c-sequence-entry``; Token.``c-mapping-key``; Token.``c-mapping-value``
+        Token.``c-collect-entry``; Token.``c-sequence-start``; Token.``c-sequence-end``
+        Token.``c-mapping-start``; Token.``c-mapping-end``; Token.``c-comment``
+        Token.``c-anchor``; Token.``c-alias``; Token.``c-tag``; Token.``c-literal``
+        Token.``c-folded``; Token.``c-single-quote``; Token.``c-double-quote``
+        Token.``c-directive``; Token.``c-reserved``
+        ])
+
 
     //  [23]    http://www.yaml.org/spec/1.2/spec.html#c-flow-indicator
-    member this.``c-flow-indicator`` = RGO  @",\[\]\{\}"
+    member this.``c-flow-indicator`` = 
+        RGO  (@",\[\]\{\}", 
+            [
+                Token.``c-sequence-start``; Token.``c-sequence-end``
+                Token.``c-mapping-start``; Token.``c-mapping-end``
+            ])
 
     //  [24]    http://www.yaml.org/spec/1.2/spec.html#b-line-feed
-    member this.``b-line-feed`` = RGP "\u000a"
+    member this.``b-line-feed`` = RGP ("\u000a", [Token.NewLine])
 
     //  [25]    http://www.yaml.org/spec/1.2/spec.html#b-carriage-return
-    member this.``b-carriage-return`` = RGP "\u000d"
+    member this.``b-carriage-return`` = RGP ("\u000d", [Token.NewLine])
 
     //  [i26]   http://www.yaml.org/spec/1.2/spec.html#b-char
     member this.``b-char`` = this.``b-line-feed`` ||| this.``b-carriage-return``
 
     //  [27]    http://www.yaml.org/spec/1.2/spec.html#nb-char
-    member this.``nb-char``  = this.``c-printable`` - RGO("\u000a\u000d") // this.``b-char``
+    member this.``nb-char``  = this.``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) // this.``b-char``
 
     //  [28]    http://www.yaml.org/spec/1.2/spec.html#b-break
     member this.``b-break`` = 
@@ -689,19 +740,19 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``b-non-content`` = this.``b-break``
 
     //  [31]    http://www.yaml.org/spec/1.2/spec.html#s-space
-    member this.``s-space`` = "\u0020"  // space
+    member this.``s-space`` : string = "\u0020"  // space
 
     //  [32]    http://www.yaml.org/spec/1.2/spec.html#s-tab
     member this.``s-tab`` = "\u0009"    // tab
 
     //  [33]    http://www.yaml.org/spec/1.2/spec.html#s-white
-    member this.``s-white`` = RGO(this.``s-space`` + this.``s-tab``)
+    member this.``s-white`` = RGO(this.``s-space`` + this.``s-tab``, [Token.``s-space``; Token.``s-tab``])
 
     //  [34]    http://www.yaml.org/spec/1.2/spec.html#ns-char
     member this.``ns-char`` = this.``nb-char`` - this.``s-white``
 
     //  [35]    http://www.yaml.org/spec/1.2/spec.html#ns-dec-digit
-    member this.``ns-dec-digit`` = RGO "\u0030-\u0039"      //  0-9
+    member this.``ns-dec-digit`` = RGO ("\u0030-\u0039", [Token.``ns-dec-digit``])      //  0-9
 
     //  [36]    http://www.yaml.org/spec/1.2/spec.html#ns-hex-digit
     member this.``ns-hex-digit`` =

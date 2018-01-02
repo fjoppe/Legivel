@@ -4,6 +4,7 @@
 
 open System.Diagnostics
 open System.Text.RegularExpressions
+open System.Text
 open System
 open System.Globalization
 
@@ -161,13 +162,67 @@ let GRP p = Group(p)
 let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
+let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
+    let rec parse rgx tkl =
+        let conditionalParse rgx tk =
+            let p = rs.Position
+            let r = parse rgx tk 
+            if not(fst(r)) then rs.Position <- p
+            r
+
+        let mkResult t tkl =
+            function 
+            | true ->  (true, t :: tkl) 
+            | false -> (false, tkl)
+
+        let rec repeatWhileTrue t acc =
+            let pr = conditionalParse t tkl
+            if (fst pr) then repeatWhileTrue t (snd pr @ acc)
+            else acc |> List.rev
+
+        match rgx with
+        |   OneInSet ois    -> rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+        |   Plain pl        -> rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.Token  |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+        |   Or rl           -> 
+            let rec pickFirst l =
+                match l with
+                |   h::tl -> 
+                    let rs = parse h tkl
+                    if fst(rs) then (true, snd rs @ tkl)
+                    else pickFirst tl
+                |   [] -> (false, tkl)
+            rl |> List.rev |> pickFirst
+        |   Concat rl       -> 
+            let rec pickAll acc l =
+                match l with
+                |   h::tl -> 
+                    let rs = parse h tkl
+                    if fst(rs) then pickAll (snd rs @ acc) tl
+                    else (false, tkl)
+                |   [] -> (true, acc)
+            rl |> List.rev |> pickAll []
+        |   IterRange (t,_,mno) -> if mno.IsSome && mno.Value > 0 then parse (OneOrMore t) tkl else parse (ZeroOrMore t) tkl
+        |   ZeroOrMore t        -> true, repeatWhileTrue t tkl
+        |   ZeroOrMoreNonGreedy t -> true, repeatWhileTrue t tkl
+        |   OneOrMore t         ->  repeatWhileTrue t tkl |> fun l -> (l.Length>=1), l
+        |   OneOrMoreNonGreedy t -> repeatWhileTrue t tkl |> fun l -> (l.Length>=1), l
+        |   Optional t          -> true, conditionalParse t tkl |> snd
+        |   Group t             -> parse t tkl
+    parse rg []
+
+
+let TokenDataToString =
+    function
+    |   (true, tkl) -> (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString()
+    |   (false, _) -> ""
+
+
 type MatchResult = {
         FullMatch   : string
-        Rest        : string
         Groups      : string list
     }
     with
-        static member Create f r g = { FullMatch = f; Rest = r ; Groups = g }
+        static member Create f r g = { FullMatch = f; Groups = g }
         member this.ge1 with get() = (this.Groups.[1])
         member this.ge2 with get() = (this.Groups.[1], this.Groups.[2])
         member this.ge3 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3])
@@ -194,12 +249,16 @@ let IsMatch(s, p) =
 /// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
 [<DebuggerStepThrough>]
 let HasMatches(s,p) = 
-    let ml = Match(s, p)
-    if ml.Length > 0 then
-        let m0 = ml.[0]
-        (true, m0, Advance(m0, s))
+    let mts = AssesInput s p |> TokenDataToString
+    if mts <> "" then
+        let ml = Match(mts, p)
+        if ml.Length > 0 then
+            let m0 = ml.[0]
+            (true, m0)
+        else
+            (false, "")
     else
-        (false, "",s)
+        (false, "")
 
 [<DebuggerStepThrough>]
 let (|Regex|_|) pattern input =

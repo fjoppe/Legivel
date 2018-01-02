@@ -5,6 +5,7 @@
 
 #r @"bin/Debug/Legivel.Tokenizer.dll"
 
+open System.Text
 open Legivel.Tokenizer
 open RegexDSL
 
@@ -68,9 +69,14 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
 
 
 
+//let yaml = "- 5
+//- 10
+//- -9
+//"
+
 let yaml = "- 5
 - 10
-- -9
+- -9 # mismatch here
 "
 
 let stream = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
@@ -78,5 +84,7 @@ let stream = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
 #time
 
 let (b, tkl) = AssesInput stream ``l+block-sequence``
+
+let parseString = (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString()
 
 stream 

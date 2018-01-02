@@ -78,6 +78,11 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fsproj">
+      <Name>Legivel.RegexDSL</Name>
+      <Project>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fsproj">
       <Name>Legivel.SpookyHash</Name>
       <Project>{da41ed84-2c7e-4058-b446-e93fc997a273}</Project>
