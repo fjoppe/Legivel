@@ -93,6 +93,32 @@ let ``Test RollingStream - Set Position forward - check nothing is lost``() =
 
 
 [<Test>]
+let ``Test RollingStream - Peek n - check non-consequence``() =
+    let stream = RollingStream<_>.Create (ReadStream()) -1
+    let peekList = stream.Peek(5)
+    stream.Stream |> Seq.take 5 |> Seq.toList |> shouldEqual peekList
+
+
+[<Test>]
+let ``Test RollingStream - Peek() - check non-consequence``() =
+    let stream = RollingStream<_>.Create (ReadStream()) -1
+    let peek = stream.Peek()
+    stream.Stream |> Seq.head |> shouldEqual peek
+
+
+[<Test>]
+let ``Test RollingStream - Take n``() =
+    let stream = RollingStream<_>.Create (ReadStream()) -1
+    stream.Take(5) |> shouldEqual [0 .. 4]
+
+
+[<Test>]
+let ``Test RollingStream - Takek()``() =
+    let stream = RollingStream<_>.Create (ReadStream()) -1
+    stream.Take() |> shouldEqual 0
+
+
+[<Test>]
 let ``Test Tokenizer - Flow Sequence - simple text``() =
     let yaml = "
 - Mark McGwire
@@ -105,9 +131,9 @@ let ``Test Tokenizer - Flow Sequence - simple text``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``;  
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; 
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``;  
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; 
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; 
     ]
 
 [<Test>]
@@ -120,11 +146,11 @@ let ``Test Tokenizer - Block Sequence - simple text``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.``c-sequence-start``; 
-        Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; Token.``c-collect-entry``; 
-        Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; Token.``c-collect-entry``; 
-        Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``; 
-        Token.``s-space``;  Token.``c-sequence-end``; 
+        Token.``t-square-bracket-start``; 
+        Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``t-comma``; 
+        Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``t-comma``; 
+        Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; 
+        Token.``t-space``;  Token.``t-square-bracket-end``; 
     ]
 
 
@@ -141,9 +167,9 @@ let ``Test Tokenizer - Flow Sequence - numbers``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``ns-dec-digit``; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``ns-dec-digit``; 
-        Token.NewLine; Token.``c-sequence-entry`` ; Token.``s-space``; Token.``c-printable``;
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``ns-dec-digit``; 
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``ns-dec-digit``; 
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``;
     ]
 
 [<Test>]
@@ -159,9 +185,9 @@ let ``Test Tokenizer - Yaml directives``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``c-directive`` ; Token.``ns-yaml-directive``; Token.``s-space``; Token.``ns-dec-digit``; Token.``c-printable``; Token.``ns-dec-digit``
-        Token.NewLine; Token.``c-directive`` ; Token.``ns-tag-directive``; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``
-        Token.NewLine; Token.``c-directive`` ; Token.``ns-reserved-directive``; Token.``s-space``; Token.``c-printable``;
+        Token.NewLine; Token.``t-percent`` ; Token.``ns-yaml-directive``; Token.``t-space``; Token.``ns-dec-digit``; Token.``c-printable``; Token.``ns-dec-digit``
+        Token.NewLine; Token.``t-percent`` ; Token.``ns-tag-directive``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
+        Token.NewLine; Token.``t-percent`` ; Token.``ns-reserved-directive``; Token.``t-space``; Token.``c-printable``;
     ]
 
 
@@ -184,13 +210,13 @@ player: Sammy Sosa
     |>  List.map TokenData.token
     |>  shouldEqual [
         Token.NewLine; Token.``c-directives-end``
-        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``ns-dec-digit``; Token.``c-mapping-value``; Token.``ns-dec-digit``; Token.``c-mapping-value``;Token.``ns-dec-digit``
-        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``
+        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-colon``; Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``
+        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
         Token.NewLine; Token.``c-document-end``
 
         Token.NewLine; Token.``c-directives-end``
-        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``ns-dec-digit``; Token.``c-mapping-value``; Token.``ns-dec-digit``; Token.``c-mapping-value``;Token.``ns-dec-digit``
-        Token.NewLine; Token.``c-printable`` ; Token.``c-mapping-value``; Token.``s-space``; Token.``c-printable``; Token.``s-space``; Token.``c-printable``
+        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-colon``; Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``
+        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
         Token.NewLine; Token.``c-document-end``
         Token.NewLine
     ]

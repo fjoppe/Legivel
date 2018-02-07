@@ -7,7 +7,7 @@ open ErrorsAndWarnings
 open Legivel.Common
 open Legivel.Internals
 open System.Text.RegularExpressions
-
+open Legivel.Tokenizer
 
 [<NoEquality; NoComparison>]
 type TagResolutionInfo = {
@@ -197,7 +197,7 @@ module Failsafe =
 
     let isScalarMatch n (t:GlobalTag) = 
         match n with
-        |   ScalarNode nd ->  IsMatch (nd.Data, t.Regex)
+        |   ScalarNode nd ->  IsMatchStr (nd.Data, t.Regex)
         |   _    -> false
 
     let neverMatches _ _ = false
@@ -551,23 +551,25 @@ module YamlExtended =
         )
 
     let TimestampGlobalTag = 
-        let rgyear = Repeat(RGO("0-9"),4)
-        let rgmonth = RGO("0-9") + OPT(RGO("0-9"))
-        let rgmonthf = Repeat(RGO("0-9"),2)
-        let rgday = RGO("0-9") + OPT(RGO("0-9"))
-        let rgdayf = Repeat(RGO("0-9"),2)
-        let rgdate = (GRP rgyear) + RGP("-") + (GRP rgmonth) + RGP("-") + (GRP rgday)
-        let rgdatef = (GRP rgyear) + RGP("-") + (GRP rgmonthf) + RGP("-") + (GRP rgdayf)
-        let rghour = RGO("0-9") + OPT(RGO("0-9"))
-        let rgmin = Repeat(RGO "0-9", 2)
-        let rgsec = Repeat(RGO "0-9", 2)
-        let rgfrac= ZOM(RGO "0-9")
-        let rgtime = (GRP rghour) + RGP(":") + (GRP rgmin) + RGP(":") + (GRP rgsec) + OPT(RGP("\.") + GRP(rgfrac))
-        let rgztimez = RGP("Z")
-        let rgdtimez = (RGO "-+") + rghour + OPT(RGP(":") + rgmin)
-        let rgws = ZOM(RGO " \t")
+        let digit = RGO("0-9",[Token.``ns-dec-digit``])
+        let hyphen = RGP("-", [Token.``t-hyphen``])
+        let rgyear = Repeat(digit,4)
+        let rgmonth = digit + OPT(digit)
+        let rgmonthf = Repeat(digit,2)
+        let rgday = digit + OPT(digit)
+        let rgdayf = Repeat(digit,2)
+        let rgdate = (GRP rgyear) + hyphen + (GRP rgmonth) + hyphen + (GRP rgday)
+        let rgdatef = (GRP rgyear) + hyphen + (GRP rgmonthf) + hyphen + (GRP rgdayf)
+        let rghour = digit + OPT(digit)
+        let rgmin = Repeat(digit, 2)
+        let rgsec = Repeat(digit, 2)
+        let rgfrac= ZOM(digit)
+        let rgtime = (GRP rghour) + RGP(":", [Token.``t-colon``]) + (GRP rgmin) + RGP(":", [Token.``t-colon``]) + (GRP rgsec) + OPT(RGP("\.", [Token.``t-dot``]) + GRP(rgfrac))
+        let rgztimez = RGP("Z", [Token.``c-printable``])
+        let rgdtimez = RGO ("-+", [Token.``t-hyphen``;Token.``t-plus``]) + rghour + OPT(RGP(":", [Token.``t-colon``]) + rgmin)
+        let rgws = ZOM(RGO (" \t",[Token.``t-tab``] ))
  
-        let rgISO8601 = rgdate + OPT(((RGO "Tt") ||| OOM(rgws)) + rgtime + OPT(rgws + GRP((rgztimez ||| rgdtimez))))
+        let rgISO8601 = rgdate + OPT(((RGO ("Tt",[Token.``c-printable``])) ||| OOM(rgws)) + rgtime + OPT(rgws + GRP((rgztimez ||| rgdtimez))))
         let rgtimestamp = rgdate ||| rgISO8601
 
         let timestampToCanonical s =
@@ -626,16 +628,16 @@ module YamlExtended =
     //  http://yaml.org/type/binary.html
     let BinaryGlobalTag =
         //  This tag can only be assigned, and is never detected; bc too many collisions with plain text.
-        let base64Alphabet = RGO("A-Z") + RGO("a-z") + RGO("0-9") + RGO("+/") + RGO("=")
+        let base64Alphabet = RGO("A-Z", [Token.``c-printable``]) + RGO("a-z", [Token.``c-printable``]) + RGO("0-9", [Token.``ns-dec-digit``]) + RGO("+/") + RGO("=")
         //  from YamlParser, rules 24-33
-        let ``b-line-feed`` = RGP "\u000a"
-        let ``b-carriage-return`` = RGP "\u000d" 
+        let ``b-line-feed`` = RGP ("\u000a", [Token.``c-printable``])
+        let ``b-carriage-return`` = RGP("\u000d", [Token.``c-printable``])
         let ``b-break`` = 
             (``b-carriage-return`` + ``b-line-feed``)   |||  //  DOS, Windows
             ``b-carriage-return``                       |||  //  MacOS upto 9.x
             ``b-line-feed``                                     //  UNIX, MacOS X
-        let ``s-space`` = "\u0020"  // space
-        let ``s-tab`` = "\u0009"    // tab
+        let ``s-space`` = RGP("\u0020",[Token.``t-space``])  // space
+        let ``s-tab`` = RGP("\u0009",[Token.``t-tab``])    // tab
         let ``s-white`` = RGO(``s-space`` + ``s-tab``)
         let controlChar = ``b-break`` ||| ``s-white``
         let allowedChars = OOM(base64Alphabet ||| controlChar)

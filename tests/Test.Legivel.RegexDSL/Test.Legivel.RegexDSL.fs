@@ -15,7 +15,7 @@ let ReadStream (ip:TokenData list) =
 module ``AssesInput for Block Sequence``=
     let ``l+block-sequence`` =
         let ``b-break`` = RGP("\n", [Token.NewLine])
-        let ``c-l-block-seq-entry`` = RGP("-", [Token.``c-sequence-entry``]) + OOM(RGP(" ", [Token.``s-space``])) + OOM(RGO("\u0009\u0020-\uffff", [Token.``c-printable``; Token.``nb-json``; Token.``c-sequence-entry``; Token.``ns-dec-digit``]))
+        let ``c-l-block-seq-entry`` = RGP("-", [Token.``t-hyphen``]) + OOM(RGP(" ", [Token.``t-space``])) + OOM(RGO("\u0009\u0020-\uffff", [Token.``c-printable``; Token.``nb-json``; Token.``t-hyphen``; Token.``ns-dec-digit``]))
         OOM(``c-l-block-seq-entry`` + ``b-break``)
 
 
@@ -30,9 +30,9 @@ module ``AssesInput for Block Sequence``=
         tkl 
         |>  List.map(fun td -> td.Token)
         |>  shouldEqual [
-            Token.``c-sequence-entry``; Token.``s-space``; Token.``ns-dec-digit``; Token.NewLine
-            Token.``c-sequence-entry``; Token.``s-space``; Token.``ns-dec-digit``; Token.NewLine
-            Token.``c-sequence-entry``; Token.``s-space``; Token.``c-printable``; Token.NewLine
+            Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
+            Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
+            Token.``t-hyphen``; Token.``t-space``; Token.``c-printable``; Token.NewLine
         ]
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF
     
@@ -49,11 +49,11 @@ module ``AssesInput for Block Sequence``=
         tkl 
         |>  List.map(fun td -> td.Token)
         |>  shouldEqual [
-            Token.``c-sequence-entry``; Token.``s-space``; Token.``ns-dec-digit``; Token.NewLine
-            Token.``c-sequence-entry``; Token.``s-space``; Token.``ns-dec-digit``; Token.NewLine
+            Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
+            Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
         ]
 
-        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``c-sequence-entry``
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-hyphen``
 
     [<Test>]
     let ``Parse Token Stream - no match``() =
@@ -64,5 +64,5 @@ module ``AssesInput for Block Sequence``=
 
         b   |>  shouldEqual false
         tkl |>  shouldEqual []
-        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``c-sequence-start``
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-square-bracket-start``
 

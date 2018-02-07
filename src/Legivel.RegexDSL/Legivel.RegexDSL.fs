@@ -222,7 +222,7 @@ type MatchResult = {
         Groups      : string list
     }
     with
-        static member Create f r g = { FullMatch = f; Groups = g }
+        static member Create f g = { FullMatch = f; Groups = g }
         member this.ge1 with get() = (this.Groups.[1])
         member this.ge2 with get() = (this.Groups.[1], this.Groups.[2])
         member this.ge3 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3])
@@ -241,9 +241,17 @@ let Match(s, p) =
 /// Returns whether pattern p matches on string s
 [<DebuggerStepThrough>]
 let IsMatch(s, p) = 
+    let mts = AssesInput s p |> TokenDataToString
+    if mts <> "" then
+        let ml = Match(mts, p)
+        ml.Length > 0
+    else
+        false
+
+[<DebuggerStepThrough>]
+let IsMatchStr(s, p) = 
     let ml = Match(s, p)
     ml.Length > 0
-   
 
 /// Checks for matches of pattern p in string s.
 /// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
@@ -268,13 +276,15 @@ let (|Regex|_|) pattern input =
 
 [<DebuggerStepThrough>]
 let (|Regex2|_|) (pattern:RGXType) input =
-    let m = Regex.Match(input, RGS(pattern), RegexOptions.Multiline)
-    if m.Success then 
-        let lst = [ for g in m.Groups -> g.Value ]
-        let fullMatch = lst |> List.head
-        let rest = Advance(fullMatch, input)
-        let groups = lst |> List.tail
-        Some(MatchResult.Create fullMatch rest groups)
+    let mts = AssesInput input pattern |> TokenDataToString
+    if mts <> "" then
+        let m = Regex.Match(mts, RGS(pattern), RegexOptions.Multiline)
+        if m.Success then 
+            let lst = [ for g in m.Groups -> g.Value ]
+            let fullMatch = lst |> List.head
+            let groups = lst |> List.tail
+            Some(MatchResult.Create fullMatch groups)
+        else None
     else None
 
 let DecodeEncodedUnicodeCharacters value =

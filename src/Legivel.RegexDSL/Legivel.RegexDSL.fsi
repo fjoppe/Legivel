@@ -79,7 +79,7 @@ type MatchResult = {
 val Match : string*'a -> string list
 
 /// Returns whether pattern p matches on string s
-val IsMatch : string*'a -> bool
+val IsMatch : RollingStream<TokenData>*RGXType -> bool
 
 /// Checks for matches of pattern p in string s.
 /// If matched, returns (true, <match-string>), otherwise (false, "")
@@ -89,7 +89,7 @@ val HasMatches : RollingStream<TokenData>*RGXType -> bool*string
 val (|Regex|_|) : string -> string -> string list option
 
 /// Regex Active Pattern to match RGXType pattern on string input, and returns a match result
-val (|Regex2|_|) : RGXType -> string -> MatchResult option
+val (|Regex2|_|) : RGXType -> RollingStream<TokenData> -> MatchResult option
 
 /// Converts string-literal encoded unicode characters as "\u0000" or "\U00000000" to the char they represent
 val DecodeEncodedUnicodeCharacters : string -> string

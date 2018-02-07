@@ -6,31 +6,34 @@ open System.Collections.Generic
 
 type Token =
     //|   Symbol  = 0
-    |   ``s-space``             = 1
-    |   ``s-tab``               = 24
+    |   ``t-space``             = 1
+    |   ``t-tab``               = 24
     |   NewLine                 = 2
     |   ``c-printable``         = 3
     |   Other                   = 4
     |   EOF                     = 5
     |   NoToken                 = 32
-    |   ``c-sequence-entry``    = 6
-    |   ``c-mapping-key``       = 7
-    |   ``c-mapping-value``     = 8
-    |   ``c-collect-entry``     = 9
-    |   ``c-sequence-start``    = 10
-    |   ``c-sequence-end``      = 11
-    |   ``c-mapping-start``     = 12
-    |   ``c-mapping-end``       = 13
-    |   ``c-comment``           = 14
-    |   ``c-anchor``            = 15
-    |   ``c-alias``             = 16
-    |   ``c-tag``               = 17
-    |   ``c-literal``           = 18
-    |   ``c-folded``            = 19
-    |   ``c-single-quote``      = 20
-    |   ``c-double-quote``      = 21
-    |   ``c-directive``         = 22
-    |   ``c-reserved``          = 23
+    |   ``t-hyphen``    = 6
+    |   ``t-plus``      = 33
+    |   ``t-questionmark``       = 7
+    |   ``t-colon``     = 8
+    |   ``t-comma``     = 9
+    |   ``t-dot``       = 34
+    |   ``t-square-bracket-start``    = 10
+    |   ``t-square-bracket-end``      = 11
+    |   ``t-curly-bracket-start``     = 12
+    |   ``t-curly-bracket-end``       = 13
+    |   ``t-hash``           = 14
+    |   ``t-ampersand``            = 15
+    |   ``t-asterisk``             = 16
+    |   ``t-quotationmark``               = 17
+    |   ``t-pipe``           = 18
+    |   ``t-gt``            = 19
+    |   ``t-single-quote``      = 20
+    |   ``t-double-quote``      = 21
+    |   ``t-percent``         = 22
+    |   ``t-commat``          = 23
+    |   ``t-tilde``             = 32
     |   ``ns-yaml-directive``   = 24
     |   ``ns-tag-directive``    = 25
     |   ``ns-reserved-directive`` = 26
@@ -85,7 +88,7 @@ let tokenizer str =
     let isEscape = (fun c -> c = '\\')
     let isWhite = (fun c -> c = ' ' || c = '\t')
     let isNewLine = (fun c -> c = '\x0a' || c = '\x0d')
-    let isSymbol = (fun c -> "-?:,[]{}#&*!|>\'\"%@`".Contains(c.ToString()))
+    let isSymbol = (fun c -> "-+?:,.[]{}#&*!|>\'\"%@`".Contains(c.ToString()))
     
     //  c-printable
     let isText = (fun c ->
@@ -101,25 +104,27 @@ let tokenizer str =
 
     let ``c-indicator`` c =
         match c with
-        |   '-' -> Token.``c-sequence-entry``
-        |   '?' -> Token.``c-mapping-key``
-        |   ':' -> Token.``c-mapping-value``
-        |   ',' -> Token.``c-collect-entry``
-        |   '[' -> Token.``c-sequence-start``
-        |   ']' -> Token.``c-sequence-end``
-        |   '{' -> Token.``c-mapping-start``
-        |   '}' -> Token.``c-mapping-end``
-        |   '#' -> Token.``c-comment``
-        |   '&' -> Token.``c-anchor``
-        |   '*' -> Token.``c-alias``
-        |   '!' -> Token.``c-tag``
-        |   '|' -> Token.``c-literal``
-        |   '>' -> Token.``c-folded``
-        |   '\'' -> Token.``c-single-quote``
-        |   '\"' -> Token.``c-double-quote``
-        |   '%' -> Token.``c-directive``
-        |   '@' -> Token.``c-reserved``
-        |   '`' -> Token.``c-reserved``
+        |   '-' -> Token.``t-hyphen``
+        |   '+' -> Token.``t-plus``
+        |   '?' -> Token.``t-questionmark``
+        |   ':' -> Token.``t-colon``
+        |   ',' -> Token.``t-comma``
+        |   '.' -> Token.``t-dot``
+        |   '[' -> Token.``t-square-bracket-start``
+        |   ']' -> Token.``t-square-bracket-end``
+        |   '{' -> Token.``t-curly-bracket-start``
+        |   '}' -> Token.``t-curly-bracket-end``
+        |   '#' -> Token.``t-hash``
+        |   '&' -> Token.``t-ampersand``
+        |   '*' -> Token.``t-asterisk``
+        |   '!' -> Token.``t-quotationmark``
+        |   '|' -> Token.``t-pipe``
+        |   '>' -> Token.``t-gt``
+        |   '\'' -> Token.``t-single-quote``
+        |   '\"' -> Token.``t-double-quote``
+        |   '%' -> Token.``t-percent``
+        |   '@' -> Token.``t-commat``
+        |   '`' -> Token.``t-tilde``
         |   _ -> failwith "Unrecognized symbol"
 
     let reader() = 
@@ -129,8 +134,8 @@ let tokenizer str =
         else
             let chr = char(chri)
             [
-                (isSpace, fun() -> TokenData.Create Token.``s-space`` (charRead isSpace [chr]))
-                (isTab, fun() -> TokenData.Create Token.``s-tab`` (charRead isTab [chr]))
+                (isSpace, fun() -> TokenData.Create Token.``t-space`` (charRead isSpace [chr]))
+                (isTab, fun() -> TokenData.Create Token.``t-tab`` (charRead isTab [chr]))
                 (isNewLine, fun() -> TokenData.Create Token.NewLine (string chr))
                 (isEscape, fun() -> TokenData.Create Token.``c-escape`` (string chr))
                 (isSymbol, fun() -> TokenData.Create (``c-indicator`` chr) (string chr))
@@ -185,10 +190,10 @@ let tokenProcessor str =
         let tl = tokenTake 2
         let tokens = tl |> List.map TokenData.token
         match tokens with
-        |   [Token.``c-sequence-entry``; Token.``s-space``] ->
+        |   [Token.``t-hyphen``; Token.``t-space``] ->
             enqueueTodo tl
             false
-        |   [Token.``c-sequence-entry``; _] -> 
+        |   [Token.``t-hyphen``; _] -> 
             let [c;s] = tl |> List.map TokenData.source
             enqueueProcessed [TokenData.Create Token.``c-printable`` (sprintf "%s%s" c s)]
             true
@@ -198,7 +203,7 @@ let tokenProcessor str =
 
     let ``Try conversion to c-directives-end``() =
         let tl = tokenTake 3
-        if tl |> List.map TokenData.token = [Token.``c-sequence-entry``; Token.``c-sequence-entry``; Token.``c-sequence-entry``] then
+        if tl |> List.map TokenData.token = [Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``] then
             enqueueProcessed [TokenData.Create Token.``c-directives-end`` "---"]
             true
         else
@@ -216,7 +221,7 @@ let tokenProcessor str =
 
     let ``Try conversion to l-directive``() =
         let tl = tokenTake 2
-        if tl |> List.map TokenData.token = [Token.``c-directive`` ;Token.``c-printable``] then
+        if tl |> List.map TokenData.token = [Token.``t-percent`` ;Token.``c-printable``] then
             let [t0;t1] = tl 
             let s = t1 |> TokenData.source
             match s with
@@ -308,3 +313,17 @@ type RollingStream<'a when 'a : equality> = private {
                         this.Future <- nFut
 
         member this.EOF with get() = this.Past.Length > 0 && this.Past.Head = this.StopValue
+
+        member this.Peek(n) = 
+            let cp = this.Position
+            let rs = this.Stream |> Seq.take n |> Seq.toList
+            this.Position <- cp
+            rs
+
+        member this.Peek() = this.Peek(1) |> List.head
+
+        member this.Take(n) = this.Stream |> Seq.take n |> Seq.toList
+
+        member this.Take()  = this.Stream |> Seq.head
+
+

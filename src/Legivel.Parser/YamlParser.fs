@@ -90,6 +90,8 @@ type RollingTokenizer = private {
         member this.Reset() = this.Data.Position <- this.Position
         member this.Advance() = { this with Position = this.Data.Position}
         member this.EOF = this.Data.EOF
+        member this.Peek(n) = this.Data.Peek(n)
+        member this.Peek()  = this.Data.Peek()
         static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); Position = 0}
 
 [<NoEquality; NoComparison>]
@@ -430,7 +432,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     member this.``auto detect indent in block`` n (slst: string list) = 
         let ``match indented content`` s = 
-            let icp = GRP(OOM(RGP (this.``s-space``, [Token.``s-space``]))) + OOM(this.``ns-char``)
+            let icp = GRP(OOM(RGP (this.``s-space``, [Token.``t-space``]))) + OOM(this.``ns-char``)
             match s with
             | Regex2(icp) mt -> Some(mt.ge1.Length - n)
             | _-> None
@@ -441,7 +443,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             | None   -> 0
 
     member this.``auto detect indent in line`` ps =
-        let icp = GRP(ZOM(RGP (this.``s-space``, [Token.``s-space``]))) + OOM(this.``ns-char``)
+        let icp = GRP(ZOM(RGP (this.``s-space``, [Token.``t-space``]))) + OOM(this.``ns-char``)
         let p = ps.Input.Position
         let tkl = AssesInput (ps.Input.Data) icp
         ps.Input.Position <- p
@@ -617,10 +619,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
              "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
                                                    //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
             [
-            Token.``s-space``; Token.``s-tab``; Token.NewLine; Token.``c-printable``; Token.``c-sequence-entry``; Token.``c-mapping-key`` 
-            Token.``c-mapping-value`` ; Token.``c-collect-entry`` ; Token.``c-sequence-start`` ; Token.``c-sequence-end`` ; Token.``c-mapping-start``
-            Token.``c-mapping-end`` ; Token.``c-comment`` ; Token.``c-anchor``; Token.``c-alias``; Token.``c-tag``; Token.``c-literal``
-            Token.``c-folded``; Token.``c-single-quote``; Token.``c-double-quote``; Token.``c-directive``; Token.``c-reserved``; Token.``ns-yaml-directive``
+            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
+            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
+            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``ns-yaml-directive``
             Token.``ns-tag-directive``; Token.``ns-reserved-directive``; Token.``c-directives-end``; Token.``c-document-end``; 
             Token.``ns-dec-digit``; Token.``c-escape``
             ])
@@ -629,10 +631,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member ths.``nb-json`` = 
         RGO ("\u0009\u0020-\uffff",
             [
-            Token.``s-space``; Token.``s-tab``; Token.NewLine; Token.``c-printable``; Token.``c-sequence-entry``; Token.``c-mapping-key`` 
-            Token.``c-mapping-value`` ; Token.``c-collect-entry`` ; Token.``c-sequence-start`` ; Token.``c-sequence-end`` ; Token.``c-mapping-start``
-            Token.``c-mapping-end`` ; Token.``c-comment`` ; Token.``c-anchor``; Token.``c-alias``; Token.``c-tag``; Token.``c-literal``
-            Token.``c-folded``; Token.``c-single-quote``; Token.``c-double-quote``; Token.``c-directive``; Token.``c-reserved``; Token.``ns-yaml-directive``
+            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
+            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
+            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``ns-yaml-directive``
             Token.``ns-tag-directive``; Token.``ns-reserved-directive``; Token.``c-directives-end``; Token.``c-document-end``; 
             Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
             ])
@@ -641,31 +643,31 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-byte-order-mark`` = RGP ("\ufeff", [])
 
     //  [4] http://www.yaml.org/spec/1.2/spec.html#c-sequence-entry
-    member this.``c-sequence-entry`` = "-"
+    member this.``c-sequence-entry`` = RGP ("-", [Token.``t-hyphen``])
 
     //  [5] http://www.yaml.org/spec/1.2/spec.html#c-mapping-key
-    member this.``c-mapping-key`` = "?"
+    member this.``c-mapping-key`` = RGP ("\\?", [Token.``t-questionmark``])
 
     //  [6] http://www.yaml.org/spec/1.2/spec.html#c-mapping-value
-    member this.``c-mapping-value`` = ":"
+    member this.``c-mapping-value`` = RGP (":", [Token.``t-colon``])
 
     //  [7] http://www.yaml.org/spec/1.2/spec.html#c-collect-entry
-    member this.``c-collect-entry`` = ","
+    member this.``c-collect-entry`` = RGP(",", [Token.``t-comma``])
 
     //  [8] http://www.yaml.org/spec/1.2/spec.html#c-sequence-start
-    member this.``c-sequence-start`` = "["
+    member this.``c-sequence-start`` = RGP("\[", [Token.``t-square-bracket-start``])
 
     //  [9] http://www.yaml.org/spec/1.2/spec.html#c-sequence-end
-    member this.``c-sequence-end`` = "]"
+    member this.``c-sequence-end`` = RGP("\]", [Token.``t-square-bracket-end``])
 
     //  [10]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-start
-    member this.``c-mapping-start`` = "{"
+    member this.``c-mapping-start`` = RGP ("\{",[Token.``t-curly-bracket-start``])
 
     //  [11]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-end
-    member this.``c-mapping-end`` = "}"
+    member this.``c-mapping-end`` = RGP("\}", [Token.``t-curly-bracket-end``])
 
     //  [12]    http://www.yaml.org/spec/1.2/spec.html#c-comment
-    member this.``c-comment`` = "#"
+    member this.``c-comment`` = RGP ("#", [Token.``t-hash``])
 
     //  [13]    http://www.yaml.org/spec/1.2/spec.html#c-anchor
     member this.``c-anchor`` = "&"
@@ -680,30 +682,30 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-literal`` = "|"
 
     //  [17]    http://www.yaml.org/spec/1.2/spec.html#c-folded
-    member this.``c-folded`` = ">"
+    member this.``c-folded`` = RGP(">", [Token.``t-gt``])
 
     //  [18]    http://www.yaml.org/spec/1.2/spec.html#c-single-quote
-    member this.``c-single-quote`` = "\""
+    member this.``c-single-quote`` = RGP ("\'", [Token.``t-single-quote``])
 
     //  [19]    http://www.yaml.org/spec/1.2/spec.html#c-double-quote
-    member this.``c-double-quote`` = "\""
+    member this.``c-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
 
     //  [20]    http://www.yaml.org/spec/1.2/spec.html#c-directive
     member this.``c-directive`` = "%"
 
     //  [21]    http://www.yaml.org/spec/1.2/spec.html#c-reserved
-    member this.``c-reserved`` = RGO ("\u0040\u0060", [Token.``c-reserved``])
+    member this.``c-reserved`` = RGO ("\u0040\u0060", [Token.``t-commat``;Token.``t-tilde``])
 
     //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
     member this.``c-indicator`` = 
         RGO  ("\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
         [ 
-        Token.``c-sequence-entry``; Token.``c-mapping-key``; Token.``c-mapping-value``
-        Token.``c-collect-entry``; Token.``c-sequence-start``; Token.``c-sequence-end``
-        Token.``c-mapping-start``; Token.``c-mapping-end``; Token.``c-comment``
-        Token.``c-anchor``; Token.``c-alias``; Token.``c-tag``; Token.``c-literal``
-        Token.``c-folded``; Token.``c-single-quote``; Token.``c-double-quote``
-        Token.``c-directive``; Token.``c-reserved``
+        Token.``t-hyphen``; Token.``t-questionmark``; Token.``t-colon``
+        Token.``t-comma``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
+        Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
+        Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+        Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
+        Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``
         ])
 
 
@@ -711,8 +713,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-flow-indicator`` = 
         RGO  (@",\[\]\{\}", 
             [
-                Token.``c-sequence-start``; Token.``c-sequence-end``
-                Token.``c-mapping-start``; Token.``c-mapping-end``
+                Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
+                Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``
             ])
 
     //  [24]    http://www.yaml.org/spec/1.2/spec.html#b-line-feed
@@ -746,7 +748,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``s-tab`` = "\u0009"    // tab
 
     //  [33]    http://www.yaml.org/spec/1.2/spec.html#s-white
-    member this.``s-white`` = RGO(this.``s-space`` + this.``s-tab``, [Token.``s-space``; Token.``s-tab``])
+    member this.``s-white`` = RGO(this.``s-space`` + this.``s-tab``, [Token.``t-space``; Token.``t-tab``])
 
     //  [34]    http://www.yaml.org/spec/1.2/spec.html#ns-char
     member this.``ns-char`` = this.``nb-char`` - this.``s-white``
@@ -757,94 +759,94 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [36]    http://www.yaml.org/spec/1.2/spec.html#ns-hex-digit
     member this.``ns-hex-digit`` =
         this.``ns-dec-digit`` +
-        RGO "\u0041-\u0046"  +  //  A-F
-        RGO "\u0061-\u0066"     //  a-f
+        RGO ("\u0041-\u0046", [Token.``c-printable``])  +  //  A-F
+        RGO ("\u0061-\u0066", [Token.``c-printable``])     //  a-f
 
     //  [37]    http://www.yaml.org/spec/1.2/spec.html#ns-ascii-letter
     member this.``ns-ascii-letter`` = 
-        RGO "\u0041-\u005A" +   //  A-Z
-        RGO "\u0061-\u007A"     //  a-z
+        RGO ("\u0041-\u005A", [Token.``c-printable``]) +   //  A-Z
+        RGO ("\u0061-\u007A", [Token.``c-printable``])     //  a-z
 
     //  [38]    http://www.yaml.org/spec/1.2/spec.html#ns-word-char
     member this.``ns-word-char`` =
-        this.``ns-dec-digit`` + (RGO @"\-") + this.``ns-ascii-letter``
+        this.``ns-dec-digit`` + (RGO (@"\-", [Token.``t-hyphen``])) + this.``ns-ascii-letter``
 
     //  [39]    http://www.yaml.org/spec/1.2/spec.html#ns-uri-char
     member this.``ns-uri-char`` = 
-        (RGP @"%") + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        (RGO @"#;/?:@&=+$,_.!~*\'\(\)\[\]") + this.``ns-word-char``
+        RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
+        RGO (@"#;/?:@&=+$,_.!~*\'\(\)\[\]", [Token.``c-printable``]) + this.``ns-word-char``
 
     //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
     member this.``ns-tag-char`` = 
-        (RGP @"%") + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        (RGO @"#;/?:@&=+$_.~*\'\(\)") + this.``ns-word-char``
+        (RGP (@"%", [Token.``t-percent``])) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
+        (RGO (@"#;/?:@&=+$_.~*\'\(\)", [])) + this.``ns-word-char``
 
     //  [41]    http://www.yaml.org/spec/1.2/spec.html#c-escape
-    member this.``c-escape`` = RGP "\\"
+    member this.``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
 
     //  [42]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-null
-    member this.``ns-esc-null`` = RGP "0"
+    member this.``ns-esc-null`` = RGP ("0", [Token.``ns-dec-digit``])
 
     //  [43]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-bell
-    member this.``ns-esc-bell`` = RGP "a"
+    member this.``ns-esc-bell`` = RGP ("a", [Token.``c-printable``])
 
     //  [44]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backspace
-    member this.``ns-esc-backspace`` = RGP "b"
+    member this.``ns-esc-backspace`` = RGP( "b", [Token.``c-printable``])
 
     //  [45]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-horizontal-tab
-    member this.``ns-esc-horizontal-tab`` = RGP "t"
+    member this.``ns-esc-horizontal-tab`` = RGP ("t", [Token.``c-printable``])
 
     //  [46]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-feed
-    member this.``ns-esc-line-feed`` = RGP "n"
+    member this.``ns-esc-line-feed`` = RGP ("n", [Token.``c-printable``])
 
     //  [47]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-vertical-tab
-    member this.``ns-esc-vertical-tab`` = RGP "v"
+    member this.``ns-esc-vertical-tab`` = RGP ("v", [Token.``c-printable``])
 
     //  [48]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-form-feed
-    member this.``ns-esc-form-feed`` = RGP "f"
+    member this.``ns-esc-form-feed`` = RGP ("f", [Token.``c-printable``])
 
     //  [49]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-carriage-return
-    member this.``ns-esc-carriage-return`` = RGP "r"
+    member this.``ns-esc-carriage-return`` = RGP ("r", [Token.``c-printable``])
 
     //  [50]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-escape
-    member this.``ns-esc-escape`` = RGP "e"
+    member this.``ns-esc-escape`` = RGP ("e", [Token.``c-printable``])
 
     //  [51]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-space
-    member this.``ns-esc-space`` = RGP "\u0020"
+    member this.``ns-esc-space`` = RGP ("\u0020", [Token.``t-space``])
 
     //  [52]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-double-quote
-    member this.``ns-esc-double-quote`` = RGP "\""
+    member this.``ns-esc-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
 
     //  [53]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-slash
-    member this.``ns-esc-slash`` = RGP "/"
+    member this.``ns-esc-slash`` = RGP ("/", [Token.``c-printable``])
 
     //  [54]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backslash
-    member this.``ns-esc-backslash`` = RGP "\\\\"
+    member this.``ns-esc-backslash`` = RGP ("\\\\", [Token.``c-escape``])
 
     //  [55]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-next-line
-    member this.``ns-esc-next-line`` = RGP "N"
+    member this.``ns-esc-next-line`` = RGP ("N", [Token.``c-printable``])
 
     //  [56]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-non-breaking-space
-    member this.``ns-esc-non-breaking-space`` = RGP "_"
+    member this.``ns-esc-non-breaking-space`` = RGP ("_", [Token.``c-printable``])
 
     //  [57]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-separator
-    member this.``ns-esc-line-separator`` = RGP "L"
+    member this.``ns-esc-line-separator`` = RGP ("L", [Token.``c-printable``])
 
     //  [58]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-paragraph-separator
-    member this.``ns-esc-paragraph-separator`` = RGP "P"
+    member this.``ns-esc-paragraph-separator`` = RGP ("P", [Token.``c-printable``])
 
     //  [59]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-8-bit
-    member this.``ns-esc-8-bit`` = (RGP "x") + Repeat(this.``ns-hex-digit``,2)
+    member this.``ns-esc-8-bit`` = (RGP ("x", [Token.``c-printable``])) + Repeat(this.``ns-hex-digit``,2)
 
     //  [60]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-16-bit
-    member this.``ns-esc-16-bit`` = RGP "u" + Repeat(this.``ns-hex-digit``,4)
+    member this.``ns-esc-16-bit`` = RGP ("u", [Token.``c-printable``]) + Repeat(this.``ns-hex-digit``,4)
 
     //  [61]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-32-bit
-    member this.``ns-esc-32-bit`` = RGP "U" + Repeat(this.``ns-hex-digit``,8) // currently not supported
+    member this.``ns-esc-32-bit`` = RGP ("U", [Token.``c-printable``]) + Repeat(this.``ns-hex-digit``,8) // currently not supported
 
     //  [62]    http://www.yaml.org/spec/1.2/spec.html#c-ns-esc-char
     member this.``c-ns-esc-char`` = 
-        RGP ("\\\\") +
+        RGP ("\\\\", [Token.``c-escape``]) +
             (this.``ns-esc-null``             |||
              this.``ns-esc-bell``             |||
              this.``ns-esc-backspace``        |||
@@ -867,13 +869,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
              this.``ns-esc-32-bit``)
 
     //  [63]    http://www.yaml.org/spec/1.2/spec.html#s-indent(n)
-    member this.``s-indent(n)`` ps = Repeat(RGP this.``s-space``, ps.n)
+    member this.``s-indent(n)`` ps = Repeat(RGP (this.``s-space``, [Token.``t-space``]), ps.n)
 
     //  [64]    http://www.yaml.org/spec/1.2/spec.html#s-indent(<n)
-    member this.``s-indent(<n)`` ps = Range(RGP this.``s-space``, 0, (ps.n-1)) (* Where m < n *)
+    member this.``s-indent(<n)`` ps = Range(RGP (this.``s-space``, [Token.``t-space``]), 0, (ps.n-1)) (* Where m < n *)
 
     //  [65]    http://www.yaml.org/spec/1.2/spec.html#s-indent(≤n)
-    member this.``s-indent(<=n)`` ps = Range(RGP this.``s-space``, 0, ps.n)  (* Where m ≤ n *)
+    member this.``s-indent(<=n)`` ps = Range(RGP (this.``s-space``, [Token.``t-space``]), 0, ps.n)  (* Where m ≤ n *)
 
     //  [66]    http://www.yaml.org/spec/1.2/spec.html#s-separate-in-line
     member this.``s-separate-in-line`` = OOM(this.``s-white``) ||| ``start-of-line``
@@ -911,10 +913,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
         OPT(this.``s-separate-in-line``) + (this.``b-l-folded`` (ps.SetStyleContext ``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
 
     //  [75]    http://www.yaml.org/spec/1.2/spec.html#c-nb-comment-text
-    member this.``c-nb-comment-text`` = RGP("#") + ZOM(this.``nb-char``)
+    member this.``c-nb-comment-text`` = RGP("#", [Token.``t-hash``]) + ZOM(this.``nb-char``)
 
     //  [76]    http://www.yaml.org/spec/1.2/spec.html#b-comment
-    member this.``b-comment`` = this.``b-non-content`` ||| RGP("\\z") // EOF..
+    member this.``b-comment`` = this.``b-non-content`` ||| RGP("\\z", [Token.EOF]) // EOF..
 
     //  [77]    http://www.yaml.org/spec/1.2/spec.html#s-b-comment
     member this.``s-b-comment`` = OPT(this.``s-separate-in-line`` + OPT(this.``c-nb-comment-text``)) + this.``b-comment`` 
@@ -942,11 +944,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [82]    http://www.yaml.org/spec/1.2/spec.html#l-directive
     member this.``l-directive`` (ps:ParseState) : FallibleOption<ParseState,ErrorMessage> = 
         ps 
-        |> ParseState.``Match and Advance`` (RGP "%") (fun prs ->
+        |> ParseState.``Match and Advance`` (RGP ("%", [Token.``t-percent``])) (fun prs ->
             let ``ns-yaml-directive`` = this.``ns-yaml-directive`` + this.``s-l-comments``
             let ``ns-tag-directive`` = this.``ns-tag-directive``  + this.``s-l-comments``
             let ``ns-reserved-directive`` = GRP(this.``ns-reserved-directive``) + this.``s-l-comments``
-            match prs.InputString with
+            match prs.Input.Data with
             |   Regex2(``ns-yaml-directive``)  mt    -> 
                 let ps = 
                     match (mt.ge1.Split('.') |> List.ofArray) with
@@ -962,7 +964,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 if ps.Errors >0 then
                     ErrorResult (ps.Messages.Error)
                 else
-                    Value(YAML(mt.ge1), ps.SetRestString mt.Rest)
+                    Value(YAML(mt.ge1), ps.Advance())
             |   Regex2(``ns-tag-directive``)   mt    -> 
                 let tg = mt.ge2 |> fst
                 let ymlcnt = ps.Directives |> List.filter(function | TAG (t,_) ->  (t=tg) | _ -> false) |> List.length
@@ -974,12 +976,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 else
                     let tagPfx = snd mt.ge2
                     let lcTag = this.``c-primary-tag-handle`` + OOM(this.``ns-tag-char``)
-                    if System.Uri.IsWellFormedUriString(tagPfx, UriKind.Absolute) || IsMatch(tagPfx, lcTag) then
-                        Value(TAG(mt.ge2),  ps.SetRestString (mt.Rest) |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
+                    if System.Uri.IsWellFormedUriString(tagPfx, UriKind.Absolute) || IsMatchStr(tagPfx, lcTag) then
+                        Value(TAG(mt.ge2),  ps.Advance() |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
                     else
                         let ps = (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg)))
                         ErrorResult (ps.Messages.Error)
-            |   Regex2(``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.SetRestString mt.Rest |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "Reserved directive will ignored: %%%s" mt.ge1)))
+            |   Regex2(``ns-reserved-directive``) mt -> Value(RESERVED(mt.Groups), ps |> ParseState.Advance |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) Freeform (sprintf "Reserved directive will ignored: %%%s" mt.ge1)))
             |   _   -> NoResult
         )
         |> FallibleOption.bind(fun (t,prs) ->
@@ -997,32 +999,32 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-directive-parameter`` = OOM(this.``ns-char``)
 
     //  [86]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-directive
-    member this.``ns-yaml-directive`` = RGP("YAML") + this.``s-separate-in-line`` + GRP(this.``ns-yaml-version``)
+    member this.``ns-yaml-directive`` = RGP("YAML", [Token.``ns-yaml-directive``]) + this.``s-separate-in-line`` + GRP(this.``ns-yaml-version``)
 
     //  [87]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-version
-    member this.``ns-yaml-version`` = OOM(this.``ns-dec-digit``) + RGP("\\.") + OOM(this.``ns-dec-digit``)
+    member this.``ns-yaml-version`` = OOM(this.``ns-dec-digit``) + RGP("\\.", [Token.``c-printable``]) + OOM(this.``ns-dec-digit``)
 
     //  [88]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-directive
     member this.``ns-tag-directive`` = 
-        (RGP "TAG") + this.``s-separate-in-line`` + GRP(this.``c-tag-handle``) + this.``s-separate-in-line`` + GRP(this.``ns-tag-prefix``)
+        RGP ("TAG", [Token.``ns-tag-directive``]) + this.``s-separate-in-line`` + GRP(this.``c-tag-handle``) + this.``s-separate-in-line`` + GRP(this.``ns-tag-prefix``)
 
     //  [89]    http://www.yaml.org/spec/1.2/spec.html#c-tag-handle
     member this.``c-tag-handle`` = this.``c-named-tag-handle`` ||| this.``c-secondary-tag-handle`` ||| this.``c-primary-tag-handle``
 
     //  [90]    http://www.yaml.org/spec/1.2/spec.html#c-primary-tag-handle
-    member this.``c-primary-tag-handle`` = RGP "!"
+    member this.``c-primary-tag-handle`` = RGP ("!", [Token.``t-quotationmark``])
 
     //  [91]    http://www.yaml.org/spec/1.2/spec.html#c-secondary-tag-handle
-    member this.``c-secondary-tag-handle`` = RGP "!!"
+    member this.``c-secondary-tag-handle`` = RGP ("!", [Token.``t-quotationmark``]) + RGP ("!", [Token.``t-quotationmark``]) //RGP "!!"
 
     //  [92]    http://www.yaml.org/spec/1.2/spec.html#c-named-tag-handle
-    member this.``c-named-tag-handle`` = (RGP "!") + OOM(this.``ns-word-char``) + (RGP "!") 
+    member this.``c-named-tag-handle`` = RGP ("!", [Token.``t-quotationmark``]) + OOM(this.``ns-word-char``) + RGP ("!", [Token.``t-quotationmark``]) 
 
     //  [93]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-prefix
     member this.``ns-tag-prefix`` = this.``c-ns-local-tag-prefix`` ||| this.``ns-global-tag-prefix``
 
     //  [94]    http://www.yaml.org/spec/1.2/spec.html#c-ns-local-tag-prefix
-    member this.``c-ns-local-tag-prefix`` = (RGP "!") + ZOM(this.``ns-uri-char``)
+    member this.``c-ns-local-tag-prefix`` = RGP ("!", [Token.``t-quotationmark``]) + ZOM(this.``ns-uri-char``)
 
     //  [95]    http://www.yaml.org/spec/1.2/spec.html#ns-global-tag-prefix
     member this.``ns-global-tag-prefix`` = this.``ns-tag-char`` + ZOM(this.``ns-uri-char``)
@@ -1032,7 +1034,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "c-ns-properties" ps
         
         let anchor pst =
-            pst |> ParseState.``Match and Advance`` (RGP "&") (fun psr ->
+            pst |> ParseState.``Match and Advance`` (RGP ("&", [Token.``t-ampersand``])) (fun psr ->
                 let illAnchor = OOM(this.``ns-char``)
                 match psr with
                 |   Regex3(this.``ns-anchor-name``) (mt,prs) -> Value(prs, mt.FullMatch)
@@ -1042,9 +1044,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> FallibleOption.map(fun (p,a) -> p,(a,pst.Location))
 
         let tag pst =
-            let verbatim = (RGP "!<") + GRP(OOM(this.``ns-uri-char``)) + (RGP ">")
-            let illVerbatim = (RGP "!<") + OOM(this.``ns-uri-char``)
-            let illVerbatimNoLocaltag = (RGP "!<!>")
+            let lsvt = RGP ("!", [Token.``t-quotationmark``]) + RGP ("<", [Token.``c-printable``])
+            let rsvt = RGP (">", [Token.``t-gt``])
+            let verbatim = lsvt + GRP(OOM(this.``ns-uri-char``)) + rsvt
+            let illVerbatim = lsvt + OOM(this.``ns-uri-char``)
+            let illVerbatimNoLocaltag = lsvt + RGP ("!", [Token.``t-quotationmark``]) + rsvt
             let shorthandNamed = GRP(this.``c-named-tag-handle``) + GRP(OOM(this.``ns-tag-char``))
             let illShorthandNamed = GRP(this.``c-named-tag-handle``)
             let shorthandSecondary = this.``c-secondary-tag-handle`` + GRP(OOM(this.``ns-tag-char``))
@@ -1111,16 +1115,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-ns-tag-property`` = this.``c-verbatim-tag`` ||| this.``c-ns-shorthand-tag`` ||| this.``c-non-specific-tag``
 
     //  [98]    http://www.yaml.org/spec/1.2/spec.html#c-verbatim-tag
-    member this.``c-verbatim-tag`` = (RGP "!<") + OOM(this.``ns-uri-char``) + (RGP ">") 
+    member this.``c-verbatim-tag`` = RGP ("!", [Token.``t-quotationmark``]) + RGP ("<", [Token.``c-printable``]) + OOM(this.``ns-uri-char``) + RGP (">", [Token.``t-gt``]) 
 
     //  [99]    http://www.yaml.org/spec/1.2/spec.html#c-ns-shorthand-tag
     member this.``c-ns-shorthand-tag`` = this.``c-tag-handle`` + OOM(this.``ns-tag-char``)
 
     //  [100]   http://www.yaml.org/spec/1.2/spec.html#c-non-specific-tag
-    member this.``c-non-specific-tag`` = RGP "!"
+    member this.``c-non-specific-tag`` = RGP ("!", [Token.``t-quotationmark``])
 
     //  [101]   http://www.yaml.org/spec/1.2/spec.html#c-ns-anchor-property
-    member this.``c-ns-anchor-property`` = (RGP "&") + this.``ns-anchor-name``
+    member this.``c-ns-anchor-property`` = RGP ("&", [Token.``t-ampersand``]) + this.``ns-anchor-name``
 
     //  [102]   http://www.yaml.org/spec/1.2/spec.html#ns-anchor-char
     member this.``ns-anchor-char`` =  this.``ns-char`` - this.``c-flow-indicator``
@@ -1131,7 +1135,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [104]   http://www.yaml.org/spec/1.2/spec.html#c-ns-alias-node
     member this.``c-ns-alias-node`` ps : ParseFuncResult<_> =
         logger "c-ns-alias-node" ps
-        ps |> ParseState.``Match and Advance`` (RGP "\\*") (fun prs ->
+        ps |> ParseState.``Match and Advance`` (RGP ("\\*", [Token.``t-asterisk``])) (fun prs ->
             prs |> ParseState.``Match and Parse`` (this.``ns-anchor-name``) (fun mt prs2 ->
                 let retrievedAnchor = ps.GetAnchor mt
                 match retrievedAnchor with
@@ -1143,16 +1147,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |> this.LogReturn "c-ns-alias-node" ps
 
     //  [105]   http://www.yaml.org/spec/1.2/spec.html#e-scalar
-    member this.``e-scalar`` = RGP String.Empty     // we'll see if this works..
+    member this.``e-scalar`` = RGP (String.Empty, [])     // we'll see if this works..
 
     //  [106]   http://www.yaml.org/spec/1.2/spec.html#e-node
     member this.``e-node`` = this.``e-scalar``
 
     //  [107]   http://www.yaml.org/spec/1.2/spec.html#nb-double-char
-    member this.``nb-double-char`` = this.``c-ns-esc-char`` ||| (this.``nb-json`` - RGO("\\\\\""))
+    member this.``nb-double-char`` = this.``c-ns-esc-char`` ||| (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]))
 
     //  [108]   http://www.yaml.org/spec/1.2/spec.html#ns-double-char
-    member this.``ns-double-char`` = this.``c-ns-esc-char`` |||  (this.``nb-json`` - RGO("\\\\\"") - this.``s-white``)
+    member this.``ns-double-char`` = this.``c-ns-esc-char`` |||  (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``]) - this.``s-white``)
 
     //  [109]   http://www.yaml.org/spec/1.2/spec.html#c-double-quoted(n,c)
     member this.``c-double-quoted`` ps : ParseFuncResult<_> = 
@@ -1185,9 +1189,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
             |> this.PostProcessAndValidateNode
 
-        let patt = (RGP "\"") + GRP(this.``nb-double-text`` ps) + (RGP "\"")
-        let ``illegal-chars`` = (RGP "\"") + OOM(this.``nb-json`` ||| this.``s-double-break`` ps) + (RGP "\"")
-        let ``illegal-patt`` = (RGP "\"") + GRP(this.``nb-double-text`` ps)
+        let patt = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps) + this.``c-double-quote``
+        let ``illegal-chars`` = this.``c-double-quote`` + OOM(this.``nb-json`` ||| this.``s-double-break`` ps) + this.``c-double-quote``
+        let ``illegal-patt`` = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps)
 
         match ps with
         |   Regex3(patt)    (mt,prs) ->
@@ -1221,7 +1225,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``nb-double-one-line`` = ZOM(this.``nb-double-char``)
 
     //  [112]   http://www.yaml.org/spec/1.2/spec.html#s-double-escaped(n)
-    member this.``s-double-escaped`` (ps:ParseState) = ZOM(this.``s-white``) + (RGP "\\\\") + this.``b-non-content`` + ZOM(this.``l-empty`` (ps.SetStyleContext ``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
+    member this.``s-double-escaped`` (ps:ParseState) = ZOM(this.``s-white``) + this.``c-escape`` + this.``b-non-content`` + ZOM(this.``l-empty`` (ps.SetStyleContext ``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
 
     //  [113]   http://www.yaml.org/spec/1.2/spec.html#s-double-break(n)
     member this.``s-double-break`` ps = (this.``s-double-escaped`` ps) ||| (this.``s-flow-folded`` ps)
@@ -1238,14 +1242,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``nb-double-multi-line`` ps = this.``nb-ns-double-in-line`` + ((this.``s-double-next-line`` ps) ||| ZOM(this.``s-white``))
 
     //  [117]    http://www.yaml.org/spec/1.2/spec.html#c-quoted-quote
-    member this.``c-quoted-quote`` = RGP "\'\'"
+    member this.``c-quoted-quote`` = this.``c-single-quote`` + this.``c-single-quote``
 
     //  [118]   http://www.yaml.org/spec/1.2/spec.html#nb-single-char
-    member this.``nb-single-char`` = this.``c-quoted-quote`` ||| (this.``nb-json`` - (RGP "\'"))
+    member this.``nb-single-char`` = this.``c-quoted-quote`` ||| (this.``nb-json`` - this.``c-single-quote``)
 
     //  [119]   http://www.yaml.org/spec/1.2/spec.html#ns-single-char
     member this.``ns-single-char`` = // this.``nb-single-char`` - this.``s-white``
-        this.``c-quoted-quote`` ||| (this.``nb-json`` - (RGO "\'") - this.``s-white``)
+        this.``c-quoted-quote`` ||| (this.``nb-json`` - this.``c-single-quote`` - this.``s-white``)
 
     //  [120]   http://www.yaml.org/spec/1.2/spec.html#c-single-quoted(n,c)
     member this.``c-single-quoted`` ps : ParseFuncResult<_> = 
@@ -1267,8 +1271,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.ResolveTag prs NonSpecificQT (prs.Location)
             |> this.PostProcessAndValidateNode
 
-        let patt = (RGP "'") + GRP(this.``nb-single-text`` ps) + (RGP "'")
-        let ``illegal-patt`` = (RGP "'") + GRP(this.``nb-single-text`` ps) 
+        let patt = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) + this.``c-single-quote``
+        let ``illegal-patt`` = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) 
 
         match ps with
         |   Regex3(patt)    (mt,prs) ->
@@ -1314,7 +1318,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``nb-single-multi-line`` ps = this.``nb-ns-single-in-line`` + ((this.``s-single-next-line`` ps) ||| ZOM(this.``s-white``))
 
     //  [126]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-first(c)
-    member this.``ns-plain-first`` ps = (this.``ns-char`` - this.``c-indicator``) ||| ((RGP "\\?") ||| (RGP ":") ||| (RGP "-")) + (this.``ns-plain-safe`` ps)
+    member this.``ns-plain-first`` ps = (this.``ns-char`` - this.``c-indicator``) ||| (this.``c-mapping-key`` ||| this.``c-mapping-value`` ||| this.``c-sequence-entry``) + (this.``ns-plain-safe`` ps)
 
     //  [127]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe(c)
     member this.``ns-plain-safe`` ps =
@@ -1333,7 +1337,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-plain-safe-in`` = this.``ns-char`` - this.``c-flow-indicator``
 
     //  [130]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-char(c)
-    member this.``ns-plain-char`` ps = (this.``ns-char`` + (RGP "#")) ||| ((this.``ns-plain-safe`` ps) - (RGO ":#")) ||| ((RGP ":") + (this.``ns-plain-safe`` ps))
+    member this.``ns-plain-char`` ps = (this.``ns-char`` + this.``c-comment``) ||| ((this.``ns-plain-safe`` ps) - (RGO (":#", [Token.``t-colon``; Token.``t-hash``]))) ||| (this.``c-mapping-value`` + (this.``ns-plain-safe`` ps))
 
     //  [131]   http://www.yaml.org/spec/1.2/spec.html#ns-plain(n,c)
     member this.``ns-plain`` (ps:ParseState) =
@@ -1369,11 +1373,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
     member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-flow-sequence" ps
-        ps |> ParseState.``Match and Advance`` ((RGP "\[") + OPT(this.``s-separate`` ps)) (fun prs ->
+        ps |> ParseState.``Match and Advance`` (this.``c-sequence-start`` + OPT(this.``s-separate`` ps)) (fun prs ->
             let prs = prs.SetStyleContext(this.``in-flow`` prs)
 
             let noResult prs =
-                prs |> ParseState.``Match and Advance`` (RGP "\]") (fun psx -> 
+                prs |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> 
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psx) [] 
                     |> this.ResolveTag psx NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
@@ -1382,7 +1386,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match (this.``ns-s-flow-seq-entries`` prs) with
             |   Value (c, prs2) -> 
                 prs2 
-                |> ParseState.``Match and Advance`` (RGP "\]") (fun psx -> Value (c, psx))
+                |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> Value (c, psx))
                 |> FallibleOption.ifnoresult(fun () -> 
                     ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.CreateContinue (prs2.Location) ErrMissingMappingSymbol "Incorrect sequence syntax, are you missing a comma, or ]?"])
                 )
@@ -1408,7 +1412,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Value (entry, prs) ->
                 let lst = entry :: lst
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
-                let commaPattern = (RGP ",") + OPT(this.``s-separate`` prs)
+                let commaPattern = this.``c-collect-entry`` + OPT(this.``s-separate`` prs)
                 match prs with 
                 |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst |> ParseState.MarkParseRange prs
                 |   _ ->  
@@ -1438,16 +1442,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [140]   http://www.yaml.org/spec/1.2/spec.html#c-flow-mapping(n,c)
     member this.``c-flow-mapping`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-flow-mapping" ps
-        ps |> ParseState.``Match and Advance`` ((RGP "\\{") + OPT(this.``s-separate`` ps)) (fun prs ->
+        ps |> ParseState.``Match and Advance`` (this.``c-mapping-start`` + OPT(this.``s-separate`` ps)) (fun prs ->
             let prs = prs.SetStyleContext(this.``in-flow`` prs)
             let mres = this.``ns-s-flow-map-entries`` prs
 
-            let noResult prs = prs |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQM (prs2.Location))
+            let noResult prs = prs |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQM (prs2.Location))
 
             match (mres) with
             |   Value (c, prs2) -> 
                 prs2 
-                |> ParseState.``Match and Advance`` (RGP "\\}") (fun prs2 -> Value(c, prs2))
+                |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> Value(c, prs2))
                 |> FallibleOption.ifnoresult(fun () -> ErrorResult ((prs2.Messages.Error) @ [MessageAtLine.CreateContinue (prs2.Location) ErrMissingMappingSymbol "Incorrect mapping syntax, are you missing a comma, or }?"]))
             |   NoResult        -> prs |> noResult 
             |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(fun () -> ErrorResult e)
@@ -1472,7 +1476,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Value ((ck, cv), prs) ->
                 let lst = (ck, cv) :: lst
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
-                let commaPattern = (RGP ",") + OPT(this.``s-separate`` prs)
+                let commaPattern = this.``c-collect-entry`` + OPT(this.``s-separate`` prs)
                 match prs with
                 |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst |> ParseState.MarkParseRange prs
                 |   _ -> 
@@ -1490,7 +1494,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-flow-map-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-map-entry" ps
         let ``ns-flow-map-explicit-entry`` ps = 
-            ps |> ParseState.``Match and Advance`` (RGP "\\?" + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
+            ps |> ParseState.``Match and Advance`` (this.``c-mapping-key`` + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-map-implicit-entry``)
@@ -1555,8 +1559,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [147]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-separate-value(n,c)
     member this.``c-ns-flow-map-separate-value`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-ns-flow-map-separate-value" ps
-        ps |> ParseState.``Match and Advance`` (RGP ":") (fun prs ->
-            if IsMatch(prs.InputString, (this.``ns-plain-safe`` prs)) then NoResult
+        ps |> ParseState.``Match and Advance`` this.``c-mapping-value`` (fun prs ->
+            if IsMatch(prs.Input.Data, (this.``ns-plain-safe`` prs)) then NoResult
             else
                 prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
                 |>  function
@@ -1589,7 +1593,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [149]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-adjacent-value(n,c)
     member this.``c-ns-flow-map-adjacent-value`` (ps:ParseState) =
         logger "c-ns-flow-map-adjacent-value" ps
-        ps |> ParseState.``Match and Advance`` (RGP ":") (fun prs ->
+        ps |> ParseState.``Match and Advance`` (this.``c-mapping-value``) (fun prs ->
             let prs = prs.SkipIfMatch (OPT(this.``s-separate`` ps))
             match (this.``ns-flow-node`` prs) with
             |   Value(c, prs2) -> Value(c, prs2)
@@ -1605,7 +1609,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-flow-pair`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-pair" ps
         let ``ns-flow-map-explicit-entry`` (ps:ParseState) = 
-            ps |> ParseState.``Match and Advance`` (RGP "\\?" + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
+            ps |> ParseState.``Match and Advance`` (this.``c-mapping-key`` + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-pair-entry``)
@@ -1697,7 +1701,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-flow-yaml-content" ps
 
         //  illegal indicators, minus squote and dquote; see this.``c-indicator``
-        let ``illegal-ns-plain`` p =  (RGO  "\-\?:,\[\]\{\}#&\*!;>%@`") + this.``ns-plain-first`` p
+        let ``illegal-ns-plain`` p =  this.``c-indicator`` + this.``ns-plain-first`` p
         let ``illegl multiline`` ps = (this.``ns-plain-one-line`` ps) + OOM(this.``s-ns-plain-next-line`` ps)
         let preErr = 
             if not(ps.Restrictions.AllowedMultiLine) then 
@@ -1721,7 +1725,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         mt.FullMatch
                         |> this.``split by linefeed``
                         |> this.``filter plain multiline``
-                    let prs = prs |> ParseState.SetRestString (sprintf "%s%s" rest (prs.InputString))
+                    //let prs = prs |> ParseState.SetRestString (sprintf "%s%s" rest (prs.InputString))
                     includedLines
                     |> this.``plain flow fold lines`` prs
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
@@ -1834,23 +1838,23 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let ``indent chomp`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
             let p = GRP(this.``c-indentation-indicator``) + GRP(this.``c-chomping-indicator``) + this.``s-b-comment``
-            match ps.InputString with
+            match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (i, c) = mt.ge2
-                Value(indent  i, (ps.SetRestString mt.Rest).SetChomping (chomp c))
+                Value(indent  i, ps.SetChomping (chomp c))
             |   _ -> NoResult
 
         let ``chomp indent`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
             let p = GRP(this.``c-chomping-indicator``) + GRP(this.``c-indentation-indicator``) + this.``s-b-comment``
-            match ps.InputString with
+            match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (c, i) = mt.ge2
-                Value(indent  i, (ps.SetRestString mt.Rest).SetChomping (chomp c))
+                Value(indent  i, ps.SetChomping (chomp c))
             |   _ -> NoResult
 
         let ``illformed chomping`` ps : FallibleOption<int option * ParseState,ErrorMessage> =
             let p = GRP(OOMNG(this.``nb-char``)) + this.``s-b-comment``
-            match ps.InputString with
+            match ps.Input.Data with
             | Regex2(p)  mt -> 
                 ErrorResult [MessageAtLine.CreateTerminate (ps.Location) ErrFoldedChompIndicator (sprintf "Illegal chomp indicator '%s'" (mt.ge1))]
             |   _ -> NoResult
@@ -1869,15 +1873,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-indentation-indicator`` = OPT(this.``ns-dec-digit``)
 
     //  [164]   http://www.yaml.org/spec/1.2/spec.html#c-chomping-indicator(t)
-    member this.``c-chomping-indicator`` = OPT(RGP("\\+") ||| RGP("-"))
+    member this.``c-chomping-indicator`` = OPT(RGP("\\+", [Token.``t-plus``]) ||| this.``c-sequence-entry``)
 
     //  [165]   http://www.yaml.org/spec/1.2/spec.html#b-chomped-last(t)
     member this.``b-chomped-last`` ps =
         logger "b-chomped-last" ps
         match ps.t with
-        |   ``Strip``   -> this.``b-non-content``    ||| RGP("\\z")
-        |   ``Clip``    -> this.``b-as-line-feed``   ||| RGP("\\z")
-        |   ``Keep``    -> this.``b-as-line-feed``   ||| RGP("\\z")
+        |   ``Strip``   -> this.``b-non-content``    ||| RGP("\\z", [Token.EOF])
+        |   ``Clip``    -> this.``b-as-line-feed``   ||| RGP("\\z", [Token.EOF])
+        |   ``Keep``    -> this.``b-as-line-feed``   ||| RGP("\\z", [Token.EOF])
 
     //  [166]   http://www.yaml.org/spec/1.2/spec.html#l-chomped-empty(n,t)
     member this.``l-chomped-empty`` (ps:ParseState) =
@@ -1914,7 +1918,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match sin with
                 |   []  -> sout |> List.rev |> Value
                 |   h :: _ ->
-                    let patt = this.``l-chomped-empty`` pst + RGP("\\z")
+                    let patt = this.``l-chomped-empty`` pst + RGP("\\z", [Token.EOF])
                     if (h="") || IsMatch(h, patt) then sout |> List.rev |> Value
                     else 
                         ErrorResult [MessageAtLine.CreateTerminate (ps.Location) ErrBadFormatLiteral (sprintf "Unexpected characters '%s'" h)]                    
@@ -1938,19 +1942,19 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     if (h="") then
                         trimHead rest (unIndent h :: sout)
                     else
-                        let tooManySpaces = RGSF((this.``s-indent(n)`` pst) + OOM(RGP this.``s-space``))
+                        let tooManySpaces = RGSF((this.``s-indent(n)`` pst) + OOM(RGP (this.``s-space``, [Token.``t-space``])))
                         match h with
                         |   Regex(``l-empty``)  _ -> trimHead rest (unIndent h :: sout)
                         |   Regex(tooManySpaces) _ -> ErrorResult [MessageAtLine.CreateContinue (pst.Location) ErrTooManySpacesLiteral "A leading all-space line must not have too many spaces."]
                         |   _ -> trimMain sin sout
             trimHead slist []
 
-        ps |> ParseState.``Match and Advance`` (RGP "\\|") (fun prs ->
+        ps |> ParseState.``Match and Advance`` (RGP ("\\|", [Token.``t-pipe``])) (fun prs ->
             let ``literal-content`` (ps:ParseState) =
                 let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
                 let p = this.``l-literal-content`` ps
-                match ps.InputString  with
-                |   Regex2(p)  m -> Value(m.ge1, ps.SetRestString m.Rest)
+                match ps.Input.Data  with
+                |   Regex2(p)  m -> Value(m.ge1, ps)
                 |   _ -> NoResult
 
             (this.``c-b-block-header`` prs)
@@ -2006,11 +2010,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "c-l+folded" ps
 
         let ``block fold lines`` ps (strlst: string list) =
-            let IsTrimmable s = IsMatch(s, RGSF((this.``s-line-prefix`` ps) ||| (this.``s-indent(<n)`` ps)))
-            let IsSpacedText s = IsMatch(s, RGSF(this.``s-nb-spaced-text`` ps))
+            let IsTrimmable s = IsMatch(s, (this.``s-line-prefix`` ps) ||| (this.``s-indent(<n)`` ps))
+            let IsSpacedText s = IsMatch(s, this.``s-nb-spaced-text`` ps)
 
             let skipIndent s = 
-                if IsMatch(s, RGS(this.``s-indent(n)`` ps)) then s.Substring(ps.n)
+                if IsMatch(s, this.``s-indent(n)`` ps) then s.Substring(ps.n)
                 else raise (ParseException "Problem with indentation")
             let unIndent s = if s <> "" then skipIndent s else s
 
@@ -2048,7 +2052,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             foldEverything strlst [] false |> List.map(unIndent)
 
 
-        ps |> ParseState.``Match and Advance`` (RGP ">") (fun prs ->
+        ps |> ParseState.``Match and Advance`` (this.``c-folded``) (fun prs ->
             let ``folded-content`` (ps:ParseState) =
                 let ps = if ps.n < 1 then ps.SetIndent 1 else ps
                 let patt = this.``l-folded-content`` (ps.FullIndented)
@@ -2117,7 +2121,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l+block-sequence" ps
         let m = this.``auto detect indent in line`` ps
         if m < 1 then 
-            if ps.InputString.StartsWith("\t") then
+            if ps.Input.Peek().Token = Token.``t-quotationmark`` then
                 ErrorResult [CreateErrorMessage.TabIndentError ps]
             else
                 NoResult
@@ -2150,8 +2154,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-l-block-seq-entry`` ps =
         logger "c-l-block-seq-entry" ps
 
-        ps |> ParseState.``Match and Advance`` (RGP("-")) (fun prs ->
-            if IsMatch(prs.InputString, (this.``ns-char``)) then // Not followed by an ns-char
+        ps |> ParseState.``Match and Advance`` (RGP("-", [Token.``t-hyphen``])) (fun prs ->
+            if IsMatch(prs.Input.Data, (this.``ns-char``)) then // Not followed by an ns-char
                 NoResult
             else
                 let prs = prs.SetStyleContext ``Block-in``
@@ -2203,22 +2207,24 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> this.ResolveTag psr NonSpecificQM (psr.Location)
                     |> this.PostProcessAndValidateNode
 
-            if not(IsMatch(psp.InputString, (this.``s-indent(n)`` psp))) then
-                let sp = Match(psp.InputString, ZOM(RGP this.``s-space``))
-                let ilen = sp.[0].Length
+            if not(IsMatch(psp.Input.Data, (this.``s-indent(n)`` psp))) then
+                let ilen = 
+                    let ct = psp.Input.Data.Take()
+                    if ct.Token = Token.``t-space`` then ct.Source.Length else 0
+
                 if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
-                    let ws = if psp.InputString.Length >= (psp.n) then psp.InputString.Substring(0,psp.n) else psp.InputString
-                    let ws = ws.TrimStart([|' '|])
-                    if ws.StartsWith("\t") then
+                    let ws = psp.Input.Data.Take()
+                    if ws.Token = Token.``t-tab`` then
                         ErrorResult [CreateErrorMessage.TabIndentError psp]
                     else
+                        psp.Input.Reset()
                         contentOrNone NoResult psp
                 else
                     ErrorResult [CreateErrorMessage.IndentLevelError psp] 
             else
                 psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
                 |>  function
-                    |   Value(c, prs2)  -> ``ns-l-compact-sequence`` prs2 (c :: acc)
+                    |   Value(c, prs2)  -> ``ns-l-compact-sequence`` (prs2.Advance()) (c :: acc)
                     |   NoResult        -> contentOrNone NoResult psp
                     |   ErrorResult e   -> psp |> ParseState.AddErrorMessageList e |> contentOrNone (ErrorResult e)
         match (this.``c-l-block-seq-entry`` ps) with
@@ -2233,7 +2239,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l+block-mapping" ps
         let m = this.``auto detect indent in line`` ps
         if m < 1 then 
-            if ps.InputString.StartsWith("\t") then
+            if ps.Input.Peek().Token = Token.``t-tab`` then
                 ErrorResult [CreateErrorMessage.TabIndentError ps]
             else
                 NoResult 
@@ -2292,7 +2298,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [190]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-explicit-key(n)
     member this.``c-l-block-map-explicit-key`` ps : ParseFuncResult<_> =
         logger "c-l-block-map-explicit-key" ps
-        ps |> ParseState.``Match and Advance`` (RGP "\\?") (fun prs ->
+        ps |> ParseState.``Match and Advance`` (this.``c-mapping-key``) (fun prs ->
             this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext ``Block-out``)
         )
         |> ParseState.ResetEnv ps
@@ -2302,7 +2308,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [191]   http://www.yaml.org/spec/1.2/spec.html#l-block-map-explicit-value(n)
     member this.``l-block-map-explicit-value`` ps = 
         logger "l-block-map-explicit-value" ps
-        ps |> ParseState.``Match and Advance`` ((this.``s-indent(n)`` ps) + RGP(":")) (fun prs ->
+        ps |> ParseState.``Match and Advance`` ((this.``s-indent(n)`` ps) + this.``c-mapping-value``) (fun prs ->
             this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext ``Block-out``)
         )
         |> ParseState.ResetEnv ps
@@ -2351,7 +2357,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [194]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-implicit-value(n)
     member this.``c-l-block-map-implicit-value`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-l-block-map-implicit-value" ps
-        ps |> ParseState.``Match and Advance`` (RGP ":" ) (fun prs ->
+        ps |> ParseState.``Match and Advance`` (this.``c-mapping-value``) (fun prs ->
             let prs = prs.SetStyleContext ``Block-out``
             let noResult prs =
                 if (ParseState.HasNoTerminatingError prs) then
@@ -2507,10 +2513,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l-document-prefix`` = OPT(this.``c-byte-order-mark``) + ZOM(this.``l-comment``)
 
     //  [203]   http://www.yaml.org/spec/1.2/spec.html#c-directives-end
-    member this.``c-directives-end`` = RGP ("---", Token.``c-directives-end``)
+    member this.``c-directives-end`` = RGP ("---", [Token.``c-directives-end``])
 
     //  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
-    member this.``c-document-end`` = RGP ("\\.\\.\\.", Token.``c-document-end``)
+    member this.``c-document-end`` = RGP ("\\.\\.\\.", [Token.``c-document-end``])
 
     //  [205]   http://www.yaml.org/spec/1.2/spec.html#l-document-suffix
     member this.``l-document-suffix`` = this.``c-document-end`` + this.``s-l-comments``
@@ -2526,7 +2532,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l-bare-document" ps
         if ps.Errors = 0 then
             (* Excluding c-forbidden content *)
-            if IsMatch(ps.Input., this.``c-forbidden``) then
+            if IsMatch(ps.Input.Data, this.``c-forbidden``) then
                 NoResult
             else
                 ps 
@@ -2593,7 +2599,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let IsEndOfStream psp =
             psp.Input.Data.Stream
-            |>  Seq.takeWhile(fun (t,_) -> t = Token.``s-space`` || t = Token.``s-tab``)
+            |>  Seq.takeWhile(fun (t) -> t.Token = Token.``t-space`` || t.Token = Token.``t-tab``)
             |>  ignore
             if not psp.Input.EOF then
                 psp.Input.Reset()
