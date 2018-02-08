@@ -76,10 +76,13 @@ type MatchResult = {
 
 
 /// Returns list of match groups, for pattern p on string s
-val Match : string*'a -> string list
+val Match : string * 'a -> string list
 
 /// Returns whether pattern p matches on string s
-val IsMatch : RollingStream<TokenData>*RGXType -> bool
+val IsMatch : RollingStream<TokenData> * RGXType -> bool
+
+/// Returns whether pattern p matches on string s
+val IsMatchStr : string * 'a -> bool
 
 /// Checks for matches of pattern p in string s.
 /// If matched, returns (true, <match-string>), otherwise (false, "")

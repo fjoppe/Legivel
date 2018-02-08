@@ -1059,7 +1059,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   Regex3(verbatim) (mt, prs) -> 
                 let tag = mt.ge1
                 let lcTag = this.``c-primary-tag-handle`` + OOM(this.``ns-tag-char``)
-                if System.Uri.IsWellFormedUriString(tag, UriKind.Absolute) || IsMatch(tag, lcTag) then
+                if System.Uri.IsWellFormedUriString(tag, UriKind.Absolute) || IsMatchStr(tag, lcTag) then
                     Value(prs, Verbatim mt.ge1)
                 else
                     ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrVerbatimTagIncorrectFormat ("Verbatim tag is neither a local or global tag.")]                    
@@ -2014,7 +2014,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             let IsSpacedText s = IsMatch(s, this.``s-nb-spaced-text`` ps)
 
             let skipIndent s = 
-                if IsMatch(s, this.``s-indent(n)`` ps) then s.Substring(ps.n)
+                if IsMatchStr(s, this.``s-indent(n)`` ps) then s.Substring(ps.n)
                 else raise (ParseException "Problem with indentation")
             let unIndent s = if s <> "" then skipIndent s else s
 

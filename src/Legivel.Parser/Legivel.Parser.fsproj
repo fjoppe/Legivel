@@ -67,8 +67,6 @@
     <Compile Include="TagResolution.fs" />
     <Compile Include="YamlParser.fsi" />
     <Compile Include="YamlParser.fs" />
-    <Compile Include="YamlPath.fsi" />
-    <Compile Include="YamlPath.fs" />
     <Compile Include="Serialization.fs" />
   </ItemGroup>
   <ItemGroup>
