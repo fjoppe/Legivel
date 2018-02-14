@@ -81,18 +81,18 @@ type ParseMessage = {
 [<NoEquality; NoComparison>]
 type RollingTokenizer = private {
         Data        : RollingStream<TokenData> 
-        Position    : int
+        ContextPosition    : int
     }
     with
         member this.Position 
             with get() = this.Data.Position
             and  set v = this.Data.Position <- v
         member this.Reset() = this.Data.Position <- this.Position
-        member this.Advance() = { this with Position = this.Data.Position}
+        member this.Advance() = { this with ContextPosition = this.Data.Position}
         member this.EOF = this.Data.EOF
         member this.Peek(n) = this.Data.Peek(n)
         member this.Peek()  = this.Data.Peek()
-        static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); Position = 0}
+        static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); ContextPosition = 0}
 
 [<NoEquality; NoComparison>]
 type ParseState = {
@@ -325,7 +325,7 @@ module ParseState =
         fr
         |> FallibleOption.map(fun (node, ps:ParseState) ->(node,ProcessErrors ps))
         |> FallibleOption.map(fun (node, ps:ParseState) ->
-            let rg = RGP("---", [Token.``c-directives-end``]) ||| RGP("...", [Token.``c-document-end``])
+            let rg = RGP("---", [Token.``t-hyphen``]) ||| RGP("...", [Token.``t-dot``])
             let p = ps.Input.Position
             let rs =
                 AssesInput ps.Input.Data rg 
@@ -433,9 +433,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``auto detect indent in block`` n (slst: string list) = 
         let ``match indented content`` s = 
             let icp = GRP(OOM(RGP (this.``s-space``, [Token.``t-space``]))) + OOM(this.``ns-char``)
-            match s with
-            | Regex2(icp) mt -> Some(mt.ge1.Length - n)
-            | _-> None
+
+            let m = Regex.Match(s, RGS(icp), RegexOptions.Multiline)
+            if m.Success then 
+                let lst = [ for g in m.Groups -> g.Value ]
+                let fullMatch = lst |> List.head
+                let groups = lst |> List.tail
+                let mt =MatchResult.Create fullMatch groups
+                Some(mt.ge1.Length - n)
+            else None
+
         slst
         |> List.tryPick(``match indented content``)
         |>  function
@@ -622,8 +629,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``ns-yaml-directive``
-            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; Token.``c-directives-end``; Token.``c-document-end``; 
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
+            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; 
             Token.``ns-dec-digit``; Token.``c-escape``
             ])
 
@@ -634,8 +641,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``ns-yaml-directive``
-            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; Token.``c-directives-end``; Token.``c-document-end``; 
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
+            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; 
             Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
             ])
 
@@ -1919,7 +1926,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   []  -> sout |> List.rev |> Value
                 |   h :: _ ->
                     let patt = this.``l-chomped-empty`` pst + RGP("\\z", [Token.EOF])
-                    if (h="") || IsMatch(h, patt) then sout |> List.rev |> Value
+                    if (h="") || IsMatchStr(h, patt) then sout |> List.rev |> Value
                     else 
                         ErrorResult [MessageAtLine.CreateTerminate (ps.Location) ErrBadFormatLiteral (sprintf "Unexpected characters '%s'" h)]                    
 
@@ -2010,15 +2017,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "c-l+folded" ps
 
         let ``block fold lines`` ps (strlst: string list) =
-            let IsTrimmable s = IsMatch(s, (this.``s-line-prefix`` ps) ||| (this.``s-indent(<n)`` ps))
-            let IsSpacedText s = IsMatch(s, this.``s-nb-spaced-text`` ps)
+            let IsTrimmable s = IsMatchStr(s, (this.``s-line-prefix`` ps) ||| (this.``s-indent(<n)`` ps))
+            let IsSpacedText s = IsMatchStr(s, this.``s-nb-spaced-text`` ps)
 
             let skipIndent s = 
                 if IsMatchStr(s, this.``s-indent(n)`` ps) then s.Substring(ps.n)
                 else raise (ParseException "Problem with indentation")
             let unIndent s = if s <> "" then skipIndent s else s
 
-            let rec trimLines inLines outLines noFold =
+            let rec trimLines (inLines: string list) outLines noFold =
                 let result nf = 
                     match nf with
                     |   true    -> inLines, outLines
@@ -2032,7 +2039,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     else    // non empty
                         result (noFold || IsSpacedText h)
 
-            let rec foldEverything inLines outLines folded =
+            let rec foldEverything (inLines: string list) outLines folded =
                 match inLines with
                 |   []          -> outLines |> List.rev
                 |   h :: rest   ->
@@ -2513,10 +2520,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l-document-prefix`` = OPT(this.``c-byte-order-mark``) + ZOM(this.``l-comment``)
 
     //  [203]   http://www.yaml.org/spec/1.2/spec.html#c-directives-end
-    member this.``c-directives-end`` = RGP ("---", [Token.``c-directives-end``])
+    member this.``c-directives-end`` = this.``c-sequence-entry`` + this.``c-sequence-entry`` + this.``c-sequence-entry`` // RGP ("---", [Token.``c-directives-end``])
 
     //  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
-    member this.``c-document-end`` = RGP ("\\.\\.\\.", [Token.``c-document-end``])
+    member this.``c-document-end`` = 
+        let dot = RGP("\\.", [Token.``t-dot``])
+        //RGP ("\\.\\.\\.", [Token.``c-document-end``])
+        dot + dot + dot
 
     //  [205]   http://www.yaml.org/spec/1.2/spec.html#l-document-suffix
     member this.``l-document-suffix`` = this.``c-document-end`` + this.``s-l-comments``

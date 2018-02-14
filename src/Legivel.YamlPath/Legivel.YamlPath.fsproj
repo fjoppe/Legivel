@@ -51,6 +51,16 @@
       <Project>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\Legivel.RepresentationGraph\Legivel.RepresentationGraph.fsproj">
+      <Name>Legivel.RepresentationGraph</Name>
+      <Project>{a38ef2c1-eed1-4fd6-8b51-9625c5046dfc}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Legivel.Tokenizer\Legivel.Tokenizer.fsproj">
+      <Name>Legivel.Tokenizer</Name>
+      <Project>{9536b292-efad-4fc9-83b2-2d3c62e44860}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">14</MinimumVisualStudioVersion>

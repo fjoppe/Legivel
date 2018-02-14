@@ -169,7 +169,7 @@ let ``Test Tokenizer - Flow Sequence - numbers``() =
     |>  shouldEqual [
         Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``ns-dec-digit``; 
         Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``ns-dec-digit``; 
-        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``;
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``t-hyphen``; Token.``ns-dec-digit``
     ]
 
 [<Test>]
@@ -185,7 +185,7 @@ let ``Test Tokenizer - Yaml directives``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``t-percent`` ; Token.``ns-yaml-directive``; Token.``t-space``; Token.``ns-dec-digit``; Token.``c-printable``; Token.``ns-dec-digit``
+        Token.NewLine; Token.``t-percent`` ; Token.``ns-yaml-directive``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-dot``; Token.``ns-dec-digit``
         Token.NewLine; Token.``t-percent`` ; Token.``ns-tag-directive``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
         Token.NewLine; Token.``t-percent`` ; Token.``ns-reserved-directive``; Token.``t-space``; Token.``c-printable``;
     ]
@@ -209,15 +209,15 @@ player: Sammy Sosa
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``c-directives-end``
+        Token.NewLine; Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``
         Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-colon``; Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``
         Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
-        Token.NewLine; Token.``c-document-end``
+        Token.NewLine; Token.``t-dot``; Token.``t-dot``; Token.``t-dot``
 
-        Token.NewLine; Token.``c-directives-end``
+        Token.NewLine; Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``
         Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-colon``; Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``
         Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
-        Token.NewLine; Token.``c-document-end``
+        Token.NewLine; Token.``t-dot``; Token.``t-dot``; Token.``t-dot``
         Token.NewLine
     ]
 
@@ -230,5 +230,5 @@ let ``Test Tokenizer - Directives end - borderline case``() =
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList
     |>  List.map TokenData.token
-    |>  shouldEqual [Token.``c-printable``]
+    |>  shouldEqual [ Token.``t-hyphen``; Token.``t-hyphen``]
 

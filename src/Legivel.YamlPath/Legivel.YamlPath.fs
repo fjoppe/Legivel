@@ -4,7 +4,6 @@ open Legivel.Utilities.RegexDSL
 open Legivel.RepresentationGraph
 
 
-
 exception YamlPathException of string
 
 (*
@@ -151,7 +150,35 @@ type TagEvaluation =
             |> fun lst ->
                 if lst.Length = 0 then None
                 else (Some lst)
+
+
+type MatchResultYP = {
+        FullMatch   : string
+        Rest        : string
+        Groups      : string list
+    }
+    with
+        static member Create f r g = { FullMatch = f; Rest = r ; Groups = g }
+        member this.ge1 with get() = (this.Groups.[1])
+        member this.ge2 with get() = (this.Groups.[1], this.Groups.[2])
+        member this.ge3 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3])
+        member this.ge4 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3], this.Groups.[4])
+
+
 module YP =
+    open System.Text.RegularExpressions
+    //[<DebuggerStepThrough>]
+    let (|RegexYP|_|) (pattern:RGXType) input =
+        let m = Regex.Match(input, RGS(pattern), RegexOptions.Multiline)
+        if m.Success then 
+            let lst = [ for g in m.Groups -> g.Value ]
+            let fullMatch = lst |> List.head
+            let rest = Advance(fullMatch, input)
+            let groups = lst |> List.tail
+            Some(MatchResultYP.Create fullMatch rest groups)
+        else None
+
+
     let ``s-space`` = "\u0020"
     let ``s-tab`` = "\u0009"
     let ``start-of-line`` = RGP ("^",[])
@@ -236,14 +263,14 @@ type YamlPath = private {
                 let mapvaluescalar = RGP(@"\{#'",[]) + GRP(YamlPath.``single quote regex``)+ RGP(@"'\}\?",[])
                 let tagvalue = RGP("<",[]) + GRP(YamlPath.tagrx) + RGP(">",[])
                 match s with
-                |   Regex2(plainscalar)     mt -> Val(LiteralScalar (mt.ge1)),mt.Rest
-                |   Regex2(RGP("#",[]))        mt -> Val(AnyScalar),mt.Rest
-                |   Regex2(RGP(@"\{\}\?",[]))  mt -> Map(AllValues),mt.Rest
-                |   Regex2(RGP(@"\{\}",[]))    mt -> Map(AllKeys),mt.Rest
-                |   Regex2(mapvaluescalar)  mt -> Map(MappedValueForKey mt.ge1),mt.Rest
-                |   Regex2(mapkeyscalar)    mt -> Map(GivenKey mt.ge1),mt.Rest
-                |   Regex2(RGP(@"\[\]",[]))    mt -> Seq(SeqValues),mt.Rest
-                |   Regex2(tagvalue)        mt -> Tag(TagValue mt.ge1),mt.Rest
+                |   YP.RegexYP(plainscalar)     mt -> Val(LiteralScalar (mt.ge1)),mt.Rest
+                |   YP.RegexYP(RGP("#",[]))        mt -> Val(AnyScalar),mt.Rest
+                |   YP.RegexYP(RGP(@"\{\}\?",[]))  mt -> Map(AllValues),mt.Rest
+                |   YP.RegexYP(RGP(@"\{\}",[]))    mt -> Map(AllKeys),mt.Rest
+                |   YP.RegexYP(mapvaluescalar)  mt -> Map(MappedValueForKey mt.ge1),mt.Rest
+                |   YP.RegexYP(mapkeyscalar)    mt -> Map(GivenKey mt.ge1),mt.Rest
+                |   YP.RegexYP(RGP(@"\[\]",[]))    mt -> Seq(SeqValues),mt.Rest
+                |   YP.RegexYP(tagvalue)        mt -> Tag(TagValue mt.ge1),mt.Rest
                 | _  -> raise (YamlPathException (sprintf "Unsupported construct: %s" s))
 
             let evals = 

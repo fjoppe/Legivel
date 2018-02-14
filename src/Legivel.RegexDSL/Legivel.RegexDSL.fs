@@ -178,7 +178,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
         let rec repeatWhileTrue t acc =
             let pr = conditionalParse t tkl
             if (fst pr) then repeatWhileTrue t (snd pr @ acc)
-            else acc |> List.rev
+            else acc //|> List.rev
 
         match rgx with
         |   OneInSet ois    -> rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
@@ -209,6 +209,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
         |   Optional t          -> true, conditionalParse t tkl |> snd
         |   Group t             -> parse t tkl
     parse rg []
+    |> fun (b,t) -> b, t |> List.rev
 
 
 let TokenDataToString =

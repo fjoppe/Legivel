@@ -32,7 +32,7 @@ module ``AssesInput for Block Sequence``=
         |>  shouldEqual [
             Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
             Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
-            Token.``t-hyphen``; Token.``t-space``; Token.``c-printable``; Token.NewLine
+            Token.``t-hyphen``; Token.``t-space``; Token.``t-hyphen``; Token.``ns-dec-digit``; Token.NewLine
         ]
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF
     

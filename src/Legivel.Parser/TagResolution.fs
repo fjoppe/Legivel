@@ -628,7 +628,7 @@ module YamlExtended =
     //  http://yaml.org/type/binary.html
     let BinaryGlobalTag =
         //  This tag can only be assigned, and is never detected; bc too many collisions with plain text.
-        let base64Alphabet = RGO("A-Z", [Token.``c-printable``]) + RGO("a-z", [Token.``c-printable``]) + RGO("0-9", [Token.``ns-dec-digit``]) + RGO("+/") + RGO("=")
+        let base64Alphabet = RGO("A-Z", [Token.``c-printable``]) + RGO("a-z", [Token.``c-printable``]) + RGO("0-9", [Token.``ns-dec-digit``]) + RGO("+/", [Token.``t-plus``;Token.``t-forward-slash``]) + RGO("=",[Token.``t-equals``])
         //  from YamlParser, rules 24-33
         let ``b-line-feed`` = RGP ("\u000a", [Token.``c-printable``])
         let ``b-carriage-return`` = RGP("\u000d", [Token.``c-printable``])
@@ -636,9 +636,9 @@ module YamlExtended =
             (``b-carriage-return`` + ``b-line-feed``)   |||  //  DOS, Windows
             ``b-carriage-return``                       |||  //  MacOS upto 9.x
             ``b-line-feed``                                     //  UNIX, MacOS X
-        let ``s-space`` = RGP("\u0020",[Token.``t-space``])  // space
-        let ``s-tab`` = RGP("\u0009",[Token.``t-tab``])    // tab
-        let ``s-white`` = RGO(``s-space`` + ``s-tab``)
+        let ``s-space`` = "\u0020"  // space
+        let ``s-tab`` = "\u0009"    // tab
+        let ``s-white`` = RGO(``s-space`` + ``s-tab``, [Token.``t-space``; Token.``t-tab``])
         let controlChar = ``b-break`` ||| ``s-white``
         let allowedChars = OOM(base64Alphabet ||| controlChar)
 

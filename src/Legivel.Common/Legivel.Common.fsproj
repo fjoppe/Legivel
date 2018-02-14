@@ -4,14 +4,14 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>f1048c7d-0ad1-41e2-86ef-d8aa4bae982d</ProjectGuid>
+    <ProjectGuid>{da91f63b-7a2c-48b1-bb32-046031f8710f}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Legivel.Mapper</RootNamespace>
-    <AssemblyName>Legivel.Mapper</AssemblyName>
+    <RootNamespace>Legivel.Common</RootNamespace>
+    <AssemblyName>Legivel.Common</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
-    <Name>Legivel.Mapper</Name>
+    <Name>Legivel.Common</Name>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -41,28 +41,13 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Attributes.fs" />
-    <Compile Include="CustomizationUtils.fs" />
-    <Compile Include="Common.fs" />
-    <Compile Include="Model.fs" />
-    <Compile Include="Customization.fs" />
-    <Compile Include="YamlMapper.fsi" />
-    <Compile Include="YamlMapper.fs" />
+    <Compile Include="Legivel.ErrorsAndWarnings.fs" />
+    <Compile Include="Legivel.Common.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Legivel.Common\Legivel.Common.fsproj">
-      <Name>Legivel.Common</Name>
-      <Project>{da91f63b-7a2c-48b1-bb32-046031f8710f}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Legivel.Parser\Legivel.Parser.fsproj">
-      <Name>Legivel.Parser</Name>
-      <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Legivel.RepresentationGraph\Legivel.RepresentationGraph.fsproj">
-      <Name>Legivel.RepresentationGraph</Name>
-      <Project>{a38ef2c1-eed1-4fd6-8b51-9625c5046dfc}</Project>
+    <ProjectReference Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fsproj">
+      <Name>Legivel.SpookyHash</Name>
+      <Project>{da41ed84-2c7e-4058-b446-e93fc997a273}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

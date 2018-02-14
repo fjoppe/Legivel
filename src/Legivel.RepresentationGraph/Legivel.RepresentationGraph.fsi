@@ -92,7 +92,7 @@ and
         member SetTagFunctions : TagFunctions -> GlobalTag
 
         /// Returns true if the given Node complies to the rules o this tag 
-        member internal IsMatch : Node -> bool
+        member IsMatch : Node -> bool
 and
     /// Defines a Local Tag, its properties and functions.
     [<Sealed>]
@@ -113,19 +113,19 @@ and
     |   NonSpecific  of LocalTag
         with
             /// For dev/debugging
-            member internal ToPrettyString : unit -> string
+            member ToPrettyString : unit -> string
 
             /// Retrieves the function which converts a string to its tag-Canonical form
-            member internal CanonFn : (string -> string option)
+            member CanonFn : (string -> string option)
 
             /// Retrieves the function which determines whether two Nodes are yaml-wise equal
-            member internal AreEqual : Node -> Node -> bool
+            member AreEqual : Node -> Node -> bool
 
             /// Retrieves the function which is called after Node construction and tag resolution.
-            member internal PostProcessAndValidateNode : Node -> FallibleOption<Node, ErrorMessage>
+            member PostProcessAndValidateNode : Node -> FallibleOption<Node, ErrorMessage>
 
             /// Special case: returns handle equality if the tag is non-specific. Used in sentinel pattern.
-            member internal EqualIfNonSpecific : TagKind -> bool
+            member EqualIfNonSpecific : TagKind -> bool
 
             /// Retrieves the Uri for Global Tags and the handle for Local Tags
             member Uri : string with get
@@ -158,13 +158,13 @@ and
         member Kind : NodeKind with get
 
         /// For dev/debugging
-        member internal ToPrettyString : unit -> string
+        member ToPrettyString : unit -> string
 
         //  Retrieve the Spooky Hash of this Node, used for node-equality comparison.
-        member internal Hash : NodeHash with get
+        member Hash : NodeHash with get
 
         /// To set the tag of this Nod, ie when a non-specific tag is resolved to a specific tag
-        member internal SetTag : TagKind -> Node
+        member SetTag : TagKind -> Node
 
 
 /// Contains a warning or error message
@@ -173,7 +173,7 @@ type ParseMessageAtLine = {
         Message : string
     }
     with
-        static member internal Create : DocumentLocation -> string -> ParseMessageAtLine
+        static member Create : DocumentLocation -> string -> ParseMessageAtLine
 
 
 /// Yaml Error Result Info
@@ -188,7 +188,7 @@ type ErrorResult = {
         StopLocation : DocumentLocation
     }
     with
-        static member internal Create : ParseMessageAtLine list -> ParseMessageAtLine list -> DocumentLocation -> ErrorResult
+        static member Create : ParseMessageAtLine list -> ParseMessageAtLine list -> DocumentLocation -> ErrorResult
 
 
 /// Statistics for unrecognized tags
@@ -197,7 +197,7 @@ type Unrecognized =  {
         Collection  : int
     }
     with
-        static member internal Create : int -> int -> Unrecognized
+        static member Create : int -> int -> Unrecognized
 
 
 /// Statistics of problematic tags used in the source yaml
@@ -207,7 +207,7 @@ type TagReport = {
         Unavailable  : int
     }
     with
-        static member internal Create : Unrecognized -> int -> int -> TagReport
+        static member Create : Unrecognized -> int -> int -> TagReport
 
 /// Mapping of tag shorthands, with the TAG directive
 type TagShorthand = {
@@ -236,7 +236,7 @@ type ParsedDocumentResult = {
         Document    : Node
     }
     with
-        static member internal Create : ParseMessageAtLine list -> TagReport -> DocumentLocation ->  TagShorthand list -> Node -> ParsedDocumentResult
+        static member Create : ParseMessageAtLine list -> TagReport -> DocumentLocation ->  TagShorthand list -> Node -> ParsedDocumentResult
 
 
 /// Empty Result Info (possible candidate to discard)

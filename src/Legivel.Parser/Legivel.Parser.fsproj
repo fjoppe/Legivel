@@ -56,13 +56,7 @@
     <None Include="SpookyHash.fsi" />
     <None Include="SpookyHash.fs" />
     <None Include="Tokenizer.fs" />
-    <None Include="RegexDSL.fsi" />
-    <None Include="RegexDSL.fs" />
-    <Compile Include="ErrorsAndWarnings.fs" />
-    <Compile Include="Common.fs" />
     <Compile Include="Internals.fs" />
-    <Compile Include="RepresentationGraph.fsi" />
-    <Compile Include="RepresentationGraph.fs" />
     <Compile Include="TagResolution.fsi" />
     <Compile Include="TagResolution.fs" />
     <Compile Include="YamlParser.fsi" />
@@ -76,9 +70,19 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Legivel.Common\Legivel.Common.fsproj">
+      <Name>Legivel.Common</Name>
+      <Project>{da91f63b-7a2c-48b1-bb32-046031f8710f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fsproj">
       <Name>Legivel.RegexDSL</Name>
       <Project>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Legivel.RepresentationGraph\Legivel.RepresentationGraph.fsproj">
+      <Name>Legivel.RepresentationGraph</Name>
+      <Project>{a38ef2c1-eed1-4fd6-8b51-9625c5046dfc}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fsproj">

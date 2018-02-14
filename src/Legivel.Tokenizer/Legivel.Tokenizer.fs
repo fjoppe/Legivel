@@ -34,11 +34,13 @@ type Token =
     |   ``t-percent``         = 22
     |   ``t-commat``          = 23
     |   ``t-tilde``             = 32
+    |   ``t-forward-slash``     = 35
+    |   ``t-equals``            = 36
     |   ``ns-yaml-directive``   = 24
     |   ``ns-tag-directive``    = 25
     |   ``ns-reserved-directive`` = 26
-    |   ``c-directives-end``    = 27
-    |   ``c-document-end``      = 28
+    //|   ``c-directives-end``    = 27
+    //|   ``c-document-end``      = 28
     |   ``nb-json``             = 29
     |   ``ns-dec-digit``        = 30
     |   ``c-escape``            = 31
@@ -88,7 +90,7 @@ let tokenizer str =
     let isEscape = (fun c -> c = '\\')
     let isWhite = (fun c -> c = ' ' || c = '\t')
     let isNewLine = (fun c -> c = '\x0a' || c = '\x0d')
-    let isSymbol = (fun c -> "-+?:,.[]{}#&*!|>\'\"%@`".Contains(c.ToString()))
+    let isSymbol = (fun c -> "-+?:,.[]{}#&*!|>\'\"%@`/=".Contains(c.ToString()))
     
     //  c-printable
     let isText = (fun c ->
@@ -125,6 +127,8 @@ let tokenizer str =
         |   '%' -> Token.``t-percent``
         |   '@' -> Token.``t-commat``
         |   '`' -> Token.``t-tilde``
+        |   '/' -> Token.``t-forward-slash``
+        |   '=' -> Token.``t-equals``
         |   _ -> failwith "Unrecognized symbol"
 
     let reader() = 
@@ -186,38 +190,38 @@ let tokenProcessor str =
             enqueueTodo [t0]
             false
 
-    let ``Try to combine c-sequence-entry and text``() =
-        let tl = tokenTake 2
-        let tokens = tl |> List.map TokenData.token
-        match tokens with
-        |   [Token.``t-hyphen``; Token.``t-space``] ->
-            enqueueTodo tl
-            false
-        |   [Token.``t-hyphen``; _] -> 
-            let [c;s] = tl |> List.map TokenData.source
-            enqueueProcessed [TokenData.Create Token.``c-printable`` (sprintf "%s%s" c s)]
-            true
-        |   _ -> 
-            enqueueTodo tl
-            false
+    //let ``Try to combine c-sequence-entry and text``() =
+    //    let tl = tokenTake 2
+    //    let tokens = tl |> List.map TokenData.token
+    //    match tokens with
+    //    |   [Token.``t-hyphen``; Token.``t-space``] ->
+    //        enqueueTodo tl
+    //        false
+    //    |   [Token.``t-hyphen``; _] -> 
+    //        let [c;s] = tl |> List.map TokenData.source
+    //        enqueueProcessed [TokenData.Create Token.``c-printable`` (sprintf "%s%s" c s)]
+    //        true
+    //    |   _ -> 
+    //        enqueueTodo tl
+    //        false
 
-    let ``Try conversion to c-directives-end``() =
-        let tl = tokenTake 3
-        if tl |> List.map TokenData.token = [Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``] then
-            enqueueProcessed [TokenData.Create Token.``c-directives-end`` "---"]
-            true
-        else
-            enqueueTodo tl
-            false
+    //let ``Try conversion to c-directives-end``() =
+    //    let tl = tokenTake 3
+    //    if tl |> List.map TokenData.token = [Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``] then
+    //        enqueueProcessed [TokenData.Create Token.``c-directives-end`` "---"]
+    //        true
+    //    else
+    //        enqueueTodo tl
+    //        false
 
-    let ``Try conversion to c-document-end``() =
-        let tl = getToken()
-        if tl = TokenData.Create Token.``c-printable`` "..." then
-            enqueueProcessed [TokenData.Create Token.``c-document-end`` "..."]
-            true
-        else
-            enqueueTodo [tl]
-            false
+    //let ``Try conversion to c-document-end``() =
+    //    let tl = getToken()
+    //    if tl = TokenData.Create Token.``c-printable`` "..." then
+    //        enqueueProcessed [TokenData.Create Token.``c-document-end`` "..."]
+    //        true
+    //    else
+    //        enqueueTodo [tl]
+    //        false
 
     let ``Try conversion to l-directive``() =
         let tl = tokenTake 2
@@ -240,9 +244,9 @@ let tokenProcessor str =
                 ``Try conversion DOS/Windows break``
                 ``Try conversion to b-break``
                 ``Try conversion to l-directive``
-                ``Try conversion to c-directives-end``
-                ``Try conversion to c-document-end``
-                ``Try to combine c-sequence-entry and text``
+                //``Try conversion to c-directives-end``
+                //``Try conversion to c-document-end``
+                //``Try to combine c-sequence-entry and text``
             ]
             |>  List.fold(fun s (fn:unit->bool) -> if not(s) then fn() else true) false
             |>  function

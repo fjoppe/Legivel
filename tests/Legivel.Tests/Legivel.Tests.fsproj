@@ -52,7 +52,6 @@
     <Compile Include="Chapter6Tests.fs" />
     <Compile Include="Chapter7Tests.fs" />
     <Compile Include="Chapter8Tests.fs" />
-    <Compile Include="TestSpookyHash.fs" />
     <Compile Include="TestSchema.fs" />
     <Compile Include="TestStringScalars.fs" />
     <Compile Include="TestStuctures.fs" />
@@ -82,6 +81,11 @@
     <Content Include="nlog.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Legivel.Common\Legivel.Common.fsproj">
+      <Name>Legivel.Common</Name>
+      <Project>{da91f63b-7a2c-48b1-bb32-046031f8710f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Legivel.Mapper\Legivel.Mapper.fsproj">
       <Name>Legivel.Mapper</Name>
       <Project>{f1048c7d-0ad1-41e2-86ef-d8aa4bae982d}</Project>
@@ -90,6 +94,16 @@
     <ProjectReference Include="..\..\src\Legivel.Parser\Legivel.Parser.fsproj">
       <Name>Legivel.Parser</Name>
       <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.RepresentationGraph\Legivel.RepresentationGraph.fsproj">
+      <Name>Legivel.RepresentationGraph</Name>
+      <Project>{a38ef2c1-eed1-4fd6-8b51-9625c5046dfc}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.YamlPath\Legivel.YamlPath.fsproj">
+      <Name>Legivel.YamlPath</Name>
+      <Project>{e8e3c303-65c3-40f1-8e7f-5b43868a9e6f}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
