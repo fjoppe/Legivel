@@ -12,6 +12,113 @@ let ReadStream (ip:TokenData list) =
     let q = new Queue<TokenData>(ip)
     (fun () -> if q.Count > 0 then q.Dequeue() else EndOfStream)
 
+
+module ``Test Regex Constructs``=
+
+    [<Test>]
+    let ``Parse Plain Character - sunny day``() =
+        let testConstuct = RGP("A", [Token.``c-printable``])
+
+        let yaml = "A"
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens testConstuct
+
+        b   |>  shouldEqual true
+        tkl 
+        |>  List.map(fun td -> td.Token)
+        |>  shouldEqual [
+            Token.``c-printable``
+        ]
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF    
+
+    [<Test>]
+    let ``Parse Plain Character - rainy day``() =
+        let testConstuct = RGP("A", [Token.``c-printable``])
+
+        let yaml = "-"
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens testConstuct
+
+        b   |>  shouldEqual false
+
+
+    [<Test>]
+    let ``Parse RGO Character - sunny day``() =
+        let testConstuct = RGO("A-", [Token.``c-printable``;Token.``t-hyphen``])
+
+        let yaml = "-"
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens testConstuct
+
+        b   |>  shouldEqual true
+        tkl 
+        |>  List.map(fun td -> td.Token)
+        |>  shouldEqual [
+            Token.``t-hyphen``
+        ]
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF 
+
+
+    [<Test>]
+    let ``Parse RGO Character - rainy day``() =
+        let testConstuct = RGO("A-", [Token.``c-printable``;Token.``t-hyphen``])
+
+        let yaml = "9"
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens testConstuct
+
+        b   |>  shouldEqual false
+
+
+    [<Test>]
+    let ``Parse ZOM Character - sunny day``() =
+        let testConstuct = ZOM(RGP("A", [Token.``c-printable``]))
+
+        let yaml = "A"
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens testConstuct
+
+        b   |>  shouldEqual true
+        tkl 
+        |>  List.map(fun td -> td.Token)
+        |>  shouldEqual [
+            Token.``c-printable``
+        ]
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF 
+
+
+    [<Test>]
+    let ``Parse ZOM Character - rainy day``() =
+        let testConstuct = ZOM(RGP("A", [Token.``c-printable``]))
+
+        let yaml = "-"
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens testConstuct
+
+        b   |>  shouldEqual true
+        tkl |>  List.length |> shouldEqual 0
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-hyphen``
+
+    [<Test>]
+    let ``Parse ZOM infinite loop bug``() =
+        let testConstuct = ZOM(OPT(RGP("A", [Token.``c-printable``])))
+
+        let yaml = "-"
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens testConstuct
+
+        b   |>  shouldEqual true
+        tkl |>  List.length |> shouldEqual 0
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-hyphen``
+
+
 module ``AssesInput for Block Sequence``=
     let ``l+block-sequence`` =
         let ``b-break`` = RGP("\n", [Token.NewLine])

@@ -119,6 +119,17 @@ let ``Test RollingStream - Takek()``() =
 
 
 [<Test>]
+let ``Test RollingStream - Peek Previous``() =
+    let stream = RollingStream<_>.Create (ReadStream()) -1
+
+    stream.Stream
+    |>  Seq.take 50
+    |>  Seq.length |> shouldEqual 50
+
+    stream.PeekPrevious() |> shouldEqual (Some 49)
+
+
+[<Test>]
 let ``Test Tokenizer - Flow Sequence - simple text``() =
     let yaml = "
 - Mark McGwire
@@ -185,9 +196,9 @@ let ``Test Tokenizer - Yaml directives``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``t-percent`` ; Token.``ns-yaml-directive``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-dot``; Token.``ns-dec-digit``
-        Token.NewLine; Token.``t-percent`` ; Token.``ns-tag-directive``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
-        Token.NewLine; Token.``t-percent`` ; Token.``ns-reserved-directive``; Token.``t-space``; Token.``c-printable``;
+        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-dot``; Token.``ns-dec-digit``
+        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
+        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``t-space``; Token.``c-printable``;
     ]
 
 

@@ -40,9 +40,9 @@ type OneInSet =
         |   (false, true)   -> sprintf "[^%s]" (this.mainset)
         |   (false, false)  -> sprintf "[%s]" (this.mainset) 
     static member (-) (r1:OneInSet, r2:OneInSet) =
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token = r1.Token |> List.filter(fun tf -> r2.Token |> List.exists(fun te -> te = tf))}
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token = r1.Token (*|> List.filter(fun tf -> r2.Token |> List.exists(fun te -> te = tf))*)}
     static member (-) (r1:OneInSet, r2:Plain) =
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token = r1.Token |> List.filter(fun tf -> r2.Token |> List.exists(fun te -> te = tf))}
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token = r1.Token (*|> List.filter(fun tf -> r2.Token |> List.exists(fun te -> te = tf))*)}
     static member (+) (r1:OneInSet, r2:OneInSet) =
         {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token = r1.Token @ r2.Token |> List.distinct}
     static member (+) (_:OneInSet, _:Plain) =
@@ -175,9 +175,10 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
             | true ->  (true, t :: tkl) 
             | false -> (false, tkl)
 
-        let rec repeatWhileTrue t acc =
+        let rec repeatWhileMatching t acc =
             let pr = conditionalParse t tkl
-            if (fst pr) then repeatWhileTrue t (snd pr @ acc)
+            let nwa = (snd pr @ acc)
+            if (fst pr) && nwa.Length > acc.Length then repeatWhileMatching t nwa
             else acc //|> List.rev
 
         match rgx with
@@ -187,7 +188,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
             let rec pickFirst l =
                 match l with
                 |   h::tl -> 
-                    let rs = parse h tkl
+                    let rs = conditionalParse h tkl
                     if fst(rs) then (true, snd rs @ tkl)
                     else pickFirst tl
                 |   [] -> (false, tkl)
@@ -202,10 +203,10 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
                 |   [] -> (true, acc)
             rl |> List.rev |> pickAll []
         |   IterRange (t,_,mno) -> if mno.IsSome && mno.Value > 0 then parse (OneOrMore t) tkl else parse (ZeroOrMore t) tkl
-        |   ZeroOrMore t        -> true, repeatWhileTrue t tkl
-        |   ZeroOrMoreNonGreedy t -> true, repeatWhileTrue t tkl
-        |   OneOrMore t         ->  repeatWhileTrue t tkl |> fun l -> (l.Length>=1), l
-        |   OneOrMoreNonGreedy t -> repeatWhileTrue t tkl |> fun l -> (l.Length>=1), l
+        |   ZeroOrMore t        -> true, repeatWhileMatching t tkl
+        |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl
+        |   OneOrMore t         ->  repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
+        |   OneOrMoreNonGreedy t -> repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
         |   Optional t          -> true, conditionalParse t tkl |> snd
         |   Group t             -> parse t tkl
     parse rg []
@@ -214,8 +215,8 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
 
 let TokenDataToString =
     function
-    |   (true, tkl) -> (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString()
-    |   (false, _) -> ""
+    |   (true, tkl) -> (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString() |> Some
+    |   (false, _) -> None
 
 
 type MatchResult = {
@@ -242,12 +243,13 @@ let Match(s, p) =
 /// Returns whether pattern p matches on string s
 [<DebuggerStepThrough>]
 let IsMatch(s, p) = 
-    let mts = AssesInput s p |> TokenDataToString
-    if mts <> "" then
+    AssesInput s p 
+    |> TokenDataToString
+    |>  function
+    |   Some mts -> 
         let ml = Match(mts, p)
         ml.Length > 0
-    else
-        false
+    | None -> false
 
 [<DebuggerStepThrough>]
 let IsMatchStr(s, p) = 
@@ -256,18 +258,19 @@ let IsMatchStr(s, p) =
 
 /// Checks for matches of pattern p in string s.
 /// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
-[<DebuggerStepThrough>]
+//[<DebuggerStepThrough>]
 let HasMatches(s,p) = 
-    let mts = AssesInput s p |> TokenDataToString
-    if mts <> "" then
+    AssesInput s p 
+    |> TokenDataToString
+    |>  function
+    |   Some mts -> 
         let ml = Match(mts, p)
         if ml.Length > 0 then
             let m0 = ml.[0]
             (true, m0)
         else
             (false, "")
-    else
-        (false, "")
+    |   None -> (false, "")
 
 [<DebuggerStepThrough>]
 let (|Regex|_|) pattern input =
@@ -277,8 +280,9 @@ let (|Regex|_|) pattern input =
 
 [<DebuggerStepThrough>]
 let (|Regex2|_|) (pattern:RGXType) input =
-    let mts = AssesInput input pattern |> TokenDataToString
-    if mts <> "" then
+    AssesInput input pattern 
+    |> TokenDataToString
+    |>  Option.bind(fun mts ->
         let m = Regex.Match(mts, RGS(pattern), RegexOptions.Multiline)
         if m.Success then 
             let lst = [ for g in m.Groups -> g.Value ]
@@ -286,7 +290,7 @@ let (|Regex2|_|) (pattern:RGXType) input =
             let groups = lst |> List.tail
             Some(MatchResult.Create fullMatch groups)
         else None
-    else None
+    )
 
 let DecodeEncodedUnicodeCharacters value =
     Regex.Replace(value,

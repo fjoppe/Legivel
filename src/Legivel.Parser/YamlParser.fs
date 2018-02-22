@@ -87,7 +87,7 @@ type RollingTokenizer = private {
         member this.Position 
             with get() = this.Data.Position
             and  set v = this.Data.Position <- v
-        member this.Reset() = this.Data.Position <- this.Position
+        member this.Reset() = this.Data.Position <- this.ContextPosition
         member this.Advance() = { this with ContextPosition = this.Data.Position}
         member this.EOF = this.Data.EOF
         member this.Peek(n) = this.Data.Peek(n)
@@ -199,7 +199,7 @@ type ParseState = {
 
         member this.SetChomping tn = { this with t = tn }
 
-        member inline this.OneOf with get() = EitherBuilder(this, ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
+        member inline this.OneOf with get() = EitherBuilder(this, (fun ps -> ps.Input.Reset()) ,ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
 
         member this.AddErrorMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddError s}
         member this.AddWarningMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddWarning s}
@@ -299,8 +299,8 @@ module ParseState =
     let IncUnrecognizedCollection (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Collection = ps.TagReport.Unrecognized.Collection + 1}}
 
 
-    let inline OneOf (ps:ParseState) = EitherBuilder(ps, ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
-    let inline ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
+    let inline OneOf (ps:ParseState) = EitherBuilder(ps, (fun ps -> ps.Input.Reset()), ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
+    let ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.Input.Data, patt)) with
         |   (true, mt) -> ps |> AddCancelMessage (ps.Location) |> Advance |> TrackPosition mt |> postAdvanceFunc
         |   (false, _)    -> NoResult
@@ -375,12 +375,11 @@ type ParseFuncSignature<'a> = (ParseState -> ParseFuncResult<'a>)
 type FlowFoldPrevType = Empty | TextLine
 
 
-[<DebuggerStepThrough>]
+//[<DebuggerStepThrough>]
 let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
-    let inps =
-        AssesInput (ps.Input.Data) pattern
-        |>  TokenDataToString
-    if inps <> "" then
+    AssesInput (ps.Input.Data) pattern
+    |>  TokenDataToString
+    |>  Option.bind(fun inps -> 
         let m = Regex.Match(inps, RGSF(pattern), RegexOptions.Multiline)
         if m.Success then 
             let lst = [ for g in m.Groups -> g.Value ]
@@ -389,7 +388,7 @@ let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
             let groups = lst |> List.tail
             Some(MatchResult.Create fullMatch groups, ps |> ParseState.TrackPosition fullMatch)
         else None
-    else None
+    )
 
 
 type CreateErrorMessage() =
@@ -629,7 +628,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
             Token.``ns-tag-directive``; Token.``ns-reserved-directive``; 
             Token.``ns-dec-digit``; Token.``c-escape``
             ])
@@ -641,13 +640,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
             Token.``ns-tag-directive``; Token.``ns-reserved-directive``; 
             Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
             ])
 
     //  [3] http://www.yaml.org/spec/1.2/spec.html#c-byte-order-mark
-    member this.``c-byte-order-mark`` = RGP ("\ufeff", [])
+    member this.``c-byte-order-mark`` = RGP ("\ufeff", [Token.``byte-order-mark``])
 
     //  [4] http://www.yaml.org/spec/1.2/spec.html#c-sequence-entry
     member this.``c-sequence-entry`` = RGP ("-", [Token.``t-hyphen``])
@@ -701,7 +700,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-directive`` = "%"
 
     //  [21]    http://www.yaml.org/spec/1.2/spec.html#c-reserved
-    member this.``c-reserved`` = RGO ("\u0040\u0060", [Token.``t-commat``;Token.``t-tilde``])
+    member this.``c-reserved`` = RGO ("\u0040\u0060", [Token.``t-commat``;Token.``t-tick``])
 
     //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
     member this.``c-indicator`` = 
@@ -712,7 +711,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
         Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
         Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
-        Token.``t-percent``; Token.``t-commat``;Token.``t-tilde``
+        Token.``t-percent``; Token.``t-commat``;Token.``t-tick``
         ])
 
 
@@ -786,7 +785,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
     member this.``ns-tag-char`` = 
         (RGP (@"%", [Token.``t-percent``])) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        (RGO (@"#;/?:@&=+$_.~*\'\(\)", [])) + this.``ns-word-char``
+        (RGO (@"#;/?:@&=+$_.~*\'\(\)", [Token.``c-printable``])) + this.``ns-word-char``
 
     //  [41]    http://www.yaml.org/spec/1.2/spec.html#c-escape
     member this.``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
@@ -2680,7 +2679,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         )
         |>  function
             | Value (_, representations) -> representations |> List.rev
-            |   _ -> []
+            |   x -> []
 
 
 

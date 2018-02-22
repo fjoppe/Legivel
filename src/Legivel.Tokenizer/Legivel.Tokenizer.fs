@@ -2,6 +2,7 @@ module Legivel.Tokenizer
 
 open System.IO
 open System.Collections.Generic
+open System.Collections.Concurrent
 
 
 type Token =
@@ -33,7 +34,7 @@ type Token =
     |   ``t-double-quote``      = 21
     |   ``t-percent``         = 22
     |   ``t-commat``          = 23
-    |   ``t-tilde``             = 32
+    |   ``t-tick``             = 32
     |   ``t-forward-slash``     = 35
     |   ``t-equals``            = 36
     |   ``ns-yaml-directive``   = 24
@@ -44,6 +45,7 @@ type Token =
     |   ``nb-json``             = 29
     |   ``ns-dec-digit``        = 30
     |   ``c-escape``            = 31
+    |   ``byte-order-mark``     = 37
 
 type TokenData = {
         Token   : Token
@@ -90,7 +92,7 @@ let tokenizer str =
     let isEscape = (fun c -> c = '\\')
     let isWhite = (fun c -> c = ' ' || c = '\t')
     let isNewLine = (fun c -> c = '\x0a' || c = '\x0d')
-    let isSymbol = (fun c -> "-+?:,.[]{}#&*!|>\'\"%@`/=".Contains(c.ToString()))
+    let isSymbol = (fun c -> "-+?:,.[]{}#&*!|>\'\"%@`/=\ufeff".Contains(c.ToString()))
     
     //  c-printable
     let isText = (fun c ->
@@ -126,9 +128,10 @@ let tokenizer str =
         |   '\"' -> Token.``t-double-quote``
         |   '%' -> Token.``t-percent``
         |   '@' -> Token.``t-commat``
-        |   '`' -> Token.``t-tilde``
+        |   '`' -> Token.``t-tick``
         |   '/' -> Token.``t-forward-slash``
         |   '=' -> Token.``t-equals``
+        |   '\ufeff' -> Token.``byte-order-mark``
         |   _ -> failwith "Unrecognized symbol"
 
     let reader() = 
@@ -243,7 +246,7 @@ let tokenProcessor str =
             [
                 ``Try conversion DOS/Windows break``
                 ``Try conversion to b-break``
-                ``Try conversion to l-directive``
+                //``Try conversion to l-directive``
                 //``Try conversion to c-directives-end``
                 //``Try conversion to c-document-end``
                 //``Try to combine c-sequence-entry and text``
@@ -275,17 +278,20 @@ type RollingStream<'a when 'a : equality> = private {
         member this.Stream = 
             let rec read() = 
                 seq {
-                    if List.isEmpty this.Future then 
-                        let item = this.Current()
-                        this.Past <- item :: this.Past
-                        yield item
-                        if item <> this.StopValue then yield! read()
+                    if this.EOF then 
+                        failwith "Cannot read beyond EOF"
                     else
-                        let item = List.head this.Future
-                        this.Future <- (List.tail this.Future)
-                        this.Past <- item :: this.Past
-                        yield item
-                        if item <> this.StopValue then yield! read()
+                        if List.isEmpty this.Future then 
+                            let item = this.Current()
+                            this.Past <- item :: this.Past
+                            yield item
+                            if item <> this.StopValue then yield! read()
+                        else
+                            let item = List.head this.Future
+                            this.Future <- (List.tail this.Future)
+                            this.Past <- item :: this.Past
+                            yield item
+                            if item <> this.StopValue then yield! read()
                 }
             read()
 
@@ -323,6 +329,10 @@ type RollingStream<'a when 'a : equality> = private {
             let rs = this.Stream |> Seq.take n |> Seq.toList
             this.Position <- cp
             rs
+
+        member this.PeekPrevious() = 
+            if this.Past.Length > 0 then this.Past.Head |> Some
+            else None
 
         member this.Peek() = this.Peek(1) |> List.head
 

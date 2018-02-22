@@ -1,8 +1,10 @@
 ﻿#I __SOURCE_DIRECTORY__ 
 #I "../../packages"
 
+#r @"bin/Debug/Legivel.Common.dll"
+#r @"bin/Debug/Legivel.RepresentationGraph.dll"
 #r @"bin/Debug/Legivel.Parser.dll"
-#r @"NLog/lib/net45/NLog.dll"
+#r @"test/NLog/lib/net45/NLog.dll"
 open System
 open System.Globalization
 open Legivel.Parser
@@ -31,7 +33,7 @@ let TotLns (ps:DocumentLocation) = printfn "Total lines: %d" ps.Line
 let PrintNode crr =
     match crr with
     |   NoRepresentation rr ->
-        printfn "Cannot parse: \"%s\"" rr.RestString
+        //printfn "Cannot parse: \"%s\"" rr.RestString
         rr.StopLocation |>  TotLns
         rr.Error |> ErrMsg
         rr.Warn |> WarnMsg
@@ -69,11 +71,17 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-YamlParse "2014-09-12"
+
+
+
+YamlParse "Value"
+
+
 
 DateTime.Parse("2014-09-12T00:00:00.0000000Z").ToUniversalTime()
 DateTime(2014, 09, 12, 0, 0, 0)
 
+YamlParse "2014-09-12"
 
 YamlParse "
 ---

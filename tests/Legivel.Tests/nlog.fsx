@@ -3,7 +3,7 @@
 #I __SOURCE_DIRECTORY__
 #I ".." 
 #I "../../packages" 
-#r @"NLog/lib/net45/NLog.dll"
+#r @"test/NLog/lib/net45/NLog.dll"
 
 open NLog
 open System.IO

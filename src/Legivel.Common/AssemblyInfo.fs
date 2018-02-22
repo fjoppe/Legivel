@@ -3,7 +3,7 @@ namespace System
 open System.Reflection
 open System.Runtime.CompilerServices
 
-[<assembly: AssemblyTitleAttribute("Legivel.Tokenizer")>]
+[<assembly: AssemblyTitleAttribute("Legivel.Common")>]
 [<assembly: AssemblyProductAttribute("Legivel")>]
 [<assembly: AssemblyDescriptionAttribute("F# Yaml deserializer")>]
 [<assembly: AssemblyVersionAttribute("0.1.1")>]
@@ -14,7 +14,7 @@ open System.Runtime.CompilerServices
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] AssemblyTitle = "Legivel.Tokenizer"
+    let [<Literal>] AssemblyTitle = "Legivel.Common"
     let [<Literal>] AssemblyProduct = "Legivel"
     let [<Literal>] AssemblyDescription = "F# Yaml deserializer"
     let [<Literal>] AssemblyVersion = "0.1.1"

@@ -46,6 +46,11 @@
     <Compile Include="Legivel.YamlPath.fs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Legivel.Common\Legivel.Common.fsproj">
+      <Name>Legivel.Common</Name>
+      <Project>{da91f63b-7a2c-48b1-bb32-046031f8710f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fsproj">
       <Name>Legivel.RegexDSL</Name>
       <Project>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</Project>

@@ -60,7 +60,7 @@ val Advance : string * string -> string
 val AssesInput : RollingStream<TokenData> -> RGXType -> bool * TokenData list
 
 /// Matched tokens to matched string
-val TokenDataToString : bool * TokenData list -> string
+val TokenDataToString : bool * TokenData list -> string option
 
 /// MatchResult of a regex match
 type MatchResult = {
