@@ -77,13 +77,26 @@ let YamlParseList s =
 YamlParse "Value"
 
 
+YamlParse "
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey"
+
+YamlParse "
+--- >
+  Mark McGwire's
+  year was crippled
+  by a knee injury."
+
+
+
 
 DateTime.Parse("2014-09-12T00:00:00.0000000Z").ToUniversalTime()
 DateTime(2014, 09, 12, 0, 0, 0)
 
 YamlParse "2014-09-12"
 
-YamlParse "
+YamlParseList "
 ---
 time: 20:03:20
 player: Sammy Sosa

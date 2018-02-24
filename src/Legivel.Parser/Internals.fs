@@ -5,8 +5,8 @@ open System.Diagnostics
 
 
 module internal ParserMonads =
-    [<DebuggerStepThrough>]
-    type EitherBuilder<'a,'b,'c,'d>(context : 'c, resetNoRes:'c->unit, addErr:'c->'b->'c, contAfterErr: 'c-> bool) =
+    //[<DebuggerStepThrough>]
+    type EitherBuilder<'a,'b,'c,'d>(context : 'c, resetNoRes:'c->unit, advance:'c->'c, addErr:'c->'b->'c, contAfterErr: 'c-> bool) =
         member this.Yield (_ : 'd) : 'c * FallibleOption<'a,'b> = (context, NoResult)
 
         [<CustomOperation("setcontext")>]
@@ -26,17 +26,26 @@ module internal ParserMonads =
         member this.IfNeither (((ct:'c), pv), nw) = 
             match pv with
             |   NoResult      -> resetNoRes ct; if contAfterErr ct then (ct,nw) else (ct,NoResult)
-            |   Value v       -> (ct, Value v)
+            |   Value v       -> (advance ct, Value v)
             |   ErrorResult e -> 
                 resetNoRes ct;
                 let ctn = addErr ct e            
                 if contAfterErr ctn then (ctn,nw) else (ctn,NoResult)
 
+        [<CustomOperation("ifneitherfn")>]
+        member this.IfNeitherFn (((ct:'c), pv), nw) = 
+            match pv with
+            |   NoResult      -> resetNoRes ct; if contAfterErr ct then (ct,nw()) else (ct,NoResult)
+            |   Value v       -> (advance ct, Value v)
+            |   ErrorResult e -> 
+                resetNoRes ct;
+                let ctn = addErr ct e            
+                if contAfterErr ctn then (ctn,nw()) else (ctn,NoResult)
 
 
 module internal Option =
     let ifnone f v=
         match v with
-        |   None-> f
+        |   None-> f()
         |   Some x   -> Some x
         

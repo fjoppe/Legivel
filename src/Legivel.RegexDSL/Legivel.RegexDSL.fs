@@ -31,6 +31,14 @@ type OneInSet =
         subtractset : string
         Token     : Token list
     }
+    static member subtractable = [
+            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
+            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
+            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
+            Token.``c-escape``; 
+            ]
+
     override this.ToString() =
         let subtract = this.subtractset <> ""
         match (subtract, this.not) with 
@@ -40,9 +48,11 @@ type OneInSet =
         |   (false, true)   -> sprintf "[^%s]" (this.mainset)
         |   (false, false)  -> sprintf "[%s]" (this.mainset) 
     static member (-) (r1:OneInSet, r2:OneInSet) =
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token = r1.Token (*|> List.filter(fun tf -> r2.Token |> List.exists(fun te -> te = tf))*)}
+        let subtr = r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s))
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token = r1.Token |> List.filter(fun tf -> subtr |> List.exists(fun te -> te = tf) |> not)}
     static member (-) (r1:OneInSet, r2:Plain) =
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token = r1.Token (*|> List.filter(fun tf -> r2.Token |> List.exists(fun te -> te = tf))*)}
+        let subtr = r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s))
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token = r1.Token |> List.filter(fun tf -> subtr |> List.exists(fun te -> te = tf) |> not)}
     static member (+) (r1:OneInSet, r2:OneInSet) =
         {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token = r1.Token @ r2.Token |> List.distinct}
     static member (+) (_:OneInSet, _:Plain) =
@@ -183,7 +193,24 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
 
         match rgx with
         |   OneInSet ois    -> rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
-        |   Plain pl        -> rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.Token  |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+        |   Plain pl        -> 
+            match (pl.``fixed``, pl.Token) with
+            |   ("^",[Token.NoToken]) ->
+                let pk = rs.PeekPrevious()
+                (pk = None || pk.Value.Token = Token.NewLine), []
+            |   (_, [Token.EOF]) ->
+                let isEof = rs.Peek().Token = Token.EOF
+                (isEof, [])
+            | _ ->
+                if pl.``fixed``.Length > 1 then
+                    let concat = 
+                        pl.``fixed``.ToCharArray()
+                        |>  List.ofArray
+                        |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
+                        |>  List.rev
+                    parse (Concat concat) tkl
+                else
+                    rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.Token  |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
         |   Or rl           -> 
             let rec pickFirst l =
                 match l with
@@ -202,7 +229,19 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
                     else (false, tkl)
                 |   [] -> (true, acc)
             rl |> List.rev |> pickAll []
-        |   IterRange (t,_,mno) -> if mno.IsSome && mno.Value > 0 then parse (OneOrMore t) tkl else parse (ZeroOrMore t) tkl
+        |   IterRange (irx,mxo,mno) -> 
+            let dec a = if a>=0 then (a-1) else a
+            let rec repeatRange min max rx acc =
+                if max>0 then
+                    let pr = conditionalParse rx tkl
+                    let nwacc = (snd pr @ acc)
+                    if (fst pr) && nwacc.Length > acc.Length && max>0 then repeatRange (dec min) (dec max) rx nwacc
+                    else (min<0),acc
+                else
+                    true, acc
+            match mno with
+            |   Some minVal -> repeatRange minVal mxo irx []
+            |   None        -> repeatRange mxo mxo irx []
         |   ZeroOrMore t        -> true, repeatWhileMatching t tkl
         |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl
         |   OneOrMore t         ->  repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
@@ -251,7 +290,7 @@ let IsMatch(s, p) =
         ml.Length > 0
     | None -> false
 
-[<DebuggerStepThrough>]
+//[<DebuggerStepThrough>]
 let IsMatchStr(s, p) = 
     let ml = Match(s, p)
     ml.Length > 0

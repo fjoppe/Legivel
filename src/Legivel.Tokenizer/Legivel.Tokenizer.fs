@@ -38,10 +38,6 @@ type Token =
     |   ``t-forward-slash``     = 35
     |   ``t-equals``            = 36
     |   ``ns-yaml-directive``   = 24
-    |   ``ns-tag-directive``    = 25
-    |   ``ns-reserved-directive`` = 26
-    //|   ``c-directives-end``    = 27
-    //|   ``c-document-end``      = 28
     |   ``nb-json``             = 29
     |   ``ns-dec-digit``        = 30
     |   ``c-escape``            = 31
@@ -76,15 +72,16 @@ let tokenizer str =
                 cnt
 
     let rec charRead cnd acc =
-        let chri = strm.Peek()
-        if chri < 0 then new string(acc |> List.rev |> Array.ofList)
-        else
-            let chr = char(chri)
-            if cnd(chr) then
-                strm.Read() |> ignore
-                charRead cnd (chr :: acc)
-            else
-                new string(acc |> List.rev |> Array.ofList)
+        new string(acc |> List.rev |> Array.ofList)
+        //let chri = strm.Peek()
+        //if chri < 0 then new string(acc |> List.rev |> Array.ofList)
+        //else
+        //    let chr = char(chri)
+        //    if cnd(chr) then
+        //        strm.Read() |> ignore
+        //        charRead cnd (chr :: acc)
+        //    else
+        //        new string(acc |> List.rev |> Array.ofList)
     
     let isSpace = (fun c -> c = ' ')
     let isTab = (fun c -> c = '\t')
@@ -226,19 +223,19 @@ let tokenProcessor str =
     //        enqueueTodo [tl]
     //        false
 
-    let ``Try conversion to l-directive``() =
-        let tl = tokenTake 2
-        if tl |> List.map TokenData.token = [Token.``t-percent`` ;Token.``c-printable``] then
-            let [t0;t1] = tl 
-            let s = t1 |> TokenData.source
-            match s with
-            |   "YAML"  ->  enqueueProcessed [t0; TokenData.Create Token.``ns-yaml-directive`` s]
-            |   "TAG"   ->  enqueueProcessed [t0; TokenData.Create Token.``ns-tag-directive`` s]
-            |   _       ->  enqueueProcessed [t0; TokenData.Create Token.``ns-reserved-directive`` s]
-            true
-        else
-            enqueueTodo tl
-            false
+    //let ``Try conversion to l-directive``() =
+    //    let tl = tokenTake 2
+    //    if tl |> List.map TokenData.token = [Token.``t-percent`` ;Token.``c-printable``] then
+    //        let [t0;t1] = tl 
+    //        let s = t1 |> TokenData.source
+    //        match s with
+    //        |   "YAML"  ->  enqueueProcessed [t0; TokenData.Create Token.``ns-yaml-directive`` s]
+    //        |   "TAG"   ->  enqueueProcessed [t0; TokenData.Create Token.``ns-tag-directive`` s]
+    //        |   _       ->  enqueueProcessed [t0; TokenData.Create Token.``ns-reserved-directive`` s]
+    //        true
+    //    else
+    //        enqueueTodo tl
+    //        false
 
     let rec aggregator() = 
         if processed.Count > 0 then processed.Dequeue()

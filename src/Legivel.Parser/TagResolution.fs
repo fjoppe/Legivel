@@ -97,15 +97,15 @@ module SchemaUtils =
             |   MapNode _ -> 
                 mappingTags
                 |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-                |> Option.ifnone(Some fsMap)
+                |> Option.ifnone(fun() -> Some fsMap)
             |   SeqNode _ -> 
                 seqTags
                 |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-                |> Option.ifnone(Some fsSeq)
+                |> Option.ifnone(fun() -> Some fsSeq)
             |   ScalarNode _ -> 
                 scalarTags
                 |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-                |> Option.ifnone(Some fsScal)
+                |> Option.ifnone(fun() -> Some fsScal)
         |   _ -> failwith (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag)
 
 

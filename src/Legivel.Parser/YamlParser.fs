@@ -8,6 +8,7 @@ open Legivel.Internals.ParserMonads
 open Legivel.TagResolution
 open Legivel.Utilities.RegexDSL
 open Legivel.RepresentationGraph
+open Legivel.Internals
 open ErrorsAndWarnings
 open System.Diagnostics
 open System.IO
@@ -181,7 +182,7 @@ type ParseState = {
             |> List.fold(fun (s:ParseState) i -> s.AddCancelMessage (i.Location)) this
 
 
-        [<DebuggerStepThrough>]
+        //[<DebuggerStepThrough>]
         member this.SkipIfMatch p = 
             match (HasMatches(this.Input.Data, p)) with
             |   (true, mt)  -> 
@@ -199,7 +200,7 @@ type ParseState = {
 
         member this.SetChomping tn = { this with t = tn }
 
-        member inline this.OneOf with get() = EitherBuilder(this, (fun ps -> ps.Input.Reset()) ,ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
+        member inline this.OneOf with get() = EitherBuilder(this, (fun ps -> ps.Input.Reset()), (fun ps -> ps.Advance()), ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
 
         member this.AddErrorMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddError s}
         member this.AddWarningMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddWarning s}
@@ -299,17 +300,17 @@ module ParseState =
     let IncUnrecognizedCollection (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Collection = ps.TagReport.Unrecognized.Collection + 1}}
 
 
-    let inline OneOf (ps:ParseState) = EitherBuilder(ps, (fun ps -> ps.Input.Reset()), ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
+    let inline OneOf (ps:ParseState) = EitherBuilder(ps, (fun ps -> ps.Input.Reset()), (fun ps -> ps.Advance()), ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
     let ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.Input.Data, patt)) with
         |   (true, mt) -> ps |> AddCancelMessage (ps.Location) |> Advance |> TrackPosition mt |> postAdvanceFunc
-        |   (false, _)    -> NoResult
+        |   (false, _)    -> ps.Input.Reset(); NoResult
 
 
     let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
         match (HasMatches(ps.Input.Data, patt)) with
         |   (true, mt) -> ps |> Advance |> TrackPosition mt |> parseFunc mt
-        |   (false, _)    -> NoResult
+        |   (false, _)    -> ps.Input.Reset(); NoResult
 
 
     let ProcessErrors (ps:ParseState) =
@@ -389,6 +390,7 @@ let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
             Some(MatchResult.Create fullMatch groups, ps |> ParseState.TrackPosition fullMatch)
         else None
     )
+    |>  Option.ifnone(fun()->ps.Input.Reset();None)
 
 
 type CreateErrorMessage() =
@@ -402,15 +404,15 @@ type Yaml12Parser(loggingFunction:string->unit) =
     let logger s ps =
         //let str = if ps.InputString.Length > 10 then ps.InputString.Substring(0, 10) else ps.InputString
         //sprintf "%s\t\"%s\" l:%d i:%d c:%A &a:%d e:%d w:%d" s (str.Replace("\n","\\n")) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction
-        sprintf "%s\t l:%d i:%d c:%A &a:%d e:%d w:%d" s (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction
+        sprintf "%s\t l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
 
     new() = Yaml12Parser(fun _ -> ())
 
     member private this.LogReturn str ps pso = 
         match pso with
-        |   Value (any,prs) -> sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) |> loggingFunction; Value (any,prs)
-        |   NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction; NoResult
-        |   ErrorResult e -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d" str (e |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Errors) (ps.Messages.Warn.Length) |> loggingFunction; ErrorResult e
+        |   Value (any,prs) -> sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; Value (any,prs)
+        |   NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; NoResult
+        |   ErrorResult e -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d sp:%d" str (e |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Errors) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; ErrorResult e
 
 
     //  Utility functions
@@ -454,7 +456,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let tkl = AssesInput (ps.Input.Data) icp
         ps.Input.Position <- p
         match tkl with
-        |   (true, tl) -> tl.Head.Source.Length - ps.n
+        |   (true, tl) -> 
+            let th = tl.Head
+            if th.Token = Token.``t-space`` then
+                th.Source.Length - ps.n
+            else
+                0 - ps.n
         |   (false, _) -> -1
 
 
@@ -629,7 +636,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
             Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
-            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; 
             Token.``ns-dec-digit``; Token.``c-escape``
             ])
 
@@ -641,7 +647,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
             Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
-            Token.``ns-tag-directive``; Token.``ns-reserved-directive``; 
             Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
             ])
 
@@ -1012,7 +1017,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     //  [88]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-directive
     member this.``ns-tag-directive`` = 
-        RGP ("TAG", [Token.``ns-tag-directive``]) + this.``s-separate-in-line`` + GRP(this.``c-tag-handle``) + this.``s-separate-in-line`` + GRP(this.``ns-tag-prefix``)
+        RGP ("TAG", [Token.``c-printable``]) + this.``s-separate-in-line`` + GRP(this.``c-tag-handle``) + this.``s-separate-in-line`` + GRP(this.``ns-tag-prefix``)
 
     //  [89]    http://www.yaml.org/spec/1.2/spec.html#c-tag-handle
     member this.``c-tag-handle`` = this.``c-named-tag-handle`` ||| this.``c-secondary-tag-handle`` ||| this.``c-primary-tag-handle``
@@ -1847,7 +1852,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (i, c) = mt.ge2
-                Value(indent  i, ps.SetChomping (chomp c))
+                Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance)
             |   _ -> NoResult
 
         let ``chomp indent`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
@@ -1855,7 +1860,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (c, i) = mt.ge2
-                Value(indent  i, ps.SetChomping (chomp c))
+                Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance)
             |   _ -> NoResult
 
         let ``illformed chomping`` ps : FallibleOption<int option * ParseState,ErrorMessage> =
@@ -2076,6 +2081,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         let split = ms |> this.``split by linefeed`` 
                         let aut = split |> this.``auto detect indent in block`` prs2.n
                         if aut < 0 then failwith "Autodetected indentation is less than zero"
+                        prs2.Input.Reset()
                         Value aut
                     |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '>'"]
                 |> FallibleOption.bind(fun m ->
@@ -2164,6 +2170,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             if IsMatch(prs.Input.Data, (this.``ns-char``)) then // Not followed by an ns-char
                 NoResult
             else
+                prs.Input.Reset()
                 let prs = prs.SetStyleContext ``Block-in``
                 this.``s-l+block-indented`` prs
         )
@@ -2193,7 +2200,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         (ps |> ParseState.OneOf) {
             either (``indented compact``)
             either (this.``s-l+block-node``)
-            ifneither (
+            ifneitherfn (fun() ->
                 let prs2 = ps.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
                 Value(this.ResolvedNullNode prs2, prs2))
         }
@@ -2544,6 +2551,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             if IsMatch(ps.Input.Data, this.``c-forbidden``) then
                 NoResult
             else
+                ps.Input.Reset()
                 ps 
                 |> ParseState.SetIndent -1
                 |> ParseState.SetStyleContext ``Block-in``
@@ -2561,7 +2569,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 (prs |> ParseState.OneOf)
                     {
                         either(this.``l-bare-document``)
-                        ifneither (
+                        ifneitherfn (fun () ->
                             let prs2 = prs.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
                             this.ResolveTag prs2 NonSpecificQM (prs2.Location) (PlainEmptyNode (getParseInfo ps prs) )
                         )
@@ -2607,10 +2615,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
+            let isEof() = psp.Input.EOF || psp.Input.Peek().Token = Token.EOF
             psp.Input.Data.Stream
-            |>  Seq.takeWhile(fun (t) -> t.Token = Token.``t-space`` || t.Token = Token.``t-tab``)
+            |>  Seq.takeWhile(fun (t) ->  [Token.``t-space`` ;Token.``t-tab`` ;Token.EOF] |> List.exists(fun te -> t.Token = te))
             |>  ignore
-            if not psp.Input.EOF then
+            if not(isEof()) then
                 psp.Input.Reset()
                 false
             else

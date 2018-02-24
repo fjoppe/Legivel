@@ -142,9 +142,9 @@ let ``Test Tokenizer - Flow Sequence - simple text``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``;  
-        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; 
-        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; 
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``;Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``;   
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``;  Token.``t-space``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; 
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; 
     ]
 
 [<Test>]
@@ -158,9 +158,9 @@ let ``Test Tokenizer - Block Sequence - simple text``() =
     |>  List.map TokenData.token
     |>  shouldEqual [
         Token.``t-square-bracket-start``; 
-        Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``t-comma``; 
-        Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``t-comma``; 
-        Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; 
+        Token.``t-space``; Token.``c-printable``; Token.``c-printable``;Token.``c-printable``;Token.``c-printable``; Token.``t-space``; Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``; Token.``t-comma``; 
+        Token.``t-space``; Token.``c-printable``; Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``t-space``; Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``; Token.``t-comma``; 
+        Token.``t-space``; Token.``c-printable``; Token.``c-printable``;Token.``c-printable``;Token.``t-space``; Token.``c-printable``; Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;Token.``c-printable``;
         Token.``t-space``;  Token.``t-square-bracket-end``; 
     ]
 
@@ -179,7 +179,7 @@ let ``Test Tokenizer - Flow Sequence - numbers``() =
     |>  List.map TokenData.token
     |>  shouldEqual [
         Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``ns-dec-digit``; 
-        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``ns-dec-digit``; 
+        Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``ns-dec-digit``; Token.``ns-dec-digit``; 
         Token.NewLine; Token.``t-hyphen`` ; Token.``t-space``; Token.``t-hyphen``; Token.``ns-dec-digit``
     ]
 
@@ -196,9 +196,9 @@ let ``Test Tokenizer - Yaml directives``() =
     |>  Seq.toList
     |>  List.map TokenData.token
     |>  shouldEqual [
-        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-dot``; Token.``ns-dec-digit``
-        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
-        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``t-space``; Token.``c-printable``;
+        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-dot``; Token.``ns-dec-digit``
+        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``;Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; 
+        Token.NewLine; Token.``t-percent`` ; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``;Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; Token.``c-printable``; 
     ]
 
 
@@ -221,13 +221,13 @@ player: Sammy Sosa
     |>  List.map TokenData.token
     |>  shouldEqual [
         Token.NewLine; Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``
-        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-colon``; Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``
-        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
+        Token.NewLine; Token.``c-printable`` ; Token.``c-printable``;Token.``c-printable``;Token.``c-printable``; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``ns-dec-digit``;Token.``t-colon``; Token.``ns-dec-digit``;Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``;Token.``ns-dec-digit``
+        Token.NewLine; Token.``c-printable`` ;  Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``t-space``; Token.``c-printable``; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` 
         Token.NewLine; Token.``t-dot``; Token.``t-dot``; Token.``t-dot``
 
         Token.NewLine; Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``
-        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``t-colon``; Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``
-        Token.NewLine; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``t-space``; Token.``c-printable``
+        Token.NewLine; Token.``c-printable`` ; Token.``c-printable``;Token.``c-printable``;Token.``c-printable``; Token.``t-colon``; Token.``t-space``; Token.``ns-dec-digit``; Token.``ns-dec-digit``;Token.``t-colon``; Token.``ns-dec-digit``;Token.``ns-dec-digit``; Token.``t-colon``;Token.``ns-dec-digit``;Token.``ns-dec-digit``
+        Token.NewLine; Token.``c-printable`` ;  Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``t-colon``; Token.``t-space``; Token.``c-printable``; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` ; Token.``t-space``; Token.``c-printable``; Token.``c-printable`` ; Token.``c-printable`` ; Token.``c-printable`` 
         Token.NewLine; Token.``t-dot``; Token.``t-dot``; Token.``t-dot``
         Token.NewLine
     ]
