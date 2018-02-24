@@ -5,7 +5,7 @@ open System.Diagnostics
 
 
 module internal ParserMonads =
-    //[<DebuggerStepThrough>]
+    [<DebuggerStepThrough>]
     type EitherBuilder<'a,'b,'c,'d>(context : 'c, resetNoRes:'c->unit, advance:'c->'c, addErr:'c->'b->'c, contAfterErr: 'c-> bool) =
         member this.Yield (_ : 'd) : 'c * FallibleOption<'a,'b> = (context, NoResult)
 

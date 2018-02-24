@@ -83,10 +83,11 @@ YamlParse "
 - Ken Griffey"
 
 YamlParse "
---- >
-  Mark McGwire's
-  year was crippled
-  by a knee injury."
+%TAG !yaml! tag:yaml.org,2002:
+---
+!yaml!str \"foo\"
+"
+
 
 
 

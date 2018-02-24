@@ -635,7 +635,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
             Token.``ns-dec-digit``; Token.``c-escape``
             ])
 
@@ -646,7 +646,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
             Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
             Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``; Token.``ns-yaml-directive``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
             Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
             ])
 
@@ -785,12 +785,22 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [39]    http://www.yaml.org/spec/1.2/spec.html#ns-uri-char
     member this.``ns-uri-char`` = 
         RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        RGO (@"#;/?:@&=+$,_.!~*\'\(\)\[\]", [Token.``c-printable``]) + this.``ns-word-char``
+        RGO (@"#;/?:@&=+$,_.!~*\'\(\)\[\]", [
+            Token.``t-hash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
+            Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
+            Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
+            Token.``c-printable``
+        ]) + this.``ns-word-char``
 
     //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
     member this.``ns-tag-char`` = 
         (RGP (@"%", [Token.``t-percent``])) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        (RGO (@"#;/?:@&=+$_.~*\'\(\)", [Token.``c-printable``])) + this.``ns-word-char``
+        (RGO (@"#;/?:@&=+$_.~*\'\(\)", [
+            Token.``t-hash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
+            Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
+            Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
+            Token.``c-printable``;
+        ])) + this.``ns-word-char``
 
     //  [41]    http://www.yaml.org/spec/1.2/spec.html#c-escape
     member this.``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
@@ -1010,7 +1020,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-directive-parameter`` = OOM(this.``ns-char``)
 
     //  [86]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-directive
-    member this.``ns-yaml-directive`` = RGP("YAML", [Token.``ns-yaml-directive``]) + this.``s-separate-in-line`` + GRP(this.``ns-yaml-version``)
+    member this.``ns-yaml-directive`` = RGP("YAML", [Token.``c-printable``]) + this.``s-separate-in-line`` + GRP(this.``ns-yaml-version``)
 
     //  [87]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-version
     member this.``ns-yaml-version`` = OOM(this.``ns-dec-digit``) + RGP("\\.", [Token.``c-printable``]) + OOM(this.``ns-dec-digit``)
@@ -2021,8 +2031,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "c-l+folded" ps
 
         let ``block fold lines`` ps (strlst: string list) =
-            let IsTrimmable s = IsMatchStr(s, (this.``s-line-prefix`` ps) ||| (this.``s-indent(<n)`` ps))
-            let IsSpacedText s = IsMatchStr(s, this.``s-nb-spaced-text`` ps)
+            let IsTrimmable s = IsMatchStr(s, RGSF((this.``s-line-prefix`` ps) ||| (this.``s-indent(<n)`` ps)))
+            let IsSpacedText s = IsMatchStr(s, RGSF(this.``s-nb-spaced-text`` ps))
 
             let skipIndent s = 
                 if IsMatchStr(s, this.``s-indent(n)`` ps) then s.Substring(ps.n)

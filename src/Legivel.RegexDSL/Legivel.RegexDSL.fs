@@ -318,7 +318,8 @@ let (|Regex|_|) pattern input =
     else None
 
 [<DebuggerStepThrough>]
-let (|Regex2|_|) (pattern:RGXType) input =
+let (|Regex2|_|) (pattern:RGXType) (input:RollingStream<TokenData>) =
+    let p = input.Position
     AssesInput input pattern 
     |> TokenDataToString
     |>  Option.bind(fun mts ->
@@ -330,6 +331,9 @@ let (|Regex2|_|) (pattern:RGXType) input =
             Some(MatchResult.Create fullMatch groups)
         else None
     )
+    |>  function
+        |   None -> input.Position <- p;None
+        |   Some x -> Some x
 
 let DecodeEncodedUnicodeCharacters value =
     Regex.Replace(value,
