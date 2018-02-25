@@ -203,8 +203,19 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
                 (isEof, [])
             | _ ->
                 if pl.``fixed``.Length > 1 then
+                    let unescapedString =
+                        pl.``fixed``
+                            .Replace("\\{","{")
+                            .Replace("\\}","}")
+                            .Replace("\\[","[")
+                            .Replace("\\(","(")
+                            .Replace("\\)",")")
+                            .Replace("\\|","|")
+                            .Replace("\\.",".")
+                            .Replace("\\?","?")
+                            .Replace("\\\\","")
                     let concat = 
-                        pl.``fixed``.ToCharArray()
+                        unescapedString.ToCharArray()
                         |>  List.ofArray
                         |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
                         |>  List.rev

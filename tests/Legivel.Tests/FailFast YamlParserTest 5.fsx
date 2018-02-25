@@ -72,21 +72,21 @@ let YamlParseList s =
 
 
 
-
-
-YamlParse "Value"
-
-
 YamlParse "
-- Mark McGwire
-- Sammy Sosa
-- Ken Griffey"
+|
+  Line break (no glyph)
+  Line break (glyphed)
+"
+
+
 
 YamlParse "
 %TAG !yaml! tag:yaml.org,2002:
 ---
 !yaml!str \"foo\"
 "
+
+YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
 
 

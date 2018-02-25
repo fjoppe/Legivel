@@ -724,6 +724,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-flow-indicator`` = 
         RGO  (@",\[\]\{\}", 
             [
+                Token.``t-comma``
                 Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
                 Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``
             ])
@@ -1583,6 +1584,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps |> ParseState.``Match and Advance`` this.``c-mapping-value`` (fun prs ->
             if IsMatch(prs.Input.Data, (this.``ns-plain-safe`` prs)) then NoResult
             else
+                prs.Input.Reset()
                 prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
                 |>  function
                     |   ErrorResult e ->
@@ -1988,6 +1990,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         let split = ms |> this.``split by linefeed`` 
                         let aut = split |> this.``auto detect indent in block`` prs2.n
                         if aut < 0 then failwith "Autodetected indentation is less than zero"
+                        prs2.Input.Reset()
                         Value aut
                     |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '|'"]
                 |> FallibleOption.bind(fun m ->
