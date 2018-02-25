@@ -73,9 +73,13 @@ let YamlParseList s =
 
 
 YamlParse "
-|
-  Line break (no glyph)
-  Line break (glyphed)
+sequence:
+- one
+- two
+mapping:
+  ? sky
+  : blue
+  sea : green
 "
 
 

@@ -457,11 +457,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps.Input.Position <- p
         match tkl with
         |   (true, tl) -> 
-            let th = tl.Head
-            if th.Token = Token.``t-space`` then
-                th.Source.Length - ps.n
-            else
-                0 - ps.n
+            let th = tl |> List.takeWhile(fun e -> e.Token = Token.``t-space``)
+            th.Length - ps.n
         |   (false, _) -> -1
 
 
