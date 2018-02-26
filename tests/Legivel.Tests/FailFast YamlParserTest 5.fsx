@@ -73,24 +73,13 @@ let YamlParseList s =
 
 
 YamlParse "
-sequence:
-- one
-- two
-mapping:
-  ? sky
-  : blue
-  sea : green
+# Tabs and spaces
+quoted: \"Quoted \t\"
+block:\t|
+  void main() {
+  \tprintf(\"Hello, world!\\n\");
+  }
 "
-
-
-
-YamlParse "
-%TAG !yaml! tag:yaml.org,2002:
----
-!yaml!str \"foo\"
-"
-
-YamlParse "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278"
 
 
 

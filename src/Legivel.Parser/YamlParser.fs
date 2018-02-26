@@ -1175,7 +1175,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``nb-double-char`` = this.``c-ns-esc-char`` ||| (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]))
 
     //  [108]   http://www.yaml.org/spec/1.2/spec.html#ns-double-char
-    member this.``ns-double-char`` = this.``c-ns-esc-char`` |||  (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``]) - this.``s-white``)
+    member this.``ns-double-char`` = this.``c-ns-esc-char`` |||  (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]) - this.``s-white``)
 
     //  [109]   http://www.yaml.org/spec/1.2/spec.html#c-double-quoted(n,c)
     member this.``c-double-quoted`` ps : ParseFuncResult<_> = 

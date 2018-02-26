@@ -173,3 +173,103 @@ module ``AssesInput for Block Sequence``=
         tkl |>  shouldEqual []
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-square-bracket-start``
 
+    [<Test>]
+    let ``Parse DQuoted string - match``() =
+        let ``start-of-line`` = (* RGP "\n" ||| *) RGP ("^", [Token.NoToken])
+        let ``nb-json`` = 
+            RGO ("\u0009\u0020-\uffff",
+                [
+                Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
+                Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
+                Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+                Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
+                Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
+                ])
+
+        let ``s-space`` = "\u0020"
+        let ``b-line-feed`` = RGP ("\u000a", [Token.NewLine])
+        let ``b-carriage-return`` = RGP ("\u000d", [Token.NewLine])
+        let ``b-break`` =  (``b-carriage-return`` + ``b-line-feed``)|||
+                            ``b-carriage-return``                   |||
+                            ``b-line-feed``                                   
+        let ``b-non-content`` = ``b-break``
+        let ``s-white`` = RGO("\u0020" + "\u0009", [Token.``t-space``; Token.``t-tab``])
+        let ``ns-dec-digit`` = RGO ("\u0030-\u0039", [Token.``ns-dec-digit``])
+        let ``ns-hex-digit`` =
+            ``ns-dec-digit`` +
+            RGO ("\u0041-\u0046", [Token.``c-printable``])  +  //  A-F
+            RGO ("\u0061-\u0066", [Token.``c-printable``])   
+
+        let ``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
+        let``ns-esc-null`` = RGP ("0", [Token.``ns-dec-digit``])
+        let``ns-esc-bell`` = RGP ("a", [Token.``c-printable``])
+        let``ns-esc-backspace`` = RGP( "b", [Token.``c-printable``])
+        let``ns-esc-horizontal-tab`` = RGP ("t", [Token.``c-printable``])
+        let``ns-esc-line-feed`` = RGP ("n", [Token.``c-printable``])
+        let``ns-esc-vertical-tab`` = RGP ("v", [Token.``c-printable``])
+        let``ns-esc-form-feed`` = RGP ("f", [Token.``c-printable``])
+        let``ns-esc-carriage-return`` = RGP ("r", [Token.``c-printable``])
+        let``ns-esc-escape`` = RGP ("e", [Token.``c-printable``])
+        let``ns-esc-space`` = RGP ("\u0020", [Token.``t-space``])
+        let``ns-esc-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+        let``ns-esc-slash`` = RGP ("/", [Token.``c-printable``])
+        let``ns-esc-backslash`` = RGP ("\\\\", [Token.``c-escape``])
+        let``ns-esc-next-line`` = RGP ("N", [Token.``c-printable``])
+        let``ns-esc-non-breaking-space`` = RGP ("_", [Token.``c-printable``])
+        let``ns-esc-line-separator`` = RGP ("L", [Token.``c-printable``])
+        let``ns-esc-paragraph-separator`` = RGP ("P", [Token.``c-printable``])
+        let``ns-esc-8-bit`` = (RGP ("x", [Token.``c-printable``])) + Repeat(``ns-hex-digit``,2)
+        let``ns-esc-16-bit`` = RGP ("u", [Token.``c-printable``]) + Repeat(``ns-hex-digit``,4)
+        let``ns-esc-32-bit`` = RGP ("U", [Token.``c-printable``]) + Repeat(``ns-hex-digit``,8) // currently not supported
+        let ``c-ns-esc-char`` = RGP ("\\\\", [Token.``c-escape``]) +
+            (``ns-esc-null``             |||
+             ``ns-esc-bell``             |||
+             ``ns-esc-backspace``        |||
+             ``ns-esc-horizontal-tab``   |||
+             ``ns-esc-line-feed``        |||
+             ``ns-esc-vertical-tab``     |||
+             ``ns-esc-form-feed``        |||
+             ``ns-esc-carriage-return``  |||
+             ``ns-esc-escape``           |||
+             ``ns-esc-space``            |||
+             ``ns-esc-double-quote``     |||
+             ``ns-esc-slash``            |||
+             ``ns-esc-backslash``        |||
+             ``ns-esc-next-line``        |||
+             ``ns-esc-non-breaking-space``|||
+             ``ns-esc-line-separator``   |||
+             ``ns-esc-paragraph-separator``|||
+             ``ns-esc-8-bit``            |||
+             ``ns-esc-16-bit``           |||
+             ``ns-esc-32-bit``)
+        let ``ns-double-char`` = ``c-ns-esc-char`` |||  (``nb-json`` - RGO("\\\\\"", [Token.``c-escape``]) - ``s-white``)
+        let ``nb-ns-double-in-line`` = ZOM(ZOM(``s-white``) + ``ns-double-char``)
+        let ``s-separate-in-line`` = OOM(``s-white``) ||| ``start-of-line``
+        let ``s-indent(n)`` = Repeat(RGP (``s-space``, [Token.``t-space``]), 0)
+        let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(``s-separate-in-line``)
+        let ``s-line-prefix`` = ``s-flow-line-prefix`` 
+        let ``s-indent(<n)`` = Range(RGP (``s-space``, [Token.``t-space``]), 0, -1) (* Where m < n *)
+        let ``b-as-line-feed`` = ``b-break``
+        let ``l-empty`` = ((``s-line-prefix``) ||| (``s-indent(<n)``)) + ``b-as-line-feed``
+        let ``s-double-escaped`` = ZOM(``s-white``) + ``c-escape`` + ``b-non-content`` + ZOM(``l-empty``) + (``s-flow-line-prefix``)
+        let ``b-l-trimmed`` = ``b-non-content`` + OOM(``l-empty``)
+        let ``b-as-space`` = ``b-break``
+        let ``b-l-folded`` = (``b-l-trimmed``) ||| ``b-as-space``
+        let ``s-flow-folded`` = OPT(``s-separate-in-line``) + (``b-l-folded``) + (``s-flow-line-prefix``)
+        let ``s-double-break`` = (``s-double-escaped``) ||| (``s-flow-folded``)
+        let ``s-double-next-line`` =  
+            ZOM((``s-double-break``) + ``ns-double-char`` + ``nb-ns-double-in-line``) + (``s-double-break``) |||
+            OOM((``s-double-break``) + ``ns-double-char`` + ``nb-ns-double-in-line``) + ZOM(``s-white``)
+        let ``nb-double-multi-line`` = ``nb-ns-double-in-line`` + ((``s-double-next-line``) ||| ZOM(``s-white``))
+        let ``c-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+
+        let patt = ``c-double-quote`` + GRP(``nb-double-multi-line``) + ``c-double-quote``
+
+        let yaml = "\"Quoted \t\""
+
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens patt
+
+        b   |>  shouldEqual true
+
+

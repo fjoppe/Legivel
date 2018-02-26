@@ -213,7 +213,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
                             .Replace("\\|","|")
                             .Replace("\\.",".")
                             .Replace("\\?","?")
-                            .Replace("\\\\","")
+                            .Replace("\\\\","\\")
                     let concat = 
                         unescapedString.ToCharArray()
                         |>  List.ofArray
@@ -301,14 +301,14 @@ let IsMatch(s, p) =
         ml.Length > 0
     | None -> false
 
-//[<DebuggerStepThrough>]
+[<DebuggerStepThrough>]
 let IsMatchStr(s, p) = 
     let ml = Match(s, p)
     ml.Length > 0
 
 /// Checks for matches of pattern p in string s.
 /// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
-//[<DebuggerStepThrough>]
+[<DebuggerStepThrough>]
 let HasMatches(s,p) = 
     AssesInput s p 
     |> TokenDataToString
