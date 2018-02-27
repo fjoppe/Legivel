@@ -3,6 +3,6 @@ open System.Reflection
 open System.Runtime.CompilerServices
 open NUnit.Framework
 
-[<assembly: Parallelizable(ParallelScope.Fixtures)>]
+//[<assembly: Parallelizable(ParallelScope.Fixtures)>]
 do ()
 

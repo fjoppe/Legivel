@@ -73,8 +73,9 @@ let YamlParseList s =
 
 
 YamlParse "
-sequence: [ one, two, ]
-mapping: { sky: blue, sea: green }
+- foo:   bar
+- - baz
+  - baz
 "
 
 

@@ -2238,6 +2238,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 psp.Input.Reset()
                 if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
                     let ws = psp.Input.Data.Take()
+                    psp.Input.Reset()
                     if ws.Token = Token.``t-tab`` then
                         ErrorResult [CreateErrorMessage.TabIndentError psp]
                     else
