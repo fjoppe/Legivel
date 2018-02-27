@@ -242,7 +242,7 @@ module ``AssesInput for Block Sequence``=
              ``ns-esc-8-bit``            |||
              ``ns-esc-16-bit``           |||
              ``ns-esc-32-bit``)
-        let ``ns-double-char`` = ``c-ns-esc-char`` |||  (``nb-json`` - RGO("\\\\\"", [Token.``c-escape``]) - ``s-white``)
+        let ``ns-double-char`` = ``c-ns-esc-char`` |||  (``nb-json`` - RGO("\\\\\"", [Token.``c-escape``;Token.``t-double-quote``]) - ``s-white``)
         let ``nb-ns-double-in-line`` = ZOM(ZOM(``s-white``) + ``ns-double-char``)
         let ``s-separate-in-line`` = OOM(``s-white``) ||| ``start-of-line``
         let ``s-indent(n)`` = Repeat(RGP (``s-space``, [Token.``t-space``]), 0)

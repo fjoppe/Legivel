@@ -784,7 +784,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-uri-char`` = 
         RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
         RGO (@"#;/?:@&=+$,_.!~*\'\(\)\[\]", [
-            Token.``t-hash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
+            Token.``t-hash``; Token.``t-forward-slash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
             Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
             Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
             Token.``c-printable``
@@ -794,7 +794,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``ns-tag-char`` = 
         (RGP (@"%", [Token.``t-percent``])) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
         (RGO (@"#;/?:@&=+$_.~*\'\(\)", [
-            Token.``t-hash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
+            Token.``t-hash``; Token.``t-forward-slash``;Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
             Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
             Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
             Token.``c-printable``;
@@ -2235,16 +2235,17 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     let ct = psp.Input.Data.Take()
                     if ct.Token = Token.``t-space`` then ct.Source.Length else 0
 
+                psp.Input.Reset()
                 if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
                     let ws = psp.Input.Data.Take()
                     if ws.Token = Token.``t-tab`` then
                         ErrorResult [CreateErrorMessage.TabIndentError psp]
                     else
-                        psp.Input.Reset()
                         contentOrNone NoResult psp
                 else
                     ErrorResult [CreateErrorMessage.IndentLevelError psp] 
             else
+                psp.Input.Reset()
                 psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
                 |>  function
                     |   Value(c, prs2)  -> ``ns-l-compact-sequence`` (prs2.Advance()) (c :: acc)

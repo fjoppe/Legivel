@@ -38,7 +38,7 @@ let ``Example 6.2. Indentation Indicators``() =
     let yml = YamlParseList "
 ? a
 : - b
-  -  -  c
+  -  - c
      - d"
     yml.Length |> shouldEqual 1
     let yml = yml.Head
