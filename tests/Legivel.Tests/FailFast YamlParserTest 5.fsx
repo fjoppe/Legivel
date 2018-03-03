@@ -73,10 +73,9 @@ let YamlParseList s =
 
 
 YamlParse "
-First occurrence: &anchor Foo
-Second occurrence: *anchor
-Override anchor: &anchor Bar
-Reuse anchor: *anchor
+null:
+booleans: [ true, false ]
+string: '012345'
 "
 
 

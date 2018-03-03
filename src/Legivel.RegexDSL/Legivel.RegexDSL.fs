@@ -201,6 +201,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
             |   (_, [Token.EOF]) ->
                 let isEof = rs.Peek().Token = Token.EOF
                 (isEof, [])
+            |   (_, []) -> true, []
             | _ ->
                 if pl.``fixed``.Length > 1 then
                     let unescapedString =
