@@ -73,9 +73,10 @@ let YamlParseList s =
 
 
 YamlParse "
-- foo:   bar
-- - baz
-  - baz
+First occurrence: &anchor Foo
+Second occurrence: *anchor
+Override anchor: &anchor Bar
+Reuse anchor: *anchor
 "
 
 

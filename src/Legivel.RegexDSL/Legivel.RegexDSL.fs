@@ -212,6 +212,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
                             .Replace("\\(","(")
                             .Replace("\\)",")")
                             .Replace("\\|","|")
+                            .Replace("\\*","*")
                             .Replace("\\.",".")
                             .Replace("\\?","?")
                             .Replace("\\\\","\\")
