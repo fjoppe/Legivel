@@ -73,11 +73,13 @@ let YamlParseList s =
 
 
 YamlParse "
-null:
-booleans: [ true, false ]
-string: '012345'
-"
+strip: >-
 
+clip: >
+
+keep: |+
+
+"
 
 
 

@@ -792,13 +792,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
     member this.``ns-tag-char`` = 
-        (RGP (@"%", [Token.``t-percent``])) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
+        RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
         (RGO (@"#;/?:@&=+$_.~*\'\(\)", [
             Token.``t-hash``; Token.``t-forward-slash``;Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
             Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
-            Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
+            Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
             Token.``c-printable``;
-        ])) + this.``ns-word-char``
+        ]) - this.``c-flow-indicator``) + this.``ns-word-char``
 
     //  [41]    http://www.yaml.org/spec/1.2/spec.html#c-escape
     member this.``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
@@ -1034,7 +1034,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-primary-tag-handle`` = RGP ("!", [Token.``t-quotationmark``])
 
     //  [91]    http://www.yaml.org/spec/1.2/spec.html#c-secondary-tag-handle
-    member this.``c-secondary-tag-handle`` = RGP ("!", [Token.``t-quotationmark``]) + RGP ("!", [Token.``t-quotationmark``]) //RGP "!!"
+    member this.``c-secondary-tag-handle`` = RGP ("!!", [Token.``t-quotationmark``])
 
     //  [92]    http://www.yaml.org/spec/1.2/spec.html#c-named-tag-handle
     member this.``c-named-tag-handle`` = RGP ("!", [Token.``t-quotationmark``]) + OOM(this.``ns-word-char``) + RGP ("!", [Token.``t-quotationmark``]) 
