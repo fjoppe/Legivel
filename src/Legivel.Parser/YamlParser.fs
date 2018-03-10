@@ -1976,7 +1976,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match ps.Input.Data  with
                 |   Regex2(p)  m -> Value(m.ge1, ps)
                 |   _ -> NoResult
-
+            let a = "debug"
             (this.``c-b-block-header`` prs)
             |> FallibleOption.bind(fun (pm, prs2) ->
                 match pm with

@@ -225,7 +225,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
                         |>  List.rev
                     parse (Concat concat) tkl
                 else
-                    rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.Token  |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+                    rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.``fixed`` = i.Source (*pl.Token  |> List.exists(fun e -> e=i.Token)*) |> mkResult i tkl
         |   Or rl           -> 
             let rec pickFirst l =
                 match l with
