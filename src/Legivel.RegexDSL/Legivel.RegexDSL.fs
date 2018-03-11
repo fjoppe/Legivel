@@ -251,7 +251,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
                     let pr = conditionalParse rx tkl
                     let nwacc = (snd pr @ acc)
                     if (fst pr) && nwacc.Length > acc.Length && max>0 then repeatRange (dec min) (dec max) rx nwacc
-                    else (min<0),acc
+                    else (min<=0),acc
                 else
                     true, acc
             match mno with
@@ -296,7 +296,8 @@ let Match(s, p) =
 
 /// Returns whether pattern p matches on string s
 [<DebuggerStepThrough>]
-let IsMatch(s, p) = 
+let IsMatch(s:RollingStream<TokenData>, p) = 
+    let pos = s.Position
     AssesInput s p 
     |> TokenDataToString
     |>  function
@@ -304,6 +305,9 @@ let IsMatch(s, p) =
         let ml = Match(mts, p)
         ml.Length > 0
     | None -> false
+    |> fun res -> 
+        s.Position <- pos
+        res
 
 [<DebuggerStepThrough>]
 let IsMatchStr(s, p) = 

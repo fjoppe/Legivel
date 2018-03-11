@@ -1581,7 +1581,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ps |> ParseState.``Match and Advance`` this.``c-mapping-value`` (fun prs ->
             if IsMatch(prs.Input.Data, (this.``ns-plain-safe`` prs)) then NoResult
             else
-                prs.Input.Reset()
+                //prs.Input.Reset()
                 prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
                 |>  function
                     |   ErrorResult e ->
@@ -1976,7 +1976,6 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 match ps.Input.Data  with
                 |   Regex2(p)  m -> Value(m.ge1, ps)
                 |   _ -> NoResult
-            let a = "debug"
             (this.``c-b-block-header`` prs)
             |> FallibleOption.bind(fun (pm, prs2) ->
                 match pm with
@@ -2112,6 +2111,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+folded" ps 
 
+
     //  [175]   http://www.yaml.org/spec/1.2/spec.html#s-nb-folded-text(n)
     member this.``s-nb-folded-text`` ps = (this.``s-indent(n)`` ps) + ZOM(this.``nb-char``)
 
@@ -2180,7 +2180,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             if IsMatch(prs.Input.Data, (this.``ns-char``)) then // Not followed by an ns-char
                 NoResult
             else
-                prs.Input.Reset()
+                //prs.Input.Reset()
                 let prs = prs.SetStyleContext ``Block-in``
                 this.``s-l+block-indented`` prs
         )
@@ -2235,7 +2235,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     let ct = psp.Input.Data.Take()
                     if ct.Token = Token.``t-space`` then ct.Source.Length else 0
 
-                psp.Input.Reset()
+                //psp.Input.Reset()
                 if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
                     let ws = psp.Input.Data.Take()
                     psp.Input.Reset()
@@ -2563,7 +2563,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             if IsMatch(ps.Input.Data, this.``c-forbidden``) then
                 NoResult
             else
-                ps.Input.Reset()
+                //ps.Input.Reset()
                 ps 
                 |> ParseState.SetIndent -1
                 |> ParseState.SetStyleContext ``Block-in``

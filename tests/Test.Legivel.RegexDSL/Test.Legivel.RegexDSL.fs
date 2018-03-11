@@ -314,3 +314,20 @@ module ``AssesInput for Block Sequence``=
 
         b   |>  shouldEqual true
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.NewLine
+
+
+        let yaml = "-
+
+"
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens pattern
+
+        b   |>  shouldEqual true
+
+        let yaml = "
+
+"
+        let tokens = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+        let (b, tkl) = AssesInput tokens pattern
+
+        b   |>  shouldEqual true
