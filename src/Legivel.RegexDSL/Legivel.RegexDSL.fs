@@ -198,85 +198,87 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                 |   Some x  -> condition (rs, x)
                 |   None    -> condition (rs, noToken)
 
-        match rgx with
-        |   OneInSet ois    -> 
-            if checkParseCondition() then
-                rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
-            else
-                (false, [])
-        |   Plain pl        -> 
-            if checkParseCondition() then
-                match (pl.``fixed``, pl.Token) with
-                |   ("^",[Token.NoToken]) ->
-                    let pk = rs.PeekPrevious()
-                    (pk = None || pk.Value.Token = Token.NewLine), []
-                |   (_, [Token.EOF]) ->
-                    let isEof = rs.Peek().Token = Token.EOF
-                    (isEof, [])
-                |   (_, []) -> true, []
-                | _ ->
-                    if pl.``fixed``.Length > 1 then
-                        let unescapedString =
-                            pl.``fixed``
-                                .Replace("\\{","{")
-                                .Replace("\\}","}")
-                                .Replace("\\[","[")
-                                .Replace("\\]","]")
-                                .Replace("\\(","(")
-                                .Replace("\\)",")")
-                                .Replace("\\|","|")
-                                .Replace("\\+","+")
-                                .Replace("\\*","*")
-                                .Replace("\\.",".")
-                                .Replace("\\?","?")
-                                .Replace("\\\\","\\")
-                        let concat = 
-                            unescapedString.ToCharArray()
-                            |>  List.ofArray
-                            |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
-                            |>  List.rev
-                        parse (Concat concat) tkl
-                    else
-                        rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.``fixed`` = i.Source (*pl.Token  |> List.exists(fun e -> e=i.Token)*) |> mkResult i tkl
-            else
-                (false, [])
-        |   Or rl           -> 
-            let rec pickFirst l =
-                match l with
-                |   h::tl -> 
-                    let rs = conditionalParse h tkl
-                    if fst(rs) then (true, snd rs @ tkl)
-                    else pickFirst tl
-                |   [] -> (false, tkl)
-            rl |> List.rev |> pickFirst
-        |   Concat rl       -> 
-            let rec pickAll acc l =
-                match l with
-                |   h::tl -> 
-                    let rs = parse h tkl
-                    if fst(rs) then pickAll (snd rs @ acc) tl
-                    else (false, tkl)
-                |   [] -> (true, acc)
-            rl |> List.rev |> pickAll []
-        |   IterRange (irx,mxo,mno) -> 
-            let dec a = if a>=0 then (a-1) else a
-            let rec repeatRange min max rx acc =
-                if max>0 then
-                    let pr = conditionalParse rx tkl
-                    let nwacc = (snd pr @ acc)
-                    if (fst pr) && nwacc.Length > acc.Length && max>0 then repeatRange (dec min) (dec max) rx nwacc
-                    else (min<=0),acc
+        if rs.EOF then (false, [])
+        else
+            match rgx with
+            |   OneInSet ois    -> 
+                if checkParseCondition() then
+                    rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
                 else
-                    true, acc
-            match mno with
-            |   Some minVal -> repeatRange minVal mxo irx []
-            |   None        -> repeatRange mxo mxo irx []
-        |   ZeroOrMore t        -> true, repeatWhileMatching t tkl
-        |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl
-        |   OneOrMore t         ->  repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
-        |   OneOrMoreNonGreedy t -> repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
-        |   Optional t          -> true, conditionalParse t tkl |> snd
-        |   Group t             -> parse t tkl
+                    (false, [])
+            |   Plain pl        -> 
+                if checkParseCondition() then
+                    match (pl.``fixed``, pl.Token) with
+                    |   ("^",[Token.NoToken]) ->
+                        let pk = rs.PeekPrevious()
+                        (pk = None || pk.Value.Token = Token.NewLine), []
+                    |   (_, [Token.EOF]) ->
+                        let isEof = rs.Peek().Token = Token.EOF
+                        (isEof, [])
+                    |   (_, []) -> true, []
+                    | _ ->
+                        if pl.``fixed``.Length > 1 then
+                            let unescapedString =
+                                pl.``fixed``
+                                    .Replace("\\{","{")
+                                    .Replace("\\}","}")
+                                    .Replace("\\[","[")
+                                    .Replace("\\]","]")
+                                    .Replace("\\(","(")
+                                    .Replace("\\)",")")
+                                    .Replace("\\|","|")
+                                    .Replace("\\+","+")
+                                    .Replace("\\*","*")
+                                    .Replace("\\.",".")
+                                    .Replace("\\?","?")
+                                    .Replace("\\\\","\\")
+                            let concat = 
+                                unescapedString.ToCharArray()
+                                |>  List.ofArray
+                                |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
+                                |>  List.rev
+                            parse (Concat concat) tkl
+                        else
+                            rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.``fixed`` = i.Source (*pl.Token  |> List.exists(fun e -> e=i.Token)*) |> mkResult i tkl
+                else
+                    (false, [])
+            |   Or rl           -> 
+                let rec pickFirst l =
+                    match l with
+                    |   h::tl -> 
+                        let rs = conditionalParse h tkl
+                        if fst(rs) then (true, snd rs @ tkl)
+                        else pickFirst tl
+                    |   [] -> (false, tkl)
+                rl |> List.rev |> pickFirst
+            |   Concat rl       -> 
+                let rec pickAll acc l =
+                    match l with
+                    |   h::tl -> 
+                        let rs = parse h tkl
+                        if fst(rs) then pickAll (snd rs @ acc) tl
+                        else (false, tkl)
+                    |   [] -> (true, acc)
+                rl |> List.rev |> pickAll []
+            |   IterRange (irx,mxo,mno) -> 
+                let dec a = if a>=0 then (a-1) else a
+                let rec repeatRange min max rx acc =
+                    if max>0 then
+                        let pr = conditionalParse rx tkl
+                        let nwacc = (snd pr @ acc)
+                        if (fst pr) && nwacc.Length > acc.Length && max>0 then repeatRange (dec min) (dec max) rx nwacc
+                        else (min<=0),acc
+                    else
+                        true, acc
+                match mno with
+                |   Some minVal -> repeatRange minVal mxo irx []
+                |   None        -> repeatRange mxo mxo irx []
+            |   ZeroOrMore t        -> true, repeatWhileMatching t tkl
+            |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl
+            |   OneOrMore t         ->  repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
+            |   OneOrMoreNonGreedy t -> repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
+            |   Optional t          -> true, conditionalParse t tkl |> snd
+            |   Group t             -> parse t tkl
     parse rg []
     |> fun (b,t) -> b, t |> List.rev
 
