@@ -2262,11 +2262,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> this.PostProcessAndValidateNode
 
             if not(IsMatch(psp.Input.Data, (this.``s-indent(n)`` psp))) then
-                let ilen = 
-                    let ct = psp.Input.Data.Take()
-                    if ct.Token = Token.``t-space`` then ct.Source.Length else 0
-
-                //psp.Input.Reset()
+                let ilen =
+                    match HasMatches(psp.Input.Data, ZOM(RGP(this.``s-space``,[Token.``t-space``]))) with
+                    |   (true, mt) -> mt.Length
+                    |   (false, _) -> 0
+                psp.Input.Reset()
                 if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
                     if psp.Input.EOF then
                         contentOrNone NoResult psp
@@ -2280,7 +2280,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 else
                     ErrorResult [CreateErrorMessage.IndentLevelError psp] 
             else
-                psp.Input.Reset()
+                //psp.Input.Reset()
                 psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
                 |>  function
                     |   Value(c, prs2)  -> ``ns-l-compact-sequence`` (prs2.Advance()) (c :: acc)
