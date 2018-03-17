@@ -56,6 +56,9 @@ val GRP : RGXType -> RGXType
 /// Returns rest-string, where match 'm' is removed from source 's'
 val Advance : string * string -> string
 
+/// Primary input assesment with Post-Parse condition. The condition is checked after each RGP token/char.
+val AssesInputPostParseCondition : (RollingStream<TokenData> * TokenData -> bool) -> RollingStream<TokenData> -> RGXType -> bool * TokenData list
+
 /// Primary input assesment, rough input match (at token-level), if match, return the input that matched
 val AssesInput : RollingStream<TokenData> -> RGXType -> bool * TokenData list
 

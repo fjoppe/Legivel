@@ -71,14 +71,12 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-
+// 7.12
 YamlParse "
-strip: >-
+1st non-empty
 
-clip: >
-
-keep: |+
-
+ 2nd non-empty 
+\t3rd non-empty
 "
 
 

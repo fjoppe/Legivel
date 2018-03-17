@@ -172,7 +172,7 @@ let GRP p = Group(p)
 let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
-let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
+let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenData -> bool) (rs:RollingStream<TokenData>) (rg:RGXType) =
     let rec parse rgx tkl =
         let conditionalParse rgx tk =
             let p = rs.Position
@@ -191,41 +191,55 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
             if (fst pr) && nwa.Length > acc.Length then repeatWhileMatching t nwa
             else acc //|> List.rev
 
+        let checkParseCondition() =
+            let noToken = TokenData.Create Token.NoToken ""
+            rs.PeekPrevious()
+            |>  function
+                |   Some x  -> condition (rs, x)
+                |   None    -> condition (rs, noToken)
+
         match rgx with
-        |   OneInSet ois    -> rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+        |   OneInSet ois    -> 
+            if checkParseCondition() then
+                rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+            else
+                (false, [])
         |   Plain pl        -> 
-            match (pl.``fixed``, pl.Token) with
-            |   ("^",[Token.NoToken]) ->
-                let pk = rs.PeekPrevious()
-                (pk = None || pk.Value.Token = Token.NewLine), []
-            |   (_, [Token.EOF]) ->
-                let isEof = rs.Peek().Token = Token.EOF
-                (isEof, [])
-            |   (_, []) -> true, []
-            | _ ->
-                if pl.``fixed``.Length > 1 then
-                    let unescapedString =
-                        pl.``fixed``
-                            .Replace("\\{","{")
-                            .Replace("\\}","}")
-                            .Replace("\\[","[")
-                            .Replace("\\]","]")
-                            .Replace("\\(","(")
-                            .Replace("\\)",")")
-                            .Replace("\\|","|")
-                            .Replace("\\+","+")
-                            .Replace("\\*","*")
-                            .Replace("\\.",".")
-                            .Replace("\\?","?")
-                            .Replace("\\\\","\\")
-                    let concat = 
-                        unescapedString.ToCharArray()
-                        |>  List.ofArray
-                        |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
-                        |>  List.rev
-                    parse (Concat concat) tkl
-                else
-                    rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.``fixed`` = i.Source (*pl.Token  |> List.exists(fun e -> e=i.Token)*) |> mkResult i tkl
+            if checkParseCondition() then
+                match (pl.``fixed``, pl.Token) with
+                |   ("^",[Token.NoToken]) ->
+                    let pk = rs.PeekPrevious()
+                    (pk = None || pk.Value.Token = Token.NewLine), []
+                |   (_, [Token.EOF]) ->
+                    let isEof = rs.Peek().Token = Token.EOF
+                    (isEof, [])
+                |   (_, []) -> true, []
+                | _ ->
+                    if pl.``fixed``.Length > 1 then
+                        let unescapedString =
+                            pl.``fixed``
+                                .Replace("\\{","{")
+                                .Replace("\\}","}")
+                                .Replace("\\[","[")
+                                .Replace("\\]","]")
+                                .Replace("\\(","(")
+                                .Replace("\\)",")")
+                                .Replace("\\|","|")
+                                .Replace("\\+","+")
+                                .Replace("\\*","*")
+                                .Replace("\\.",".")
+                                .Replace("\\?","?")
+                                .Replace("\\\\","\\")
+                        let concat = 
+                            unescapedString.ToCharArray()
+                            |>  List.ofArray
+                            |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
+                            |>  List.rev
+                        parse (Concat concat) tkl
+                    else
+                        rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.``fixed`` = i.Source (*pl.Token  |> List.exists(fun e -> e=i.Token)*) |> mkResult i tkl
+            else
+                (false, [])
         |   Or rl           -> 
             let rec pickFirst l =
                 match l with
@@ -266,6 +280,7 @@ let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
     parse rg []
     |> fun (b,t) -> b, t |> List.rev
 
+let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) = AssesInputPostParseCondition (fun _ -> true) rs rg
 
 let TokenDataToString =
     function

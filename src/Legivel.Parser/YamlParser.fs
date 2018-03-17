@@ -12,6 +12,7 @@ open Legivel.Internals
 open ErrorsAndWarnings
 open System.Diagnostics
 open System.IO
+open System.Linq.Expressions
 
 
 exception ParseException of string
@@ -376,7 +377,7 @@ type ParseFuncSignature<'a> = (ParseState -> ParseFuncResult<'a>)
 type FlowFoldPrevType = Empty | TextLine
 
 
-//[<DebuggerStepThrough>]
+[<DebuggerStepThrough>]
 let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
     AssesInput (ps.Input.Data) pattern
     |>  TokenDataToString
@@ -393,6 +394,22 @@ let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
     |>  Option.ifnone(fun()->ps.Input.Reset();None)
 
 
+[<DebuggerStepThrough>]
+let (|Regex4|_|) (pattern:RGXType, condition:(RollingStream<TokenData> * TokenData-> bool)) (ps:ParseState) =
+    AssesInputPostParseCondition condition (ps.Input.Data) pattern
+    |>  TokenDataToString
+    |>  Option.bind(fun inps -> 
+        let m = Regex.Match(inps, RGSF(pattern), RegexOptions.Multiline)
+        if m.Success then 
+            let lst = [ for g in m.Groups -> g.Value ]
+            let fullMatch = lst |> List.head
+            let ps = ps.Advance()
+            let groups = lst |> List.tail
+            Some(MatchResult.Create fullMatch groups, ps |> ParseState.TrackPosition fullMatch)
+        else None
+    )
+    |>  Option.ifnone(fun()->ps.Input.Reset();None)
+
 type CreateErrorMessage() =
     static member TabIndentError ps = MessageAtLine.CreateTerminate (ps.Location) ErrTabCannotIndent "A tab cannot be used for indentation, use spaces instead."        
     static member IndentLevelError ps = MessageAtLine.CreateTerminate (ps.Location) ErrIndentationError (sprintf "This line is indented incorrectly, expected %d spaces." (ps.n + ps.m))
@@ -401,18 +418,23 @@ type CreateErrorMessage() =
 
 type Yaml12Parser(loggingFunction:string->unit) =
 
-    let logger s ps =
-        //let str = if ps.InputString.Length > 10 then ps.InputString.Substring(0, 10) else ps.InputString
-        //sprintf "%s\t\"%s\" l:%d i:%d c:%A &a:%d e:%d w:%d" s (str.Replace("\n","\\n")) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) |> loggingFunction
+    let logger s ps = 
+#if DEBUG
         sprintf "%s\t l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
-
+#else
+        ()
+#endif
     new() = Yaml12Parser(fun _ -> ())
 
     member private this.LogReturn str ps pso = 
+#if DEBUG
         match pso with
         |   Value (any,prs) -> sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; Value (any,prs)
         |   NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; NoResult
         |   ErrorResult e -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d sp:%d" str (e |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Errors) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; ErrorResult e
+#else
+        pso
+#endif
 
 
     //  Utility functions
@@ -513,8 +535,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     if Regex.IsMatch(currStr, RGS(this.``l-empty`` ps)) then 
                         if fst then FlowFoldPrevType.TextLine else FlowFoldPrevType.Empty
                     else FlowFoldPrevType.TextLine
-
+#if DEBUG
                 logger (sprintf "%s\t\t<-%s" (res.ToString().Replace("\n","\\n")) (currStr.Replace("\n","\\n"))) ps
+#endif
 
                 match (prev) with
                 |   FlowFoldPrevType.Empty  -> doFold false currType (res+currStr) tail
@@ -1735,31 +1758,39 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
             else NoResult
 
+        //  this is a 'hack', although the specs require mandatory whitespace in any non-empty line of a multiline plain scalar
+        //  the regex does provide this mandatory rule.
+        //  See: http://www.yaml.org/spec/1.2/spec.html#id2788756
+        //  Tweaking rule 69 - making "s-separate-in-line" mandatory - did not solve this issue, so we inject this check in the parser.
+        let postParseCondition : RollingStream<TokenData> * TokenData -> bool =
+            fun (rs, tokenData) ->
+                if rs.Position = ps.Input.Position || tokenData.Token <> Token.NewLine then true
+                else
+                    let next = rs.Peek()
+                    [Token.NewLine; Token.``t-tab``; Token.``t-space``]
+                    |>  List.exists(fun e -> e = next.Token)
+
         match preErr with
         |   NoResult ->
-            match ps with
-            |   Regex3(this.``ns-plain`` ps) (mt, prs) -> 
-                match prs.c with
-                | ``Flow-out``  | ``Flow-in``   ->
-                    let (includedLines, rest) =
-                        mt.FullMatch
-                        |> this.``split by linefeed``
-                        |> this.``filter plain multiline``
-                    //let prs = prs |> ParseState.SetRestString (sprintf "%s%s" rest (prs.InputString))
-                    includedLines
-                    |> this.``plain flow fold lines`` prs
-                    |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
-                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.PostProcessAndValidateNode
-
-                | ``Block-key`` | ``Flow-key``  -> 
-                    mt.FullMatch
-                    |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
-                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.PostProcessAndValidateNode
-                | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
-            |   Regex3(``illegal-ns-plain`` ps) (_,_) -> 
+            match (ps.c, ps) with
+            |   ``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
+            |   ``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
+                mt.FullMatch
+                |> this.``split by linefeed``
+                |> this.``plain flow fold lines`` prs
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQM (prs.Location)
+                |> this.PostProcessAndValidateNode
+            |   ``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
+            |   ``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
+                mt.FullMatch
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQM (prs.Location)
+                |> this.PostProcessAndValidateNode
+            |   _, Regex3(``illegal-ns-plain`` ps) (_,_) -> 
                 ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
+            |   ``Block-out``, _
+            |   ``Block-in``, _ -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
             |   _ -> NoResult
         | x -> x
         |> ParseState.ResetEnv ps 
