@@ -1763,8 +1763,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
         //  See: http://www.yaml.org/spec/1.2/spec.html#id2788756
         //  Tweaking rule 69 - making "s-separate-in-line" mandatory - did not solve this issue, so we inject this check in the parser.
         let postParseCondition : RollingStream<TokenData> * TokenData -> bool =
+            let startPos = ps.Input.Position
             fun (rs, tokenData) ->
-                if rs.Position = ps.Input.Position || tokenData.Token <> Token.NewLine then true
+                if rs.Position = startPos|| tokenData.Token <> Token.NewLine then true
                 else
                     let next = rs.Peek()
                     [Token.NewLine; Token.``t-tab``; Token.``t-space``]
@@ -1775,6 +1776,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match (ps.c, ps) with
             |   ``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
             |   ``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
+                logger (sprintf "ns-plain value: %s" mt.FullMatch) prs
                 mt.FullMatch
                 |> this.``split by linefeed``
                 |> this.``plain flow fold lines`` prs
@@ -1783,6 +1785,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |> this.PostProcessAndValidateNode
             |   ``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
             |   ``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
+                logger (sprintf "ns-plain value: %s" mt.FullMatch) prs
                 mt.FullMatch
                 |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                 |> this.ResolveTag prs NonSpecificQM (prs.Location)
