@@ -1895,7 +1895,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (i, c) = mt.ge2
-                Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance)
+                Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance |> ParseState.TrackPosition mt.FullMatch)
             |   _ -> NoResult
 
         let ``chomp indent`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
@@ -1903,7 +1903,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (c, i) = mt.ge2
-                Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance)
+                Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance |> ParseState.TrackPosition mt.FullMatch)
             |   _ -> NoResult
 
         let ``illformed chomping`` ps : FallibleOption<int option * ParseState,ErrorMessage> =
@@ -2008,7 +2008,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
                 let p = this.``l-literal-content`` ps
                 match ps.Input.Data  with
-                |   Regex2(p)  m -> Value(m.ge1, ps)
+                |   Regex2(p)  m -> Value(m.ge1, ps |> ParseState.TrackPosition m.FullMatch)
                 |   _ -> NoResult
             (this.``c-b-block-header`` prs)
             |> FallibleOption.bind(fun (pm, prs2) ->
@@ -2040,7 +2040,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                                     prs
                                     |> this.``chomp lines`` ps2 
                                     |> this.``join lines``
-                                (s, ps2)
+                                logger (sprintf "c-l+literal value: %s" s) ps2
+                                (s, ps2 |> ParseState.Advance)
                                 )
                     )
                 )
@@ -2111,7 +2112,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 let ps = if ps.n < 1 then ps.SetIndent 1 else ps
                 let patt = this.``l-folded-content`` (ps.FullIndented)
                 match ps with
-                |   Regex3(patt)  (m,p) -> Value(m.ge1, p)
+                |   Regex3(patt)  (m,p) -> Value(m.ge1, p |> ParseState.TrackPosition m.FullMatch)
                 |   _ -> NoResult
 
             (this.``c-b-block-header`` prs)
@@ -2136,7 +2137,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                             |> ``block fold lines`` ps2
                             |> this.``chomp lines`` ps2 
                             |> this.``join lines``
-                        (s, ps2)
+                        (s, ps2 |> ParseState.Advance)
                     )
                 )
             )

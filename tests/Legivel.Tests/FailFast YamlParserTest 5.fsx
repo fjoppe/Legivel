@@ -71,17 +71,52 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-// 6.21
-YamlParse "
-%TAG !m! !my-
---- # Bulb here
-!m!light fluorescent
-...
-%TAG !m! !my-
---- # Color here
-!m!light green
+// 2.28
+YamlParseList "
+---
+Time: 2001-11-23 15:01:42 -5
+User: ed
+Warning:
+  This is an error message
+  for the log file
+---
+Time: 2001-11-23 15:02:31 -5
+User: ed
+Warning:
+  A slightly different error
+  message.
+---
+Date: 2001-11-23 15:03:17 -5
+User: ed
+Fatal:
+  Unknown variable \"bar\"
+Stack:
+  - file: TopClass.py
+    line: 23
+    code: |
+      x = MoreObject(\"345\\n\")
+  - file: MoreClass.py
+    line: 58
+    code: |-
+      foo = bar
 "
 
+
+YamlParse "
+Date: 2001-11-23 15:03:17 -5
+User: ed
+Fatal:
+  Unknown variable \"bar\"
+Stack:
+  - file: TopClass.py
+    line: 23
+    code: |
+      x = MoreObject(\"345\\n\")
+  - file: MoreClass.py
+    line: 58
+    code: |-
+      foo = bar
+"
 
 
 
