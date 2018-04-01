@@ -1232,7 +1232,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |> this.PostProcessAndValidateNode
 
         let patt = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps) + this.``c-double-quote``
-        let ``illegal-chars`` = this.``c-double-quote`` + OOM(this.``nb-json`` ||| this.``s-double-break`` ps) + this.``c-double-quote``
+        let ``illegal-chars`` = this.``c-double-quote`` + OOM((this.``nb-json`` - this.``c-double-quote``) ||| this.``s-double-break`` ps) + this.``c-double-quote``
         let ``illegal-patt`` = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps)
 
         match ps with
@@ -2434,7 +2434,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match (this.``s-l+block-node`` prs) with
             |   Value (c, prs2) -> Value(c, prs2)
             |   NoResult        -> prs |> noResult
-            |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult
+            |   ErrorResult e   -> prs |> ParseState.AddErrorMessageList e |> noResult |> FallibleOption.ifnoresult(fun () -> ErrorResult e)
         )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
