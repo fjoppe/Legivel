@@ -53,7 +53,7 @@ let PrintNode crr =
 
 let YamlParse s =
     try
-        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
+        let repr = (engine.``l-yaml-stream`` YamlExtended.Schema s)
         let crr = repr.Head
         PrintNode crr
     with
@@ -61,7 +61,7 @@ let YamlParse s =
 
 let YamlParseList s =
     try
-        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
+        let repr = (engine.``l-yaml-stream`` YamlExtended.Schema s)
         printfn "Total Documents: %d" (repr.Length)
         repr |> List.iter(fun crr ->
             PrintNode crr
@@ -73,26 +73,14 @@ let YamlParseList s =
 
 // 5.14
 YamlParse "
-Bad escapes:
-  \"\\c
-  \\xq-\"
+# Explicitly typed pairs.
+Block tasks:    # no pairs tag
+  - meeting: with team.
+  - meeting: with boss.
+  - break: lunch.
+  - meeting: with client.
+Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
 "
 
 
 
-DateTime.Parse("2014-09-12T00:00:00.0000000Z").ToUniversalTime()
-DateTime(2014, 09, 12, 0, 0, 0)
-
-YamlParse "2014-09-12"
-
-YamlParseList "
----
-time: 20:03:20
-player: Sammy Sosa
-action: strike (miss)
-...
----
-time: 20:03:47
-player: Sammy Sosa
-action: grand slam
-..." 

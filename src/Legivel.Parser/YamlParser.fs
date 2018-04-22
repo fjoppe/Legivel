@@ -420,7 +420,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     let logger s ps = 
 #if DEBUG
-        sprintf "%s\t l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
+        sprintf "%s\t l:%d col:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
 #else
         ()
 #endif
