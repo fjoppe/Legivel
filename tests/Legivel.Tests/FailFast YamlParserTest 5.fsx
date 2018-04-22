@@ -71,15 +71,17 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-// 5.14
-YamlParse "
-# Explicitly typed pairs.
-Block tasks:    # no pairs tag
-  - meeting: with team.
-  - meeting: with boss.
-  - break: lunch.
-  - meeting: with client.
-Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
+// Example 2.11
+YamlParseList "
+? - Detroit Tigers
+  - Chicago cubs
+:
+  - 2001-07-23
+
+? [ New York Yankees,
+    Atlanta Braves ]
+: [ 2001-07-02, 2001-08-12,
+    2001-08-14 ]
 "
 
 
