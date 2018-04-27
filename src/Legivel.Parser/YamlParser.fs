@@ -2079,57 +2079,65 @@ type Yaml12Parser(loggingFunction:string->unit) =
             trimHead slist []
 
 
-        ps |> ParseState.``Match and Advance`` (RGP ("\\|", [Token.``t-pipe``])) (fun prs ->
-            let ``literal-content`` (ps:ParseState) =
-                let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
-                let p = this.``l-literal-content`` ps
-                match ps.Input.Data  with
-                |   Regex2(p)  m -> Value(m.ge1, ps |> ParseState.TrackPosition m.FullMatch)
-                |   _ -> NoResult
-            (this.``c-b-block-header`` prs)
-            |> FallibleOption.bind(fun (pm, prs2) ->
-                match pm with
-                |   Some(m) -> Value m
-                |   None    ->
-                    match (``literal-content`` prs2) with
-                    |   Value(ms, _) ->  
-                        let split = ms |> this.``split by linefeed`` 
-                        let aut = split |> this.``auto detect indent in block`` prs2.n
-                        if aut < 0 then failwith "Autodetected indentation is less than zero"
-                        prs2.Input.Reset()
-                        Value aut
-                    |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '|'"]
-                |> FallibleOption.bind(fun m ->
-                    (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
-                    |> FallibleOption.bind(fun (ms, ps2) ->  
-                        if ms = "" then
-                            let detectLessIndented = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
-                            match detectLessIndented with
-                            |   Value _ ->  ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrTooLessIndentedLiteral "The text is less indented than the indicated level."]
-                            |   _ ->        ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrBadFormatLiteral "The literal has bad syntax."]
-                        else
+        let ck = ScalarMemoizeKey.Create (ps.Input.Position) ((this.``l-literal-content`` ps).ToString())
+
+        if ps.Caching.ContainsKey(ck) then
+            logger "> c-l+literal uncache" ps
+            this.UncacheNode ck ps
+        else
+            ps |> ParseState.``Match and Advance`` (RGP ("\\|", [Token.``t-pipe``])) (fun prs ->
+                let ``literal-content`` (ps:ParseState) =
+                    let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
+                    let p = this.``l-literal-content`` ps
+                    match ps.Input.Data  with
+                    |   Regex2(p)  m -> Value(m.ge1, ps |> ParseState.TrackPosition m.FullMatch)
+                    |   _ -> NoResult
+                (this.``c-b-block-header`` prs)
+                |> FallibleOption.bind(fun (pm, prs2) ->
+                    match pm with
+                    |   Some(m) -> Value m
+                    |   None    ->
+                        match (``literal-content`` prs2) with
+                        |   Value(ms, _) ->  
                             let split = ms |> this.``split by linefeed`` 
-                            let mapScalar (s, prs) =  
-                                CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
-                                |> this.ResolveTag prs NonSpecificQT (prs.Location)
-                            split 
-                            |> trimIndent ps2
-                            |> FallibleOption.map(fun prs -> 
-                                let s = 
-                                    prs
-                                    |> this.``chomp lines`` ps2 
-                                    |> this.``join lines``
-#if DEBUG
-                                logger (sprintf "c-l+literal value: %s" s) ps2
-#endif
-                                (s, ps2 |> ParseState.Advance)
-                                )
-                            |> FallibleOption.bind mapScalar 
+                            let aut = split |> this.``auto detect indent in block`` prs2.n
+                            if aut < 0 then failwith "Autodetected indentation is less than zero"
+                            prs2.Input.Reset()
+                            Value aut
+                        |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '|'"]
+                    |> FallibleOption.bind(fun m ->
+                        (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
+                        |> FallibleOption.bind(fun (ms, ps2) ->  
+                            if ms = "" then
+                                let detectLessIndented = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
+                                match detectLessIndented with
+                                |   Value _ ->  ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrTooLessIndentedLiteral "The text is less indented than the indicated level."]
+                                |   _ ->        ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrBadFormatLiteral "The literal has bad syntax."]
+                            else
+                                let dl = ParseState.PositionDelta ms ||> DocumentLocation.Create
+                                let split = ms |> this.``split by linefeed`` 
+                                let mapScalar (s, prs) =  
+                                    CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
+                                    |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                                split 
+                                |> trimIndent ps2
+                                |> FallibleOption.map(fun prs -> 
+                                    let s = 
+                                        prs
+                                        |> this.``chomp lines`` ps2 
+                                        |> this.``join lines``
+    #if DEBUG
+                                    logger (sprintf "c-l+literal value: %s" s) ps2
+    #endif
+                                    (s, ps2 |> ParseState.Advance)
+                                    )
+                                |> FallibleOption.bind mapScalar
+                                |> this.PostProcessAndValidateNode
+                                |> this.CacheNode ck prs dl (ms.Length)
+                        )
                     )
                 )
             )
-        )
-        |> this.PostProcessAndValidateNode
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+literal" ps
 
@@ -2189,47 +2197,55 @@ type Yaml12Parser(loggingFunction:string->unit) =
                                foldEverything rest (h :: outLines) false
             foldEverything strlst [] false |> List.map(unIndent)
 
+        let ck = ScalarMemoizeKey.Create (ps.Input.Position) ((this.``l-folded-content`` (ps.FullIndented)).ToString())
 
-        ps |> ParseState.``Match and Advance`` (this.``c-folded``) (fun prs ->
-            let ``folded-content`` (ps:ParseState) =
-                let ps = if ps.n < 1 then ps.SetIndent 1 else ps
-                let patt = this.``l-folded-content`` (ps.FullIndented)
-                match ps with
-                |   Regex3(patt)  (m,p) -> Value(m.ge1, p |> ParseState.TrackPosition m.FullMatch)
-                |   _ -> NoResult
+        if ps.Caching.ContainsKey(ck) then
+            logger "> c-l+folded uncache" ps
+            this.UncacheNode ck ps
+        else
+            ps |> ParseState.``Match and Advance`` (this.``c-folded``) (fun prs ->
+                let ``folded-content`` (ps:ParseState) =
+                    let ps = if ps.n < 1 then ps.SetIndent 1 else ps
+                    let patt = this.``l-folded-content`` (ps.FullIndented)
+                    match ps with
+                    |   Regex3(patt)  (m,p) -> Value(m.ge1, p |> ParseState.TrackPosition m.FullMatch)
+                    |   _ -> NoResult
 
-            (this.``c-b-block-header`` prs)
-            |> FallibleOption.bind(fun (pm, prs2) -> 
-                match pm with
-                |   Some(m) -> Value m
-                |   None    ->
-                    match (``folded-content`` prs2) with
-                    |   Value(ms, _) ->  
-                        let split = ms |> this.``split by linefeed`` 
-                        let aut = split |> this.``auto detect indent in block`` prs2.n
-                        if aut < 0 then failwith "Autodetected indentation is less than zero"
-                        prs2.Input.Reset()
-                        Value aut
-                    |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '>'"]
-                |> FallibleOption.bind(fun m ->
-                    let mapScalar (s, prs) =  
-                        CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
-                        |> this.ResolveTag prs NonSpecificQT (prs.Location)
-                    (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
-                    |> FallibleOption.map(fun (ms, ps2) -> 
-                        let s = 
-                            ms 
-                            |> this.``split by linefeed`` 
-                            |> ``block fold lines`` ps2
-                            |> this.``chomp lines`` ps2 
-                            |> this.``join lines``
-                        (s, ps2 |> ParseState.Advance)
+                (this.``c-b-block-header`` prs)
+                |> FallibleOption.bind(fun (pm, prs2) -> 
+                    match pm with
+                    |   Some(m) -> Value m
+                    |   None    ->
+                        match (``folded-content`` prs2) with
+                        |   Value(ms, _) ->  
+                            let split = ms |> this.``split by linefeed`` 
+                            let aut = split |> this.``auto detect indent in block`` prs2.n
+                            if aut < 0 then failwith "Autodetected indentation is less than zero"
+                            prs2.Input.Reset()
+                            Value aut
+                        |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '>'"]
+                    |> FallibleOption.bind(fun m ->
+                        let mapScalar (s, prs) =  
+                            CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
+                            |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                        (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
+                        |> FallibleOption.bind(fun (ms, ps2) -> 
+                            let dl = ParseState.PositionDelta ms ||> DocumentLocation.Create
+
+                            let s = 
+                                ms 
+                                |> this.``split by linefeed`` 
+                                |> ``block fold lines`` ps2
+                                |> this.``chomp lines`` ps2 
+                                |> this.``join lines``
+                            Value(s, ps2 |> ParseState.Advance)
+                            |> FallibleOption.bind mapScalar
+                            |> this.PostProcessAndValidateNode
+                            |> this.CacheNode ck prs dl (ms.Length)
+                        )
                     )
-                    |> FallibleOption.bind mapScalar
                 )
-            )
-         )
-        |> this.PostProcessAndValidateNode
+             )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+folded" ps 
