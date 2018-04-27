@@ -99,10 +99,10 @@ type RollingTokenizer = private {
 
 type ScalarMemoizeKey = {
     SreamPositionStart : int
-    Regex    : string
+    FunctionNumber     : int
 }
 with
-    static member Create p r = { SreamPositionStart = p; Regex = r }
+    static member Create p f = { SreamPositionStart = p; FunctionNumber = f }
 
 
 type ScalarMemoizeValue = {
@@ -440,20 +440,26 @@ let (|Regex4|_|) (pattern:RGXType, condition:(RollingStream<TokenData> * TokenDa
     )
     |>  Option.ifnone(fun()->ps.Input.Reset();None)
 
+
 type CreateErrorMessage() =
     static member TabIndentError ps = MessageAtLine.CreateTerminate (ps.Location) ErrTabCannotIndent "A tab cannot be used for indentation, use spaces instead."        
     static member IndentLevelError ps = MessageAtLine.CreateTerminate (ps.Location) ErrIndentationError (sprintf "This line is indented incorrectly, expected %d spaces." (ps.n + ps.m))
 
+
+let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 
 
 type Yaml12Parser(loggingFunction:string->unit) =
 
     let logger s ps = 
 #if DEBUG
-        sprintf "%s\t l:%d col:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
+        sprintf "%s\t l:%d col:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position)
+        //sprintf "%d" (ps.Location.Line)
+        |> loggingFunction
 #else
         ()
 #endif
+
     new() = Yaml12Parser(fun _ -> ())
 
     member private this.LogReturn str ps pso = 
@@ -462,6 +468,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Value (any,prs) -> sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; Value (any,prs)
         |   NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; NoResult
         |   ErrorResult e -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d sp:%d" str (e |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (e |> List.length) (ps.Errors) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction; ErrorResult e
+        //pso
 #else
         pso
 #endif
@@ -470,6 +477,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  Utility functions
     member private this.Debugbreak sr =
         sr 
+
+
+    member this.Memoize fn =
+        (fun k c ->
+        match MemoizeCache.TryGetValue k with
+        | true, v -> v
+        | false, _ -> let v = fn (c)
+                      MemoizeCache.Add(k,v)
+                      v)
+
 
     member this.``split by linefeed`` s = 
         Regex.Split(s, this.``b-as-line-feed``.ToString()) |> List.ofArray
@@ -669,7 +686,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
 #if DEBUG
     member this.KeyToString (key:ScalarMemoizeKey) =
-        sprintf "<%d,%d>" (key.SreamPositionStart) (key.Regex.GetHashCode()) 
+        sprintf "<%d,%d>" (key.FunctionNumber) (key.SreamPositionStart)
 #endif
 
     member this.CacheNode key (postParseState:ParseState) posDelta len (potetialNode:FallibleOption<Node * ParseState, ErrorMessage>) =
@@ -1429,12 +1446,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [127]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe(c)
     member this.``ns-plain-safe`` ps =
         logger "ns-plain-safe" ps
-        match ps.c with
-        |   ``Flow-out``    -> this.``ns-plain-safe-out``
-        |   ``Flow-in``     -> this.``ns-plain-safe-in``
-        |   ``Block-key``   -> this.``ns-plain-safe-out``
-        |   ``Flow-key``    -> this.``ns-plain-safe-in``
-        | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
+
+        let memFunc ps =
+            match ps.c with
+            |   ``Flow-out``    -> this.``ns-plain-safe-out``
+            |   ``Flow-in``     -> this.``ns-plain-safe-in``
+            |   ``Block-key``   -> this.``ns-plain-safe-out``
+            |   ``Flow-key``    -> this.``ns-plain-safe-in``
+            | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
+        let callMemoized = this.Memoize memFunc
+        callMemoized (127, ps.n, ps.c) ps
 
     //  [128]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe-out
     member this.``ns-plain-safe-out`` = this.``ns-char``
@@ -1448,12 +1469,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [131]   http://www.yaml.org/spec/1.2/spec.html#ns-plain(n,c)
     member this.``ns-plain`` (ps:ParseState) =
         logger "ns-plain" ps
-        match ps.c with
-        | ``Flow-out``  -> this.``ns-plain-multi-line`` ps
-        | ``Flow-in``   -> this.``ns-plain-multi-line`` ps
-        | ``Block-key`` -> this.``ns-plain-one-line`` ps
-        | ``Flow-key``  -> this.``ns-plain-one-line`` ps
-        | _              -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
+
+        let memFunc ps =
+            match ps.c with
+            | ``Flow-out``  -> this.``ns-plain-multi-line`` ps
+            | ``Flow-in``   -> this.``ns-plain-multi-line`` ps
+            | ``Block-key`` -> this.``ns-plain-one-line`` ps
+            | ``Flow-key``  -> this.``ns-plain-one-line`` ps
+            | _              -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
+        let callMemoized = this.Memoize memFunc
+        callMemoized (131, ps.n, ps.c) ps
 
     //  [132]   http://www.yaml.org/spec/1.2/spec.html#nb-ns-plain-in-line(c)
     member this.``nb-ns-plain-in-line`` ps = ZOM(ZOM(this.``s-white``) + (this.``ns-plain-char`` ps))
@@ -1808,8 +1833,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-flow-yaml-content" ps
 
         //  illegal indicators, minus squote and dquote; see this.``c-indicator``
-        let ``illegal-ns-plain`` p =  this.``c-indicator`` + this.``ns-plain-first`` p
-        let ``illegl multiline`` ps = (this.``ns-plain-one-line`` ps) + OOM(this.``s-ns-plain-next-line`` ps)
+        let ``illegal-ns-plain`` p = 
+            let memFunc ps =
+                this.``c-indicator`` + this.``ns-plain-first`` ps
+            let callMemoized = this.Memoize memFunc
+            callMemoized (1560, ps.n, ps.c) ps
+        let ``illegl multiline`` ps = 
+            let memFunc ps =
+                (this.``ns-plain-one-line`` ps) + OOM(this.``s-ns-plain-next-line`` ps)
+            let callMemoized = this.Memoize memFunc
+            callMemoized (1561, ps.n, ps.c) ps
         let preErr = 
             if not(ps.Restrictions.AllowedMultiLine) then 
                 match ps.c with
@@ -1835,7 +1868,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     [Token.NewLine; Token.``t-tab``; Token.``t-space``]
                     |>  List.exists(fun e -> e = next.Token)
 
-        let ck = ScalarMemoizeKey.Create (ps.Input.Position) ((this.``ns-plain`` ps).ToString())
+        let ck = ScalarMemoizeKey.Create (ps.Input.Position) 156
 
         if ps.Caching.ContainsKey(ck) then
             logger "> ns-plain uncache" ps
@@ -2079,7 +2112,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             trimHead slist []
 
 
-        let ck = ScalarMemoizeKey.Create (ps.Input.Position) ((this.``l-literal-content`` ps).ToString())
+        let ck = ScalarMemoizeKey.Create (ps.Input.Position) 170
 
         if ps.Caching.ContainsKey(ck) then
             logger "> c-l+literal uncache" ps
@@ -2149,7 +2182,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
     
     //  [173]   http://www.yaml.org/spec/1.2/spec.html#l-literal-content(n,t)
     member this.``l-literal-content`` (ps:ParseState) = 
-        GRP(OPT((this.``l-nb-literal-text`` ps) + ZOM(this.``b-nb-literal-next`` ps) + (this.``b-chomped-last`` ps)) + (this.``l-chomped-empty`` ps))
+        let memFunc ps =
+            GRP(OPT((this.``l-nb-literal-text`` ps) + ZOM(this.``b-nb-literal-next`` ps) + (this.``b-chomped-last`` ps)) + (this.``l-chomped-empty`` ps))
+        let callMemoized = this.Memoize memFunc
+        callMemoized (173 (* member num *) , ps.n, ps.c) ps
+
 
     //  [174]   http://www.yaml.org/spec/1.2/spec.html#c-l+folded(n)
     member this.``c-l+folded`` ps =
@@ -2197,7 +2234,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                                foldEverything rest (h :: outLines) false
             foldEverything strlst [] false |> List.map(unIndent)
 
-        let ck = ScalarMemoizeKey.Create (ps.Input.Position) ((this.``l-folded-content`` (ps.FullIndented)).ToString())
+        let ck = ScalarMemoizeKey.Create (ps.Input.Position) 174
 
         if ps.Caching.ContainsKey(ck) then
             logger "> c-l+folded uncache" ps
@@ -2275,7 +2312,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     //  [182]   http://www.yaml.org/spec/1.2/spec.html#l-folded-content(n,t)
     member this.``l-folded-content`` (ps:ParseState) =
-        GRP(OPT((this.``l-nb-diff-lines`` ps) + (this.``b-chomped-last`` ps))) + (this.``l-chomped-empty`` ps)
+        let memFunc ps =
+            GRP(OPT((this.``l-nb-diff-lines`` ps) + (this.``b-chomped-last`` ps))) + (this.``l-chomped-empty`` ps)
+        let callMemoized = this.Memoize memFunc
+        callMemoized (182 (* member num *) , ps.n, ps.c) ps
 
     //  [183]   http://www.yaml.org/spec/1.2/spec.html#l+block-sequence(n)
     member this.``l+block-sequence`` (ps:ParseState) = 

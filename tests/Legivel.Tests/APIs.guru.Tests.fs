@@ -22,6 +22,9 @@ let private getApisGuruSchemas propertyName =
             |> Some)
        )
     |> Array.concat
+
+    |>  Array.take(2)   // for dev only
+
     |> Array.map (fun x->
         FSharp.Data.JsonExtensions.AsString(x))
 
@@ -33,22 +36,22 @@ open FsUnitTyped
 open TestUtils
 open Legivel.RepresentationGraph
 
-////[<Ignore "Activate when peformance has improved">]
-//[<TestCaseSource("apisGuruYamlSchemaUrls")>]
-//let ``Parse schema from APIs.guru``(url) =
-//    let schema =
-//        try
-//            Http.RequestString url |> Some
-//        with
-//        | :? System.Net.WebException ->
-//            printfn "Schema is unaccessible %s" url
-//            None
-//    match schema with
-//    | Some(s) ->
-//        let yml = YamlParse s
-//        match yml with
-//        | MapNode n -> 
-//            n.Data.Length |> shouldBeGreaterThan 0
-//        | _    -> failwithf "Map node is expected %A" yml
-//    | None -> () // network issues
+[<Ignore "Activate when peformance has improved">]
+[<TestCaseSource("apisGuruYamlSchemaUrls")>]
+let ``Parse schema from APIs.guru``(url) =
+    let schema =
+        try
+            Http.RequestString url |> Some
+        with
+        | :? System.Net.WebException ->
+            printfn "Schema is unaccessible %s" url
+            None
+    match schema with
+    | Some(s) ->
+        let yml = YamlParse s
+        match yml with
+        | MapNode n -> 
+            n.Data.Length |> shouldBeGreaterThan 0
+        | _    -> failwithf "Map node is expected %A" yml
+    | None -> () // network issues
 

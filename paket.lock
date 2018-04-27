@@ -2,7 +2,9 @@ RESTRICTION: == net45
 NUGET
   remote: https://www.nuget.org/api/v2
     FAKE (4.64.2)
+    FSharp.Charting (0.91.1)
     FSharp.Core (4.0.0.1) - redirects: force
+    FSharp.Data (2.4.6)
     NUnit (3.9)
 
 GROUP Build
@@ -26,7 +28,7 @@ GROUP Test
 RESTRICTION: == net45
 NUGET
   remote: https://www.nuget.org/api/v2
-    FSharp.Data (2.4.2)
+    FSharp.Data (2.4.6)
     NLog (4.4.12)
     NLog.FSharp (4.2.3)
       NLog (>= 4.2.3)
@@ -34,4 +36,4 @@ NUGET
     NUnit.ConsoleRunner (3.7)
 GITHUB
   remote: fsprojects/FsUnit
-    src/FsUnit.NUnit/FsUnitTyped.fs (8e69631ed274dd11e7fa6baec07209e2bf35f98d)
+    src/FsUnit.NUnit/FsUnitTyped.fs (bd259f8dbbb1dc0f4618c5ce211bf144fe01d817)

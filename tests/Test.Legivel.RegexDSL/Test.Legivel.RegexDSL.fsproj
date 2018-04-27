@@ -46,22 +46,42 @@
   <Import Project="$(FSharpTargetsPath)" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <Import Project="..\..\.paket\paket.targets" />
+  <ItemGroup>
+    <Compile Include="..\..\paket-files\test\fsprojects\FsUnit\src\FsUnit.NUnit\FsUnitTyped.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/FsUnitTyped.fs</Link>
+    </Compile>
+    <Content Include="App.config" />
+    <None Include="paket.references" />
+    <Compile Include="Test.Legivel.RegexDSL.fs" />
+    <None Include="FailFast - RegexDSL token parse.fsx" />
+    <None Include="RegexDSL.fsx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.Linq" />
+    <Reference Include="System.Numerics" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Legivel.RegexDSL\Legivel.RegexDSL.fsproj">
+      <Name>Legivel.RegexDSL</Name>
+      <Project>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.Tokenizer\Legivel.Tokenizer.fsproj">
+      <Name>Legivel.Tokenizer</Name>
+      <Project>{9536b292-efad-4fc9-83b2-2d3c62e44860}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
       <ItemGroup>
         <Reference Include="FSharp.Core">
           <HintPath>..\..\packages\FSharp.Core\lib\net40\FSharp.Core.dll</HintPath>
-          <Private>True</Private>
-          <Paket>True</Paket>
-        </Reference>
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
-      <ItemGroup>
-        <Reference Include="FSharp.Data">
-          <HintPath>..\..\packages\test\FSharp.Data\lib\net45\FSharp.Data.dll</HintPath>
           <Private>True</Private>
           <Paket>True</Paket>
         </Reference>
@@ -101,35 +121,4 @@
       </ItemGroup>
     </When>
   </Choose>
-  <ItemGroup>
-    <Compile Include="..\..\paket-files\test\fsprojects\FsUnit\src\FsUnit.NUnit\FsUnitTyped.fs">
-      <Paket>True</Paket>
-      <Link>paket-files/FsUnitTyped.fs</Link>
-    </Compile>
-    <Content Include="App.config" />
-    <None Include="paket.references" />
-    <Compile Include="Test.Legivel.RegexDSL.fs" />
-    <None Include="FailFast - RegexDSL token parse.fsx" />
-    <None Include="RegexDSL.fsx" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Legivel.RegexDSL\Legivel.RegexDSL.fsproj">
-      <Name>Legivel.RegexDSL</Name>
-      <Project>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Legivel.Tokenizer\Legivel.Tokenizer.fsproj">
-      <Name>Legivel.Tokenizer</Name>
-      <Project>{9536b292-efad-4fc9-83b2-2d3c62e44860}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
 </Project>

@@ -317,13 +317,16 @@ let Match(s, p) =
 [<DebuggerStepThrough>]
 let IsMatch(s:RollingStream<TokenData>, p) = 
     let pos = s.Position
-    AssesInput s p 
-    |> TokenDataToString
-    |>  function
-    |   Some mts -> 
-        let ml = Match(mts, p)
-        ml.Length > 0
-    | None -> false
+    AssesInput s p |> fst
+    //|> TokenDataToString
+    //|>  function
+    //|   Some mts -> 
+    //    let ml = Match(mts, p)
+    //    ml.Length > 0
+    //    |>  function
+    //        |   true -> true
+    //        |   false -> failwith "Difference between assesinput and regex"
+    //| None -> false
     |> fun res -> 
         s.Position <- pos
         res
@@ -338,16 +341,18 @@ let IsMatchStr(s, p) =
 [<DebuggerStepThrough>]
 let HasMatches(s,p) = 
     AssesInput s p 
-    |> TokenDataToString
-    |>  function
-    |   Some mts -> 
-        let ml = Match(mts, p)
-        if ml.Length > 0 then
-            let m0 = ml.[0]
-            (true, m0)
-        else
-            (false, "")
-    |   None -> (false, "")
+    |>  fun (b, tkl) -> b, (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString()
+    //|> TokenDataToString
+    //|>  function
+    //|   Some mts -> 
+    //    let ml = Match(mts, p)
+    //    if ml.Length > 0 then
+    //        let m0 = ml.[0]
+    //        (true, m0)
+    //    else
+    //        failwith "Difference between assesinput and regex"
+    //        //(false, "")
+    //|   None -> (false, "")
 
 [<DebuggerStepThrough>]
 let (|Regex|_|) pattern input =
@@ -367,7 +372,9 @@ let (|Regex2|_|) (pattern:RGXType) (input:RollingStream<TokenData>) =
             let fullMatch = lst |> List.head
             let groups = lst |> List.tail
             Some(MatchResult.Create fullMatch groups)
-        else None
+        else 
+            failwith "Difference between assesinput and regex"
+            //None
     )
     |>  function
         |   None -> input.Position <- p;None

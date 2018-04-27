@@ -76,9 +76,11 @@
     <None Include="Failfast Constructor.fsx" />
     <None Include="Failfast RAML.fsx" />
     <None Include="FailFast stream.fsx" />
+    <None Include="Profiling.fsx" />
     <None Include="nlog.fsx" />
     <None Include="YamlParserFuncs.fsx" />
     <Content Include="nlog.config" />
+    <None Include="lines profiling.csv" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Legivel.Common\Legivel.Common.fsproj">
@@ -126,6 +128,17 @@
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
       <ItemGroup>
+        <Reference Include="FSharp.Charting">
+          <HintPath>..\..\packages\FSharp.Charting\lib\net45\FSharp.Charting.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
+      <ItemGroup>
         <Reference Include="FSharp.Core">
           <HintPath>..\..\packages\FSharp.Core\lib\net40\FSharp.Core.dll</HintPath>
           <Private>True</Private>
@@ -138,7 +151,7 @@
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
       <ItemGroup>
         <Reference Include="FSharp.Data">
-          <HintPath>..\..\packages\test\FSharp.Data\lib\net45\FSharp.Data.dll</HintPath>
+          <HintPath>..\..\packages\FSharp.Data\lib\net45\FSharp.Data.dll</HintPath>
           <Private>True</Private>
           <Paket>True</Paket>
         </Reference>
