@@ -76,7 +76,8 @@ type RGXType =
     |   OneOrMoreNonGreedy  of RGXType
     |   Optional   of RGXType
     |   Group      of RGXType
-    override this.ToString() =
+
+    override this.ToString() = 
         match this with
         |   Plain    r -> r.ToString()
         |   OneInSet r -> r.ToString()
@@ -97,6 +98,7 @@ type RGXType =
         |   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
         |   Optional   t -> sprintf "(?:%O)?" t
         |   Group      t -> sprintf "(%O)" t
+
     static member private DoConcat (r1:RGXType, r2:RGXType) = 
         match (r1,r2) with
         |   (Concat c1, _) -> Concat(r2 :: c1)

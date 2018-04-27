@@ -70,8 +70,7 @@ let YamlParseList s =
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
-
-// Example 2.11
+//  Example 2.11
 YamlParseList "
 ? - Detroit Tigers
   - Chicago cubs
@@ -83,6 +82,5 @@ YamlParseList "
 : [ 2001-07-02, 2001-08-12,
     2001-08-14 ]
 "
-
 
 

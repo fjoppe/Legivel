@@ -307,6 +307,7 @@ type RollingStream<'a when 'a : equality> = private {
                 elif v > this.Position then
                     let df = (this.BufferedLength() - v)
                     if df <= 0 then
+                        //  beyond local buffer
                         let nPast = this.Past |> List.append (this.Future |> List.rev)
                         let nFut  = []
                         this.Past <- nPast
@@ -314,6 +315,8 @@ type RollingStream<'a when 'a : equality> = private {
                         if df < 0 then
                             this.Stream |> Seq.take (-df) |> Seq.iter(ignore)
                     else
+                        //  within local buffer
+                        let df = v - (List.length this.Past)
                         let nPast = this.Past |> List.append (this.Future |> List.take df |> List.rev)
                         let nFut = this.Future |> List.skip df
                         this.Past <- nPast
