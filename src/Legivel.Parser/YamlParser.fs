@@ -17,7 +17,14 @@ open System.Collections.Generic
 
 exception ParseException of string
 
-type Context = ``Block-out`` | ``Block-in`` | ``Flow-out`` | ``Flow-in`` | ``Block-key`` | ``Flow-key``
+type Context = 
+    | ``Block-out`` = 0
+    | ``Block-in``  = 1
+    | ``Flow-out``  = 2
+    | ``Flow-in``   = 3
+    | ``Block-key`` = 4
+    | ``Flow-key``  = 5
+
 type Chomping = ``Strip`` | ``Clip`` | ``Keep``
 
 type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHandSecondary of string | ShortHandPrimary of string | NonSpecificQT | NonSpecificQM | Empty
@@ -251,7 +258,7 @@ type ParseState = {
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
         static member Create inputStr schema = {
-                Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=``Block-out``; t=``Clip``; 
+                Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=``Clip``; 
                 Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
                 GlobalTagSchema = schema; LocalTagSchema = None; NodePath = [];
@@ -283,7 +290,7 @@ module ParseState =
     let ResetDocumentParseState ps = 
         { ps with 
             ParseState.Location = (DocumentLocation.Create 1 1)
-            n=0; m=0; c=``Block-out``; t=``Clip``; 
+            n=0; m=0; c=Context.``Block-out``; t=``Clip``; 
             Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
             TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
             GlobalTagSchema = ps.GlobalTagSchema; LocalTagSchema = ps.LocalTagSchema; NodePath = []
@@ -538,7 +545,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
             prs 
             |> ``follow up func``
             |> ParseState.TrackParseLocation ps
-            |> FallibleOption.bind(fun (content, prs) ->
+            |> FallibleOption.bind(fun (content:Node, prs) ->
                 let prs = addAnchor anchor content prs
                 content
                 |> this.ResolveTag prs tag tl 
@@ -729,8 +736,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
     member this.``c-printable`` = 
-        RGO ("\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
-             "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
+        RGO (
+            "\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
+            "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
                                                    //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
             [
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
@@ -810,15 +818,16 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
     member this.``c-indicator`` = 
-        RGO  ("\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
-        [ 
-        Token.``t-hyphen``; Token.``t-questionmark``; Token.``t-colon``
-        Token.``t-comma``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
-        Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
-        Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-        Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
-        Token.``t-percent``; Token.``t-commat``;Token.``t-tick``
-        ])
+        RGO  (
+            "\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
+            [ 
+            Token.``t-hyphen``; Token.``t-questionmark``; Token.``t-colon``
+            Token.``t-comma``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
+            Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
+            Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
+            Token.``t-percent``; Token.``t-commat``;Token.``t-tick``
+            ])
 
 
     //  [23]    http://www.yaml.org/spec/1.2/spec.html#c-flow-indicator
@@ -887,7 +896,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [39]    http://www.yaml.org/spec/1.2/spec.html#ns-uri-char
     member this.``ns-uri-char`` = 
         RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        RGO (@"#;/?:@&=+$,_.!~*\'\(\)\[\]", [
+        RGO (
+            @"#;/?:@&=+$,_.!~*\'\(\)\[\]", 
+            [
             Token.``t-hash``; Token.``t-forward-slash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
             Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
             Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
@@ -897,7 +908,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
     member this.``ns-tag-char`` = 
         RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        (RGO (@"#;/?:@&=+$_.~*\'\(\)", [
+        (RGO (
+            @"#;/?:@&=+$_.~*\'\(\)", 
+            [
             Token.``t-hash``; Token.``t-forward-slash``;Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
             Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
             Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
@@ -1007,10 +1020,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``s-line-prefix`` ps =
         logger "s-line-prefix" ps
         match ps.c with
-        | ``Block-out`` ->  this.``s-block-line-prefix`` ps
-        | ``Block-in``  ->  this.``s-block-line-prefix`` ps
-        | ``Flow-out``  ->  this.``s-flow-line-prefix`` ps
-        | ``Flow-in``   ->  this.``s-flow-line-prefix`` ps
+        | Context.``Block-out`` ->  this.``s-block-line-prefix`` ps
+        | Context.``Block-in``  ->  this.``s-block-line-prefix`` ps
+        | Context.``Flow-out``  ->  this.``s-flow-line-prefix`` ps
+        | Context.``Flow-in``   ->  this.``s-flow-line-prefix`` ps
         | _             ->  failwith "The context 'block-key' and 'flow-key' are not supported at this point"
 
     //  [68]    http://www.yaml.org/spec/1.2/spec.html#s-block-line-prefix(n)
@@ -1033,7 +1046,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
     //  [74]    http://www.yaml.org/spec/1.2/spec.html#s-flow-folded(n)
     member this.``s-flow-folded`` (ps:ParseState) =
-        OPT(this.``s-separate-in-line``) + (this.``b-l-folded`` (ps.SetStyleContext ``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
+        OPT(this.``s-separate-in-line``) + (this.``b-l-folded`` (ps.SetStyleContext Context.``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
 
     //  [75]    http://www.yaml.org/spec/1.2/spec.html#c-nb-comment-text
     member this.``c-nb-comment-text`` = RGP("#", [Token.``t-hash``]) + ZOM(this.``nb-char``)
@@ -1054,12 +1067,12 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``s-separate`` ps = 
         logger "s-separate" ps
         match ps.c with 
-        | ``Block-out`` ->  this.``s-separate-lines`` ps
-        | ``Block-in``  ->  this.``s-separate-lines`` ps
-        | ``Flow-out``  ->  this.``s-separate-lines`` ps
-        | ``Flow-in``   ->  this.``s-separate-lines`` ps
-        | ``Block-key`` ->  this.``s-separate-in-line``
-        | ``Flow-key``  ->  this.``s-separate-in-line``
+        | Context.``Block-out`` ->  this.``s-separate-lines`` ps
+        | Context.``Block-in``  ->  this.``s-separate-lines`` ps
+        | Context.``Flow-out``  ->  this.``s-separate-lines`` ps
+        | Context.``Flow-in``   ->  this.``s-separate-lines`` ps
+        | Context.``Block-key`` ->  this.``s-separate-in-line``
+        | Context.``Flow-key``  ->  this.``s-separate-in-line``
 
     //  [81]    http://www.yaml.org/spec/1.2/spec.html#s-separate-lines(n)
     member this.``s-separate-lines`` ps = (this.``s-l-comments`` + (this.``s-flow-line-prefix`` ps)) ||| this.``s-separate-in-line``
@@ -1320,13 +1333,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Regex3(patt)    (mt,prs) ->
             let content = mt.ge1
             match ps.c with
-            |  ``Flow-out`` |  ``Flow-in`` ->   //  multiline
+            |  Context.``Flow-out`` |  Context.``Flow-in`` ->   //  multiline
                 let lines = content |> this.``split by linefeed`` |> List.length
                 if lines = 1 then
                     processSingleLine prs content
                 else
                     processMultiLine prs content
-            |   ``Block-key`` | ``Flow-key`` -> //  single line
+            |   Context.``Block-key`` | Context.``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
         |   Regex3(``illegal-chars``) _ -> ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrDquoteIllegalChars "Literal string contains illegal characters."]
@@ -1338,17 +1351,17 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [110]   http://www.yaml.org/spec/1.2/spec.html#nb-double-text(n,c)
     member this.``nb-double-text`` ps =
         match ps.c with
-        | ``Flow-out``  ->  this.``nb-double-multi-line`` ps
-        | ``Flow-in``   ->  this.``nb-double-multi-line`` ps
-        | ``Block-key`` ->  this.``nb-double-one-line``
-        | ``Flow-key``  ->  this.``nb-double-one-line``
+        | Context.``Flow-out``  ->  this.``nb-double-multi-line`` ps
+        | Context.``Flow-in``   ->  this.``nb-double-multi-line`` ps
+        | Context.``Block-key`` ->  this.``nb-double-one-line``
+        | Context.``Flow-key``  ->  this.``nb-double-one-line``
         | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [111]   http://www.yaml.org/spec/1.2/spec.html#nb-double-one-line
     member this.``nb-double-one-line`` = ZOM(this.``nb-double-char``)
 
     //  [112]   http://www.yaml.org/spec/1.2/spec.html#s-double-escaped(n)
-    member this.``s-double-escaped`` (ps:ParseState) = ZOM(this.``s-white``) + this.``c-escape`` + this.``b-non-content`` + ZOM(this.``l-empty`` (ps.SetStyleContext ``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
+    member this.``s-double-escaped`` (ps:ParseState) = ZOM(this.``s-white``) + this.``c-escape`` + this.``b-non-content`` + ZOM(this.``l-empty`` (ps.SetStyleContext Context.``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
 
     //  [113]   http://www.yaml.org/spec/1.2/spec.html#s-double-break(n)
     member this.``s-double-break`` ps = (this.``s-double-escaped`` ps) ||| (this.``s-flow-folded`` ps)
@@ -1401,13 +1414,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Regex3(patt)    (mt,prs) ->
             let content = mt.ge1
             match ps.c with
-            |  ``Flow-out`` |  ``Flow-in`` ->   //  multiline
+            |  Context.``Flow-out`` |  Context.``Flow-in`` ->   //  multiline
                 let lines = content |> this.``split by linefeed`` |> List.length
                 if lines = 1 then
                     processSingleLine prs content
                 else
                     processMultiLine prs content
-            |   ``Block-key`` | ``Flow-key`` -> //  single line
+            |   Context.``Block-key`` | Context.``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
         |   Regex3(``illegal-patt``) _ ->
@@ -1420,10 +1433,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``nb-single-text`` ps =
         logger "nb-single-text" ps
         match ps.c with
-        |   ``Flow-out``    -> this.``nb-single-multi-line`` ps
-        |   ``Flow-in``     -> this.``nb-single-multi-line`` ps
-        |   ``Block-key``   -> this.``nb-single-one-line``
-        |   ``Flow-key``    -> this.``nb-single-one-line``
+        |   Context.``Flow-out``    -> this.``nb-single-multi-line`` ps
+        |   Context.``Flow-in``     -> this.``nb-single-multi-line`` ps
+        |   Context.``Block-key``   -> this.``nb-single-one-line``
+        |   Context.``Flow-key``    -> this.``nb-single-one-line``
         | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [122]   http://www.yaml.org/spec/1.2/spec.html#nb-single-one-line    
@@ -1449,10 +1462,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let memFunc ps =
             match ps.c with
-            |   ``Flow-out``    -> this.``ns-plain-safe-out``
-            |   ``Flow-in``     -> this.``ns-plain-safe-in``
-            |   ``Block-key``   -> this.``ns-plain-safe-out``
-            |   ``Flow-key``    -> this.``ns-plain-safe-in``
+            |   Context.``Flow-out``    -> this.``ns-plain-safe-out``
+            |   Context.``Flow-in``     -> this.``ns-plain-safe-in``
+            |   Context.``Block-key``   -> this.``ns-plain-safe-out``
+            |   Context.``Flow-key``    -> this.``ns-plain-safe-in``
             | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
         let callMemoized = this.Memoize memFunc
         callMemoized (127, ps.n, ps.c) ps
@@ -1472,10 +1485,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let memFunc ps =
             match ps.c with
-            | ``Flow-out``  -> this.``ns-plain-multi-line`` ps
-            | ``Flow-in``   -> this.``ns-plain-multi-line`` ps
-            | ``Block-key`` -> this.``ns-plain-one-line`` ps
-            | ``Flow-key``  -> this.``ns-plain-one-line`` ps
+            | Context.``Flow-out``  -> this.``ns-plain-multi-line`` ps
+            | Context.``Flow-in``   -> this.``ns-plain-multi-line`` ps
+            | Context.``Block-key`` -> this.``ns-plain-one-line`` ps
+            | Context.``Flow-key``  -> this.``ns-plain-one-line`` ps
             | _              -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
         let callMemoized = this.Memoize memFunc
         callMemoized (131, ps.n, ps.c) ps
@@ -1495,10 +1508,10 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [136]   http://www.yaml.org/spec/1.2/spec.html#in-flow(c)
     member this.``in-flow`` (ps:ParseState) =
         match ps.c with
-        |   ``Flow-out`` -> ``Flow-in``
-        |   ``Flow-in``  -> ``Flow-in``
-        |   ``Block-key``-> ``Flow-key``
-        |   ``Flow-key`` -> ``Flow-key``
+        |   Context.``Flow-out`` -> Context.``Flow-in``
+        |   Context.``Flow-in``  -> Context.``Flow-in``
+        |   Context.``Block-key``-> Context.``Flow-key``
+        |   Context.``Flow-key`` -> Context.``Flow-key``
         | _              -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
@@ -1767,7 +1780,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [152]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-pair-yaml-key-entry(n,c)
     member this.``ns-flow-pair-yaml-key-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-pair-yaml-key-entry" ps
-        let ``ns-s-implicit-yaml-key`` (ps:ParseState) = (this.``ns-s-implicit-yaml-key`` (ps.SetStyleContext ``Flow-key``))
+        let ``ns-s-implicit-yaml-key`` (ps:ParseState) = (this.``ns-s-implicit-yaml-key`` (ps.SetStyleContext Context.``Flow-key``))
         match (``ns-s-implicit-yaml-key`` ps) with
         |   Value (ck, prs) -> 
             match (this.``c-ns-flow-map-separate-value`` prs) with
@@ -1783,7 +1796,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [153]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-pair-json-key-entry(n,c)
     member this.``c-ns-flow-pair-json-key-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-ns-flow-pair-json-key-entry" ps
-        match (this.``c-s-implicit-json-key`` (ps.SetStyleContext ``Flow-key``)) with
+        match (this.``c-s-implicit-json-key`` (ps.SetStyleContext Context.``Flow-key``)) with
         |   Value(ck, prs) ->
             match (this.``c-ns-flow-map-adjacent-value`` prs) with
             |   Value(cv, prs2) -> Value((ck, cv), prs2)
@@ -1833,7 +1846,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "ns-flow-yaml-content" ps
 
         //  illegal indicators, minus squote and dquote; see this.``c-indicator``
-        let ``illegal-ns-plain`` p = 
+        let ``illegal-ns-plain`` ps = 
             let memFunc ps =
                 this.``c-indicator`` + this.``ns-plain-first`` ps
             let callMemoized = this.Memoize memFunc
@@ -1846,8 +1859,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let preErr = 
             if not(ps.Restrictions.AllowedMultiLine) then 
                 match ps.c with
-                | ``Flow-out``  | ``Flow-in``   -> NoResult
-                | ``Block-key`` | ``Flow-key``  -> 
+                | Context.``Flow-out``  | Context.``Flow-in``   -> NoResult
+                | Context.``Block-key`` | Context.``Flow-key``  -> 
                     match ps with
                     |   Regex3(``illegl multiline`` ps) _ -> 
                         ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrPlainScalarMultiLine ("This plain scalar cannot span multiple lines; this restrictin applies to mapping keys.")]
@@ -1877,8 +1890,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
             match preErr with
             |   NoResult ->
                 match (ps.c, ps) with
-                |   ``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
-                |   ``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
+                |   Context.``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
+                |   Context.``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
                     let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
@@ -1888,8 +1901,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
                     |> this.CacheNode ck prs dl (mt.FullMatch.Length)
-                |   ``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
-                |   ``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
+                |   Context.``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
+                |   Context.``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
                     let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
@@ -1900,8 +1913,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   _, Regex3(``illegal-ns-plain`` ps) (_,prs) -> 
                     ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
                     |> this.CacheNode ck prs (DocumentLocation.Empty) 0
-                |   ``Block-out``, _
-                |   ``Block-in``, _ -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
+                |   Context.``Block-out``, _
+                |   Context.``Block-in``, _ -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
                 |   _ -> NoResult
             | x -> x
         |> ParseState.ResetEnv ps 
@@ -2057,7 +2070,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l-strip-empty`` ps = ZOM((this.``s-indent(<=n)`` ps) + this.``b-non-content``) + OPT(this.``l-trail-comments`` ps)
 
     //  [168]   http://www.yaml.org/spec/1.2/spec.html#l-keep-empty(n)
-    member this.``l-keep-empty`` ps = ZOM(this.``l-empty`` (ps.SetStyleContext ``Block-in``)) + OPT(this.``l-trail-comments`` ps)
+    member this.``l-keep-empty`` ps = ZOM(this.``l-empty`` (ps.SetStyleContext Context.``Block-in``)) + OPT(this.``l-trail-comments`` ps)
 
     //  [169]   http://www.yaml.org/spec/1.2/spec.html#l-trail-comments(n)
     member this.``l-trail-comments`` ps = (this.``s-indent(<n)`` ps) + this.``c-nb-comment-text`` + this.``b-comment`` + ZOM(this.``l-comment``)
@@ -2073,7 +2086,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   _ -> failwith (sprintf "Problem with indentation: %s" s)
             let unIndent s = if s <> "" then skipIndent s else s
 
-            let ``l-empty`` = RGSF((this.``s-line-prefix`` (pst.SetStyleContext ``Block-in``)) ||| (this.``s-indent(<n)`` pst))
+            let ``l-empty`` = RGSF((this.``s-line-prefix`` (pst.SetStyleContext Context.``Block-in``)) ||| (this.``s-indent(<n)`` pst))
             let ``l-literaltext`` = RGSF((this.``s-indent(n)`` pst) + OOM(this.``nb-char``))
 
             let trimTail sin sout =
@@ -2175,7 +2188,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |> this.LogReturn "c-l+literal" ps
 
     //  [171]   http://www.yaml.org/spec/1.2/spec.html#l-nb-literal-text(n)
-    member this.``l-nb-literal-text`` (ps:ParseState) = ZOM(this.``l-empty`` (ps.SetStyleContext ``Block-in``)) + (this.``s-indent(n)`` ps) + OOM(this.``nb-char``)
+    member this.``l-nb-literal-text`` (ps:ParseState) = ZOM(this.``l-empty`` (ps.SetStyleContext Context.``Block-in``)) + (this.``s-indent(n)`` ps) + OOM(this.``nb-char``)
 
     //  [172]   http://www.yaml.org/spec/1.2/spec.html#b-nb-literal-next(n)
     member this.``b-nb-literal-next`` ps = this.``b-as-line-feed`` + (this.``l-nb-literal-text`` ps)
@@ -2292,20 +2305,20 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``s-nb-folded-text`` ps = (this.``s-indent(n)`` ps) + ZOM(this.``nb-char``)
 
     //  [176]   http://www.yaml.org/spec/1.2/spec.html#l-nb-folded-lines(n)
-    member this.``l-nb-folded-lines`` (ps:ParseState) = (this.``s-nb-folded-text`` ps) + ZOM((this.``b-l-folded`` (ps.SetStyleContext ``Block-in``)) + this.``s-nb-folded-text`` ps)
+    member this.``l-nb-folded-lines`` (ps:ParseState) = (this.``s-nb-folded-text`` ps) + ZOM((this.``b-l-folded`` (ps.SetStyleContext Context.``Block-in``)) + this.``s-nb-folded-text`` ps)
 
     //  [177]   http://www.yaml.org/spec/1.2/spec.html#s-nb-spaced-text(n)
     member this.``s-nb-spaced-text`` ps = (this.``s-indent(n)`` ps) + this.``s-white`` + ZOM(this.``nb-char``)
 
     //  [178]   http://www.yaml.org/spec/1.2/spec.html#b-l-spaced(n)
-    member this.``b-l-spaced`` (ps:ParseState) = this.``b-as-line-feed`` + ZOM(this.``l-empty`` (ps.SetStyleContext ``Block-in``))
+    member this.``b-l-spaced`` (ps:ParseState) = this.``b-as-line-feed`` + ZOM(this.``l-empty`` (ps.SetStyleContext Context.``Block-in``))
 
     //  [179]   http://www.yaml.org/spec/1.2/spec.html#l-nb-spaced-lines(n)
     member this.``l-nb-spaced-lines`` ps = (this.``s-nb-spaced-text`` ps) + ZOM((this.``b-l-spaced``ps) + (this.``s-nb-spaced-text`` ps))
 
     //  [180]   http://www.yaml.org/spec/1.2/spec.html#l-nb-same-lines(n)
     member this.``l-nb-same-lines`` (ps:ParseState) = 
-        ZOM(this.``l-empty`` (ps.SetStyleContext ``Block-in``)) + ((this.``l-nb-folded-lines`` ps) ||| (this.``l-nb-spaced-lines`` ps))
+        ZOM(this.``l-empty`` (ps.SetStyleContext Context.``Block-in``)) + ((this.``l-nb-folded-lines`` ps) ||| (this.``l-nb-spaced-lines`` ps))
 
     //  [181]   http://www.yaml.org/spec/1.2/spec.html#l-nb-diff-lines(n)
     member this.``l-nb-diff-lines`` ps = (this.``l-nb-same-lines`` ps) + ZOM(this.``b-as-line-feed`` + (this.``l-nb-same-lines`` ps))
@@ -2360,7 +2373,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 NoResult
             else
                 //prs.Input.Reset()
-                let prs = prs.SetStyleContext ``Block-in``
+                let prs = prs.SetStyleContext Context.``Block-in``
                 this.``s-l+block-indented`` prs
         )
         |> ParseState.ResetEnv ps
@@ -2506,7 +2519,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-l-block-map-explicit-key`` ps : ParseFuncResult<_> =
         logger "c-l-block-map-explicit-key" ps
         ps |> ParseState.``Match and Advance`` (this.``c-mapping-key``) (fun prs ->
-            this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext ``Block-out``)
+            this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext Context.``Block-out``)
         )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
@@ -2516,7 +2529,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``l-block-map-explicit-value`` ps = 
         logger "l-block-map-explicit-value" ps
         ps |> ParseState.``Match and Advance`` ((this.``s-indent(n)`` ps) + this.``c-mapping-value``) (fun prs ->
-            this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext ``Block-out``)
+            this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext Context.``Block-out``)
         )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
@@ -2551,7 +2564,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [193]   http://www.yaml.org/spec/1.2/spec.html#ns-s-block-map-implicit-key
     member this.``ns-s-block-map-implicit-key`` ps = 
         logger "ns-s-block-map-implicit-key" ps
-        (ps |> ParseState.SetStyleContext ``Block-key`` |> ParseState.OneOf) {
+        (ps |> ParseState.SetStyleContext Context.``Block-key`` |> ParseState.OneOf) {
             either (this.``c-s-implicit-json-key``)
             either (this.``ns-s-implicit-yaml-key``)
             ifneither (NoResult)
@@ -2565,7 +2578,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``c-l-block-map-implicit-value`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-l-block-map-implicit-value" ps
         ps |> ParseState.``Match and Advance`` (this.``c-mapping-value``) (fun prs ->
-            let prs = prs.SetStyleContext ``Block-out``
+            let prs = prs.SetStyleContext Context.``Block-out``
             let noResult prs =
                 if (ParseState.HasNoTerminatingError prs) then
                     prs |> ParseState.``Match and Advance`` (this.``e-node`` +  this.``s-l-comments``) (fun prs ->
@@ -2622,7 +2635,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [197]   http://www.yaml.org/spec/1.2/spec.html#s-l+flow-in-block(n)
     member this.``s-l+flow-in-block`` (ps:ParseState) : ParseFuncResult<_> =
         logger "s-l+flow-in-block" ps
-        let prs = ps |> ParseState.SetIndent (ps.n + 1) |> ParseState.SetStyleContext ``Flow-out``
+        let prs = ps |> ParseState.SetIndent (ps.n + 1) |> ParseState.SetStyleContext Context.``Flow-out``
         prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (fun prs ->
             match (this.``ns-flow-node`` prs) with
             |   Value(c, prs2) -> Value(c, prs2.SkipIfMatch (this.``s-l-comments``)) 
@@ -2705,8 +2718,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [201]   http://www.yaml.org/spec/1.2/spec.html#seq-spaces(n,c)
     member this.``seq-spaces`` ps = 
         match ps.c with
-        |   ``Block-out``   ->  ps.SetIndent (ps.n-1)
-        |   ``Block-in``    ->  ps
+        |   Context.``Block-out``   ->  ps.SetIndent (ps.n-1)
+        |   Context.``Block-in``    ->  ps
         |   _ ->    failwith "Unsupported document style."
 
     //  [202]   http://www.yaml.org/spec/1.2/spec.html#l-document-prefix
@@ -2741,7 +2754,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 //ps.Input.Reset()
                 ps 
                 |> ParseState.SetIndent -1
-                |> ParseState.SetStyleContext ``Block-in``
+                |> ParseState.SetStyleContext Context.``Block-in``
                 |> this.``s-l+block-node`` 
         else
             ErrorResult (ps.Messages.Error)
@@ -2875,7 +2888,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
         )
         |>  function
             | Value (_, representations) -> representations |> List.rev
-            |   x -> []
+            |   _ -> []
 
 
 

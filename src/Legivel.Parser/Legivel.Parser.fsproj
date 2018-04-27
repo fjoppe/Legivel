@@ -19,7 +19,7 @@
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
     <OutputPath>.\bin\Debug</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG</DefineConstants>
     <WarningLevel>5</WarningLevel>
     <OtherFlags>--warnon:1182</OtherFlags>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
@@ -31,10 +31,13 @@
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
     <OutputPath>.\bin\Release</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <WarningLevel>3</WarningLevel>
+    <DefineConstants>
+    </DefineConstants>
+    <WarningLevel>5</WarningLevel>
     <OtherFlags>--warnon:1182</OtherFlags>
     <DocumentationFile>.\bin\Release\Legivel.Parser.XML</DocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
