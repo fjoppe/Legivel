@@ -2078,6 +2078,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         |   _ -> trimMain sin sout
             trimHead slist []
 
+
         ps |> ParseState.``Match and Advance`` (RGP ("\\|", [Token.``t-pipe``])) (fun prs ->
             let ``literal-content`` (ps:ParseState) =
                 let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
@@ -2108,6 +2109,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                             |   _ ->        ErrorResult [MessageAtLine.CreateContinue (ps2.Location) ErrBadFormatLiteral "The literal has bad syntax."]
                         else
                             let split = ms |> this.``split by linefeed`` 
+                            let mapScalar (s, prs) =  
+                                CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
+                                |> this.ResolveTag prs NonSpecificQT (prs.Location)
                             split 
                             |> trimIndent ps2
                             |> FallibleOption.map(fun prs -> 
@@ -2115,13 +2119,17 @@ type Yaml12Parser(loggingFunction:string->unit) =
                                     prs
                                     |> this.``chomp lines`` ps2 
                                     |> this.``join lines``
+#if DEBUG
                                 logger (sprintf "c-l+literal value: %s" s) ps2
+#endif
                                 (s, ps2 |> ParseState.Advance)
                                 )
+                            |> FallibleOption.bind mapScalar 
                     )
                 )
             )
         )
+        |> this.PostProcessAndValidateNode
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+literal" ps
 
@@ -2204,6 +2212,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
                         Value aut
                     |   _  -> ErrorResult [MessageAtLine.CreateContinue (prs2.Location) ErrTooLessIndentedLiteral "Could not detect indentation of literal block scalar after '>'"]
                 |> FallibleOption.bind(fun m ->
+                    let mapScalar (s, prs) =  
+                        CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
+                        |> this.ResolveTag prs NonSpecificQT (prs.Location)
                     (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
                     |> FallibleOption.map(fun (ms, ps2) -> 
                         let s = 
@@ -2214,9 +2225,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
                             |> this.``join lines``
                         (s, ps2 |> ParseState.Advance)
                     )
+                    |> FallibleOption.bind mapScalar
                 )
             )
          )
+        |> this.PostProcessAndValidateNode
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+folded" ps 
@@ -2583,27 +2596,20 @@ type Yaml12Parser(loggingFunction:string->unit) =
         let ``literal or folded`` (psp:ParseState) =
             let psp1 = psp.SetIndent (psp.n + 1)
             psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
-                let mapScalar (s, prs) = 
-                    Value(CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s), prs)
-                    |> this.PostProcessAndValidateNode
                 (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
                     {
-                        either   (this.``c-l+literal`` >> FallibleOption.bind mapScalar)
-                        either   (this.``c-l+folded``  >> FallibleOption.bind mapScalar)
+                        either   (this.``c-l+literal``)
+                        either   (this.``c-l+folded``)
                         ifneither NoResult
                     }
                     |> ParseState.PreserveErrors psp
             )
         psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
-            let mapScalar (s, prs) = 
-                CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s) 
-                |> this.ResolveTag prs NonSpecificQT (prs.Location)
-                |> this.PostProcessAndValidateNode
             (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
                 {
                     either(this.``content with properties`` ``literal or folded``)
-                    either   (this.``c-l+literal`` >> FallibleOption.bind mapScalar)
-                    either   (this.``c-l+folded``  >> FallibleOption.bind mapScalar)
+                    either   (this.``c-l+literal``)
+                    either   (this.``c-l+folded``)
                     ifneither NoResult
                 }
                 |> ParseState.PreserveErrors ps
