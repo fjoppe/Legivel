@@ -108,9 +108,11 @@ with
 type ScalarMemoizeValue = {
     SreamPositionEnd : int
     Value            : FallibleOption<Node, ErrorMessage>
+    PositionDelta    : DocumentLocation
+    Length           : int
 }
 with
-    static member Create p s = { SreamPositionEnd = p; Value = s }
+    static member Create p s d l = { SreamPositionEnd = p; Value = s; PositionDelta=d; Length=l }
 
 
 [<NoEquality; NoComparison>]
@@ -171,13 +173,20 @@ type ParseState = {
     }
     with
         static member AddErrorMessageDel (ps:ParseState) sl = (sl |> List.fold(fun (p:ParseState) s -> p.AddErrorMessage s) ps)
-        member this.TrackPosition s =
+
+        static member PositionDelta s =
             let patt = "\u000d\u000a|\u000d|\u000a" // see rule [28] ``b-break``
             let lines = Regex.Split(s, patt) |> List.ofArray
             let lc = (lines.Length-1)  //  counts \n in a string
             let lcc = (lines |> List.last).Length // local column count
+            lc, lcc
+
+        member this.SetPositionDelta sl lc lcc =
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
-            { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + (s.Length) }
+            { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + sl }
+
+        member this.TrackPosition s =
+            ParseState.PositionDelta s ||> this.SetPositionDelta (s.Length)
 
         static member HasNoTerminatingError (ps:ParseState) = ps.Messages.Error |> List.exists(fun m -> m.Action = Terminate) |> not
 
@@ -658,28 +667,37 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |   Verbatim name   -> ResolveLocalTag name
         |   TagKind.Empty   -> Value(node,ps)
 
-    member this.CacheNode key (postParseState:ParseState) (potetialNode:FallibleOption<Node * ParseState, ErrorMessage>) =
+#if DEBUG
+    member this.KeyToString (key:ScalarMemoizeKey) =
+        sprintf "<%d,%d>" (key.SreamPositionStart) (key.Regex.GetHashCode()) 
+#endif
+
+    member this.CacheNode key (postParseState:ParseState) posDelta len (potetialNode:FallibleOption<Node * ParseState, ErrorMessage>) =
         let pos = postParseState.Input.Position
         let cv = 
             match potetialNode with
             |   Value(n,_) -> 
+
+#if DEBUG
                 logger (sprintf "> cached: %s end: %d >> %s" (this.KeyToString key) pos (n.ToPrettyString())) postParseState
-                ScalarMemoizeValue.Create pos (Value n)
-            |   NoResult   -> ScalarMemoizeValue.Create pos NoResult
-            |   ErrorResult e -> ScalarMemoizeValue.Create pos (ErrorResult e)
+#endif
+                ScalarMemoizeValue.Create pos (Value n) posDelta len
+            |   NoResult   -> ScalarMemoizeValue.Create pos NoResult posDelta len
+            |   ErrorResult e -> ScalarMemoizeValue.Create pos (ErrorResult e) posDelta len
         postParseState.Caching.Add(key, cv)
         potetialNode
-
-    member this.KeyToString (key:ScalarMemoizeKey) =
-        sprintf "<%d,%d>" (key.SreamPositionStart) (key.Regex.GetHashCode()) 
 
     member this.UncacheNode key (preParseState:ParseState) =
         let cv = preParseState.Caching.[key]
         preParseState.Input.Position <- cv.SreamPositionEnd
         match cv.Value with
         |   Value(n) -> 
+
+#if DEBUG
             logger (sprintf "> uncached: %s end: %d >> %s" (this.KeyToString key) (cv.SreamPositionEnd) (n.ToPrettyString())) preParseState
-            Value(n,preParseState)
+#endif
+            let postCacheState = preParseState.SetPositionDelta (cv.Length) (cv.PositionDelta.Line) (cv.PositionDelta.Column)
+            Value(n,postCacheState)
         |   NoResult -> NoResult
         |   ErrorResult e -> ErrorResult e
 
@@ -1829,24 +1847,26 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 |   ``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
                 |   ``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+                    let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
                     |> this.``split by linefeed``
                     |> this.``plain flow fold lines`` prs
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
-                    |> this.CacheNode ck prs
+                    |> this.CacheNode ck prs dl (mt.FullMatch.Length)
                 |   ``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
                 |   ``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+                    let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
-                    |> this.CacheNode ck prs
+                    |> this.CacheNode ck prs dl (mt.FullMatch.Length)
                 |   _, Regex3(``illegal-ns-plain`` ps) (_,prs) -> 
                     ErrorResult [MessageAtLine.CreateContinue (ps.Location) ErrPlainScalarRestrictedIndicator ("Reserved indicators can't start a plain scalar.")]
-                    |> this.CacheNode ck prs
+                    |> this.CacheNode ck prs (DocumentLocation.Empty) 0
                 |   ``Block-out``, _
                 |   ``Block-in``, _ -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
                 |   _ -> NoResult

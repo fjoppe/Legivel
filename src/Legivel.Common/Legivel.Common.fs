@@ -69,6 +69,8 @@ type    DocumentLocation = {
     }
     with
         static member Create l cl = { Line = l; Column = cl}
+        static member Empty = { Line = 0; Column = 0}
+
         member this.AddAndSet l cl = { Line = this.Line+l; Column = cl}
 
         member this.ToPrettyString() = sprintf "line %d; column %d" this.Line this.Column
