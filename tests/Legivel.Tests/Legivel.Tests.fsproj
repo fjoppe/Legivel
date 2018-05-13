@@ -78,6 +78,7 @@
     <None Include="Failfast Constructor.fsx" />
     <None Include="Failfast RAML.fsx" />
     <None Include="FailFast stream.fsx" />
+    <None Include="Failfast Random.fsx" />
     <None Include="Profiling.fsx" />
     <None Include="nlog.fsx" />
     <None Include="YamlParserFuncs.fsx" />
