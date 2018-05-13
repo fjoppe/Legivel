@@ -82,7 +82,7 @@ module SchemaUtils =
     let tagFormatCheckError (n:Node) data =
         function
         |   Some _ -> FallibleOption<_,_>.Value n
-        |   None   -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Incorrect format: '%s', for tag: %s" data (n.NodeTag.ToPrettyString()))]
+        |   None   -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (sprintf "Incorrect format: '%s', for tag: %s" data (n.NodeTag.ToPrettyString()))]
 
     let isFormattedScalarValid (n: Node) = 
         let data = getScalarNode n
@@ -468,12 +468,12 @@ module YamlExtended =
             |> getKeysFromPairs 
             |> Failsafe.validateDuplicateKeys n
         else
-            FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+            FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
 
         
     let validateOrderedPairs (n:Node) =
         if (isMatchSequenceOfPairs n n.NodeTag) then FallibleOption<_,_>.Value n
-        else FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+        else FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
 
     let NullGlobalTag =
         GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
@@ -597,7 +597,7 @@ module YamlExtended =
                     |   None        -> false, nd
             if isValid then FallibleOption<_,_>.Value n 
             else 
-                FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Timestamp has incorrect format: %s" str)]
+                FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (sprintf "Timestamp has incorrect format: %s" str)]
 
         GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, RGSF(rgtimestamp),
             (timestampToCanonical), { formattedScalarTag with PostProcessAndValidateNode = validateTimestamp}
@@ -682,7 +682,7 @@ module YamlExtended =
             |> FallibleOption.bind(fun _ ->
                 if (hasNoValues (SchemaUtils.getMapNode n)) then FallibleOption<_,_>.Value(n)
                 else 
-                    FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+                    FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
             )
 
     let orderedMappingTagFuncs = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMappings isMatchSequenceOfMappings

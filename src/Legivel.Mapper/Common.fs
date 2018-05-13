@@ -17,10 +17,10 @@ with
         |   _ -> false
 
 module FallibleOption =
-    let forCollection f (r:FallibleOption<_,_>) =
+    let forCollection<'a,'b,'c> (f:'a -> FallibleOption<'b,'c> list) (r:FallibleOption<'a,'c>) =
         match r.Result with
-        |   FallibleOption.NoResult -> [r]
-        |   FallibleOption.ErrorResult ->  [r]
+        |   FallibleOption.NoResult -> [FallibleOption<_,_>.NoResult()]
+        |   FallibleOption.ErrorResult ->  [FallibleOption<_,_>.ErrorResult r.Error]
         |   FallibleOption.Value -> f (r.Data)
         |   _ -> failwith "Illegal value for r"
 
@@ -38,7 +38,9 @@ type SerieBuilder() =
     member this.Bind(mx: FallibleOption<'a,'c>, f: 'a -> FallibleOption<'b,'c>) : FallibleOption<'b,'c> =
         match mx.Result with
         |   FallibleOption.Value -> f (mx.Data)
-        |   _ -> mx
+        |   FallibleOption.NoResult  -> FallibleOption<_,_>.NoResult()
+        |   FallibleOption.ErrorResult  -> FallibleOption<_,_>.ErrorResult (mx.Error)
+        |   _ -> failwith "Illegal value for mx"
 
     member this.Return (x: 'a): FallibleOption<'a,'c> = FallibleOption<_,_>.Value x
 
