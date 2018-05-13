@@ -23,7 +23,6 @@ let private getApisGuruSchemas propertyName =
        )
     |> Array.concat
 
-    |>  Array.take(2)   // for dev only
 
     |> Array.map (fun x->
         FSharp.Data.JsonExtensions.AsString(x))
