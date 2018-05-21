@@ -21,9 +21,9 @@ let private getApisGuruSchemas propertyName =
             |> Array.choose (fun (_,x)-> x.TryGetProperty(propertyName))
             |> Some)
        )
+    |> Array.take 2
+
     |> Array.concat
-
-
     |> Array.map (fun x->
         FSharp.Data.JsonExtensions.AsString(x))
 

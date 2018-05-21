@@ -113,13 +113,13 @@ type FallibleOption<'a,'b> = private {
 }
     with
     member this.Data 
-        with get() =
+       with get() =
             match this.Result' with
             |   FallibleOption.Value -> this.DataValue.Value
             |   _ -> failwith "This instance has no value"
 
-    member this.Error with
-         get() =
+    member this.Error
+       with get() =
             match this.Result' with
             |   FallibleOption.ErrorResult -> this.ErrorValue.Value
             |   _ -> failwith "This instance has no error"

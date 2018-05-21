@@ -10,7 +10,7 @@
     <ProjectGuid>ed4cd570-a206-4922-88aa-991a2e8c2642</ProjectGuid>
     <OutputType>Library</OutputType>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
+    <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -83,7 +83,6 @@
     <None Include="nlog.fsx" />
     <None Include="YamlParserFuncs.fsx" />
     <Content Include="nlog.config" />
-    <None Include="lines profiling.csv" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Legivel.Common\Legivel.Common.fsproj">
@@ -129,15 +128,7 @@
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <Import Project="..\..\.paket\paket.targets" />
   <Choose>
-    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
-      <ItemGroup>
-        <Reference Include="FSharp.Charting">
-          <HintPath>..\..\packages\FSharp.Charting\lib\net45\FSharp.Charting.dll</HintPath>
-          <Private>True</Private>
-          <Paket>True</Paket>
-        </Reference>
-      </ItemGroup>
-    </When>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'" />
   </Choose>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
@@ -153,10 +144,11 @@
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
       <ItemGroup>
-        <Reference Include="FSharp.Data">
+        <Reference Include="FSharp.Data, Version=2.4.6.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\packages\FSharp.Data\lib\net45\FSharp.Data.dll</HintPath>
           <Private>True</Private>
           <Paket>True</Paket>
+          <SpecificVersion>False</SpecificVersion>
         </Reference>
       </ItemGroup>
     </When>

@@ -201,7 +201,7 @@ type RecordMappingInfo = {
                                 let getMapper = (mappers.GetMapper (fm.PropertyMapping)).Default 
                                 match getMapper.Result with
                                 |   FallibleOption.Value -> FallibleOption<_,_>.Value getMapper.Data
-                                |   FallibleOption.NoResult -> FallibleOption<_,_>.ErrorResult getMapper.Error
+                                |   FallibleOption.NoResult -> FallibleOption<_,_>.ErrorResult err
                                 |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult (err @ getMapper.Error)
                                 |   _ -> failwith "Illegal value for getMapper"
                         )
