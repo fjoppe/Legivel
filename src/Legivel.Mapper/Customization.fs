@@ -644,8 +644,8 @@ let MapYamlDocumentToNative (mappers:AllTryFindIdiomaticMappers) (mapper:IYamlTo
 
 /// Parses a yaml string, for the given yaml-schema and maps it to a native type instance
 let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema yml =
-    let yamlParser = Yaml12Parser()
-    (yamlParser.``l-yaml-stream`` schema yml) 
+    let yamlParser = Yaml12Parser(schema)
+    (yamlParser.``l-yaml-stream`` yml) 
     |> List.map(fun ymlpl ->
         match ymlpl with
         |   NoRepresentation err -> Error.Create (err.Error) (err.Warn) (err.StopLocation) |> WithErrors

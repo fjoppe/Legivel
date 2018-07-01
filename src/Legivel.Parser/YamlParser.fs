@@ -25,7 +25,10 @@ type Context =
     | ``Block-key`` = 4
     | ``Flow-key``  = 5
 
-type Chomping = ``Strip`` | ``Clip`` | ``Keep``
+type Chomping = 
+    | ``Strip`` = 0
+    | ``Clip``  = 1
+    | ``Keep``  = 2
 
 type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHandSecondary of string | ShortHandPrimary of string | NonSpecificQT | NonSpecificQM | Empty
 
@@ -160,8 +163,8 @@ type ParseState = {
         /// Tag Shorthands
         TagShorthands : TagShorthand list
         
-        /// Global Tag Schema
-        GlobalTagSchema : GlobalTagSchema
+        ///// Global Tag Schema
+        //GlobalTagSchema : GlobalTagSchema
         
         /// Local Tag Schema
         LocalTagSchema : GlobalTagSchema option
@@ -175,8 +178,8 @@ type ParseState = {
         /// Context sensitive restrictions 
         Restrictions : ParseRestrictions
 
-        /// Memoize scalar values by position and regex.
-        Caching : Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>
+        ///// Memoize scalar values by position and regex.
+        //Caching : Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>
     }
     with
         static member AddErrorMessageDel (ps:ParseState) sl = (sl |> List.fold(fun (p:ParseState) s -> p.AddErrorMessage s) ps)
@@ -257,14 +260,15 @@ type ParseState = {
 
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
-        static member Create inputStr schema = {
-                Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=``Clip``; 
+        static member Create inputStr = {
+                Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
                 Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
-                GlobalTagSchema = schema; LocalTagSchema = None; NodePath = [];
+                LocalTagSchema = None; NodePath = [];
                 TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
                 Restrictions = ParseRestrictions.Create(); TrackLength = 0
-                IndentLevels = []; Caching = Dictionary()
+                IndentLevels = []
+                ; (*Caching = Dictionary()*)
             }
 
 
@@ -290,11 +294,12 @@ module ParseState =
     let ResetDocumentParseState ps = 
         { ps with 
             ParseState.Location = (DocumentLocation.Create 1 1)
-            n=0; m=0; c=Context.``Block-out``; t=``Clip``; 
-            Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
+            n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
+            Anchors = Map.empty; Messages=ParseMessage.Create(); 
+            Directives=[]; 
             TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
-            GlobalTagSchema = ps.GlobalTagSchema; LocalTagSchema = ps.LocalTagSchema; NodePath = []
-            Caching = Dictionary()
+            LocalTagSchema = ps.LocalTagSchema; 
+            NodePath = []
         }
 
     let AddErrorMessage m (ps:ParseState) = ps.AddErrorMessage m
@@ -467,8 +472,7 @@ type CreateErrorMessage() =
 let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 
 
-type Yaml12Parser(loggingFunction:string->unit) =
-
+type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->unit) =
     let logger s ps = 
 #if DEBUG
         sprintf "%s\t l:%d col:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position)
@@ -478,7 +482,14 @@ type Yaml12Parser(loggingFunction:string->unit) =
         ()
 #endif
 
-    new() = Yaml12Parser(fun _ -> ())
+    member private this.GlobalTagSchema
+        with get() = globalTagSchema 
+
+        /// Memoize scalar values by position and regex.
+    member private this.Caching = Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>()
+
+
+    new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, fun _ -> ())
 
     member private this.LogReturn str ps (pso:FallibleOption<_,_>) = 
 #if DEBUG
@@ -577,13 +588,13 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``chomp lines`` ps strlst =
         let stripAll lst = lst |> List.rev |> List.skipWhile(fun s -> String.IsNullOrWhiteSpace(s)) |> List.rev
         match ps.t with
-        | ``Strip`` -> strlst |> stripAll
-        | ``Clip``  -> 
+        | Chomping.``Strip`` -> strlst |> stripAll
+        | Chomping.``Clip``  -> 
             if (String.IsNullOrWhiteSpace(List.last strlst)) then 
                 List.append (strlst |> stripAll) [""] 
             else 
                 strlst 
-        | ``Keep``  -> strlst 
+        | Chomping.``Keep``  -> strlst 
 
 
     member this.``flow fold lines`` (convert:string -> string) ps str =
@@ -651,7 +662,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let ResolveNonSpecificTag nst = 
             TagResolutionInfo.Create nst (ps.NodePath) (node)
-            |> ps.GlobalTagSchema.TagResolution
+            |> this.GlobalTagSchema.TagResolution
             |> function
             |   Some t -> checkTagKindMatch t (node.SetTag (Global t), ps)
             |   None -> 
@@ -662,20 +673,20 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 FallibleOption<_,_>.Value(node, psunresvd)
 
         let ResolveLocalTag tag =
-            FallibleOption<_,_>.Value(node.SetTag (Local (LocalTag.Create tag (ps.GlobalTagSchema.LocalTags))), ps)
+            FallibleOption<_,_>.Value(node.SetTag (Local (LocalTag.Create tag (this.GlobalTagSchema.LocalTags))), ps)
 
         let ResolveShorthand tsh sub =
             match tsh.MappedTagBase with
             |   Regex(RGSF(this.``ns-global-tag-prefix``)) _ -> 
-                ps.GlobalTagSchema.GlobalTags 
+                this.GlobalTagSchema.GlobalTags 
                 |> List.tryFind(fun t -> t.Uri = DecodeEncodedUriHexCharacters(tsh.MappedTagBase+sub))
                 |>  function
                     |   Some t  -> checkTagKindMatch t (node.SetTag (Global t),ps)
                     |   None    -> 
                         match node.Kind with
-                        |   Scalar  -> FallibleOption<_,_>.Value(Unrecognized (ps.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub)) |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar) 
-                        |   _       -> FallibleOption<_,_>.Value(Global (ps.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub))       |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection)
-            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> FallibleOption<_,_>.Value(Local (LocalTag.Create (tsh.MappedTagBase+sub) (ps.GlobalTagSchema.LocalTags))|> node.SetTag, ps)
+                        |   Scalar  -> FallibleOption<_,_>.Value(Unrecognized (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub)) |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar) 
+                        |   _       -> FallibleOption<_,_>.Value(Global (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub))       |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection)
+            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> FallibleOption<_,_>.Value(Local (LocalTag.Create (tsh.MappedTagBase+sub) (this.GlobalTagSchema.LocalTags))|> node.SetTag, ps)
             |   _ -> FallibleOption<_,_>.NoResult()
 
 
@@ -726,11 +737,11 @@ type Yaml12Parser(loggingFunction:string->unit) =
             |   FallibleOption.NoResult   -> ScalarMemoizeValue.Create pos (FallibleOption<_,_>.NoResult()) posDelta len
             |   FallibleOption.ErrorResult -> ScalarMemoizeValue.Create pos (FallibleOption<_,_>.ErrorResult <| potetialNode.Error) posDelta len
             |   _   -> failwith "Illegal value for potetialNode"
-        postParseState.Caching.Add(key, cv)
+        this.Caching.Add(key, cv)
         potetialNode
 
     member this.UncacheNode key (preParseState:ParseState) =
-        let cv = preParseState.Caching.[key]
+        let cv = this.Caching.[key]
         preParseState.Input.Position <- cv.SreamPositionEnd
         match cv.Value.Result with
         |   FallibleOption.Value -> 
@@ -1970,7 +1981,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let ck = ScalarMemoizeKey.Create (ps.Input.Position) 156
 
-        if ps.Caching.ContainsKey(ck) then
+        if this.Caching.ContainsKey(ck) then
             logger "> ns-plain uncache" ps
             this.UncacheNode ck ps
         else
@@ -2090,9 +2101,9 @@ type Yaml12Parser(loggingFunction:string->unit) =
         logger "c-b-block-header" ps
         let chomp indicator =
             match indicator with
-            |   "-" -> ``Strip``
-            |   "+" -> ``Keep``
-            |   ""  -> ``Clip``
+            |   "-" -> Chomping.``Strip``
+            |   "+" -> Chomping.``Keep``
+            |   ""  -> Chomping.``Clip``
             |   _ -> failwith "Undetected illegal chomp indicator"
         let indent i = 
             if i = "" then None    
@@ -2121,7 +2132,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
                 FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrFoldedChompIndicator (sprintf "Illegal chomp indicator '%s'" (mt.ge1))]
             |   _ -> FallibleOption<_,_>.NoResult()
 
-        let nochomp = FallibleOption<_,_>.Value(None, ps.SetChomping ``Clip``)
+        let nochomp = FallibleOption<_,_>.Value(None, ps.SetChomping Chomping.``Clip``)
         (ps |> ParseState.OneOf) {
             either(``indent chomp``)
             either(``chomp indent``)
@@ -2141,17 +2152,17 @@ type Yaml12Parser(loggingFunction:string->unit) =
     member this.``b-chomped-last`` ps =
         logger "b-chomped-last" ps
         match ps.t with
-        |   ``Strip``   -> this.``b-non-content``    ||| RGP("\\z", [Token.EOF])
-        |   ``Clip``    -> this.``b-as-line-feed``   ||| RGP("\\z", [Token.EOF])
-        |   ``Keep``    -> this.``b-as-line-feed``   ||| RGP("\\z", [Token.EOF])
+        |   Chomping.``Strip``   -> this.``b-non-content``    ||| RGP("\\z", [Token.EOF])
+        |   Chomping.``Clip``    -> this.``b-as-line-feed``   ||| RGP("\\z", [Token.EOF])
+        |   Chomping.``Keep``    -> this.``b-as-line-feed``   ||| RGP("\\z", [Token.EOF])
 
     //  [166]   http://www.yaml.org/spec/1.2/spec.html#l-chomped-empty(n,t)
     member this.``l-chomped-empty`` (ps:ParseState) =
         logger "l-chomped-empty" ps
         match ps.t with
-        |   ``Strip``   -> this.``l-strip-empty`` ps
-        |   ``Clip``    -> this.``l-strip-empty`` ps
-        |   ``Keep``    -> this.``l-keep-empty`` ps
+        |   Chomping.``Strip``   -> this.``l-strip-empty`` ps
+        |   Chomping.``Clip``    -> this.``l-strip-empty`` ps
+        |   Chomping.``Keep``    -> this.``l-keep-empty`` ps
 
     //  [167]   http://www.yaml.org/spec/1.2/spec.html#l-strip-empty(n)
     member this.``l-strip-empty`` ps = ZOM((this.``s-indent(<=n)`` ps) + this.``b-non-content``) + OPT(this.``l-trail-comments`` ps)
@@ -2214,7 +2225,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let ck = ScalarMemoizeKey.Create (ps.Input.Position) 170
 
-        if ps.Caching.ContainsKey(ck) then
+        if this.Caching.ContainsKey(ck) then
             logger "> c-l+literal uncache" ps
             this.UncacheNode ck ps
         else
@@ -2338,7 +2349,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
         let ck = ScalarMemoizeKey.Create (ps.Input.Position) 174
 
-        if ps.Caching.ContainsKey(ck) then
+        if this.Caching.ContainsKey(ck) then
             logger "> c-l+folded uncache" ps
             this.UncacheNode ck ps
         else
@@ -2932,6 +2943,7 @@ type Yaml12Parser(loggingFunction:string->unit) =
     //  [210]   http://www.yaml.org/spec/1.2/spec.html#l-any-document
     member this.``l-any-document`` (ps:ParseState) : ParseFuncResult<_> =
         logger "l-any-document" ps
+        this.Caching.Clear()
         (ps |> ParseState.ResetDocumentParseState |> ParseState.OneOf) {
             either(this.``l-directive-document``)
             either(this.``l-explicit-document``)
@@ -2942,8 +2954,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
         |> this.LogReturn "l-any-document" ps
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
-    member this.``l-yaml-stream`` (globalTagScema:GlobalTagSchema) (input:string) : Representation list= 
-        let ps = ParseState.Create input globalTagScema
+    member this.``l-yaml-stream`` (input:string) : Representation list= 
+        let ps = ParseState.Create input 
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
@@ -2964,8 +2976,8 @@ type Yaml12Parser(loggingFunction:string->unit) =
 
             let rec successorDoc (ps:ParseState, representations) =
                 //  quitNode is a Sentinel value, which is realized via its tag
-                let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#QUITNODE#" (ps.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
-                let noResultNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#NORESULTNODE#" (ps.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
+                let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#QUITNODE#" (this.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
+                let noResultNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#NORESULTNODE#" (this.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
 
                 if not(IsEndOfStream ps) then
                     (ps |> ParseState.OneOf) {
