@@ -5,7 +5,8 @@ NUGET
     FSharp.Charting (0.91.1)
     FSharp.Core (4.0.0.1) - redirects: force
     FSharp.Data (2.4.6)
-    NUnit (3.9)
+    NUnit (3.10.1)
+    System.ValueTuple (4.5)
 
 GROUP Build
 RESTRICTION: == net45
@@ -32,8 +33,8 @@ NUGET
     NLog (4.4.12)
     NLog.FSharp (4.2.3)
       NLog (>= 4.2.3)
-    NUnit (3.9)
-    NUnit.ConsoleRunner (3.7)
+    NUnit (3.10.1)
+    NUnit.ConsoleRunner (3.8)
 GITHUB
   remote: fsprojects/FsUnit
     src/FsUnit.NUnit/FsUnitTyped.fs (bd259f8dbbb1dc0f4618c5ce211bf144fe01d817)

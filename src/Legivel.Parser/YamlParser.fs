@@ -311,7 +311,7 @@ module ParseState =
         if outErrors.Length = 0 then FallibleOption<_,_>.NoResult()
         else FallibleOption<_,_>.ErrorResult outErrors
 
-    let PreserveErrors _ (ct,pso:FallibleOption<_,_>) = 
+    let PreserveErrors _ struct (ct,pso:FallibleOption<_,_>) = 
         let outErrors = ct.Messages.Error //|> List.sort
         pso.Result |> 
         function 
@@ -352,6 +352,7 @@ module ParseState =
 
 
     let inline OneOf (ps:ParseState) = EitherBuilder(ps, (fun ps -> ps.Input.Reset()), (fun ps -> ps.Advance()), ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
+
     let ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.Input.Data, patt)) with
         |   (true, mt) -> ps |> AddCancelMessage (ps.Location) |> Advance |> TrackPosition mt |> postAdvanceFunc
@@ -1282,13 +1283,14 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (matchAnchorTag)
             ifneither(FallibleOption<_,_>.NoResult())
         }
-        |> fun (ct,pso) -> 
+        |> fun struct (ct,pso) -> 
                 let outErrors = ct.Messages.Error
-                pso.Result |> 
+                pso.Result |>
                 function 
                 |   FallibleOption.NoResult     -> ParseState.PreserveNoResult outErrors
                 |   FallibleOption.Value        -> FallibleOption<_,_>.Value (pso.Data)
                 |   FallibleOption.ErrorResult  -> FallibleOption<_,_>.ErrorResult (pso.Error)
+                |   _   -> failwith "Illegal value"
             
 
     //  [97]    http://www.yaml.org/spec/1.2/spec.html#c-ns-tag-property

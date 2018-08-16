@@ -699,3 +699,20 @@ definitions:
       - iss
       - aud
 "
+
+
+
+
+let testLst = [0 .. 10000]
+let testSeq = testLst |> Seq.ofList
+let testArr = testLst |> Array.ofList
+
+let csls = System.Collections.Generic.List<int>()
+testLst |> List.iter(fun i -> csls.Add(i))
+
+[0 .. 100000] |> List.iter (fun _ -> List.length testLst |> ignore)
+[0 .. 100000] |> List.iter (fun _ -> Seq.length testSeq |> ignore)
+[0 .. 100000] |> List.iter (fun _ -> Array.length testArr |> ignore)
+[0 .. 100000] |> List.iter (fun _ -> csls.Count |> ignore)
+
+[10 .. -1 .. 0]

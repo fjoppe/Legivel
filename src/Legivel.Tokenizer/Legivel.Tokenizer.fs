@@ -4,6 +4,7 @@ open System.IO
 open System.Collections.Generic
 open System.Collections.Concurrent
 
+type RSList<'a> = System.Collections.Generic.List<'a>
 
 type Token =
     //|   Symbol  = 0
@@ -264,13 +265,13 @@ let tokenProcessor str =
 
 [<NoEquality; NoComparison>]
 type RollingStream<'a when 'a : equality> = private {
-        mutable Past    :   'a list
-        mutable Future  :   'a list
+        Past    :  RSList<'a>
+        Future  :  RSList<'a>
         Current         :   (unit -> 'a)
         StopValue       :   'a
     }
     with
-        static member Create rdr sv = { Past = []; Future = []; Current = rdr; StopValue = sv}
+        static member Create rdr sv = { Past = RSList<'a>(); Future = RSList<'a>(); Current = rdr; StopValue = sv }
 
         member this.Stream = 
             let rec read() = 
@@ -278,51 +279,61 @@ type RollingStream<'a when 'a : equality> = private {
                     if this.EOF then 
                         failwith "Cannot read beyond EOF"
                     else
-                        if List.isEmpty this.Future then 
+                        if this.Future.Count = 0 then 
                             let item = this.Current()
-                            this.Past <- item :: this.Past
+                            this.Past.Insert(0,item)
                             yield item
                             if item <> this.StopValue then yield! read()
                         else
-                            let item = List.head this.Future
-                            this.Future <- (List.tail this.Future)
-                            this.Past <- item :: this.Past
+                            let item = this.Future.[0]
+                            this.Future.RemoveAt(0) 
+                            this.Past.Insert(0, item)
                             yield item
                             if item <> this.StopValue then yield! read()
                 }
             read()
 
 
-        member private this.BufferedLength() = ((List.length this.Past) + (List.length this.Future))
+        member private this.BufferedLength() = ((this.Past.Count) + (this.Future.Count))
 
         member this.Position 
-            with get() = List.length this.Past
+            with get() = this.Past.Count
             and set v =
+                let TakeReversed c (l:RSList<_>)  =
+                    let result = RSList()
+                    [(c-1) .. -1 .. 0] |> List.iter(fun i -> result.Add(l.[i]))
+                    result
+
                 if v < this.Position then
                     let df = this.Position - v
-                    let nFut = this.Future |> List.append (this.Past |> List.take df |> List.rev)
-                    let nPast = this.Past |> List.skip df
-                    this.Past <- nPast
-                    this.Future <- nFut
+                    //let nFut = this.Future |> List.append (this.Past |> List.take df |> List.rev)
+                    let prepend = this.Past |> TakeReversed df
+                    //[df .. -1 .. 0] |> List.iter(fun i -> prepend.Add(this.Past.[i]))
+                    this.Future.InsertRange(0, prepend)
+                    this.Past.RemoveRange(0,df)
                 elif v > this.Position then
                     let df = (this.BufferedLength() - v)
                     if df <= 0 then
                         //  beyond local buffer
-                        let nPast = this.Past |> List.append (this.Future |> List.rev)
-                        let nFut  = []
-                        this.Past <- nPast
-                        this.Future <- nFut
+                        //let nPast = this.Past |> List.append (this.Future |> List.rev)
+                        this.Future.Reverse()
+                        this.Past.InsertRange(0,this.Future)
+                        this.Future.Clear()
                         if df < 0 then
                             this.Stream |> Seq.take (-df) |> Seq.iter(ignore)
                     else
                         //  within local buffer
-                        let df = v - (List.length this.Past)
-                        let nPast = this.Past |> List.append (this.Future |> List.take df |> List.rev)
-                        let nFut = this.Future |> List.skip df
-                        this.Past <- nPast
-                        this.Future <- nFut
+                        let df = v - (this.Past.Count)
+                        let prepend = this.Future |> TakeReversed df
+                        //let nPast = this.Past |> List.append (this.Future |> List.take df |> List.rev)
+                        //let nFut = this.Future |> List.skip df
+                        this.Past.InsertRange(0,prepend)
+                        this.Future.RemoveRange(0, df)
 
-        member this.EOF with get() = this.Past.Length > 0 && this.Past.Head = this.StopValue
+        member this.EOF 
+            with get() = 
+                this.Past.Count > 0 && this.Past.[0] = this.StopValue
+            
 
         member this.Peek(n) = 
             let cp = this.Position
@@ -331,7 +342,7 @@ type RollingStream<'a when 'a : equality> = private {
             rs
 
         member this.PeekPrevious() = 
-            if this.Past.Length > 0 then this.Past.Head |> Some
+            if this.Past.Count > 0 then this.Past.[0] |> Some
             else None
 
         member this.Peek() = this.Peek(1) |> List.head
