@@ -63,7 +63,6 @@ module NodeHash =
 
 
 [<StructuredFormatDisplay("{AsString}")>]
-[<Struct>]
 type    DocumentLocation = {
         Line    : int
         Column  : int
@@ -85,7 +84,6 @@ type MessageAction =
     |   Terminate
                         
 [<DebuggerDisplay("{this.DebuggerInfo}")>]
-[<Struct>]
 type MessageAtLine = {
         Location: DocumentLocation
         Code    : MessageCode
@@ -108,7 +106,6 @@ type FallibleOption =
     |   ErrorResult = 2
 
 
-[<Struct>]
 type FallibleOption<'a,'b> = private {
     Result'     : FallibleOption
     DataValue  : 'a option
