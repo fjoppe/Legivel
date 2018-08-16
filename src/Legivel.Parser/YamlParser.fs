@@ -75,10 +75,10 @@ type ParseRestrictions = {
 type ParseMessage = {
         Warn  : MessageAtLine list 
         Error : MessageAtLine list
-        Cancel: DocumentLocation list // to cancel errors
+        Cancel: System.Collections.Generic.HashSet<DocumentLocation> // to cancel errors
     }
     with
-        static member Create() = {Warn = [];Error=[]; Cancel=[]}
+        static member Create() = {Warn = [];Error=[]; Cancel=System.Collections.Generic.HashSet<DocumentLocation>()}
         member this.AddError (mal:MessageAtLine)   = 
             if this.Error |> List.exists(fun e -> e.Location = mal.Location && e.Code = mal.Code) then this
             else {this with Error = mal :: this.Error}
@@ -86,8 +86,10 @@ type ParseMessage = {
             if this.Warn |> List.exists(fun e -> e.Location = mal.Location && e.Code = mal.Code) then this
             else {this with Warn  = mal :: this.Warn}
         member this.AddCancel mal   = 
-            if this.Cancel |> List.exists(fun e -> e = mal) then this
-            else {this with Cancel = mal :: this.Cancel}
+            if this.Cancel.Contains(mal) then this
+            else 
+                this.Cancel.Add(mal) |> ignore
+                this
 
 
 [<NoEquality; NoComparison>]
@@ -370,8 +372,8 @@ module ParseState =
         let cancelable = ps.Messages.Error |> List.filter(fun m ->m.Code <> MessageCode.Freeform) |> List.distinct
         let filteredErrors = 
             cancelable 
-            |> List.filter(fun m -> not(ps.Messages.Cancel |> List.exists(fun k -> m.Location = k)))
-        {ps with Messages = {ps.Messages with Error = freeForm @ filteredErrors; Cancel = []}}
+            |> List.filter(fun m -> not(List<_>(ps.Messages.Cancel) |> Seq.exists(fun k -> m.Location = k)))
+        {ps with Messages = {ps.Messages with Error = freeForm @ filteredErrors; Cancel = System.Collections.Generic.HashSet<DocumentLocation>()}}
 
 
     let PostProcessErrors fr =

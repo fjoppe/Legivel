@@ -62,6 +62,7 @@
     <None Include="TestTokenizer.fs" />
     <Compile Include="Yaml.Mapper.Tests.fs" />
     <Compile Include="APIs.guru.Tests.fs" />
+    <None Include="ApiGuruTests.fsx" />
     <None Include="FailFast Scalar.fsx" />
     <None Include="FailFast LineFolding.dead.fsx" />
     <None Include="FailFast LineFolding2.dead.fsx" />
