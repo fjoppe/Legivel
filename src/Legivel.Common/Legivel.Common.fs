@@ -88,14 +88,14 @@ type MessageAtLine = {
         Location: DocumentLocation
         Code    : MessageCode
         Action  : MessageAction
-        Message : string
+        Message : Lazy<string>
     }
     with
         static member CreateContinue dl cd s = {Location = dl; Code = cd; Action = Continue; Message = s}
         static member CreateTerminate dl cd s = {Location = dl; Code = cd; Action = Terminate; Message = s}
 
         member this.DebuggerInfo 
-            with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message)
+            with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message.Force())
 
 
 type ErrorMessage = MessageAtLine list
