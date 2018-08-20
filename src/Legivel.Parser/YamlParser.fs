@@ -527,7 +527,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         match pso.Result with
         |   FallibleOption.Value -> 
             let  (any,prs) = pso.Data
-            sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (prs.Messages.Error.Length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
+            sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (ps.Messages.Error.Length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
         |   FallibleOption.NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction 
         |   FallibleOption.ErrorResult -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d sp:%d" str (pso.Error |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (pso.Error |> List.length) (ps.Errors) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
         |   _   -> failwith "Illegal value for pso.Result"

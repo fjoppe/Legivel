@@ -64,6 +64,8 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Numerics" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Legivel.Tokenizer\Legivel.Tokenizer.fsproj">
       <Name>Legivel.Tokenizer</Name>
       <Project>{9536b292-efad-4fc9-83b2-2d3c62e44860}</Project>

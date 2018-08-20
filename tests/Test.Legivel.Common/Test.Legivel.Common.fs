@@ -1,4 +1,4 @@
-﻿module Test.Legivel.RegexDSL
+﻿module Test.Legivel.Common
 
 open NUnit.Framework
 open FsUnitTyped
