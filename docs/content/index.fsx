@@ -31,7 +31,8 @@ Example
 
 This example demonstrates Yaml to Native conversion using this library:
 *)
-(*** define-output: example ***)
+(*** define-output:test ***)
+#r "Legivel.Parser.dll"
 #r "Legivel.Mapper.dll"
 open Legivel.Serialization
 
@@ -54,11 +55,11 @@ player: Sammy Sosa
 action: grand slam
 ..." 
 
-Deserialize<PlayEvent> yaml
+let result = Deserialize<PlayEvent> yaml
 (**
 Which results in:
 *)
-(*** include-it: example ***)
+(*** include-it: test  ***)
 
 (**
 

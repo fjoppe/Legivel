@@ -5,7 +5,7 @@
 *)
 
 open NUnit.Framework
-open FsUnit
+open FsUnitTyped
 open TestUtils
 open Legivel.Traverse
 
@@ -23,13 +23,13 @@ let ``Example 8.1. Block Scalar Header``() =
 - >1- # Both indicators
   strip
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     ["literal\n";" folded\n"; "keep\n\n"; " strip"]
     |> List.iter(fun (v) ->
         let p = YamlPath.Create (sprintf "//[]/#'%s'" v)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -49,13 +49,13 @@ let ``Example 8.2. Block Indentation Indicator``() =
  \t
  detected
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     ["detected\n";"\n\n# detected\n"; " explicit\n"; "\t detected\n"]
     |> List.iter(fun (v) ->
         let p = YamlPath.Create (sprintf "//[]/#'%s'" v)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -65,23 +65,23 @@ let ``Example 8.3. Invalid Block Scalar Indentation Indicators``() =
 - |
   
  text"
-    err.Error.Length |> should equal 1
-    err.Error |> List.filter(fun m -> m.Message = "A leading all-space line must not have too many spaces.") |> List.length |> should equal 1
+    err.Error.Length |> shouldEqual 1
+    err.Error |> List.filter(fun m -> m.Message = "A leading all-space line must not have too many spaces.") |> List.length |> shouldEqual 1
 
     let err = YamlParseWithErrors "
 - >
   text
  text" 
-    err.Error.Length |> should equal 1
+    err.Error.Length |> shouldEqual 1
     //  the following does not comply to the error specified, because the specified error is very hard to detect in this case
-    err.Error |> List.filter(fun m -> m.Message = "Incorrect Syntax, this content cannot be related to previous document structure.") |> List.length |> should equal 1
+    err.Error |> List.filter(fun m -> m.Message = "Incorrect Syntax, this content cannot be related to previous document structure.") |> List.length |> shouldEqual 1
 
     let err = YamlParseWithErrors "
 - |2
  text
 "
-    err.Error.Length |> should equal 1
-    err.Error |> List.filter(fun m -> m.Message = "The text is less indented than the indicated level.") |> List.length |> should equal 1
+    err.Error.Length |> shouldEqual 1
+    err.Error |> List.filter(fun m -> m.Message = "The text is less indented than the indicated level.") |> List.length |> shouldEqual 1
 
 
 
@@ -95,7 +95,7 @@ clip: |
 keep: |+
   text
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -105,7 +105,7 @@ keep: |+
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -132,7 +132,7 @@ keep: |+
  # Trail
   # comments.
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -142,7 +142,7 @@ keep: |+
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -156,7 +156,7 @@ clip: >
 keep: |+
 
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -166,7 +166,7 @@ keep: |+
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -178,11 +178,11 @@ let ``Example 8.7. Literal Scalar``() =
  \ttext
 
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "literal\n\ttext\n"
+    yml |> pth.Select |> ToScalar |> shouldEqual "literal\n\ttext\n"
 
 
 
@@ -199,11 +199,11 @@ let ``Example 8.8. Literal Content``() =
 
  # Comment
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "\n\nliteral\n \n\ntext\n"
+    yml |> pth.Select |> ToScalar |> shouldEqual "\n\nliteral\n \n\ntext\n"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2796371")>]
@@ -214,11 +214,11 @@ let ``Example 8.9. Folded Scalar``() =
  text
 
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "folded text\n"
+    yml |> pth.Select |> ToScalar |> shouldEqual "folded text\n"
 
 
 
@@ -242,11 +242,11 @@ let ``Example 8.10. Folded Lines``() =
 
 # Comment"
 
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n" 
+    yml |> pth.Select |> ToScalar |> shouldEqual "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n" 
 
 
 
@@ -271,11 +271,11 @@ let ``Example 8.11. More Indented Lines``() =
 # Comment
 "
 
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
+    yml |> pth.Select |> ToScalar |> shouldEqual "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
 
 
 
@@ -300,11 +300,11 @@ let ``Example 8.12. Empty Separation Lines``() =
 # Comment
 "
 
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
+    yml |> pth.Select |> ToScalar |> shouldEqual "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
 
 
 
@@ -328,12 +328,12 @@ let ``Example 8.13. Final Empty Lines``() =
 # Comment
 "
 
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
     // note that the canonical formt in the example starts with \n, which is incorrect.
-    yml |> pth.Select |> ToScalar |> should equal "folded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
+    yml |> pth.Select |> ToScalar |> shouldEqual "folded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
 
 
 
@@ -344,14 +344,14 @@ block sequence:
   - one
   - two : three
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//{#'block sequence'}?/[]/#" )
-    yml |> p.Select |> ToScalar |> should equal "one"
+    yml |> p.Select |> ToScalar |> shouldEqual "one"
 
     let p = YamlPath.Create (sprintf "//{#'block sequence'}?/[]/{#'two'}?" )
-    yml |> p.Select |> ToScalar |> should equal "three"
+    yml |> p.Select |> ToScalar |> shouldEqual "three"
 
 
 
@@ -365,14 +365,14 @@ let ``Example 8.15. Block Sequence Entry Types``() =
   - two # sequence
 - one: two # Compact mapping
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//[]/#'block node\n'" )
-    yml |> p.Select |> ToScalar |> should equal "block node\n"
+    yml |> p.Select |> ToScalar |> shouldEqual "block node\n"
 
     let p = YamlPath.Create (sprintf "//[]/{#'one'}?" )
-    yml |> p.Select |> ToScalar |> should equal "two"
+    yml |> p.Select |> ToScalar |> shouldEqual "two"
 
 
 
@@ -382,11 +382,11 @@ let ``Example 8.16. Block Mappings``() =
 block mapping:
  key: value
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//{#'block mapping'}?/{#'key'}?" )
-    yml |> p.Select |> ToScalar |> should equal "value"
+    yml |> p.Select |> ToScalar |> shouldEqual "value"
 
 
 
@@ -399,14 +399,14 @@ let ``Example 8.17. Explicit Block Mapping Entries``() =
 : - one # Explicit compact
   - two # block value
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//{#'explicit key'}?" )
-    yml |> p.Select |> ToScalar |> should equal ""
+    yml |> p.Select |> ToScalar |> shouldEqual ""
 
     let p = YamlPath.Create (sprintf "//{#'block key\n'}?/[]/#'two'" )
-    yml |> p.Select |> ToScalar |> should equal "two"
+    yml |> p.Select |> ToScalar |> shouldEqual "two"
 
 
 
@@ -418,17 +418,17 @@ plain key: in-line value
 \"quoted key\":
 - entry
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//{#'plain key'}?" )
-    yml |> p.Select |> ToScalar |> should equal "in-line value"
+    yml |> p.Select |> ToScalar |> shouldEqual "in-line value"
 
     let p = YamlPath.Create (sprintf "//{#''}?" )
-    yml |> p.Select |> ToScalar |> should equal ""
+    yml |> p.Select |> ToScalar |> shouldEqual ""
 
     let p = YamlPath.Create (sprintf "//{#'quoted key'}?/[]/#'entry'" )
-    yml |> p.Select |> ToScalar |> should equal "entry"
+    yml |> p.Select |> ToScalar |> shouldEqual "entry"
 
 
 
@@ -439,17 +439,17 @@ let ``Example 8.19. Compact Block Mappings``() =
 - ? earth: blue
   : moon: white
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//[]/{#'sun'}?" )
-    yml |> p.Select |> ToScalar |> should equal "yellow"
+    yml |> p.Select |> ToScalar |> shouldEqual "yellow"
 
     let p = YamlPath.Create (sprintf "//[]/{}/{#'earth'}?" )
-    yml |> p.Select |> ToScalar |> should equal "blue"
+    yml |> p.Select |> ToScalar |> shouldEqual "blue"
 
     let p = YamlPath.Create (sprintf "//[]/{}?/{#'moon'}?" )
-    yml |> p.Select |> ToScalar |> should equal "white"
+    yml |> p.Select |> ToScalar |> shouldEqual "white"
 
 
 
@@ -463,17 +463,17 @@ let ``Example 8.20. Block Node Types``() =
 - !!map # Block collection
   foo : bar
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//[]/#'flow in block'" )
-    yml |> p.Select |> ToScalar |> should equal "flow in block"
+    yml |> p.Select |> ToScalar |> shouldEqual "flow in block"
 
     let p = YamlPath.Create (sprintf "//[]/#'Block scalar\n'" )
-    yml |> p.Select |> ToScalar |> should equal "Block scalar\n"
+    yml |> p.Select |> ToScalar |> shouldEqual "Block scalar\n"
 
     let p = YamlPath.Create (sprintf "//[]/{#'foo'}?" )
-    yml |> p.Select |> ToScalar |> should equal "bar"
+    yml |> p.Select |> ToScalar |> shouldEqual "bar"
 
 
 
@@ -488,7 +488,7 @@ folded:
  value
 "
 
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -497,7 +497,7 @@ folded:
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -511,15 +511,15 @@ sequence: !!seq
 mapping: !!map
  foo: bar
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let p = YamlPath.Create (sprintf "//{#'sequence'}?/[]/#'entry'" )
-    yml |> p.Select |> ToScalar |> should equal "entry"
+    yml |> p.Select |> ToScalar |> shouldEqual "entry"
 
     let p = YamlPath.Create (sprintf "//{#'sequence'}?/[]/[]/#'nested'" )
-    yml |> p.Select |> ToScalar |> should equal "nested"
+    yml |> p.Select |> ToScalar |> shouldEqual "nested"
 
     let p = YamlPath.Create (sprintf "//{#'mapping'}?/{#'foo'}?" )
-    yml |> p.Select |> ToScalar |> should equal "bar"
+    yml |> p.Select |> ToScalar |> shouldEqual "bar"
 

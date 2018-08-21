@@ -5,7 +5,7 @@
 *)
 
 open NUnit.Framework
-open FsUnit
+open FsUnitTyped
 open TestUtils
 open Legivel.Traverse
 
@@ -18,7 +18,7 @@ Second occurrence: *anchor
 Override anchor: &anchor Bar
 Reuse anchor: *anchor
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -29,7 +29,7 @@ Reuse anchor: *anchor
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -42,7 +42,7 @@ let ``Example 7.2. Empty Content``() =
   !!str : bar,
 }
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -51,7 +51,7 @@ let ``Example 7.2. Empty Content``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -63,7 +63,7 @@ let ``Example 7.3. Completely Empty Flow Nodes``() =
   : bar,
 }
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -72,7 +72,7 @@ let ``Example 7.3. Completely Empty Flow Nodes``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -84,11 +84,11 @@ let ``Example 7.4. Double Quoted Implicit Keys``() =
   \"implicit flow key\" : value,
  ]
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//{#'implicit block key'}?/[]/{#'implicit flow key'}?")
-    yml |> pth.Select |> ToScalar |> should equal "value"
+    yml |> pth.Select |> ToScalar |> shouldEqual "value"
 
 
 
@@ -101,11 +101,11 @@ to a space,\t
 to a line feed, or \t\\
  \\ \tnon-content\"
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "folded to a space,\nto a line feed, or \t \tnon-content"
+    yml |> pth.Select |> ToScalar |> shouldEqual "folded to a space,\nto a line feed, or \t \tnon-content"
 
 
 
@@ -117,11 +117,11 @@ let ``Example 7.6. Double Quoted Lines``() =
  2nd non-empty 
  \t3rd non-empty \"
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal " 1st non-empty\n2nd non-empty 3rd non-empty "
+    yml |> pth.Select |> ToScalar |> shouldEqual " 1st non-empty\n2nd non-empty 3rd non-empty "
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2788307")>]
@@ -129,11 +129,11 @@ let ``Example 7.7. Single Quoted Characters``() =
     let yml = YamlParseList "
 'here''s to \"quotes\"'
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "here's to \"quotes\""
+    yml |> pth.Select |> ToScalar |> shouldEqual "here's to \"quotes\""
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2787420")>]
@@ -143,11 +143,11 @@ let ``Example 7.8. Single Quoted Implicit Keys``() =
   'implicit flow key' : value,
  ]
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//{#'implicit block key'}?/[]/{#'implicit flow key'}?")
-    yml |> pth.Select |> ToScalar |> should equal "value"
+    yml |> pth.Select |> ToScalar |> shouldEqual "value"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2788756")>]
@@ -158,11 +158,11 @@ let ``Example 7.9. Single Quoted Lines``() =
  2nd non-empty 
  \t3rd non-empty '
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal " 1st non-empty\n2nd non-empty 3rd non-empty "
+    yml |> pth.Select |> ToScalar |> shouldEqual " 1st non-empty\n2nd non-empty 3rd non-empty "
 
 
 
@@ -182,22 +182,22 @@ let ``Example 7.10. Plain Characters``() =
   -123,
   http://example.com/foo#bar ]
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     ["::vector" ; ": - ()"; "-123"; "http://example.com/foo#bar"]
     |> List.iter(fun (v) ->
         let p1 = YamlPath.Create (sprintf "//[]/#'%s'" v)
         let p2 = YamlPath.Create (sprintf "//[]/[]/#'%s'" v)
-        yml |> p1.Select |> ToScalar |> should equal v
-        yml |> p2.Select |> ToScalar |> should equal v
+        yml |> p1.Select |> ToScalar |> shouldEqual v
+        yml |> p2.Select |> ToScalar |> shouldEqual v
     )
 
     //  trip over a single comma..
     let p1 = YamlPath.Create (sprintf "//[]/#'%s'" "Up, up, and away!")
     let p2 = YamlPath.Create (sprintf "//[]/[]/#'%s'" "Up, up and away!")
-    yml |> p1.Select |> ToScalar |> should equal "Up, up, and away!"
-    yml |> p2.Select |> ToScalar |> should equal "Up, up and away!"
+    yml |> p1.Select |> ToScalar |> shouldEqual "Up, up, and away!"
+    yml |> p2.Select |> ToScalar |> shouldEqual "Up, up and away!"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2789794")>]
@@ -207,11 +207,11 @@ implicit block key : [
   implicit flow key : value,
  ]
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//{#'implicit block key'}?/[]/{#'implicit flow key'}?")
-    yml |> pth.Select |> ToScalar |> should equal "value"
+    yml |> pth.Select |> ToScalar |> shouldEqual "value"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2789986")>]
@@ -222,11 +222,11 @@ let ``Example 7.12. Plain Lines``() =
  2nd non-empty 
 \t3rd non-empty
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     let pth = YamlPath.Create (sprintf "//#")
-    yml |> pth.Select |> ToScalar |> should equal "1st non-empty\n2nd non-empty 3rd non-empty"
+    yml |> pth.Select |> ToScalar |> shouldEqual "1st non-empty\n2nd non-empty 3rd non-empty"
 
 
 
@@ -236,7 +236,7 @@ let ``Example 7.13. Flow Sequence``() =
 - [ one, two, ]
 - [three ,four]
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -244,7 +244,7 @@ let ``Example 7.13. Flow Sequence``() =
     ]
     |> List.iter(fun v ->
         let p = YamlPath.Create (sprintf "//[]/[]/#'%s'" v)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -260,7 +260,7 @@ plain
 single: pair,
 ]
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -268,14 +268,14 @@ single: pair,
     ]
     |> List.iter(fun v ->
         let p = YamlPath.Create (sprintf "//[]/#'%s'" v)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
     let p = YamlPath.Create (sprintf "//[]/[]/#'nested'")
-    yml |> p.Select |> ToScalar |> should equal "nested"
+    yml |> p.Select |> ToScalar |> shouldEqual "nested"
 
     let p = YamlPath.Create (sprintf "//[]/{#'single'}?")
-    yml |> p.Select |> ToScalar |> should equal "pair"
+    yml |> p.Select |> ToScalar |> shouldEqual "pair"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2791018")>]
@@ -284,7 +284,7 @@ let ``Example 7.15. Flow Mappings``() =
 - { one : two , three: four , }
 - {five: six,seven : eight}
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -293,7 +293,7 @@ let ``Example 7.15. Flow Mappings``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -306,7 +306,7 @@ implicit: entry,
 ?
 }
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -316,7 +316,7 @@ implicit: entry,
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -331,7 +331,7 @@ omitted value:,
 : omitted key,
 }
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -342,7 +342,7 @@ omitted value:,
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -355,7 +355,7 @@ let ``Example 7.18. Flow Mapping Adjacent Values``() =
 \"empty\":
 }
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -365,7 +365,7 @@ let ``Example 7.18. Flow Mapping Adjacent Values``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -377,7 +377,7 @@ let ``Example 7.19. Single Pair Flow Mappings``() =
 foo: bar
 ]
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -385,7 +385,7 @@ foo: bar
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -397,7 +397,7 @@ let ``Example 7.20. Single Pair Explicit Entry``() =
  bar : baz
 ]
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -405,7 +405,7 @@ let ``Example 7.20. Single Pair Explicit Entry``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -416,7 +416,7 @@ let ``Example 7.21. Single Pair Implicit Entries``() =
 - [ : empty key entry ]
 - [ {JSON: like}:adjacent ]
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -425,10 +425,10 @@ let ``Example 7.21. Single Pair Implicit Entries``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/[]/{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
     let p = YamlPath.Create (sprintf "//[]/[]/{}?/#'adjacent'" )
-    yml |> p.Select |> ToScalar |> should equal "adjacent"
+    yml |> p.Select |> ToScalar |> shouldEqual "adjacent"
 
 
 
@@ -438,13 +438,13 @@ let ``Example 7.22. Invalid Implicit Keys``() =
 
     let input = "[ foo\n bar: invalid ]" 
     let err = YamlParseWithErrors input
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m ->m.Message.StartsWith("This plain scalar cannot span multiple lines")) |> List.length  |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m ->m.Message.StartsWith("This plain scalar cannot span multiple lines")) |> List.length  |> shouldEqual 1
 
     let input = sprintf "[ \"foo...%s...bar\": invalid ]" plus1Kchars
     let err = YamlParseWithErrors input
-    err.Error.Length |> should be (greaterThan 0)
-    err.Error |> List.filter(fun m ->m.Message.StartsWith("The mapping key is too long.")) |> List.length  |> should equal 1
+    err.Error.Length |> shouldBeGreaterThan 0
+    err.Error |> List.filter(fun m ->m.Message.StartsWith("The mapping key is too long.")) |> List.length  |> shouldEqual 1
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2793163")>]
@@ -456,7 +456,7 @@ let ``Example 7.23. Flow Content``() =
 - 'b'
 - c
  "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -468,7 +468,7 @@ let ``Example 7.23. Flow Content``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/%s" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -481,7 +481,7 @@ let ``Example 7.24. Flow Nodes``() =
 - &anchor \"c\"
 - *anchor
 - !!str"
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
     let yml = yml.Head
 
     [
@@ -490,8 +490,8 @@ let ``Example 7.24. Flow Nodes``() =
     ]
     |> List.iter(fun (v) ->
         let p = YamlPath.Create (sprintf "//[]/#'%s'" v)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
     let p = YamlPath.Create (sprintf "//[]/#'c'")
-    yml |> p.Select |> Option.map(fun v -> v.Length |>should equal 2) |> Option.isSome |> should equal true
+    yml |> p.Select |> Option.map(fun v -> v.Length |>shouldEqual 2) |> Option.isSome |> shouldEqual true

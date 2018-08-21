@@ -7,17 +7,20 @@ open System.Text.RegularExpressions
 open System
 open System.Globalization
 
+open Legivel.Tokenizer
+
 exception RegexException of string
 
 type Plain =
     private {
         ``fixed`` : string
+        Token     : Token list
     }
     override this.ToString() = sprintf "%s" this.``fixed``
 
-    static member (+) (r1:Plain, r2:Plain) = {``fixed`` = r1.``fixed`` + r2.``fixed``}
+    static member (+) (r1:Plain, r2:Plain) = {``fixed`` = r1.``fixed`` + r2.``fixed``; Token = r1.Token @ r2.Token}
 
-    static member Create r = {``fixed`` = r}
+    static member Create r t = {``fixed`` = r; Token = [t]}
 
 
 type OneInSet =
@@ -132,7 +135,7 @@ let OOMNG(t) = OneOrMore(t)
 let OPT(t) = Optional(t)
 
 /// Plain regex pattern, eg: RGP("abc") := abc
-let RGP c = Plain(Plain.Create c)
+let RGP (c,t) = Plain(Plain.Create c t)
 
 /// One in Set regex pattern, eg: RGO("a-zA-Z") := [a-zA-Z]
 let RGO c = OneInSet(OneInSet.Create c)

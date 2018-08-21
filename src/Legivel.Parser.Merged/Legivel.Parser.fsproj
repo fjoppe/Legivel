@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Name>Legivel.Parser</Name>
+    <AssemblyName>Legivel.Parser</AssemblyName>
+    <RootNamespace>Legivel</RootNamespace>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>b0b8f1c7-cb0d-495f-9b09-e8d68561aee7</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>Full</DebugType>
+    <Optimize>false</Optimize>
+    <Tailcalls>false</Tailcalls>
+    <OutputPath>.\bin\Debug</OutputPath>
+    <DefineConstants>DEBUG</DefineConstants>
+    <WarningLevel>5</WarningLevel>
+    <OtherFlags>--warnon:1182</OtherFlags>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <DocumentationFile>.\bin\Debug\Legivel.Parser.XML</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>PdbOnly</DebugType>
+    <Optimize>true</Optimize>
+    <Tailcalls>true</Tailcalls>
+    <OutputPath>.\bin\Release</OutputPath>
+    <DefineConstants>
+    </DefineConstants>
+    <WarningLevel>5</WarningLevel>
+    <OtherFlags>--warnon:1182</OtherFlags>
+    <DocumentationFile>.\bin\Release\Legivel.Parser.XML</DocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Choose>
+    <When Condition="'$(VisualStudioVersion)' == '11.0'">
+      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')">
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets')">
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+  <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" />
+  <Import Project="..\..\.paket\paket.targets" />
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fsi">
+      <Link>Legivel.SpookyHash.fsi</Link>
+    </Compile>
+    <Compile Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fs">
+      <Link>Legivel.SpookyHash.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Tokenizer\Legivel.Tokenizer.fs">
+      <Link>Legivel.Tokenizer.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fsi">
+      <Link>Legivel.RegexDSL.fsi</Link>
+    </Compile>
+    <Compile Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fs">
+      <Link>Legivel.RegexDSL.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Common\Legivel.ErrorsAndWarnings.fs">
+      <Link>Legivel.ErrorsAndWarnings.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Common\Legivel.Common.fs">
+      <Link>Legivel.Common.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\Internals.fs">
+      <Link>Internals.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\RepresentationGraph.fsi">
+      <Link>RepresentationGraph.fsi</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\RepresentationGraph.fs">
+      <Link>RepresentationGraph.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\TagResolution.fsi">
+      <Link>TagResolution.fsi</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\TagResolution.fs">
+      <Link>TagResolution.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\YamlParser.fsi">
+      <Link>YamlParser.fsi</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\YamlParser.fs">
+      <Link>YamlParser.fs</Link>
+    </Compile>
+    <Compile Include="..\Legivel.Parser\Serialization.fs">
+      <Link>Serialization.fs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="FSharp.Core, Version=4.4.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+  </ItemGroup>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
+      <ItemGroup>
+        <Reference Include="System.ValueTuple">
+          <HintPath>..\..\packages\System.ValueTuple\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+</Project>

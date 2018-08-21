@@ -1,3 +1,6 @@
+#### 0.2.1 - August 19 2018
+*   Legivel.Parser: Performance impovments - complete rewrite 
+
 #### 0.1.1 - November 26 2017
 *   Legvel.Mapper: Added support for recursive types
 *   Legivel.Parser: Made RegexDSL public

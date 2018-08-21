@@ -7,40 +7,42 @@ open Legivel.Customization.Utilities
 type FallibleOption<'a,'b>
 with
     member internal this.IsErrorResult =
-        match this with
-        |   ErrorResult _ -> true
+        match this.Result with
+        |   FallibleOption.ErrorResult -> true
         |   _ -> false
 
     member this.IsNoResult =
-        match this with
-        |   NoResult -> true
+        match this.Result with
+        |   FallibleOption.NoResult -> true
         |   _ -> false
 
 module FallibleOption =
-    let forCollection f =
-        function
-        |   NoResult -> [NoResult]
-        |   ErrorResult e ->  [ErrorResult e]
-        |   Value dt -> f dt
+    let forCollection<'a,'b,'c> (f:'a -> FallibleOption<'b,'c> list) (r:FallibleOption<'a,'c>) =
+        match r.Result with
+        |   FallibleOption.NoResult -> [FallibleOption<_,_>.NoResult()]
+        |   FallibleOption.ErrorResult ->  [FallibleOption<_,_>.ErrorResult r.Error]
+        |   FallibleOption.Value -> f (r.Data)
+        |   _ -> failwith "Illegal value for r"
 
     let errorsOrValues f l =
         let errors = l |> GetErrors
         if errors.Length > 0 then
-            ErrorResult errors
+            FallibleOption<_,_>.ErrorResult errors
         else
             l
-            |>  List.filter(fun mr -> not(mr.IsNoResult))  // this may hide errors
+            |>  List.filter(fun (mr:FallibleOption<_,_>) -> not(mr.IsNoResult))  // this may hide errors
             |>  f
 
 
 type SerieBuilder() =
     member this.Bind(mx: FallibleOption<'a,'c>, f: 'a -> FallibleOption<'b,'c>) : FallibleOption<'b,'c> =
-        match mx with
-        |   Value v -> f v
-        |   NoResult -> NoResult
-        |   ErrorResult e -> ErrorResult e
+        match mx.Result with
+        |   FallibleOption.Value -> f (mx.Data)
+        |   FallibleOption.NoResult  -> FallibleOption<_,_>.NoResult()
+        |   FallibleOption.ErrorResult  -> FallibleOption<_,_>.ErrorResult (mx.Error)
+        |   _ -> failwith "Illegal value for mx"
 
-    member this.Return (x: 'a): FallibleOption<'a,'c> = Value x
+    member this.Return (x: 'a): FallibleOption<'a,'c> = FallibleOption<_,_>.Value x
 
 
 let faillableSequence = new SerieBuilder()
@@ -54,7 +56,7 @@ module List =
                 let i = f e
                 i.IsNoResult) 
         |>  function 
-            | []    ->  NoResult
+            | []    ->  FallibleOption<_,_>.NoResult()
             | h::_  ->  f h
 
 

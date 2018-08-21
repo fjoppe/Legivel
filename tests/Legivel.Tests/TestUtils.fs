@@ -4,12 +4,12 @@ open System
 open Legivel.Parser
 open Legivel.RepresentationGraph
 open Legivel.TagResolution
-open FsUnit
+open FsUnitTyped
 
 let YamlParse s =
-    let engine = Yaml12Parser()
+    let engine = Yaml12Parser(YamlCore.Schema )
     try
-        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
+        let repr = (engine.``l-yaml-stream`` s)
         let crrp = repr.Head
         match crrp with
         |   CompleteRepresentaton cr -> cr.Document
@@ -18,13 +18,13 @@ let YamlParse s =
     | e -> printfn "%A" e; raise e
 
 let YamlParseWithErrors s =
-    let engine = Yaml12Parser()
+    let engine = Yaml12Parser(YamlCore.Schema )
     try
-        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
+        let repr = (engine.``l-yaml-stream`` s)
         let crrp = repr.Head
         match crrp with
         |   NoRepresentation nr -> 
-            nr.Error.Length |> should greaterThan 0
+            nr.Error.Length |> shouldBeGreaterThan 0
             nr
         |   _ -> failwith "Unexpected return type"
 
@@ -32,9 +32,9 @@ let YamlParseWithErrors s =
     | e -> printfn "%A" e; raise e
 
 let YamlParseWithWarning s =
-    let engine = Yaml12Parser()
+    let engine = Yaml12Parser(YamlCore.Schema)
     try
-        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
+        let repr = (engine.``l-yaml-stream`` s)
         let crrp = repr.Head
         match crrp with
             |   NoRepresentation _ -> failwith "Unexpected error"
@@ -46,9 +46,9 @@ let YamlParseWithWarning s =
 
 
 let YamlParseEmpty s =
-    let engine = Yaml12Parser()
+    let engine = Yaml12Parser(YamlCore.Schema)
     try
-        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
+        let repr = (engine.``l-yaml-stream`` s)
         let crrp = repr.Head
         match crrp with
         |   EmptyRepresentation _ -> true
@@ -57,9 +57,9 @@ let YamlParseEmpty s =
     | e -> printfn "%A" e; raise e
 
 let YamlParseList s =
-    let engine = Yaml12Parser()
+    let engine = Yaml12Parser(YamlCore.Schema)
     try
-        let repr = (engine.``l-yaml-stream`` YamlCore.Schema s)
+        let repr = (engine.``l-yaml-stream`` s)
         repr |> List.map(fun e ->
             match e with
             |   NoRepresentation _ -> failwith "Unexpected error"
@@ -72,9 +72,9 @@ let YamlParseList s =
 
 
 let YamlParseForSchema sch s =
-    let engine = Yaml12Parser()
+    let engine = Yaml12Parser(sch)
     try
-        let repr = (engine.``l-yaml-stream`` sch s)
+        let repr = (engine.``l-yaml-stream`` s)
         let crrp = repr.Head
         match crrp with
         |   CompleteRepresentaton cr -> cr.Document
@@ -83,13 +83,13 @@ let YamlParseForSchema sch s =
     | e -> printfn "%A" e; raise e
 
 let YamlParseForSchemaWithErrors sch s =
-    let engine = Yaml12Parser()
+    let engine = Yaml12Parser(sch)
     try
-        let repr = (engine.``l-yaml-stream`` sch s)
+        let repr = (engine.``l-yaml-stream`` s)
         let crrp = repr.Head
         match crrp with
         |   NoRepresentation nr -> 
-            nr.Error.Length |> should be (greaterThan 0)
+            nr.Error.Length |> shouldBeGreaterThan 0
             nr
         |   _ -> failwith "Unexpected return type"
 

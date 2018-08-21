@@ -7,7 +7,7 @@ open ErrorsAndWarnings
 open Legivel.Common
 open Legivel.Internals
 open System.Text.RegularExpressions
-
+open Legivel.Tokenizer
 
 [<NoEquality; NoComparison>]
 type TagResolutionInfo = {
@@ -81,8 +81,8 @@ module SchemaUtils =
 
     let tagFormatCheckError (n:Node) data =
         function
-        |   Some _ -> Value n
-        |   None   -> ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Incorrect format: '%s', for tag: %s" data (n.NodeTag.ToPrettyString()))]
+        |   Some _ -> FallibleOption<_,_>.Value n
+        |   None   -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (lazy sprintf "Incorrect format: '%s', for tag: %s" data (n.NodeTag.ToPrettyString()))]
 
     let isFormattedScalarValid (n: Node) = 
         let data = getScalarNode n
@@ -97,15 +97,15 @@ module SchemaUtils =
             |   MapNode _ -> 
                 mappingTags
                 |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-                |> Option.ifnone(Some fsMap)
+                |> Option.ifnone(fun() -> Some fsMap)
             |   SeqNode _ -> 
                 seqTags
                 |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-                |> Option.ifnone(Some fsSeq)
+                |> Option.ifnone(fun() -> Some fsSeq)
             |   ScalarNode _ -> 
                 scalarTags
                 |> List.tryFind(fun t -> t.IsMatch (nst.Content))
-                |> Option.ifnone(Some fsScal)
+                |> Option.ifnone(fun() -> Some fsScal)
         |   _ -> failwith (sprintf "Received illegal non-specific tag: %s" nst.NonSpecificTag)
 
 
@@ -144,15 +144,15 @@ module Failsafe =
         nlst
         |> findDuplicateKeys
         |> function
-            |   []  -> Value n
+            |   []  -> FallibleOption<_,_>.Value n
             |   dupLst ->
                 let errs = [
                     for kt in dupLst do
                         let rf = kt.Head
                         for n in (kt |> List.skip 1) do
-                            yield MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrMapDuplicateKey (sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
+                            yield MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrMapDuplicateKey (lazy sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
                     ]
-                ErrorResult errs
+                FallibleOption<_,_>.ErrorResult errs
 
 
     let validateMappingForDuplicateKeys (n: Node) =
@@ -179,7 +179,7 @@ module Failsafe =
                 |> NodeHash.Merge)
         )
 
-    let validateUnorderedSequence (n: Node) = Value(n)
+    let validateUnorderedSequence (n: Node) = FallibleOption<_,_>.Value(n)
 
     let areScalarsEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
@@ -193,11 +193,11 @@ module Failsafe =
 
     let getScalarHash (n:Node) = (lazy(NodeHash.Create (SchemaUtils.getScalarNode n)))
 
-    let isScalarValid (n: Node) = Value(n)
+    let isScalarValid (n: Node) = FallibleOption<_,_>.Value(n)
 
     let isScalarMatch n (t:GlobalTag) = 
         match n with
-        |   ScalarNode nd ->  IsMatch (nd.Data, t.Regex)
+        |   ScalarNode nd ->  IsMatchStr (nd.Data, t.Regex)
         |   _    -> false
 
     let neverMatches _ _ = false
@@ -468,12 +468,12 @@ module YamlExtended =
             |> getKeysFromPairs 
             |> Failsafe.validateDuplicateKeys n
         else
-            ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+            FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (lazy sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
 
         
     let validateOrderedPairs (n:Node) =
-        if (isMatchSequenceOfPairs n n.NodeTag) then Value n
-        else ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+        if (isMatchSequenceOfPairs n n.NodeTag) then FallibleOption<_,_>.Value n
+        else FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (lazy sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
 
     let NullGlobalTag =
         GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
@@ -551,23 +551,25 @@ module YamlExtended =
         )
 
     let TimestampGlobalTag = 
-        let rgyear = Repeat(RGO("0-9"),4)
-        let rgmonth = RGO("0-9") + OPT(RGO("0-9"))
-        let rgmonthf = Repeat(RGO("0-9"),2)
-        let rgday = RGO("0-9") + OPT(RGO("0-9"))
-        let rgdayf = Repeat(RGO("0-9"),2)
-        let rgdate = (GRP rgyear) + RGP("-") + (GRP rgmonth) + RGP("-") + (GRP rgday)
-        let rgdatef = (GRP rgyear) + RGP("-") + (GRP rgmonthf) + RGP("-") + (GRP rgdayf)
-        let rghour = RGO("0-9") + OPT(RGO("0-9"))
-        let rgmin = Repeat(RGO "0-9", 2)
-        let rgsec = Repeat(RGO "0-9", 2)
-        let rgfrac= ZOM(RGO "0-9")
-        let rgtime = (GRP rghour) + RGP(":") + (GRP rgmin) + RGP(":") + (GRP rgsec) + OPT(RGP("\.") + GRP(rgfrac))
-        let rgztimez = RGP("Z")
-        let rgdtimez = (RGO "-+") + rghour + OPT(RGP(":") + rgmin)
-        let rgws = ZOM(RGO " \t")
+        let digit = RGO("0-9",[Token.``ns-dec-digit``])
+        let hyphen = RGP("-", [Token.``t-hyphen``])
+        let rgyear = Repeat(digit,4)
+        let rgmonth = digit + OPT(digit)
+        let rgmonthf = Repeat(digit,2)
+        let rgday = digit + OPT(digit)
+        let rgdayf = Repeat(digit,2)
+        let rgdate = (GRP rgyear) + hyphen + (GRP rgmonth) + hyphen + (GRP rgday)
+        let rgdatef = (GRP rgyear) + hyphen + (GRP rgmonthf) + hyphen + (GRP rgdayf)
+        let rghour = digit + OPT(digit)
+        let rgmin = Repeat(digit, 2)
+        let rgsec = Repeat(digit, 2)
+        let rgfrac= ZOM(digit)
+        let rgtime = (GRP rghour) + RGP(":", [Token.``t-colon``]) + (GRP rgmin) + RGP(":", [Token.``t-colon``]) + (GRP rgsec) + OPT(RGP("\.", [Token.``t-dot``]) + GRP(rgfrac))
+        let rgztimez = RGP("Z", [Token.``c-printable``])
+        let rgdtimez = RGO ("-+", [Token.``t-hyphen``;Token.``t-plus``]) + rghour + OPT(RGP(":", [Token.``t-colon``]) + rgmin)
+        let rgws = ZOM(RGO (" \t",[Token.``t-tab``] ))
  
-        let rgISO8601 = rgdate + OPT(((RGO "Tt") ||| OOM(rgws)) + rgtime + OPT(rgws + GRP((rgztimez ||| rgdtimez))))
+        let rgISO8601 = rgdate + OPT(((RGO ("Tt",[Token.``c-printable``])) ||| OOM(rgws)) + rgtime + OPT(rgws + GRP((rgztimez ||| rgdtimez))))
         let rgtimestamp = rgdate ||| rgISO8601
 
         let timestampToCanonical s =
@@ -593,9 +595,9 @@ module YamlExtended =
                 |>  function
                     |   Some strd   -> (DateTime.TryParse(strd) |> fst), nd
                     |   None        -> false, nd
-            if isValid then Value n 
+            if isValid then FallibleOption<_,_>.Value n 
             else 
-                ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagBadFormat (sprintf "Timestamp has incorrect format: %s" str)]
+                FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (lazy sprintf "Timestamp has incorrect format: %s" str)]
 
         GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, RGSF(rgtimestamp),
             (timestampToCanonical), { formattedScalarTag with PostProcessAndValidateNode = validateTimestamp}
@@ -626,17 +628,17 @@ module YamlExtended =
     //  http://yaml.org/type/binary.html
     let BinaryGlobalTag =
         //  This tag can only be assigned, and is never detected; bc too many collisions with plain text.
-        let base64Alphabet = RGO("A-Z") + RGO("a-z") + RGO("0-9") + RGO("+/") + RGO("=")
+        let base64Alphabet = RGO("A-Z", [Token.``c-printable``]) + RGO("a-z", [Token.``c-printable``]) + RGO("0-9", [Token.``ns-dec-digit``]) + RGO("+/", [Token.``t-plus``;Token.``t-forward-slash``]) + RGO("=",[Token.``t-equals``])
         //  from YamlParser, rules 24-33
-        let ``b-line-feed`` = RGP "\u000a"
-        let ``b-carriage-return`` = RGP "\u000d" 
+        let ``b-line-feed`` = RGP ("\u000a", [Token.``c-printable``])
+        let ``b-carriage-return`` = RGP("\u000d", [Token.``c-printable``])
         let ``b-break`` = 
             (``b-carriage-return`` + ``b-line-feed``)   |||  //  DOS, Windows
             ``b-carriage-return``                       |||  //  MacOS upto 9.x
             ``b-line-feed``                                     //  UNIX, MacOS X
         let ``s-space`` = "\u0020"  // space
         let ``s-tab`` = "\u0009"    // tab
-        let ``s-white`` = RGO(``s-space`` + ``s-tab``)
+        let ``s-white`` = RGO(``s-space`` + ``s-tab``, [Token.``t-space``; Token.``t-tab``])
         let controlChar = ``b-break`` ||| ``s-white``
         let allowedChars = OOM(base64Alphabet ||| controlChar)
 
@@ -674,13 +676,13 @@ module YamlExtended =
             nd
             |> List.map(snd)
             |> List.forall(fun (v:Node) -> v.NodeTag = Global NullGlobalTag)
-        if isMatchUnorderedSet n (n.NodeTag) then Value(n)
+        if isMatchUnorderedSet n (n.NodeTag) then FallibleOption<_,_>.Value(n)
         else
             Failsafe.validateMappingForDuplicateKeys n
             |> FallibleOption.bind(fun _ ->
-                if (hasNoValues (SchemaUtils.getMapNode n)) then Value(n)
+                if (hasNoValues (SchemaUtils.getMapNode n)) then FallibleOption<_,_>.Value(n)
                 else 
-                    ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) ErrTagSyntax (sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
+                    FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (lazy sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))]
             )
 
     let orderedMappingTagFuncs = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMappings isMatchSequenceOfMappings
@@ -706,7 +708,7 @@ module YamlExtended =
                     nd |>  List.filter(fun (km:Node,_) -> rs |> List.exists(fun (kr:Node,_) -> areKeysEqual km kr) |> not)
                 nodesToMerge @ rs
             match mlst with
-            |   []  -> reslst |> List.rev |> Value
+            |   []  -> reslst |> List.rev |> FallibleOption<_,_>.Value
             |   h :: tl -> 
                 match h with
                 |   MapNode nd ->   mergeMapNode nd.Data reslst |> merge tl
@@ -720,9 +722,9 @@ module YamlExtended =
                             |>  merge tl
                         |   frs    -> 
                             frs
-                            |> List.map(fun fn -> MessageAtLine.CreateTerminate (fn.ParseInfo.Start) ErrTagConstraint (sprintf "Incorrect Node type at position: %s, << should map to a sequece of mapping nodes, other types are not allowed in the sequence." (h.ParseInfo.Start.ToPrettyString())))
-                            |> ErrorResult
-                |   ScalarNode _ -> ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot map to a scalar, at position: %s, << should map to a mapping node, or a sequence of mappings." (h.ParseInfo.Start.ToPrettyString()))]
+                            |> List.map(fun fn -> MessageAtLine.CreateTerminate (fn.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Incorrect Node type at position: %s, << should map to a sequece of mapping nodes, other types are not allowed in the sequence." (h.ParseInfo.Start.ToPrettyString())))
+                            |> FallibleOption<_,_>.ErrorResult
+                |   ScalarNode _ -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateTerminate (n.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Merge tag or << cannot map to a scalar, at position: %s, << should map to a mapping node, or a sequence of mappings." (h.ParseInfo.Start.ToPrettyString()))]
 
         merge (mn |> List.map(fun (_,v) -> v)) (rn |> List.rev)
         |>  FallibleOption.bind(fun ml -> 
@@ -738,8 +740,8 @@ module YamlExtended =
             |   []  -> mergeAndValidateMapping n
             |   ml  ->
                 ml
-                |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot be used in a mapping value, at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
-                |>  ErrorResult
+                |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Merge tag or << cannot be used in a mapping value, at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
+                |>  FallibleOption<_,_>.ErrorResult
             
         
     let validateSequence n = 
@@ -748,8 +750,8 @@ module YamlExtended =
             |   []  -> Failsafe.validateUnorderedSequence n
             |   ml  ->
                 ml
-                |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) ErrTagConstraint (sprintf "Merge tag or << cannot be used in the sequence at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
-                |>  ErrorResult
+                |>  List.map(fun mn -> MessageAtLine.CreateTerminate (mn.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Merge tag or << cannot be used in the sequence at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString())))
+                |>  FallibleOption<_,_>.ErrorResult
 
     let MappingGlobalTag = Failsafe.MappingGlobalTag.SetTagFunctions { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }
     let SequenceGlobalTag = Failsafe.SequenceGlobalTag.SetTagFunctions { Failsafe.SequenceGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }

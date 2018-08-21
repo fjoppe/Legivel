@@ -10,7 +10,7 @@
     <ProjectGuid>b0b8f1c7-cb0d-495f-9b09-e8d68561aee7</ProjectGuid>
     <OutputType>Library</OutputType>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
+    <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -19,7 +19,7 @@
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
     <OutputPath>.\bin\Debug</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG</DefineConstants>
     <WarningLevel>5</WarningLevel>
     <OtherFlags>--warnon:1182</OtherFlags>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
@@ -31,10 +31,13 @@
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
     <OutputPath>.\bin\Release</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <WarningLevel>3</WarningLevel>
+    <DefineConstants>
+    </DefineConstants>
+    <WarningLevel>5</WarningLevel>
     <OtherFlags>--warnon:1182</OtherFlags>
     <DocumentationFile>.\bin\Release\Legivel.Parser.XML</DocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
@@ -53,21 +56,14 @@
   <Import Project="..\..\.paket\paket.targets" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="SpookyHash.fsi" />
-    <Compile Include="SpookyHash.fs" />
-    <Compile Include="RegexDSL.fsi" />
-    <Compile Include="RegexDSL.fs" />
-    <Compile Include="ErrorsAndWarnings.fs" />
-    <Compile Include="Common.fs" />
+    <None Include="SpookyHash.fsi" />
+    <None Include="SpookyHash.fs" />
+    <None Include="Tokenizer.fs" />
     <Compile Include="Internals.fs" />
-    <Compile Include="RepresentationGraph.fsi" />
-    <Compile Include="RepresentationGraph.fs" />
     <Compile Include="TagResolution.fsi" />
     <Compile Include="TagResolution.fs" />
     <Compile Include="YamlParser.fsi" />
     <Compile Include="YamlParser.fs" />
-    <Compile Include="YamlPath.fsi" />
-    <Compile Include="YamlPath.fs" />
     <Compile Include="Serialization.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -76,7 +72,42 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Legivel.Common\Legivel.Common.fsproj">
+      <Name>Legivel.Common</Name>
+      <Project>{da91f63b-7a2c-48b1-bb32-046031f8710f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fsproj">
+      <Name>Legivel.RegexDSL</Name>
+      <Project>{996d56f6-a0f2-4a68-8e30-368baeaa770b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Legivel.RepresentationGraph\Legivel.RepresentationGraph.fsproj">
+      <Name>Legivel.RepresentationGraph</Name>
+      <Project>{a38ef2c1-eed1-4fd6-8b51-9625c5046dfc}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fsproj">
+      <Name>Legivel.SpookyHash</Name>
+      <Project>{da41ed84-2c7e-4058-b446-e93fc997a273}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Legivel.Tokenizer\Legivel.Tokenizer.fsproj">
+      <Name>Legivel.Tokenizer</Name>
+      <Project>{9536b292-efad-4fc9-83b2-2d3c62e44860}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
   <Choose>
-    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.0' Or $(TargetFrameworkVersion) == 'v4.0.3' Or $(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6' Or $(TargetFrameworkVersion) == 'v4.6.1' Or $(TargetFrameworkVersion) == 'v4.6.2' Or $(TargetFrameworkVersion) == 'v4.6.3' Or $(TargetFrameworkVersion) == 'v4.7' Or $(TargetFrameworkVersion) == 'v5.0')" />
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
+      <ItemGroup>
+        <Reference Include="System.ValueTuple">
+          <HintPath>..\..\packages\System.ValueTuple\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
   </Choose>
 </Project>

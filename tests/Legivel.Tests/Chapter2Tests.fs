@@ -5,7 +5,7 @@
 *)
 
 open NUnit.Framework
-open FsUnit
+open FsUnitTyped
 open TestUtils
 open Legivel.Traverse
 open Legivel.TagResolution
@@ -20,7 +20,7 @@ let ``Example 2.1.  Sequence of Scalars``() =
     ["Mark McGwire";"Sammy Sosa"; "Ken Griffey"]
     |> List.iter(fun s-> 
         let pth = YamlPath.Create (sprintf "//[]/#'%s'" s)
-        yml |> pth.Select |> ToScalar |> should equal s
+        yml |> pth.Select |> ToScalar |> shouldEqual s
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760142")>]
@@ -33,7 +33,7 @@ rbi: 147   # Runs Batted In"
     [("hr", "65");("avg","0.278"); ("rbi","147")]
     |> List.iter(fun (k,v) -> 
         let pth = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> pth.Select |> ToScalar |> should equal v
+        yml |> pth.Select |> ToScalar |> shouldEqual v
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760167")>]
@@ -54,7 +54,7 @@ national:
     ]
     |> List.iter(fun (k,v) -> 
         let pth = YamlPath.Create (sprintf "//{#'%s'}?/[]/#'%s'" k v)
-        yml |> pth.Select |> ToScalar |> should equal v
+        yml |> pth.Select |> ToScalar |> shouldEqual v
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760193")>]
@@ -76,7 +76,7 @@ let ``Example 2.4.  Sequence of Mappings``() =
     |> List.iter(fun (k,v) -> 
         let ypath = (sprintf "//[]/{#'%s'}?/#'%s'" k v)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> ToScalar |> should equal v
+        yml |> pth.Select |> ToScalar |> shouldEqual v
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760351")>]
@@ -94,7 +94,7 @@ let ``Example 2.5. Sequence of Sequences``() =
     |> List.iter(fun s -> 
         let ypath = (sprintf "//[]/[]/#'%s'" s)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> ToScalar |> should equal s
+        yml |> pth.Select |> ToScalar |> shouldEqual s
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760372")>]
@@ -113,7 +113,7 @@ Sammy Sosa: {
     |> List.iter(fun (n,p,v) -> 
         let ypath = (sprintf "//{#'%s'}?/{#'%s'}?" n p)
         let pth = YamlPath.Create ypath
-        yml |> pth.Select |> ToScalar |> should equal v
+        yml |> pth.Select |> ToScalar |> shouldEqual v
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760493")>]
@@ -130,7 +130,7 @@ let ``Example 2.7. Two Documents in a Stream (each with a leading comment)``() =
 - Chicago Cubs
 - St Louis Cardinals
 "
-    yml.Length |> should equal 2
+    yml.Length |> shouldEqual 2
 
     let yml1, yml2 = List.head yml, List.last yml 
 
@@ -138,14 +138,14 @@ let ``Example 2.7. Two Documents in a Stream (each with a leading comment)``() =
     |> List.iter(fun e -> 
         let ypath = (sprintf "//[]/#'%s'" e)
         let pth = YamlPath.Create ypath
-        yml1 |> pth.Select |> ToScalar |> should equal e
+        yml1 |> pth.Select |> ToScalar |> shouldEqual e
     )
     
     ["Chicago Cubs"; "St Louis Cardinals"]
     |> List.iter(fun e -> 
         let ypath = (sprintf "//[]/#'%s'" e)
         let pth = YamlPath.Create ypath
-        yml2 |> pth.Select |> ToScalar |> should equal e
+        yml2 |> pth.Select |> ToScalar |> shouldEqual e
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760519")>]
@@ -162,7 +162,7 @@ player: Sammy Sosa
 action: grand slam
 ...
 "
-    yml.Length |> should equal 2
+    yml.Length |> shouldEqual 2
 
     let yml1, yml2 = List.head yml, List.last yml 
 
@@ -171,14 +171,14 @@ action: grand slam
     |> List.iter(fun (k,v) -> 
         let ypath = (sprintf "//{#'%s'}?" k)
         let pth = YamlPath.Create ypath
-        yml1 |> pth.Select |> ToScalar |> should equal v
+        yml1 |> pth.Select |> ToScalar |> shouldEqual v
     )
 
     [("time", "20:03:47"); ("player", "Sammy Sosa");("action", "grand slam")]
     |> List.iter(fun (k,v) -> 
         let ypath = (sprintf "//{#'%s'}?" k)
         let pth = YamlPath.Create ypath
-        yml2 |> pth.Select |> ToScalar |> should equal v
+        yml2 |> pth.Select |> ToScalar |> shouldEqual v
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760633")>]
@@ -193,15 +193,15 @@ rbi:
   - Sammy Sosa
   - Ken Griffey
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
 
     [("hr", "Mark McGwire", 2); ("rbi", "Sammy Sosa", 2)]
     |> List.iter(fun (k,v,c) -> 
         let p1 = YamlPath.Create (sprintf "//{#'%s'}?" k)
         let p2 = YamlPath.Create (sprintf "//{#'%s'}?/[]/#'%s'" k v)
 
-        yml.Head |> p1.Select |> ToSequence |> fun s -> s.Length |> should equal c
-        yml.Head |> p2.Select |> ToScalar |> should equal v
+        yml.Head |> p1.Select |> ToSequence |> fun s -> s.Length |> shouldEqual c
+        yml.Head |> p2.Select |> ToScalar |> shouldEqual v
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760658")>]
@@ -216,15 +216,15 @@ rbi:
   - *SS # Subsequent occurrence
   - Ken Griffey
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
 
     [("hr", "Sammy Sosa", 2); ("rbi", "Sammy Sosa", 2)]
     |> List.iter(fun (k,v,c) -> 
         let p1 = YamlPath.Create (sprintf "//{#'%s'}?" k)
         let p2 = YamlPath.Create (sprintf "//{#'%s'}?/[]/#'%s'" k v)
 
-        yml.Head |> p1.Select |> ToSequence |> fun s -> s.Length |> should equal c
-        yml.Head |> p2.Select |> ToScalar |> should equal v
+        yml.Head |> p1.Select |> ToSequence |> fun s -> s.Length |> shouldEqual c
+        yml.Head |> p2.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -241,14 +241,14 @@ let ``Example 2.11. Mapping between Sequences``() =
 : [ 2001-07-02, 2001-08-12,
     2001-08-14 ]
 "
-    yml.Length |> should equal 1
+    yml.Length |> shouldEqual 1
 
     //  TODO: extend YamlPath to query above structure
     let p1 = YamlPath.Create "//{}/[]/#'Detroit Tigers'"
     let p2 = YamlPath.Create "//{}?/[]/#'2001-07-02'"
 
-    yml.Head |> p1.Select |> ToScalar |> should equal "Detroit Tigers"
-    yml.Head |> p2.Select |> ToScalar |> should equal "2001-07-02"
+    yml.Head |> p1.Select |> ToScalar |> shouldEqual "Detroit Tigers"
+    yml.Head |> p2.Select |> ToScalar |> shouldEqual "2001-07-02"
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761008")>]
 let ``Example 2.13.  In literals, newlines are preserved``() =
@@ -258,7 +258,7 @@ let ``Example 2.13.  In literals, newlines are preserved``() =
   \//||\/||
   // ||  ||__"
 
-    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.Failsafe.StringGlobalTag.Uri
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761032")>]
 let ``Example 2.14.  In the folded scalars, newlines become spaces``() =
@@ -268,8 +268,8 @@ let ``Example 2.14.  In the folded scalars, newlines become spaces``() =
   year was crippled
   by a knee injury."
 
-    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
-    Some([yml]) |> ToScalar |> should equal "Mark McGwire's year was crippled by a knee injury."
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ToScalar |> shouldEqual "Mark McGwire's year was crippled by a knee injury."
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761056")>]
@@ -284,8 +284,8 @@ let ``Example 2.15.  Folded newlines are preserved for "more indented" and blank
 
  What a year!"
 
-    Some([yml]) |> ExtractTag |> should equal TagResolution.Failsafe.StringGlobalTag.Uri
-    Some([yml]) |> ToScalar |> should equal "Sammy Sosa completed another fine season with great stats.\n\n  63 Home Runs\n  0.288 Batting Average\n\nWhat a year!"
+    Some([yml]) |> ExtractTag |> shouldEqual TagResolution.Failsafe.StringGlobalTag.Uri
+    Some([yml]) |> ToScalar |> shouldEqual "Sammy Sosa completed another fine season with great stats.\n\n  63 Home Runs\n  0.288 Batting Average\n\nWhat a year!"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761056")>]
@@ -306,7 +306,7 @@ stats: |
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -331,7 +331,7 @@ tie-fighter: '|\\-*-/|'
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -351,7 +351,7 @@ quoted: \"So does this
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -371,7 +371,7 @@ hexadecimal: 0xC
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -393,7 +393,7 @@ not a number: .NaN
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -410,10 +410,10 @@ string: '012345'
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
     let p = YamlPath.Create "//{#'booleans'}?/[]/#'true'"
-    yml |> p.Select |> ToScalar |> should equal "true"
+    yml |> p.Select |> ToScalar |> shouldEqual "true"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761573")>]
@@ -432,7 +432,7 @@ date: 2002-12-14
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 //[<Ignore "TODO: Implement real binary">]
@@ -461,8 +461,8 @@ application specific tag: !something |
     ]
     |> List.iter(fun (k,v,t) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToCanonScalar |> should equal v
-        yml |> p.Select |> ExtractTag |> should equal t
+        yml |> p.Select |> ToCanonScalar |> shouldEqual v
+        yml |> p.Select |> ExtractTag |> shouldEqual t
     )
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761719")>]
@@ -500,7 +500,7 @@ let ``Example 2.24. Global Tags``() =
     ]
     |> List.iter(fun (pt,v) ->
         let p = YamlPath.Create (pt)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
 
@@ -522,9 +522,9 @@ let ``Example 2.25. Unordered Sets``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
-    Some([yml]) |> ExtractTag |> should equal "tag:yaml.org,2002:set"
+    Some([yml]) |> ExtractTag |> shouldEqual "tag:yaml.org,2002:set"
 
 
 
@@ -546,9 +546,9 @@ let ``Example 2.26. Ordered Mappings``() =
     ]
     |> List.iter(fun (k,v) ->
         let p = YamlPath.Create (sprintf "//[]/{#'%s'}?" k)
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
-    Some([yml]) |> ExtractTag |> should equal "tag:yaml.org,2002:omap"
+    Some([yml]) |> ExtractTag |> shouldEqual "tag:yaml.org,2002:omap"
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761823")>]
@@ -605,7 +605,7 @@ comments:
     |> List.iter(fun (k,v) ->
         let kp = k.Split([|'/'|], System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
         let p = kp |> List.fold(fun s i -> sprintf "%s/{#'%s'}?" s i) "/" |> YamlPath.Create
-        yml |> p.Select |> ToScalar |> should equal v
+        yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
     let prdpt =  YamlPath.Create "//{#'product'}?/[]"
@@ -630,7 +630,7 @@ comments:
         a
         |> List.iter(fun (k,v) ->
             let p = (sprintf "//{#'%s'}?" k) |> YamlPath.Create
-            e |> p.Select |> ToScalar |> should equal v
+            e |> p.Select |> ToScalar |> shouldEqual v
         )
     )
 
@@ -665,18 +665,18 @@ Stack:
     code: |-
       foo = bar
 "
-    yml.Length |> should equal 3
+    yml.Length |> shouldEqual 3
 
     yml
     |> List.iter(fun (y) ->
         let p = YamlPath.Create (sprintf "//{#'User'}?")
-        y |> p.Select |> ToScalar |> should equal "ed"
+        y |> p.Select |> ToScalar |> shouldEqual "ed"
     )
 
     yml
     |> List.zip [("Time","2001-11-23 15:01:42 -5"); ("Time","2001-11-23 15:02:31 -5");("Date","2001-11-23 15:03:17 -5")]
     |> List.iter(fun ((k,v),y) ->
         let p = YamlPath.Create (sprintf "//{#'%s'}?" k)
-        y |> p.Select |> ToScalar |> should equal v
+        y |> p.Select |> ToScalar |> shouldEqual v
     )
 
