@@ -506,7 +506,7 @@ let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->unit) =
     let logger s ps = 
 #if DEBUG
-        sprintf "%s\t l:%d col:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position)
+        sprintf "%s\t l:%d col:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error |> Map.toList |> List.length) (ps.Messages.Warn.Length) (ps.Input.Position)
         //sprintf "%d" (ps.Location.Line)
         |> loggingFunction
 #else
@@ -527,8 +527,8 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         match pso.Result with
         |   FallibleOption.Value -> 
             let  (any,prs) = pso.Data
-            sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (ps.Messages.Error.Length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
-        |   FallibleOption.NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction 
+            sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (ps.Messages.Error |> Map.toList |> List.length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
+        |   FallibleOption.NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error  |> Map.toList |> List.length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction 
         |   FallibleOption.ErrorResult -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d sp:%d" str (pso.Error |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (pso.Error |> List.length) (ps.Errors) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
         |   _   -> failwith "Illegal value for pso.Result"
         pso

@@ -81,7 +81,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Legivel.Mapper\Legivel.Mapper.fsproj">
+    <ProjectReference Include="..\..\src\Legivel.Mapper.Merged\Legivel.Mapper.fsproj">
       <Name>Legivel.Mapper</Name>
       <Project>{f1048c7d-0ad1-41e2-86ef-d8aa4bae982d}</Project>
       <Private>True</Private>
@@ -91,7 +91,7 @@
       <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
       <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\Legivel.YamlPath\Legivel.YamlPath.fsproj">
+    <ProjectReference Include="..\..\src\Legivel.YamlPath.Merged\Legivel.YamlPath.fsproj">
       <Name>Legivel.YamlPath</Name>
       <Project>{e8e3c303-65c3-40f1-8e7f-5b43868a9e6f}</Project>
       <Private>True</Private>

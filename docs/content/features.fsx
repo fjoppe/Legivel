@@ -33,8 +33,8 @@ open Legivel.Parser
 open Legivel.TagResolution
 
 let YamlParse s =
-    let parser = Yaml12Parser()
-    let repr = (parser.``l-yaml-stream`` YamlExtended.Schema s)
+    let parser = Yaml12Parser(YamlExtended.Schema)
+    let repr = (parser.``l-yaml-stream`` s)
     repr.Head
 
 (**

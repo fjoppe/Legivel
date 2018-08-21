@@ -46,13 +46,13 @@ let authors = [ "Frank Joppe" ]
 let tags = "fsharp yaml legivel"
 
 // File system information
-let solutionFile  = "Legivel.sln"
+let solutionFile  = "Legivel.Merged.sln"
 
 // Default target configuration
 let configuration = "Release"
 
 // Pattern specifying assemblies to be tested using NUnit
-let testAssemblies = "tests/**/bin" </> configuration </> "*Tests*.dll"
+let testAssemblies = "tests/**Merged/**/bin" </> configuration </> "*Tests*.dll"
 
 // Git configuration (used for publishing documentation in gh-pages branch)
 // The profile where the project is posted
@@ -102,7 +102,7 @@ Target "AssemblyInfo" (fun _ ->
           (getAssemblyInfoAttributes projectName)
         )
 
-    !! "src/**/*.??proj"
+    !! "src/**Merged/*.??proj"
     |> Seq.map getProjectDetails
     |> Seq.iter (fun (projFileName, projectName, folderName, attributes) ->
         match projFileName with
@@ -117,9 +117,9 @@ Target "AssemblyInfo" (fun _ ->
 // But keeps a subdirectory structure for each project in the
 // src folder to support multiple project outputs
 Target "CopyBinaries" (fun _ ->
-    !! "src/**/*.??proj"
+    !! "src/**Merged/*.??proj"
     -- "src/**/*.shproj"
-    -- "src/**Merged/*.??proj"
+    // -- "src/**Merged/*.??proj"
     |>  Seq.map (fun f -> ((System.IO.Path.GetDirectoryName f) </> "bin" </> configuration, "bin" </> (System.IO.Path.GetFileNameWithoutExtension f)))
     |>  Seq.iter (fun (fromDir, toDir) -> CopyDir toDir fromDir (fun _ -> true))
 )
@@ -169,7 +169,7 @@ Target "RunTests" (fun _ ->
 
 Target "SourceLink" (fun _ ->
     let baseUrl = sprintf "%s/%s/{0}/%%var2%%" gitRaw project
-    !! "src/**/*.??proj"
+    !! "src/**Merged/*.??proj"
     -- "src/**/*.shproj"
     |> Seq.iter (fun projFile ->
         let proj = VsProj.LoadRelease projFile
