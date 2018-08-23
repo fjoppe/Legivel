@@ -8,10 +8,10 @@ open Legivel.Customization.Utilities
 /// Base type for any yaml to native mapping, for simple and compex types.
 type IYamlToNativeMapping =
     /// Map a Node to the target type-instance (boxed into type obj)
-    abstract member map : am:AllTryFindIdiomaticMappers -> n:Node -> FallibleOption<obj, ParseMessageAtLine list>
+    abstract member map : errList:ParseMessageAtLineList -> am:AllTryFindIdiomaticMappers -> n:Node -> FallibleOption<obj>
 
     /// Return a default value for the target type
-    abstract member Default : FallibleOption<obj, ParseMessageAtLine list> with get
+    abstract member Default : FallibleOption<obj> with get
 
 and YTMRef = int
 
@@ -48,10 +48,10 @@ and MappedTypes = private {
 
 
 /// The return type of a TryFindMapper function
-and TryFindMapperReturnType = FallibleOption<YTMRef*AllTryFindIdiomaticMappers,ParseMessageAtLine list>
+and TryFindMapperReturnType = FallibleOption<YTMRef*AllTryFindIdiomaticMappers>
 
 /// signature of a TryFindMapper function, which may return a mapping construct for the given native type
-and TryFindIdiomaticMapperForType = (AllTryFindIdiomaticMappers -> Type -> TryFindMapperReturnType)
+and TryFindIdiomaticMapperForType = (ParseMessageAtLineList -> AllTryFindIdiomaticMappers -> Type -> TryFindMapperReturnType)
 
 /// Structure containing all TryFindMapper functions available
 and AllTryFindIdiomaticMappers = private {
@@ -64,18 +64,18 @@ and AllTryFindIdiomaticMappers = private {
         static member Create ml nt st = {PotentialMappers = ml; NullTagUri' = nt; StringTagUri' = st; KnownTypes=MappedTypes.Create()}
 
         /// Try to find a mapper for the given type, look in all potential mappers
-        member this.TryFindMapper (t:Type) : TryFindMapperReturnType =
+        member this.TryFindMapper (errList:ParseMessageAtLineList) (t:Type) : TryFindMapperReturnType =
             this.PotentialMappers
-            |>  List.tryFindFo(fun pmf -> pmf this t)
+            |>  List.tryFindFo(fun pmf -> pmf errList this t)
             |>  fun foundMapper ->
                 match foundMapper.Result with
-                |   FallibleOption.NoResult    -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))]
-                |   FallibleOption.Value  -> FallibleOption<_,_>.Value (foundMapper.Data)
+                |   FallibleOption.NoResult    -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
+                |   FallibleOption.Value  -> FallibleOption<_>.Value (foundMapper.Data)
                 |   _ -> failwith (sprintf "Ambigous: too many converters found for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName))
 
         member this.GetMapper r = this.KnownTypes.GetMapper r
 
-        member this.map r = (this.GetMapper r).map this
+        member this.map e r = (this.GetMapper r).map e this
 
         member this.RegisterType t =
             let (r,kt) = this.KnownTypes.RegisterType t

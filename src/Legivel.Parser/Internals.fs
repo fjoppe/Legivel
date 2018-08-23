@@ -3,50 +3,83 @@
 open Legivel.Common
 open System.Diagnostics
 
-
 module internal ParserMonads =
-    [<DebuggerStepThrough>]
-    type EitherBuilder<'a,'b,'c,'d>(context : 'c, resetNoRes:'c->unit, advance:'c->'c, addErr:'c->'b->'c, contAfterErr: 'c-> bool) =
-        member this.Yield (_ : 'd) : struct ('c * FallibleOption<'a,'b>) = struct (context, FallibleOption<_,_>.NoResult())
+    [<Struct>]
+    type EitherResult<'a,'b> = {
+        Context : 'a
+        Result  : FallibleOption<'b>
+        HasErrorOccurred : bool
+    }
+    with
+        static member Create c r = { Context = c; Result = r; HasErrorOccurred = false}
+        member this.SetContext c = { this with Context = c}
+        member this.SetResult  r = { this with Result = r }
+        member this.SetError()   = { this with HasErrorOccurred = true }
+
+
+    //[<DebuggerStepThrough>]
+    type EitherBuilder<'a,'c,'d>(context : 'c, resetNoRes:'c->unit, advance:'c->'c, contAfterErr: 'c-> bool) =
+        member this.Yield (_ : 'd) : EitherResult<_,_> = EitherResult<_,_>.Create context (FallibleOption<'a>.NoResult())
 
         [<CustomOperation("setcontext")>]
-        member this.SetContext (struct ((_:'c), pv), nw) = struct (nw, pv)
+        member this.SetContext (er:EitherResult<_,_>, nw) = er.SetContext nw
 
         [<CustomOperation("either")>]
-        member this.Either (struct ((ct:'c), (pv: FallibleOption<_,_>)), nw) =
-            match pv.Result with
-            |   FallibleOption.Value -> struct (ct, pv)
-            |   FallibleOption.NoResult -> resetNoRes ct; if contAfterErr ct then struct (ct, nw ct) else struct (ct,FallibleOption<_,_>.NoResult())
+        member this.Either (pv:EitherResult<_,_>, nw) =
+            match pv.Result.Result with
+            |   FallibleOption.Value -> pv
+            |   FallibleOption.NoResult -> 
+                resetNoRes pv.Context
+                if contAfterErr pv.Context then 
+                    pv.SetResult <| nw (pv.Context)
+                else 
+                    pv.SetResult <| FallibleOption<_>.NoResult()
             |   FallibleOption.ErrorResult -> 
-                let e = pv.Error
-                resetNoRes ct
-                let ctn = addErr ct e
-                if contAfterErr ctn then struct (ctn, nw ctn) else struct (ctn,FallibleOption<_,_>.NoResult())
+                resetNoRes <| pv.Context
+                let ctn = pv.SetError()
+                if contAfterErr ctn.Context then 
+                    ctn.SetResult <| nw (ctn.Context)
+                else 
+                    ctn.SetResult <| FallibleOption<_>.NoResult()
             |   _ -> failwith "Illegal value for pv"
 
 
         [<CustomOperation("ifneither")>]
-        member this.IfNeither (struct ((ct:'c), (pv: FallibleOption<_,_>)), nw) = 
-            match pv.Result with
-            |   FallibleOption.NoResult    -> resetNoRes ct; if contAfterErr ct then struct (ct,nw) else struct (ct,FallibleOption<_,_>.NoResult())
-            |   FallibleOption.Value       -> struct (advance ct, pv)
+        member this.IfNeither (pv:EitherResult<_,_>, nw) = 
+            match pv.Result.Result with
+            |   FallibleOption.NoResult    -> 
+                resetNoRes (pv.Context)
+                if contAfterErr (pv.Context) then 
+                    pv.SetResult <| nw
+                else 
+                    pv.SetResult <| FallibleOption<_>.NoResult()
+            |   FallibleOption.Value  -> pv.Context |> advance |> pv.SetContext
             |   FallibleOption.ErrorResult -> 
-                let e = pv.Error
-                resetNoRes ct;
-                let ctn = addErr ct e            
-                if contAfterErr ctn then struct (ctn,nw) else struct (ctn,FallibleOption<_,_>.NoResult())
+                resetNoRes pv.Context
+                let ctn = pv.SetError()            
+                if contAfterErr (pv.Context) then 
+                    ctn.SetResult <| nw
+                else 
+                    ctn.SetResult <| FallibleOption<_>.NoResult()
             |   _ -> failwith "Illegal value for pv"
 
         [<CustomOperation("ifneitherfn")>]
-        member this.IfNeitherFn (struct ((ct:'c), (pv: FallibleOption<_,_>)), nw) = 
-            match pv.Result with
-            |   FallibleOption.NoResult    -> resetNoRes ct; if contAfterErr ct then struct (ct,nw()) else struct (ct,FallibleOption<_,_>.NoResult())
-            |   FallibleOption.Value       -> struct (advance ct, pv)
+        member this.IfNeitherFn (pv:EitherResult<_,_>, nw) = 
+            match pv.Result.Result with
+            |   FallibleOption.NoResult    -> 
+                resetNoRes (pv.Context)
+                if contAfterErr (pv.Context) then 
+                    pv.SetResult <| nw() 
+                else 
+                    pv.SetResult <| FallibleOption<_>.NoResult()
+            |   FallibleOption.Value -> pv.Context |> advance |> pv.SetContext
             |   FallibleOption.ErrorResult -> 
-                let e = pv.Error
-                resetNoRes ct;
-                let ctn = addErr ct e            
-                if contAfterErr ctn then struct (ctn,nw()) else struct (ctn,FallibleOption<_,_>.NoResult())
+                resetNoRes pv.Context
+                let ctn = pv.SetError()            
+                if contAfterErr (pv.Context) then 
+                    ctn.SetResult <| nw () 
+                else 
+                    ctn.SetResult <| FallibleOption<_>.NoResult()
             |   _ -> failwith "Illegal value for pv"
 
 

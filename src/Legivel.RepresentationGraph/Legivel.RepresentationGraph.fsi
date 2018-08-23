@@ -34,14 +34,14 @@ type TagFunctions = {
         /// A function which is called after Node construction and tag resolution.
         /// This function is to post-process Node construction and validate its tag.
         /// an incorrect explicitly specified tag should return a Parse Error.
-        PostProcessAndValidateNode     : Node -> FallibleOption<Node, ErrorMessage>
+        PostProcessAndValidateNode     : MessageAtLineList -> Node -> FallibleOption<Node>
 
         /// A function which returs true if the given Node is a match for the given tag. 
         /// This is the case when the Node complies to all tag's rules.
         IsMatch     : Node -> GlobalTag -> bool
     }
     with
-        static member Create : (Node -> Node -> bool) -> (Node -> Lazy<NodeHash>) -> (Node -> FallibleOption<Node, ErrorMessage>) -> (Node -> GlobalTag -> bool) -> TagFunctions
+        static member Create : (Node -> Node -> bool) -> (Node -> Lazy<NodeHash>) -> (MessageAtLineList -> Node -> FallibleOption<Node>) -> (Node -> GlobalTag -> bool) -> TagFunctions
 and
     /// Local Tags should use these functions when appropriate
     [<NoEquality; NoComparison>]
@@ -122,7 +122,7 @@ and
             member AreEqual : Node -> Node -> bool
 
             /// Retrieves the function which is called after Node construction and tag resolution.
-            member PostProcessAndValidateNode : Node -> FallibleOption<Node, ErrorMessage>
+            member PostProcessAndValidateNode : MessageAtLineList -> Node -> FallibleOption<Node>
 
             /// Special case: returns handle equality if the tag is non-specific. Used in sentinel pattern.
             member EqualIfNonSpecific : TagKind -> bool

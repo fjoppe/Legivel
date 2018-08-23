@@ -9,7 +9,11 @@ open System.Reflection
 
 let NoDocumentLocation = (DocumentLocation.Create 0 0)
 
-let GetErrors (l:FallibleOption<_,_> list) = l |> List.choose(fun pmf -> match pmf.Result with | FallibleOption.ErrorResult -> Some pmf.Error | _ -> None) |> List.collect(id)
+type ParseMessageAtLineList = System.Collections.Generic.List<ParseMessageAtLine>
+
+let AddError (l:ParseMessageAtLineList) e = l.Add e; FallibleOption<_>.ErrorResult()
+
+let GetErrors (l:FallibleOption<_> list) = l |> List.filter(fun pmf -> pmf.Result=FallibleOption.ErrorResult)
 
 let AreTypesEqual (t1:Type) (t2:Type) =
     let c1 = sprintf "%s%s" t1.Namespace t1.Name
@@ -17,68 +21,68 @@ let AreTypesEqual (t1:Type) (t2:Type) =
     c1 = c2
 
 
-let getMapNode (n:Node) =
+let getMapNode (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   MapNode n ->  FallibleOption<_,_>.Value n
-    |   _    -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a mapping node")]
+    |   MapNode n ->  FallibleOption<_>.Value n
+    |   _    ->  AddError errList (ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a mapping node")
 
 
 let getMapNodeQuiet (n:Node) =
     match n with
-    |   MapNode n ->  FallibleOption<_,_>.Value n
-    |   _    -> FallibleOption<_,_>.NoResult()
+    |   MapNode n ->  FallibleOption<_>.Value n
+    |   _    -> FallibleOption<_>.NoResult()
 
 
-let getSeqNode (n:Node) =
+let getSeqNode (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   SeqNode n ->  FallibleOption<_,_>.Value n 
-    |   _    -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a Sequence Node")]
+    |   SeqNode n ->  FallibleOption<_>.Value n 
+    |   _    -> AddError errList (ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a Sequence Node")
 
 
 let getSeqNodeQuiet (n:Node) =
     match n with
-    |   SeqNode n ->  FallibleOption<_,_>.Value n 
-    |   _    -> FallibleOption<_,_>.NoResult()
+    |   SeqNode n ->  FallibleOption<_>.Value n 
+    |   _    -> FallibleOption<_>.NoResult()
 
 
-let getScalarNode (n:Node) =
+let getScalarNode (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   ScalarNode n ->  FallibleOption<_,_>.Value n
-    |   _    -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a Scalar Node")]
+    |   ScalarNode n ->  FallibleOption<_>.Value n
+    |   _    -> AddError errList (ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a Scalar Node")
 
 
 let getScalarNodeQuiet (n:Node) =
     match n with
-    |   ScalarNode n ->  FallibleOption<_,_>.Value n
-    |   _    -> FallibleOption<_,_>.NoResult()
+    |   ScalarNode n ->  FallibleOption<_>.Value n
+    |   _    -> FallibleOption<_>.NoResult()
 
 
-let GetCustomAttributeTp<'T when 'T :> Attribute> (st:Type) =
+let GetCustomAttributeTp<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:Type) =
     let at = Attribute.GetCustomAttributes(st, typeof<'T>) |> List.ofArray
     match at.Length with
-    |   0   -> FallibleOption<_,_>.NoResult()
-    |   1   -> FallibleOption<_,_>.Value (at.Head :?> 'T)
-    |   _   -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.ToString()) (st.Name) (typeof<'T>.FullName)))]
+    |   0   -> FallibleOption<_>.NoResult()
+    |   1   -> FallibleOption<_>.Value (at.Head :?> 'T)
+    |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.ToString()) (st.Name) (typeof<'T>.FullName)))
 
 
-let GetCustomAttributeMmbr<'T when 'T :> Attribute> (st:MemberInfo) =
+let GetCustomAttributeMmbr<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:MemberInfo) =
     let at = Attribute.GetCustomAttributes(st, typeof<'T>) |> List.ofArray
     match at.Length with
-    |   0   -> FallibleOption<_,_>.NoResult()
-    |   1   -> FallibleOption<_,_>.Value (at.Head :?> 'T)
-    |   _   -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))]
+    |   0   -> FallibleOption<_>.NoResult()
+    |   1   -> FallibleOption<_>.Value (at.Head :?> 'T)
+    |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))
 
-let GetCustomAttributeFld<'T when 'T :> Attribute> (st:FieldInfo) =
+let GetCustomAttributeFld<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:FieldInfo) =
     let at = [for i in st.GetCustomAttributes(typeof<'T>) do yield i]
     match at.Length with
-    |   0   -> FallibleOption<_,_>.NoResult()
-    |   1   -> FallibleOption<_,_>.Value (at.Head :?> 'T)
-    |   _   -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))]
+    |   0   -> FallibleOption<_>.NoResult()
+    |   1   -> FallibleOption<_>.Value (at.Head :?> 'T)
+    |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))
 
-let GetCustomAttributeDU<'T when 'T :> Attribute> (st:UnionCaseInfo) =
+let GetCustomAttributeDU<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:UnionCaseInfo) =
     let at = st.GetCustomAttributes(typeof<'T>) |> List.ofArray
     match at.Length with
-    |   0   -> FallibleOption<_,_>.NoResult()
-    |   1   -> FallibleOption<_,_>.Value (at.Head :?> 'T)
-    |   _   -> FallibleOption<_,_>.ErrorResult [(ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.DeclaringType.ToString()) (st.Name) (typeof<'T>.FullName)))]
+    |   0   -> FallibleOption<_>.NoResult()
+    |   1   -> FallibleOption<_>.Value (at.Head :?> 'T)
+    |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.DeclaringType.ToString()) (st.Name) (typeof<'T>.FullName)))
 

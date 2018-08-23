@@ -3,13 +3,13 @@
 
 #time
 
-//#r @"bin/Debug/Legivel.Common.dll"
-//#r @"bin/Debug/Legivel.RepresentationGraph.dll"
-//#r @"bin/Debug/Legivel.Parser.dll"
+#r @"bin/Debug/Legivel.Common.dll"
+#r @"bin/Debug/Legivel.RepresentationGraph.dll"
+#r @"bin/Debug/Legivel.Parser.dll"
 
-#r @"bin/Release/Legivel.Common.dll"
-#r @"bin/Release/Legivel.RepresentationGraph.dll"
-#r @"bin/Release/Legivel.Parser.dll"
+//#r @"bin/Release/Legivel.Common.dll"
+//#r @"bin/Release/Legivel.RepresentationGraph.dll"
+//#r @"bin/Release/Legivel.Parser.dll"
 
 #r @"test/NLog/lib/net45/NLog.dll"
 open System
@@ -78,9 +78,14 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
+YamlParse "
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey"
 
-YamlParse s
+//let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
+
+//YamlParse s
 
 YamlParse @"
 a: 123                     # an integer
