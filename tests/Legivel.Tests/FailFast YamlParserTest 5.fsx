@@ -78,23 +78,11 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-//YamlParse "
-//- Mark McGwire
-//- Sammy Sosa
-//- Ken Griffey"
-
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 //YamlParse s
 
-YamlParse @"
----
-hr:
-  - Mark McGwire
-  # Following node labeled SS
-  - &SS Sammy Sosa
-rbi:
-  - *SS # Subsequent occurrence
-  - Ken Griffey
-"
+//  Test YamlCore Map duplicate key - Adjacent
+YamlParse @" { a : b, b : d, a : c } "
+
 
