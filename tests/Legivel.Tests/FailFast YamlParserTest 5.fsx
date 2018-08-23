@@ -78,23 +78,23 @@ let YamlParseList s =
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
 
-YamlParse "
-- Mark McGwire
-- Sammy Sosa
-- Ken Griffey"
+//YamlParse "
+//- Mark McGwire
+//- Sammy Sosa
+//- Ken Griffey"
 
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 //YamlParse s
 
 YamlParse @"
-a: 123                     # an integer
-b: ""123""                   # a string, disambiguated by quotes
-c: 123.0                   # a float
-d: !!float 123             # also a float via explicit data type prefixed by (!!)
-e: !!str 123               # a string, disambiguated by explicit type
-f: !!str Yes               # a string via explicit type
-g: Yes                     # a boolean True (yaml1.1), string ""Yes"" (yaml1.2)
-h: Yes we have No bananas  # a string, ""Yes"" and ""No"" disambiguated by context.
+---
+hr:
+  - Mark McGwire
+  # Following node labeled SS
+  - &SS Sammy Sosa
+rbi:
+  - *SS # Subsequent occurrence
+  - Ken Griffey
 "
 

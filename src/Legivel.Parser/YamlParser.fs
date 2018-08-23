@@ -215,7 +215,7 @@ type ParseState = {
             else None
 
         member this.MarkParseRange pss =
-            pss
+            this
             //let filterRange msl =
             //    msl
             //    |> List.filter(fun (m:MessageAtLine) -> m.Location >= pss.Location && m.Location <= this.Location)
@@ -225,7 +225,7 @@ type ParseState = {
             //|> List.fold(fun (s:ParseState) i -> s.AddCancelMessage (i.Location)) this
 
 
-        [<DebuggerStepThrough>]
+        //[<DebuggerStepThrough>]
         member this.SkipIfMatch p = 
             match (HasMatches(this.Input.Data, p)) with
             |   (true, mt)  -> 
@@ -367,7 +367,8 @@ module ParseState =
 
     let ProcessErrors (ps:ParseState) =
         ps.Messages.Error
-        |>  Seq.iter(fun m -> if ps.Messages.Cancel < m.Location then ps.Messages.Error.Remove(m) |> ignore)
+        |>  List.ofSeq
+        |>  List.iter(fun m -> if ps.Messages.Cancel < m.Location then ps.Messages.Error.Remove(m) |> ignore)
         let freeForm = 
             ps.Messages.Error
             |>  Seq.filter(fun m -> m.Code = MessageCode.Freeform) 
