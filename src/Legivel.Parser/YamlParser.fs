@@ -72,21 +72,22 @@ type ParseRestrictions = {
     with
         static member Create() = { AllowedMultiLine = true }
 
-
+[<Struct; NoComparison>]
 type ParseMessage = {
         Warn  : MessageAtLineList
         Error : MessageAtLineList
-        Cancel: DocumentLocation // to cancel errors
+        mutable Cancel: DocumentLocation // to cancel errors
         Terminates : MessageAtLineList
     }
     with
         static member Create() = {Warn = MessageAtLineList();Error=MessageAtLineList(); Cancel=DocumentLocation.Empty; Terminates=MessageAtLineList()}
+
         member this.AddError (mal:MessageAtLine)   = 
             this.Error.Add mal
             if mal.Action = MessageAction.Terminate then this.Terminates.Add mal
         member this.AddWarning (mal:MessageAtLine) = 
             this.Warn.Add mal
-        member this.AddCancel mal   = {this with Cancel = mal }
+        member this.AddCancel mal   = this.Cancel <- mal
 
 
 [<NoEquality; NoComparison>]
@@ -154,7 +155,7 @@ type ParseState = {
         Anchors     : Map<string, Node>
         
         /// Parsing messages (warns/errors)
-        Messages    : ParseMessage
+        mutable Messages    : ParseMessage
         
         /// Document directives
         Directives  : Directive list
@@ -247,7 +248,7 @@ type ParseState = {
 
         member this.AddErrorMessage (s:MessageAtLine) = this.Messages.AddError s; FallibleOption<_>.ErrorResult()
         member this.AddWarningMessage (s:MessageAtLine) = this.Messages.AddWarning s; FallibleOption<_>.NoResult()
-        member this.AddCancelMessage s = {this with Messages = this.Messages.AddCancel s}
+        member this.AddCancelMessage s = this.Messages.AddCancel s
 
         member this.Errors   with get() = this.Messages.Error.Count
         member this.Warnings with get() = this.Messages.Warn.Count
@@ -263,9 +264,9 @@ type ParseState = {
 
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
-        static member Create inputStr = {
+        static member Create pm inputStr = {
                 Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
-                Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
+                Anchors = Map.empty; Messages=pm; Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
                 LocalTagSchema = None; NodePath = [];
                 TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
@@ -330,7 +331,8 @@ module ParseState =
         match pso.Result with
         |   FallibleOption.Value -> 
             let (n, psr) = pso.Data
-            FallibleOption<_>.Value(n,psr |> AddCancelMessage (ps.Location))
+            AddCancelMessage (ps.Location) psr
+            FallibleOption<_>.Value(n,psr)
         |   _ -> pso
 
     let MarkParseRange (pss:ParseState) (pso:FallibleOption<_>) =
@@ -355,7 +357,9 @@ module ParseState =
 
     let ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
         match (HasMatches(ps.Input.Data, patt)) with
-        |   (true, mt) -> ps |> AddCancelMessage (ps.Location) |> Advance |> TrackPosition mt |> postAdvanceFunc
+        |   (true, mt) -> 
+            ps |> AddCancelMessage (ps.Location) 
+            ps |> Advance |> TrackPosition mt |> postAdvanceFunc
         |   (false, _)    -> ps.Input.Reset(); FallibleOption<_>.NoResult()
 
 
@@ -368,7 +372,7 @@ module ParseState =
     let ProcessErrors (ps:ParseState) =
         ps.Messages.Error
         |>  List.ofSeq
-        |>  List.iter(fun m -> if ps.Messages.Cancel < m.Location then ps.Messages.Error.Remove(m) |> ignore)
+        |>  List.iter(fun m -> if m.Location < ps.Location then ps.Messages.Error.Remove(m) |> ignore)
         let freeForm = 
             ps.Messages.Error
             |>  Seq.filter(fun m -> m.Code = MessageCode.Freeform) 
@@ -377,13 +381,14 @@ module ParseState =
             ps.Messages.Error
             |>  Seq.filter(fun m -> m.Code <> MessageCode.Freeform) 
             |>  Seq.distinctBy(fun m -> m.Location)
-        let newErrors = freeForm |>  Seq.append filteredErrors
+        let newErrors = freeForm |>  Seq.append filteredErrors |> List.ofSeq |> Seq.ofList
         ps.Messages.Error.Clear()
         ps.Messages.Error.AddRange(newErrors)
-        {ps with Messages = {ps.Messages with Cancel = DocumentLocation.Empty}}
+        ps.Messages.AddCancel DocumentLocation.Empty |> ignore
+        ps
 
 
-    let PostProcessErrors fr =
+    let PostProcessErrors (pm:ParseMessage) fr =
         fr
         |> FallibleOption.map(fun (node, ps:ParseState) ->(node,ProcessErrors ps))
         |> FallibleOption.map(fun (node, ps:ParseState) ->
@@ -492,6 +497,8 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 #else
         ()
 #endif
+
+    member private this.ParserMessages = ParseMessage.Create()
 
     member private this.GlobalTagSchema
         with get() = globalTagSchema 
@@ -2967,7 +2974,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
     member this.``l-yaml-stream`` (input:string) : Representation list= 
-        let ps = ParseState.Create input 
+        let ps = ParseState.Create (this.ParserMessages) input 
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
@@ -2999,7 +3006,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                         ifneither(ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy "Incorrect Syntax, this content cannot be related to previous document structure."))
                     }
                     |> ParseState.PreserveErrors ps
-                    |> ParseState.PostProcessErrors
+                    |> ParseState.PostProcessErrors (this.ParserMessages)
                     |>  fun parsedDocument ->
                         match parsedDocument.Result with
                         |   FallibleOption.Value -> 
@@ -3030,7 +3037,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
             psr 
             |>  this.``l-any-document``
-            |>  ParseState.PostProcessErrors
+            |>  ParseState.PostProcessErrors (this.ParserMessages)
             |>  ParseState.ToRepresentation psr
             |>  function
                 |   (NoRepresentation rr,ps2) -> 

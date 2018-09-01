@@ -83,6 +83,9 @@ let YamlParseList s =
 //YamlParse s
 
 //  Test YamlCore Map duplicate key - Adjacent
-YamlParse @" { a : b, b : d, a : c } "
+YamlParse "
+%YAML 1.2
+%YAML 1.1
+foo"
 
 
