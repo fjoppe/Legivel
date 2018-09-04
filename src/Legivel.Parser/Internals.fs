@@ -40,7 +40,7 @@ module internal ParserMonads =
                 if contAfterErr ctn.Context then 
                     ctn.SetResult <| nw (ctn.Context)
                 else 
-                    ctn.SetResult <| FallibleOption.NoResult()
+                    ctn.SetResult <| FallibleOption.ErrorResult()
             |   _ -> failwith "Illegal value for pv"
 
 
@@ -60,7 +60,7 @@ module internal ParserMonads =
                 if contAfterErr (pv.Context) then 
                     ctn.SetResult <| nw
                 else 
-                    ctn.SetResult <| FallibleOption.NoResult()
+                    ctn.SetResult <| FallibleOption.ErrorResult()
             |   _ -> failwith "Illegal value for pv"
 
         [<CustomOperation("ifneitherfn")>]
@@ -79,7 +79,7 @@ module internal ParserMonads =
                 if contAfterErr (pv.Context) then 
                     ctn.SetResult <| nw () 
                 else 
-                    ctn.SetResult <| FallibleOption.NoResult()
+                    ctn.SetResult <| FallibleOption.ErrorResult()
             |   _ -> failwith "Illegal value for pv"
 
 

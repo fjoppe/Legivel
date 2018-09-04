@@ -317,7 +317,7 @@ module ParseState =
         if not(outErrors.HasErrorOccurred) then FallibleOption.NoResult()
         else FallibleOption.ErrorResult()
 
-    let PreserveErrors _ ct = 
+    let PreserveErrors ct = 
         ct.Result.Result |> 
         function 
         |   FallibleOptionValue.Value  -> 
@@ -1648,7 +1648,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either(this.``ns-flow-node``)
             ifneither(FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> ParseState.ResetEnv ps
         |> this.LogReturn "ns-flow-seq-entry"  ps
@@ -1722,7 +1722,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``ns-flow-map-implicit-entry``)
             ifneither (FallibleOption.NoResult())        
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-entry" ps        
 
@@ -1748,7 +1748,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``c-ns-flow-map-json-key-entry``)
             ifneither (FallibleOption.NoResult())        
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-implicit-entry" ps        
 
@@ -1854,7 +1854,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``ns-flow-pair-entry``)
             ifneither (FallibleOption.NoResult())        
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-pair" ps
 
@@ -1867,7 +1867,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``c-ns-flow-pair-json-key-entry``)
             ifneither (FallibleOption.NoResult())        
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-pair-entry" ps
 
@@ -2049,7 +2049,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``c-flow-sequence``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "c-flow-json-content" ps
         
@@ -2061,7 +2061,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``c-flow-json-content``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-content" ps
 
@@ -2079,7 +2079,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``content with properties`` ``ns-flow-yaml-content``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-yaml-node" ps
 
@@ -2093,7 +2093,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``content with properties`` ``c-flow-json-content``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-flow-json-node" ps
     
@@ -2112,7 +2112,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``content with properties`` ``empty content``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-node" ps
 
@@ -2158,7 +2158,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either(``illformed chomping``)
             ifneither(nochomp)
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> this.LogReturn "c-b-block-header" ps
 
     //  [163]   http://www.yaml.org/spec/1.2/spec.html#c-indentation-indicator(m)
@@ -2520,7 +2520,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                         either (this.``ns-l-compact-mapping``)
                         ifneither (FallibleOption.NoResult())
                     }
-                    |> ParseState.PreserveErrors ps
+                    |> ParseState.PreserveErrors
             )
 
         (ps |> ParseState.OneOf) {
@@ -2530,7 +2530,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 let prs2 = ps.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
                 FallibleOption.Value(this.ResolvedNullNode prs2, prs2))
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> ParseState.TrackParseLocation ps
         |> ParseState.ResetEnv ps
         |> this.LogReturn "s-l+block-indented" ps
@@ -2629,7 +2629,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``ns-l-block-map-implicit-entry``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-l-block-map-entry" ps
 
@@ -2716,7 +2716,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``ns-s-implicit-yaml-key``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> ParseState.TrackParseLocation ps
         |> ParseState.ResetEnv ps
         |> this.LogReturn "ns-s-block-map-implicit-key" ps
@@ -2784,7 +2784,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``s-l+flow-in-block``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "s-l+block-node" ps
 
@@ -2814,7 +2814,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``s-l+block-collection``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "s-l+block-in-block" ps
 
@@ -2831,7 +2831,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                         either   (this.``c-l+folded``)
                         ifneither (FallibleOption.NoResult())
                     }
-                    |> ParseState.PreserveErrors psp
+                    |> ParseState.PreserveErrors
             )
         psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
             (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
@@ -2841,7 +2841,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     either   (this.``c-l+folded``)
                     ifneither (FallibleOption.NoResult())
                 }
-                |> ParseState.PreserveErrors ps
+                |> ParseState.PreserveErrors
 
         )
         |> ParseState.ResetEnv ps
@@ -2861,7 +2861,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 either (this.``l+block-mapping``)
                 ifneither(FallibleOption.NoResult())
             }
-            |> ParseState.PreserveErrors ps
+            |> ParseState.PreserveErrors
             
         let ``optional spaced content with properties`` ps =
             ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``content with properties`` ``seq or map``)
@@ -2871,7 +2871,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (``seq or map``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "s-l+block-collection" ps
 
@@ -2934,7 +2934,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                             this.ResolveTag prs2 NonSpecificQM (prs2.Location) (PlainEmptyNode (getParseInfo ps prs) )
                         )
                     }
-                |> ParseState.PreserveErrors ps
+                |> ParseState.PreserveErrors
             )
         else FallibleOption.ErrorResult ()
         |> this.LogReturn "l-explicit-document" ps
@@ -2969,7 +2969,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either(this.``l-bare-document``)
             ifneither (FallibleOption.NoResult())
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors
         |> this.LogReturn "l-any-document" ps
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
@@ -3005,7 +3005,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                         either (ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (this.``l-explicit-document``))
                         ifneither(ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy "Incorrect Syntax, this content cannot be related to previous document structure."))
                     }
-                    |> ParseState.PreserveErrors ps
+                    |> ParseState.PreserveErrors
                     |> ParseState.PostProcessErrors (this.ParserMessages)
                     |>  fun parsedDocument ->
                         match parsedDocument.Result with
