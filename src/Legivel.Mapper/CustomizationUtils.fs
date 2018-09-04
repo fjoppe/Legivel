@@ -13,7 +13,7 @@ type ParseMessageAtLineList = System.Collections.Generic.List<ParseMessageAtLine
 
 let AddError (l:ParseMessageAtLineList) e = l.Add e; FallibleOption<_>.ErrorResult()
 
-let GetErrors (l:FallibleOption<_> list) = l |> List.filter(fun pmf -> pmf.Result=FallibleOption.ErrorResult)
+let GetErrors (l:FallibleOption<_> list) = l |> List.filter(fun pmf -> pmf.Result=FallibleOptionValue.ErrorResult)
 
 let AreTypesEqual (t1:Type) (t2:Type) =
     let c1 = sprintf "%s%s" t1.Namespace t1.Name

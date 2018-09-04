@@ -8,20 +8,20 @@ type FallibleOption<'a>
 with
     member internal this.IsErrorResult =
         match this.Result with
-        |   FallibleOption.ErrorResult -> true
+        |   FallibleOptionValue.ErrorResult -> true
         |   _ -> false
 
     member this.IsNoResult =
         match this.Result with
-        |   FallibleOption.NoResult -> true
+        |   FallibleOptionValue.NoResult -> true
         |   _ -> false
 
 module FallibleOption =
     let forCollection<'a,'b,'c> (f:'a -> FallibleOption<'b> list) (r:FallibleOption<'a>) =
         match r.Result with
-        |   FallibleOption.NoResult -> [FallibleOption<_>.NoResult()]
-        |   FallibleOption.ErrorResult ->  [FallibleOption<_>.ErrorResult()]
-        |   FallibleOption.Value -> f (r.Data)
+        |   FallibleOptionValue.NoResult -> [FallibleOption<_>.NoResult()]
+        |   FallibleOptionValue.ErrorResult ->  [FallibleOption<_>.ErrorResult()]
+        |   FallibleOptionValue.Value -> f (r.Data)
         |   _ -> failwith "Illegal value for r"
 
     let errorsOrValues f l =
@@ -37,9 +37,9 @@ module FallibleOption =
 type SerieBuilder() =
     member this.Bind(mx: FallibleOption<'a>, f: 'a -> FallibleOption<'b>) : FallibleOption<'b> =
         match mx.Result with
-        |   FallibleOption.Value -> f (mx.Data)
-        |   FallibleOption.NoResult  -> FallibleOption<_>.NoResult()
-        |   FallibleOption.ErrorResult  -> FallibleOption<_>.ErrorResult()
+        |   FallibleOptionValue.Value -> f (mx.Data)
+        |   FallibleOptionValue.NoResult  -> FallibleOption<_>.NoResult()
+        |   FallibleOptionValue.ErrorResult  -> FallibleOption<_>.ErrorResult()
         |   _ -> failwith "Illegal value for mx"
 
     member this.Return (x: 'a): FallibleOption<'a> = FallibleOption<_>.Value x

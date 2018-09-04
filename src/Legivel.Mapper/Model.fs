@@ -69,8 +69,8 @@ and AllTryFindIdiomaticMappers = private {
             |>  List.tryFindFo(fun pmf -> pmf errList this t)
             |>  fun foundMapper ->
                 match foundMapper.Result with
-                |   FallibleOption.NoResult    -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
-                |   FallibleOption.Value  -> FallibleOption<_>.Value (foundMapper.Data)
+                |   FallibleOptionValue.NoResult    -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
+                |   FallibleOptionValue.Value  -> FallibleOption<_>.Value (foundMapper.Data)
                 |   _ -> failwith (sprintf "Ambigous: too many converters found for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName))
 
         member this.GetMapper r = this.KnownTypes.GetMapper r

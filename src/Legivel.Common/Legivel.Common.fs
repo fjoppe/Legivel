@@ -109,53 +109,53 @@ type MessageAtLine = {
 
 type MessageAtLineList = System.Collections.Generic.List<MessageAtLine>
 
-type FallibleOption =
+type FallibleOptionValue =
     |   Value       = 0
     |   NoResult    = 1
     |   ErrorResult = 2
 
 
 type FallibleOption<'a> = private {
-    Result'     : FallibleOption
+    Result'     : FallibleOptionValue
     DataValue  : 'a option
 }
     with
     member this.Data 
        with get() =
             match this.Result' with
-            |   FallibleOption.Value -> this.DataValue.Value
+            |   FallibleOptionValue.Value -> this.DataValue.Value
             |   _ -> failwith "This instance has no value"
 
     member this.Result with get() = this.Result'
 
-    static member NoResult() = { Result' = FallibleOption.NoResult; DataValue = None}
+    static member NoResult() = { Result' = FallibleOptionValue.NoResult; DataValue = None}
 
-    static member ErrorResult() = { Result' = FallibleOption.ErrorResult; DataValue = None}
+    static member ErrorResult() = { Result' = FallibleOptionValue.ErrorResult; DataValue = None}
 
-    static member Value v = { Result' = FallibleOption.Value; DataValue = Some v}
+    static member Value v = { Result' = FallibleOptionValue.Value; DataValue = Some v}
 
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module FallibleOption =
     let bind<'a,'b> (f: 'a -> FallibleOption<'b>) (o:FallibleOption<'a>) : FallibleOption<'b> =
         match o.Result with
-        |   FallibleOption.Value        -> f (o.Data)
-        |   FallibleOption.NoResult     -> FallibleOption<'b>.NoResult()
-        |   FallibleOption.ErrorResult  -> FallibleOption<'b>.ErrorResult()
+        |   FallibleOptionValue.Value        -> f (o.Data)
+        |   FallibleOptionValue.NoResult     -> FallibleOption<'b>.NoResult()
+        |   FallibleOptionValue.ErrorResult  -> FallibleOption<'b>.ErrorResult()
         |   _ -> failwith "FallibleOption: illegal value"
 
     let map<'a,'b> f (o:FallibleOption<'a>) : FallibleOption<'b> =
         match o.Result with
-        |   FallibleOption.NoResult     -> FallibleOption<'b>.NoResult()
-        |   FallibleOption.ErrorResult  -> FallibleOption<'b>.ErrorResult()
-        |   FallibleOption.Value        -> FallibleOption<'b>.Value (f (o.Data))
+        |   FallibleOptionValue.NoResult     -> FallibleOption<'b>.NoResult()
+        |   FallibleOptionValue.ErrorResult  -> FallibleOption<'b>.ErrorResult()
+        |   FallibleOptionValue.Value        -> FallibleOption<'b>.Value (f (o.Data))
         |   _ -> failwith "FallibleOption: illegal value"
 
     let ifnoresult<'a> f (o:FallibleOption<'a>) : FallibleOption<'a> =
         match o.Result with
-        |   FallibleOption.NoResult    -> f()
-        |   FallibleOption.Value       -> FallibleOption<'a>.Value (o.Data)
-        |   FallibleOption.ErrorResult -> FallibleOption<'a>.ErrorResult ()
+        |   FallibleOptionValue.NoResult    -> f()
+        |   FallibleOptionValue.Value       -> FallibleOption<'a>.Value (o.Data)
+        |   FallibleOptionValue.ErrorResult -> FallibleOption<'a>.ErrorResult ()
         |   _ -> failwith "FallibleOption: illegal value"
 
 

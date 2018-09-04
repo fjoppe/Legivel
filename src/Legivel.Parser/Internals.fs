@@ -27,14 +27,14 @@ module internal ParserMonads =
         [<CustomOperation("either")>]
         member this.Either (pv:EitherResult<_,_>, nw) =
             match pv.Result.Result with
-            |   FallibleOption.Value -> pv
-            |   FallibleOption.NoResult -> 
+            |   FallibleOptionValue.Value -> pv
+            |   FallibleOptionValue.NoResult -> 
                 resetNoRes pv.Context
                 if contAfterErr pv.Context then 
                     pv.SetResult <| nw (pv.Context)
                 else 
                     pv.SetResult <| FallibleOption<_>.NoResult()
-            |   FallibleOption.ErrorResult -> 
+            |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes <| pv.Context
                 let ctn = pv.SetError()
                 if contAfterErr ctn.Context then 
@@ -47,14 +47,14 @@ module internal ParserMonads =
         [<CustomOperation("ifneither")>]
         member this.IfNeither (pv:EitherResult<_,_>, nw) = 
             match pv.Result.Result with
-            |   FallibleOption.NoResult    -> 
+            |   FallibleOptionValue.NoResult    -> 
                 resetNoRes (pv.Context)
                 if contAfterErr (pv.Context) then 
                     pv.SetResult <| nw
                 else 
                     pv.SetResult <| FallibleOption<_>.NoResult()
-            |   FallibleOption.Value  -> pv.Context |> advance |> pv.SetContext
-            |   FallibleOption.ErrorResult -> 
+            |   FallibleOptionValue.Value  -> pv.Context |> advance |> pv.SetContext
+            |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes pv.Context
                 let ctn = pv.SetError()            
                 if contAfterErr (pv.Context) then 
@@ -66,14 +66,14 @@ module internal ParserMonads =
         [<CustomOperation("ifneitherfn")>]
         member this.IfNeitherFn (pv:EitherResult<_,_>, nw) = 
             match pv.Result.Result with
-            |   FallibleOption.NoResult    -> 
+            |   FallibleOptionValue.NoResult    -> 
                 resetNoRes (pv.Context)
                 if contAfterErr (pv.Context) then 
                     pv.SetResult <| nw() 
                 else 
                     pv.SetResult <| FallibleOption<_>.NoResult()
-            |   FallibleOption.Value -> pv.Context |> advance |> pv.SetContext
-            |   FallibleOption.ErrorResult -> 
+            |   FallibleOptionValue.Value -> pv.Context |> advance |> pv.SetContext
+            |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes pv.Context
                 let ctn = pv.SetError()            
                 if contAfterErr (pv.Context) then 

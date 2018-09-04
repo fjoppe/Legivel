@@ -133,19 +133,19 @@ type RecordMappingInfo = {
                                 GetCustomAttributeMmbr<YamlFieldAttribute> errList fld
                                 |>  fun custAttrib ->
                                     match custAttrib.Result with
-                                    |   FallibleOption.NoResult -> FallibleOption<string>.Value (fld.Name)
-                                    |   FallibleOption.Value  -> FallibleOption<string>.Value (custAttrib.Data.Name')
-                                    |   FallibleOption.ErrorResult -> FallibleOption<string>.ErrorResult()
+                                    |   FallibleOptionValue.NoResult -> FallibleOption<string>.Value (fld.Name)
+                                    |   FallibleOptionValue.Value  -> FallibleOption<string>.Value (custAttrib.Data.Name')
+                                    |   FallibleOptionValue.ErrorResult -> FallibleOption<string>.ErrorResult()
                                     |   _   -> failwith "Illegal value for custAttrib"
                             return { YamlName = yamlName; PropertyName = fld.Name; PropertyMapping = propMapping },newMappers
                         }
                         |>  fun isRecord ->
                             match isRecord.Result with
-                            |   FallibleOption.Value -> 
+                            |   FallibleOptionValue.Value -> 
                                 let  (rf, nm) = isRecord.Data
                                 ((FallibleOption<_>.Value rf) :: rfms, nm)
-                            |   FallibleOption.NoResult -> (FallibleOption<_>.NoResult() :: rfms, nms)
-                            |   FallibleOption.ErrorResult -> (FallibleOption<_>.ErrorResult() :: rfms, nms)
+                            |   FallibleOptionValue.NoResult -> (FallibleOption<_>.NoResult() :: rfms, nms)
+                            |   FallibleOptionValue.ErrorResult -> (FallibleOption<_>.ErrorResult() :: rfms, nms)
                             |   _   -> failwith "Illegal value for isRecord"
                     ) ([], nm)
                     |> fun (fl, nmps) ->
@@ -200,9 +200,9 @@ type RecordMappingInfo = {
                                 AddError errList  (ParseMessageAtLine.Create (n.ParseInfo.Start) (sprintf "Missing value for field: '%s'" fm.YamlName)) |> ignore
                                 let getMapper = (mappers.GetMapper (fm.PropertyMapping)).Default 
                                 match getMapper.Result with
-                                |   FallibleOption.Value -> FallibleOption<_>.Value getMapper.Data
-                                |   FallibleOption.NoResult -> FallibleOption<_>.ErrorResult()
-                                |   FallibleOption.ErrorResult -> FallibleOption<_>.ErrorResult()
+                                |   FallibleOptionValue.Value -> FallibleOption<_>.Value getMapper.Data
+                                |   FallibleOptionValue.NoResult -> FallibleOption<_>.ErrorResult()
+                                |   FallibleOptionValue.ErrorResult -> FallibleOption<_>.ErrorResult()
                                 |   _ -> failwith "Illegal value for getMapper"
                         )
                     possibleValues
@@ -394,9 +394,9 @@ type EnumMappingInfo = {
                             GetCustomAttributeFld<YamlValueAttribute> errList fi
                             |>  fun customAttrib -> 
                                 match customAttrib.Result with
-                                |   FallibleOption.NoResult -> FallibleOption<_>.Value { YamlName = es; EnumName = es; EnumValue = e}
-                                |   FallibleOption.Value -> FallibleOption<_>.Value { YamlName = customAttrib.Data.Id'; EnumName = es; EnumValue = e}
-                                |   FallibleOption.ErrorResult -> FallibleOption<_>.ErrorResult()
+                                |   FallibleOptionValue.NoResult -> FallibleOption<_>.Value { YamlName = es; EnumName = es; EnumValue = e}
+                                |   FallibleOptionValue.Value -> FallibleOption<_>.Value { YamlName = customAttrib.Data.Id'; EnumName = es; EnumValue = e}
+                                |   FallibleOptionValue.ErrorResult -> FallibleOption<_>.ErrorResult()
                                 |   _ -> failwith "Illegal value for customAttrib"
                             )
 
@@ -463,7 +463,7 @@ type DiscriminatedUnionMappingInfo = {
                         GetCustomAttributeTp<YamlFieldAttribute> errList t
                         |>  fun hasName ->
                             match hasName.Result with
-                            |   FallibleOption.Value -> Some hasName.Data.Name'
+                            |   FallibleOptionValue.Value -> Some hasName.Data.Name'
                             |   _ -> None
 
                     let (mappedFields,nmprs) =
@@ -476,11 +476,11 @@ type DiscriminatedUnionMappingInfo = {
                                     nmpl.TryFindMapper errList (fd.PropertyType)
                                     |>  fun foundMapper ->
                                         match foundMapper.Result with
-                                        |   FallibleOption.Value -> 
+                                        |   FallibleOptionValue.Value -> 
                                             let (vmp, vmptl)  = foundMapper.Data
                                             FallibleOption<_>.Value(uc.Name, vmp) :: mfl , vmptl
-                                        |   FallibleOption.NoResult -> FallibleOption<_>.NoResult() :: mfl , nmpl
-                                        |   FallibleOption.ErrorResult -> FallibleOption<_>.ErrorResult() :: mfl , nmpl
+                                        |   FallibleOptionValue.NoResult -> FallibleOption<_>.NoResult() :: mfl , nmpl
+                                        |   FallibleOptionValue.ErrorResult -> FallibleOption<_>.ErrorResult() :: mfl , nmpl
                                 |   _       ->  AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Union case contains more than one data-type '%s' in type: '%s'" uc.Name t.FullName)) :: mfl, nmpl
                         ) ([], nm)
 
@@ -490,9 +490,9 @@ type DiscriminatedUnionMappingInfo = {
                             GetCustomAttributeDU<YamlValueAttribute> errList uc
                             |>  fun customerAttrib ->
                                 match customerAttrib.Result with
-                                |   FallibleOption.NoResult -> { YamlName = uc.Name; DUName = uc.Name; UCI = uc} |> FallibleOption<_>.Value
-                                |   FallibleOption.Value  -> { YamlName = customerAttrib.Data.Id'; DUName = uc.Name; UCI = uc} |> FallibleOption<_>.Value
-                                |   FallibleOption.ErrorResult -> FallibleOption<_>.ErrorResult()
+                                |   FallibleOptionValue.NoResult -> { YamlName = uc.Name; DUName = uc.Name; UCI = uc} |> FallibleOption<_>.Value
+                                |   FallibleOptionValue.Value  -> { YamlName = customerAttrib.Data.Id'; DUName = uc.Name; UCI = uc} |> FallibleOption<_>.Value
+                                |   FallibleOptionValue.ErrorResult -> FallibleOption<_>.ErrorResult()
                                 |   _ -> failwith "Illegal value for customerAttrib" 
                         )
 
@@ -635,9 +635,9 @@ let MapYamlDocumentToNative (errList:ParseMessageAtLineList) (mappers:AllTryFind
     mapper.map errList mappers (pdr.Document)
     |>  fun mapper ->
         match mapper.Result with
-        |   FallibleOption.NoResult -> Error.Create ([ParseMessageAtLine.Create NoDocumentLocation  "Document cannot be mapped"]) (pdr.Warn) (pdr.StopLocation) |> WithErrors
-        |   FallibleOption.ErrorResult -> Error.Create (errList |> List.ofSeq) (pdr.Warn) (pdr.StopLocation) |> WithErrors
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.NoResult -> Error.Create ([ParseMessageAtLine.Create NoDocumentLocation  "Document cannot be mapped"]) (pdr.Warn) (pdr.StopLocation) |> WithErrors
+        |   FallibleOptionValue.ErrorResult -> Error.Create (errList |> List.ofSeq) (pdr.Warn) (pdr.StopLocation) |> WithErrors
+        |   FallibleOptionValue.Value -> 
             let d = unbox<'tp> (mapper.Data)
             Success<'tp>.Create d (pdr.Warn) |> Processed
         |   _ -> failwith "Illegal value for mapper"
@@ -661,9 +661,9 @@ let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType lis
     CreateTypeMappings<'tp> errList tryFindMappers nullTagUri stringTagUri
     |>  fun typeMapping ->
         match typeMapping.Result with
-        |   FallibleOption.NoResult -> [Error.Create ([ParseMessageAtLine.Create (DocumentLocation.Create 0 0) "Cannot find yaml to type mappers"]) [] NoDocumentLocation |> WithErrors]
-        |   FallibleOption.ErrorResult -> [Error.Create (errList |> List.ofSeq) [] NoDocumentLocation |> WithErrors]
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.NoResult -> [Error.Create ([ParseMessageAtLine.Create (DocumentLocation.Create 0 0) "Cannot find yaml to type mappers"]) [] NoDocumentLocation |> WithErrors]
+        |   FallibleOptionValue.ErrorResult -> [Error.Create (errList |> List.ofSeq) [] NoDocumentLocation |> WithErrors]
+        |   FallibleOptionValue.Value -> 
             let (rf,mappings) = typeMapping.Data
             parseYmlToNative (mapYmlDocToNative errList mappings (mappings.GetMapper rf)) schema yml
         |   _ -> failwith "Illegal value for typeMapping"
