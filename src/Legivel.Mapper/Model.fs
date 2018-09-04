@@ -70,7 +70,7 @@ and AllTryFindIdiomaticMappers = private {
             |>  fun foundMapper ->
                 match foundMapper.Result with
                 |   FallibleOptionValue.NoResult    -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
-                |   FallibleOptionValue.Value  -> FallibleOption<_>.Value (foundMapper.Data)
+                |   FallibleOptionValue.Value  -> FallibleOption.Value (foundMapper.Data)
                 |   _ -> failwith (sprintf "Ambigous: too many converters found for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName))
 
         member this.GetMapper r = this.KnownTypes.GetMapper r

@@ -170,8 +170,8 @@ and
             |   Global       gt -> gt.PostProcessAndValidateNode errList n
             |   Unrecognized gt -> gt.PostProcessAndValidateNode errList n
             // local tags are checked by the application, so always valid here
-            |   Local        _  -> FallibleOption<_>.Value(n) 
-            |   NonSpecific  _  -> FallibleOption<_>.Value(n)
+            |   Local        _  -> FallibleOption.Value(n) 
+            |   NonSpecific  _  -> FallibleOption.Value(n)
 
         member this.Uri 
             with get() =

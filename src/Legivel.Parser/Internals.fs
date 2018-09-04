@@ -19,7 +19,7 @@ module internal ParserMonads =
 
     //[<DebuggerStepThrough>]
     type EitherBuilder<'a,'c,'d>(context : 'c, resetNoRes:'c->unit, advance:'c->'c, contAfterErr: 'c-> bool) =
-        member this.Yield (_ : 'd) : EitherResult<_,_> = EitherResult<_,_>.Create context (FallibleOption<'a>.NoResult())
+        member this.Yield (_ : 'd) : EitherResult<_,_> = EitherResult<_,_>.Create context (FallibleOption.NoResult())
 
         [<CustomOperation("setcontext")>]
         member this.SetContext (er:EitherResult<_,_>, nw) = er.SetContext nw
@@ -33,14 +33,14 @@ module internal ParserMonads =
                 if contAfterErr pv.Context then 
                     pv.SetResult <| nw (pv.Context)
                 else 
-                    pv.SetResult <| FallibleOption<_>.NoResult()
+                    pv.SetResult <| FallibleOption.NoResult()
             |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes <| pv.Context
                 let ctn = pv.SetError()
                 if contAfterErr ctn.Context then 
                     ctn.SetResult <| nw (ctn.Context)
                 else 
-                    ctn.SetResult <| FallibleOption<_>.NoResult()
+                    ctn.SetResult <| FallibleOption.NoResult()
             |   _ -> failwith "Illegal value for pv"
 
 
@@ -52,7 +52,7 @@ module internal ParserMonads =
                 if contAfterErr (pv.Context) then 
                     pv.SetResult <| nw
                 else 
-                    pv.SetResult <| FallibleOption<_>.NoResult()
+                    pv.SetResult <| FallibleOption.NoResult()
             |   FallibleOptionValue.Value  -> pv.Context |> advance |> pv.SetContext
             |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes pv.Context
@@ -60,7 +60,7 @@ module internal ParserMonads =
                 if contAfterErr (pv.Context) then 
                     ctn.SetResult <| nw
                 else 
-                    ctn.SetResult <| FallibleOption<_>.NoResult()
+                    ctn.SetResult <| FallibleOption.NoResult()
             |   _ -> failwith "Illegal value for pv"
 
         [<CustomOperation("ifneitherfn")>]
@@ -71,7 +71,7 @@ module internal ParserMonads =
                 if contAfterErr (pv.Context) then 
                     pv.SetResult <| nw() 
                 else 
-                    pv.SetResult <| FallibleOption<_>.NoResult()
+                    pv.SetResult <| FallibleOption.NoResult()
             |   FallibleOptionValue.Value -> pv.Context |> advance |> pv.SetContext
             |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes pv.Context
@@ -79,7 +79,7 @@ module internal ParserMonads =
                 if contAfterErr (pv.Context) then 
                     ctn.SetResult <| nw () 
                 else 
-                    ctn.SetResult <| FallibleOption<_>.NoResult()
+                    ctn.SetResult <| FallibleOption.NoResult()
             |   _ -> failwith "Illegal value for pv"
 
 

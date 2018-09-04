@@ -81,10 +81,10 @@ module SchemaUtils =
 
     let tagFormatCheckError (errList:MessageAtLineList) (n:Node) data =
         function
-        |   Some _ -> FallibleOption<_>.Value n
+        |   Some _ -> FallibleOption.Value n
         |   None   -> 
             errList.Add(MessageAtLine.CreateTerminate (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (lazy sprintf "Incorrect format: '%s', for tag: %s" data (n.NodeTag.ToPrettyString())))
-            FallibleOption<_>.ErrorResult()
+            FallibleOption.ErrorResult()
 
     let isFormattedScalarValid (errList:MessageAtLineList) (n: Node) = 
         let data = getScalarNode n
@@ -146,7 +146,7 @@ module Failsafe =
         nlst
         |> findDuplicateKeys
         |> function
-            |   []  -> FallibleOption<_>.Value n
+            |   []  -> FallibleOption.Value n
             |   dupLst ->
                 [
                     for kt in dupLst do
@@ -155,7 +155,7 @@ module Failsafe =
                             yield MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrMapDuplicateKey (lazy sprintf "Duplicate key for node %s at position: %s" (n.ToPrettyString()) (rf.ParseInfo.Start.ToPrettyString()))
                 ]
                 |>  List.iter(fun e -> errList.Add e)
-                FallibleOption<_>.ErrorResult()
+                FallibleOption.ErrorResult()
 
 
     let validateMappingForDuplicateKeys (errList:MessageAtLineList) (n: Node) =
@@ -182,7 +182,7 @@ module Failsafe =
                 |> NodeHash.Merge)
         )
 
-    let validateUnorderedSequence (errList:MessageAtLineList) (n: Node) = FallibleOption<_>.Value(n)
+    let validateUnorderedSequence (errList:MessageAtLineList) (n: Node) = FallibleOption.Value(n)
 
     let areScalarsEqual (n1:Node) (n2:Node) = 
         n1.Hash = n2.Hash &&
@@ -196,7 +196,7 @@ module Failsafe =
 
     let getScalarHash (n:Node) = (lazy(NodeHash.Create (SchemaUtils.getScalarNode n)))
 
-    let isScalarValid (errList:MessageAtLineList) (n: Node) = FallibleOption<_>.Value(n)
+    let isScalarValid (errList:MessageAtLineList) (n: Node) = FallibleOption.Value(n)
 
     let isScalarMatch n (t:GlobalTag) = 
         match n with
@@ -472,14 +472,14 @@ module YamlExtended =
             |> Failsafe.validateDuplicateKeys errList n
         else
             errList.Add <| MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (lazy sprintf "Construct has incorrect syntax for tag %s until position: %s, 'omap' is a sequence of singular mappings, without duplicates." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))
-            FallibleOption<_>.ErrorResult()
+            FallibleOption.ErrorResult()
 
         
     let validateOrderedPairs (errList:MessageAtLineList) (n:Node) =
-        if (isMatchSequenceOfPairs n n.NodeTag) then FallibleOption<_>.Value n
+        if (isMatchSequenceOfPairs n n.NodeTag) then FallibleOption.Value n
         else 
             errList.Add <| MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (lazy sprintf "Construct has incorrect syntax for tag %s until position: %s, 'pairs' is a sequence of singular mappings." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))
-            FallibleOption<_>.ErrorResult()
+            FallibleOption.ErrorResult()
 
     let NullGlobalTag =
         GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
@@ -601,10 +601,10 @@ module YamlExtended =
                 |>  function
                     |   Some strd   -> (DateTime.TryParse(strd) |> fst), nd
                     |   None        -> false, nd
-            if isValid then FallibleOption<_>.Value n 
+            if isValid then FallibleOption.Value n 
             else 
                 errList.Add <| MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (lazy sprintf "Timestamp has incorrect format: %s" str)
-                FallibleOption<_>.ErrorResult()
+                FallibleOption.ErrorResult()
 
         GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, RGSF(rgtimestamp),
             (timestampToCanonical), { formattedScalarTag with PostProcessAndValidateNode = validateTimestamp}
@@ -683,14 +683,14 @@ module YamlExtended =
             nd
             |> List.map(snd)
             |> List.forall(fun (v:Node) -> v.NodeTag = Global NullGlobalTag)
-        if isMatchUnorderedSet n (n.NodeTag) then FallibleOption<_>.Value(n)
+        if isMatchUnorderedSet n (n.NodeTag) then FallibleOption.Value(n)
         else
             Failsafe.validateMappingForDuplicateKeys errList n
             |> FallibleOption.bind(fun _ ->
-                if (hasNoValues (SchemaUtils.getMapNode n)) then FallibleOption<_>.Value(n)
+                if (hasNoValues (SchemaUtils.getMapNode n)) then FallibleOption.Value(n)
                 else 
                     errList.Add <| MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagSyntax (lazy sprintf "Construct has incorrect syntax for tag %s until position: %s, 'set' is a mapping without values, but not all values are null." (n.NodeTag.ToPrettyString()) (n.ParseInfo.End.ToPrettyString()))
-                    FallibleOption<_>.ErrorResult()
+                    FallibleOption.ErrorResult()
             )
 
     let orderedMappingTagFuncs = TagFunctions.Create areOrderedMappingsEqual getOrderedMappingHash validateOrderedMappings isMatchSequenceOfMappings
@@ -716,7 +716,7 @@ module YamlExtended =
                     nd |>  List.filter(fun (km:Node,_) -> rs |> List.exists(fun (kr:Node,_) -> areKeysEqual km kr) |> not)
                 nodesToMerge @ rs
             match mlst with
-            |   []  -> reslst |> List.rev |> FallibleOption<_>.Value
+            |   []  -> reslst |> List.rev |> FallibleOption.Value
             |   h :: tl -> 
                 match h with
                 |   MapNode nd ->   mergeMapNode nd.Data reslst |> merge tl
@@ -732,10 +732,10 @@ module YamlExtended =
                             frs
                             |> List.map(fun fn -> MessageAtLine.CreateTerminate (fn.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Incorrect Node type at position: %s, << should map to a sequece of mapping nodes, other types are not allowed in the sequence." (h.ParseInfo.Start.ToPrettyString())))
                             |>  List.iter(fun m -> errList.Add m)
-                            FallibleOption<_>.ErrorResult()
+                            FallibleOption.ErrorResult()
                 |   ScalarNode _ -> 
                     errList.Add <| MessageAtLine.CreateTerminate (n.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Merge tag or << cannot map to a scalar, at position: %s, << should map to a mapping node, or a sequence of mappings." (h.ParseInfo.Start.ToPrettyString()))
-                    FallibleOption<_>.ErrorResult()
+                    FallibleOption.ErrorResult()
 
         merge (mn |> List.map(fun (_,v) -> v)) (rn |> List.rev)
         |>  FallibleOption.bind(fun ml -> 
@@ -755,7 +755,7 @@ module YamlExtended =
                     MessageAtLine.CreateTerminate (mn.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Merge tag or << cannot be used in a mapping value, at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString()))
                     |>  errList.Add
                 )
-                FallibleOption<_>.ErrorResult()
+                FallibleOption.ErrorResult()
             
         
     let validateSequence (errList:MessageAtLineList) n = 
@@ -768,7 +768,7 @@ module YamlExtended =
                     MessageAtLine.CreateTerminate (mn.ParseInfo.Start) MessageCode.ErrTagConstraint (lazy sprintf "Merge tag or << cannot be used in the sequence at position: %s, << can only be used as a maping key." (n.ParseInfo.Start.ToPrettyString()))
                     |>  errList.Add
                 )
-                FallibleOption<_>.ErrorResult()
+                FallibleOption.ErrorResult()
 
     let MappingGlobalTag = Failsafe.MappingGlobalTag.SetTagFunctions { Failsafe.MappingGlobalTag.TagFunctions with PostProcessAndValidateNode = validateMapping }
     let SequenceGlobalTag = Failsafe.SequenceGlobalTag.SetTagFunctions { Failsafe.SequenceGlobalTag.TagFunctions with PostProcessAndValidateNode = validateSequence }

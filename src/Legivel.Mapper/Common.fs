@@ -19,15 +19,15 @@ with
 module FallibleOption =
     let forCollection<'a,'b,'c> (f:'a -> FallibleOption<'b> list) (r:FallibleOption<'a>) =
         match r.Result with
-        |   FallibleOptionValue.NoResult -> [FallibleOption<_>.NoResult()]
-        |   FallibleOptionValue.ErrorResult ->  [FallibleOption<_>.ErrorResult()]
+        |   FallibleOptionValue.NoResult -> [FallibleOption.NoResult()]
+        |   FallibleOptionValue.ErrorResult ->  [FallibleOption.ErrorResult()]
         |   FallibleOptionValue.Value -> f (r.Data)
         |   _ -> failwith "Illegal value for r"
 
     let errorsOrValues f l =
         let errors = l |> GetErrors
         if errors.Length > 0 then
-            FallibleOption<_>.ErrorResult()
+            FallibleOption.ErrorResult()
         else
             l
             |>  List.filter(fun (mr:FallibleOption<_>) -> not(mr.IsNoResult))  // this may hide errors
@@ -38,11 +38,11 @@ type SerieBuilder() =
     member this.Bind(mx: FallibleOption<'a>, f: 'a -> FallibleOption<'b>) : FallibleOption<'b> =
         match mx.Result with
         |   FallibleOptionValue.Value -> f (mx.Data)
-        |   FallibleOptionValue.NoResult  -> FallibleOption<_>.NoResult()
-        |   FallibleOptionValue.ErrorResult  -> FallibleOption<_>.ErrorResult()
+        |   FallibleOptionValue.NoResult  -> FallibleOption.NoResult()
+        |   FallibleOptionValue.ErrorResult  -> FallibleOption.ErrorResult()
         |   _ -> failwith "Illegal value for mx"
 
-    member this.Return (x: 'a): FallibleOption<'a> = FallibleOption<_>.Value x
+    member this.Return (x: 'a): FallibleOption<'a> = FallibleOption.Value x
 
 
 let faillableSequence = new SerieBuilder()
@@ -56,7 +56,7 @@ module List =
                 let i = f e
                 i.IsNoResult) 
         |>  function 
-            | []    ->  FallibleOption<_>.NoResult()
+            | []    ->  FallibleOption.NoResult()
             | h::_  ->  f h
 
 
