@@ -215,23 +215,12 @@ type ParseState = {
             if this.Anchors.ContainsKey s then this.Anchors.[s] |> Some
             else None
 
-        member this.MarkParseRange pss =
-            this
-            //let filterRange msl =
-            //    msl
-            //    |> List.filter(fun (m:MessageAtLine) -> m.Location >= pss.Location && m.Location <= this.Location)
-            
-            //(this.Messages.Error |> Map.toList |> List.map snd |> List.collect id) @ this.Messages.Warn
-            //|> filterRange
-            //|> List.fold(fun (s:ParseState) i -> s.AddCancelMessage (i.Location)) this
-
-
-        //[<DebuggerStepThrough>]
+        [<DebuggerStepThrough>]
         member this.SkipIfMatch p = 
             match (HasMatches(this.Input.Data, p)) with
             |   (true, mt)  -> 
                 let nxt = this.Advance()
-                (nxt.TrackPosition mt).MarkParseRange this
+                nxt.TrackPosition mt
             |   (false, _)    -> this
         
         member this.SetStyleContext cn = { this with c = cn}
@@ -333,13 +322,6 @@ module ParseState =
             let (n, psr) = pso.Data
             AddCancelMessage (ps.Location) psr
             FallibleOption.Value(n,psr)
-        |   _ -> pso
-
-    let MarkParseRange (pss:ParseState) (pso:FallibleOption<_>) =
-        match pso.Result with
-        |   FallibleOptionValue.Value -> 
-            let (n, (psr:ParseState)) = pso.Data
-            FallibleOption.Value(n, psr.MarkParseRange pss)
         |   _ -> pso
 
     let AddErrorMessageDel m (ps:ParseState) = ParseState.AddErrorMessageDel ps m 
@@ -1626,7 +1608,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
                 let commaPattern = this.``c-collect-entry`` + OPT(this.``s-separate`` prs)
                 match prs with 
-                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst |> ParseState.MarkParseRange prs
+                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst
                 |   _ ->  
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
@@ -1699,7 +1681,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
                 let commaPattern = this.``c-collect-entry`` + OPT(this.``s-separate`` prs)
                 match prs with
-                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst |> ParseState.MarkParseRange prs
+                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst
                 |   _ -> 
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst  
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
