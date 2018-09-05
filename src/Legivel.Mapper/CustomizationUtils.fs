@@ -11,9 +11,9 @@ let NoDocumentLocation = (DocumentLocation.Create 0 0)
 
 type ParseMessageAtLineList = System.Collections.Generic.List<ParseMessageAtLine>
 
-let AddError (l:ParseMessageAtLineList) e = l.Add e; FallibleOption.ErrorResult()
+let AddError (l:ParseMessageAtLineList) e = l.Add e; FallibleOption.ErrorResult(),l
 
-let GetErrors (l:FallibleOption<_> list) = l |> List.filter(fun pmf -> pmf.Result=FallibleOptionValue.ErrorResult)
+let GetErrors (l:(FallibleOption<_>*ParseMessageAtLineList) list) = l |> List.filter(fun (pmf,pm) -> pmf.Result=FallibleOptionValue.ErrorResult)
 
 let AreTypesEqual (t1:Type) (t2:Type) =
     let c1 = sprintf "%s%s" t1.Namespace t1.Name
@@ -23,66 +23,66 @@ let AreTypesEqual (t1:Type) (t2:Type) =
 
 let getMapNode (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   MapNode n ->  FallibleOption.Value n
+    |   MapNode n ->  FallibleOption.Value n, errList
     |   _    ->  AddError errList (ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a mapping node")
 
 
-let getMapNodeQuiet (n:Node) =
+let getMapNodeQuiet (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   MapNode n ->  FallibleOption.Value n
-    |   _    -> FallibleOption.NoResult()
+    |   MapNode n ->  FallibleOption.Value n, errList
+    |   _    -> FallibleOption.NoResult(), errList
 
 
 let getSeqNode (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   SeqNode n ->  FallibleOption.Value n 
+    |   SeqNode n ->  FallibleOption.Value n, errList
     |   _    -> AddError errList (ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a Sequence Node")
 
 
-let getSeqNodeQuiet (n:Node) =
+let getSeqNodeQuiet (errList:ParseMessageAtLineList)  (n:Node) =
     match n with
-    |   SeqNode n ->  FallibleOption.Value n 
-    |   _    -> FallibleOption.NoResult()
+    |   SeqNode n ->  FallibleOption.Value n, errList
+    |   _    -> FallibleOption.NoResult(), errList
 
 
 let getScalarNode (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   ScalarNode n ->  FallibleOption.Value n
+    |   ScalarNode n ->  FallibleOption.Value n, errList
     |   _    -> AddError errList (ParseMessageAtLine.Create (n.ParseInfo.Start) "Expecting a Scalar Node")
 
 
-let getScalarNodeQuiet (n:Node) =
+let getScalarNodeQuiet (errList:ParseMessageAtLineList) (n:Node) =
     match n with
-    |   ScalarNode n ->  FallibleOption.Value n
-    |   _    -> FallibleOption.NoResult()
+    |   ScalarNode n ->  FallibleOption.Value n, errList
+    |   _    -> FallibleOption.NoResult(), errList
 
 
 let GetCustomAttributeTp<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:Type) =
     let at = Attribute.GetCustomAttributes(st, typeof<'T>) |> List.ofArray
     match at.Length with
-    |   0   -> FallibleOption.NoResult()
-    |   1   -> FallibleOption.Value (at.Head :?> 'T)
+    |   0   -> FallibleOption.NoResult(), errList
+    |   1   -> FallibleOption.Value (at.Head :?> 'T), errList
     |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.ToString()) (st.Name) (typeof<'T>.FullName)))
 
 
 let GetCustomAttributeMmbr<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:MemberInfo) =
     let at = Attribute.GetCustomAttributes(st, typeof<'T>) |> List.ofArray
     match at.Length with
-    |   0   -> FallibleOption.NoResult()
-    |   1   -> FallibleOption.Value (at.Head :?> 'T)
+    |   0   -> FallibleOption.NoResult(), errList
+    |   1   -> FallibleOption.Value (at.Head :?> 'T), errList
     |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))
 
 let GetCustomAttributeFld<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:FieldInfo) =
     let at = [for i in st.GetCustomAttributes(typeof<'T>) do yield i]
     match at.Length with
-    |   0   -> FallibleOption.NoResult()
-    |   1   -> FallibleOption.Value (at.Head :?> 'T)
+    |   0   -> FallibleOption.NoResult(), errList
+    |   1   -> FallibleOption.Value (at.Head :?> 'T), errList
     |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.MemberType.ToString()) (st.Name) (typeof<'T>.FullName)))
 
 let GetCustomAttributeDU<'T when 'T :> Attribute> (errList:ParseMessageAtLineList) (st:UnionCaseInfo) =
     let at = st.GetCustomAttributes(typeof<'T>) |> List.ofArray
     match at.Length with
-    |   0   -> FallibleOption.NoResult()
-    |   1   -> FallibleOption.Value (at.Head :?> 'T)
+    |   0   -> FallibleOption.NoResult(), errList
+    |   1   -> FallibleOption.Value (at.Head :?> 'T), errList
     |   _   -> AddError errList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "'%s.%s' has too many attributes of type '%s'" (st.DeclaringType.ToString()) (st.Name) (typeof<'T>.FullName)))
 
