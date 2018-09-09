@@ -3,13 +3,13 @@
 
 #time
 
-#r @"bin/Debug/Legivel.Common.dll"
-#r @"bin/Debug/Legivel.RepresentationGraph.dll"
-#r @"bin/Debug/Legivel.Parser.dll"
+//#r @"bin/Debug/Legivel.Common.dll"
+//#r @"bin/Debug/Legivel.RepresentationGraph.dll"
+//#r @"bin/Debug/Legivel.Parser.dll"
 
-//#r @"bin/Release/Legivel.Common.dll"
-//#r @"bin/Release/Legivel.RepresentationGraph.dll"
-//#r @"bin/Release/Legivel.Parser.dll"
+#r @"bin/Release/Legivel.Common.dll"
+#r @"bin/Release/Legivel.RepresentationGraph.dll"
+#r @"bin/Release/Legivel.Parser.dll"
 
 #r @"test/NLog/lib/net45/NLog.dll"
 open System
@@ -89,15 +89,11 @@ let YamlParseWithErrors s =
     with
     | e -> printfn "%A" e; raise e
 
-//let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
+let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
-//YamlParse s
+YamlParse s
 
-//  ``Example 8.3. Invalid Block Scalar Indentation Indicators``
-YamlParseWithErrors "
-- >
-  text
- text" 
+
 
 
 
