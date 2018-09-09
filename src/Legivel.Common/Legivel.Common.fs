@@ -104,13 +104,13 @@ type MessageAtLine = {
         static member CreateTerminate dl cd s = {Location = dl; Code = cd; Action = Terminate; Message = s}
 
         member this.DebuggerInfo 
-            with get() = sprintf "%s: %s" (this.Location.ToPrettyString()) (this.Message.Force())
+            with get() = sprintf "%s: %O %O" (this.Location.ToPrettyString()) (this.Code) (this.Action)
 
 
 type MessageAtLineList = System.Collections.Generic.List<MessageAtLine>
 
 
-[<Struct; NoComparison>]
+[<NoComparison>]
 type ParseMessage = {
         Warn  : MessageAtLineList
         Error : MessageAtLineList
@@ -126,7 +126,12 @@ type ParseMessage = {
         member this.AddWarning (mal:MessageAtLine) = 
             this.Warn.Add mal
         member this.AddCancel mal   = this.Cancel <- mal
-
+        member this.TrackPosition mal = this.Cancel <- mal; this
+        member this.Unionise pm =
+            if pm.Error.Count > 0 then this.Error.AddRange(pm.Error)
+            if pm.Warn.Count > 0 then this.Warn.AddRange(pm.Warn)
+            if pm.Terminates.Count > 0 then this.Terminates.AddRange(pm.Terminates)
+            this
 
 type FallibleOptionValue =
     |   Value       = 0

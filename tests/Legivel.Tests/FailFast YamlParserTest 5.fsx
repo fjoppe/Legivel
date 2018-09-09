@@ -31,7 +31,7 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let engine = Yaml12Parser(YamlCore.Schema, fun s -> logger.Trace(s))
+let engine = Yaml12Parser(JSON.Schema, fun s -> logger.Trace(s))
 
 let WarnMsg (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
 let ErrMsg  (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -77,15 +77,32 @@ let YamlParseList s =
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
+let YamlParseWithErrors s =
+    try
+        let repr = (engine.``l-yaml-stream`` s)
+        let crrp = repr.Head
+        match crrp with
+        |   NoRepresentation nr -> 
+            nr
+        |   _ -> failwith "Unexpected return type"
+
+    with
+    | e -> printfn "%A" e; raise e
 
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 //YamlParse s
 
-//  Test YamlCore Map duplicate key - Adjacent
-YamlParse "
-%YAML 1.2
-%YAML 1.1
-foo"
+//  ``Example 8.3. Invalid Block Scalar Indentation Indicators``
+YamlParseWithErrors "
+- >
+  text
+ text" 
+
+
+
+
+
+
 
 

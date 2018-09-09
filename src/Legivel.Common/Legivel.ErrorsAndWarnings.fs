@@ -29,6 +29,7 @@ type MessageCode =
     |   ErrMissingMappingSymbol             = 23
     |   ErrTabCannotIndent                  = 24
     |   ErrIndentationError                 = 25
+    |   ErrHandleNotDeclared                = 26
 
 
     

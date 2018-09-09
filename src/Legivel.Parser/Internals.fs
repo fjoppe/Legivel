@@ -67,15 +67,16 @@ module internal ParserMonads =
             |   _ -> failwith "Illegal value for pv"
 
         [<CustomOperation("ifneitherpm")>]
-        member this.IfNeitherPm (pv:EitherResult<_,_>, nw) = 
+        member this.IfNeitherPm (pv:EitherResult<_,_>, nw:FallibleOption<_>*ParseMessage) = 
             match pv.ResultValue with
             |   FallibleOptionValue.NoResult    -> 
                 resetNoRes (pv.Context)
                 if contAfterErr (pv.Context) then 
+                    let pv = if (fst nw).Result = FallibleOptionValue.ErrorResult then pv.SetError() else pv
                     pv.SetResult (nw)
                 else 
                     pv.SetResult (FallibleOption.NoResult(), pv.Messages)
-            |   FallibleOptionValue.Value  -> pv.Context |> advance |> pv.SetContext
+            |   FallibleOptionValue.Value  -> pv.Result.Data |> snd |> advance |> pv.SetContext
             |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes pv.Context
                 let ctn = pv.SetError()            
@@ -86,20 +87,24 @@ module internal ParserMonads =
             |   _ -> failwith "Illegal value for pv"
 
         [<CustomOperation("ifneitherfn")>]
-        member this.IfNeitherFn (pv:EitherResult<_,_>, nw) = 
+        member this.IfNeitherFn (pv:EitherResult<_,_>, nw:unit -> FallibleOption<_>*ParseMessage) = 
             match pv.ResultValue with
             |   FallibleOptionValue.NoResult    -> 
                 resetNoRes (pv.Context)
                 if contAfterErr (pv.Context) then 
-                    pv.SetResult (nw())
+                    let nw = nw()
+                    let pv = if (fst nw).Result = FallibleOptionValue.ErrorResult then pv.SetError() else pv
+                    pv.SetResult (nw)
                 else 
                     pv.SetResult (FallibleOption.NoResult(),pv.Messages)
-            |   FallibleOptionValue.Value -> pv.Context |> advance |> pv.SetContext
+            |   FallibleOptionValue.Value -> pv.Result.Data |> snd |> advance |> pv.SetContext
             |   FallibleOptionValue.ErrorResult -> 
                 resetNoRes pv.Context
                 let ctn = pv.SetError()            
                 if contAfterErr (pv.Context) then 
-                    ctn.SetResult (nw())
+                    let nw = nw()
+                    let ctn = if (fst nw).Result = FallibleOptionValue.ErrorResult then ctn.SetError() else ctn
+                    ctn.SetResult (nw)
                 else 
                     ctn.SetResult (FallibleOption.ErrorResult(),ctn.Messages)
             |   _ -> failwith "Illegal value for pv"
