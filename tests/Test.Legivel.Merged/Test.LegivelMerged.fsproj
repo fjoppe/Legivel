@@ -76,6 +76,9 @@
     <Compile Include="..\Test.Legivel.SpookyHash\Test.Legivel.SpookyHash.fs">
       <Link>Test.Legivel.SpookyHash.fs</Link>
     </Compile>
+    <Compile Include="..\Legivel.Tests\APIs.guru.Tests.fs">
+      <Link>APIs.guru.Tests.fs</Link>
+    </Compile>
     <Compile Include="..\Test.Legivel.Tokenizer\TestTokenizer.fs">
       <Link>TestTokenizer.fs</Link>
     </Compile>

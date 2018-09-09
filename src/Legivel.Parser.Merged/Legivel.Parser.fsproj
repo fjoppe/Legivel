@@ -80,10 +80,10 @@
     <Compile Include="..\Legivel.Parser\Internals.fs">
       <Link>Internals.fs</Link>
     </Compile>
-    <Compile Include="..\Legivel.Parser\RepresentationGraph.fsi">
+    <Compile Include="..\Legivel.RepresentationGraph\Legivel.RepresentationGraph.fsi">
       <Link>RepresentationGraph.fsi</Link>
     </Compile>
-    <Compile Include="..\Legivel.Parser\RepresentationGraph.fs">
+    <Compile Include="..\Legivel.RepresentationGraph\Legivel.RepresentationGraph.fs">
       <Link>RepresentationGraph.fs</Link>
     </Compile>
     <Compile Include="..\Legivel.Parser\TagResolution.fsi">
