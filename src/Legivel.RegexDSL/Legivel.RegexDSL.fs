@@ -54,7 +54,7 @@ type OneInSet =
         let subtr = r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s))
         {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token = r1.Token |> List.filter(fun tf -> subtr |> List.exists(fun te -> te = tf) |> not)}
     static member (+) (r1:OneInSet, r2:OneInSet) =
-        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token = r1.Token @ r2.Token |> List.distinct}
+        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token = r1.Token @ r2.Token }
     static member (+) (_:OneInSet, _:Plain) =
         failwith "Unsupported RGX addition"
 
@@ -205,7 +205,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
             match rgx with
             |   OneInSet ois    -> 
                 if checkParseCondition() then
-                    rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+                    rs.Get() |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
                 else
                     (false, [])
             |   Plain pl        -> 
@@ -241,7 +241,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                                 |>  List.rev
                             parse (Concat concat) tkl
                         else
-                            rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.``fixed`` = i.Source (*pl.Token  |> List.exists(fun e -> e=i.Token)*) |> mkResult i tkl
+                            rs.Get() |> fun i -> pl.``fixed`` = i.Source |> mkResult i tkl
                 else
                     (false, [])
             |   Or rl           -> 

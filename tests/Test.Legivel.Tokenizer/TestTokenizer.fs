@@ -91,31 +91,11 @@ let ``Test RollingStream - Set Position forward - check nothing is lost``() =
     |>  Seq.toList
     |>  shouldEqual [0 .. 9]
 
-
-[<Test>]
-let ``Test RollingStream - Peek n - check non-consequence``() =
-    let stream = RollingStream<_>.Create (ReadStream()) -1
-    let peekList = stream.Peek(5)
-    stream.Stream |> Seq.take 5 |> Seq.toList |> shouldEqual peekList
-
-
 [<Test>]
 let ``Test RollingStream - Peek() - check non-consequence``() =
     let stream = RollingStream<_>.Create (ReadStream()) -1
     let peek = stream.Peek()
     stream.Stream |> Seq.head |> shouldEqual peek
-
-
-[<Test>]
-let ``Test RollingStream - Take n``() =
-    let stream = RollingStream<_>.Create (ReadStream()) -1
-    stream.Take(5) |> shouldEqual [0 .. 4]
-
-
-[<Test>]
-let ``Test RollingStream - Takek()``() =
-    let stream = RollingStream<_>.Create (ReadStream()) -1
-    stream.Take() |> shouldEqual 0
 
 
 [<Test>]

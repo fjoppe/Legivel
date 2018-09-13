@@ -85,7 +85,6 @@ type RollingTokenizer = private {
         member this.Reset() = this.Data.Position <- this.ContextPosition
         member this.Advance() = { this with ContextPosition = this.Data.Position}
         member this.EOF = this.Data.EOF
-        member this.Peek(n) = this.Data.Peek(n)
         member this.Peek()  = this.Data.Peek()
         static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); ContextPosition = 0}
 
@@ -2538,7 +2537,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     if psp.Input.EOF then
                         contentOrNone (FallibleOption.NoResult(), psp.Messages) psp
                     else
-                        let ws = psp.Input.Data.Take()
+                        let ws = psp.Input.Data.Get()
                         psp.Input.Reset()
                         if ws.Token = Token.``t-tab`` then
                             psp.AddErrorMessage <| CreateErrorMessage.TabIndentError psp

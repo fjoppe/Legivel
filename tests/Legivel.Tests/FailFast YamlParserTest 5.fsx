@@ -46,12 +46,12 @@ let PrintNode crr =
         rr.Warn |> WarnMsg
     |   PartialRepresentaton rr ->
         rr.StopLocation |>  TotLns
-        rr.Warn |> WarnMsg
-        printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
+        //rr.Warn |> WarnMsg
+        //printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
     |   CompleteRepresentaton rr ->
         rr.StopLocation |>  TotLns
-        rr.Warn |> WarnMsg
-        printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
+        //rr.Warn |> WarnMsg
+        //printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
     |   EmptyRepresentation rr ->
         printfn "Document was empty"
         rr.StopLocation |>  TotLns

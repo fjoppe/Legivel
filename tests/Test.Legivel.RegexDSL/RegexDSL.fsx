@@ -40,7 +40,7 @@ type OneInSet =
     static member (-) (r1:OneInSet, r2:Plain) =
         {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token = r1.Token |> List.filter(fun tf -> r2.Token |> List.exists(fun te -> te = tf))}
     static member (+) (r1:OneInSet, r2:OneInSet) =
-        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token = r1.Token @ r2.Token |> List.distinct}
+        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token = r1.Token @ r2.Token (*|> List.distinct*)}
     static member (+) (_:OneInSet, _:Plain) =
         failwith "Unsupported RGX addition"
 

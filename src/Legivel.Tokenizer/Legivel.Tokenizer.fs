@@ -308,25 +308,20 @@ type RollingStream<'a when 'a : equality> = private {
                 else
                     while (this.Position < v) do
                         this.Get() |> ignore
+
         member this.EOF 
             with get() = 
                 this.TokenStream.Count > 0 && this.TokenStream.[0] = this.StopValue
-            
-
-        member this.Peek(n) = 
-            let cp = this.Position
-            let rs = this.Stream |> Seq.take n |> Seq.toList
-            this.Position <- cp
-            rs
 
         member this.PeekPrevious() = 
             if this.TokenStream.Count > 0 && this.StreamPosition > 0 then this.TokenStream.[this.StreamPosition-1] |> Some
             else None
 
-        member this.Peek() = this.Peek(1) |> List.head
+        member this.Peek() = 
+            let cp = this.Position
+            let rs = this.Get()
+            this.Position <- cp
+            rs
 
-        member this.Take(n) = this.Stream |> Seq.take n |> Seq.toList
-
-        member this.Take()  = this.Stream |> Seq.head
 
 
