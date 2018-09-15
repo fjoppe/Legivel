@@ -38,17 +38,6 @@ let ``start-of-line`` = RGP ("^", [Token.NoToken])
 let ``end-of-file`` = RGP ("\\z", [Token.NoToken])
 
 
-let ``Read stream until stop condition`` (strm:TextReader) (stopCondition:string->bool) =
-    let rec reader acc =
-        let accRev() = acc |> List.rev
-        let str = strm.ReadLine()
-        if str = null then (accRev(), None)
-        else
-            if not(stopCondition str) then reader (str :: acc)
-            else (accRev(), Some str)
-    reader []
-
-
 let CreateScalarNode tag pi d = 
     ScalarNode(NodeData<Node>.Create tag d pi)
 
@@ -1990,7 +1979,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 match (ps.c, ps) with
                 |   Context.``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
                 |   Context.``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
+#if DEBUG
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+#endif
                     let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
                     |> this.``split by linefeed``
@@ -2001,7 +1992,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> this.CacheNode ck prs dl (mt.FullMatch.Length)
                 |   Context.``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
                 |   Context.``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
+#if DEBUG
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+#endif
                     let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
