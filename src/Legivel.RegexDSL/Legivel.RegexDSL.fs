@@ -15,34 +15,42 @@ exception RegexException of string
 type Plain =
     private {
         ``fixed`` : string
-        mutable optimized : string
+        mutable optimized : RGXType list
         Token     : Token list
     }
     override this.ToString() = sprintf "%s" this.``fixed``
 
     member this.OptimizeOnce() = 
-        if (this.optimized = "") then
-            this.optimized <- this.``fixed``.Replace("\\{","{")
-                .Replace("\\}","}")
-                .Replace("\\[","[")
-                .Replace("\\]","]")
-                .Replace("\\(","(")
-                .Replace("\\)",")")
-                .Replace("\\|","|")
-                .Replace("\\+","+")
-                .Replace("\\*","*")
-                .Replace("\\.",".")
-                .Replace("\\?","?")
-                .Replace("\\\\","\\")
+        if (this.optimized = []) then
+            let unescapedString = 
+                this.``fixed``
+                    .Replace("\\{","{")
+                    .Replace("\\}","}")
+                    .Replace("\\[","[")
+                    .Replace("\\]","]")
+                    .Replace("\\(","(")
+                    .Replace("\\)",")")
+                    .Replace("\\|","|")
+                    .Replace("\\+","+")
+                    .Replace("\\*","*")
+                    .Replace("\\.",".")
+                    .Replace("\\?","?")
+                    .Replace("\\\\","\\")
+
+            this.optimized <-
+                unescapedString.ToCharArray()
+                |>  List.ofArray
+                |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) this.Token)
+                |>  List.rev
 
     static member (+) (r1:Plain, r2:Plain) = 
         let appd = r1.``fixed`` + r2.``fixed``
-        {``fixed`` = appd; ``optimized`` = ""; Token = r1.Token @ r2.Token}
+        {``fixed`` = appd; ``optimized`` = []; Token = r1.Token @ r2.Token}
 
-    static member Create r t = {``fixed`` = r; Token = t; optimized = ""}
+    static member Create r t = {``fixed`` = r; Token = t; optimized = []}
 
 
-type OneInSet =
+and OneInSet =
     private {
         not      : bool
         mainset  : string
@@ -89,7 +97,7 @@ type OneInSet =
         {this with not = true}
 
 
-type RGXType =
+and RGXType =
     |   Plain of Plain
     |   OneInSet   of OneInSet
     |   Or         of RGXType list
@@ -247,27 +255,8 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                     |   (_, []) -> true, []
                     | _ ->
                         if pl.``fixed``.Length > 1 then
-                            let unescapedString =
-                                pl.OptimizeOnce()
-                                pl.optimized
-                                    //.Replace("\\{","{")
-                                    //.Replace("\\}","}")
-                                    //.Replace("\\[","[")
-                                    //.Replace("\\]","]")
-                                    //.Replace("\\(","(")
-                                    //.Replace("\\)",")")
-                                    //.Replace("\\|","|")
-                                    //.Replace("\\+","+")
-                                    //.Replace("\\*","*")
-                                    //.Replace("\\.",".")
-                                    //.Replace("\\?","?")
-                                    //.Replace("\\\\","\\")
-                            let concat = 
-                                unescapedString.ToCharArray()
-                                |>  List.ofArray
-                                |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
-                                |>  List.rev
-                            parse (Concat concat) tkl
+                            pl.OptimizeOnce()
+                            parse (Concat pl.optimized) tkl
                         else
                             rs.Get() |> fun i -> pl.``fixed`` = i.Source |> mkResult i tkl
                 else
