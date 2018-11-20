@@ -7,9 +7,32 @@ open Legivel.RepresentationGraph
 open Legivel.Customization.Mapping
 
 
-//type ProcessingOptions = {
-//        UsePrimitiveDefaultWhenMissing : bool   // use default value for missing source data (primitive types only)
-//    }
+type MapYaml =
+    |   ToModelOnly = 0
+    |   WithCrossCheck = 1
+    |   AndRequireFullProjection = 2
+
+type ProcessingOption =
+    |   MappingMode of MapYaml
+
+
+let ConvertMapYamlToInternal v =
+    match v with
+    |   MapYaml.ToModelOnly     -> CrossMatch.None
+    |   MapYaml.WithCrossCheck  -> CrossMatch.Warn
+    |   MapYaml.AndRequireFullProjection -> CrossMatch.Error
+    |   _ -> failwith "Unrecognized value"
+
+
+let ParseOptions pl =
+    let ``default`` = {
+        CrossMatch = CrossMatch.None
+    }
+    let ``parse to settings object`` s po =
+        match po with
+        |   MappingMode(v) -> { s with CrossMatch = ConvertMapYamlToInternal v }
+    pl
+    |>  List.fold(``parse to settings object``) ``default``
 
 
 type SuccessInfo<'tp> = {
@@ -34,12 +57,13 @@ type DeserializeResult<'tp> =
     |   Error of ErrorInfo
 
 
-let Deserialize<'tp> yml : DeserializeResult<'tp> list =
-    CustomDeserializeYaml BuildInTryFindMappers MapYamlDocumentToNative ParseYamlToNative (Legivel.Customization.Mapping.YamlMapped.Schema) (YamlExtended.NullGlobalTag.Uri) (YamlExtended.StringGlobalTag.Uri) yml
+let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : DeserializeResult<'tp> list =
+    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options)) MapYamlDocumentToNative ParseYamlToNative (Legivel.Customization.Mapping.YamlMapped.Schema) (YamlExtended.NullGlobalTag.Uri) (YamlExtended.StringGlobalTag.Uri) yml
     |>  List.map(fun r ->
         match r with
         |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
         |   WithErrors d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
     )
 
+let Deserialize<'tp> yml : DeserializeResult<'tp> list = DeserializeWithOptions [] yml
 

@@ -17,7 +17,7 @@ with
         |   _ -> false
 
 module FallibleOption =
-    let forCollection<'a,'b,'c> (f:'a*ParseMessageAtLineList -> (FallibleOption<'b>*ParseMessageAtLineList) list) (r:FallibleOption<'a>, pm:ParseMessageAtLineList) =
+    let forCollection<'a,'b,'c> (f:'a*ProcessMessages -> (FallibleOption<'b>*ProcessMessages) list) (r:FallibleOption<'a>, pm:ProcessMessages) =
         match r.Result with
         |   FallibleOptionValue.NoResult -> [FallibleOption.NoResult(), pm]
         |   FallibleOptionValue.ErrorResult ->  [FallibleOption.ErrorResult(), pm]
@@ -34,8 +34,8 @@ module FallibleOption =
             |>  f
 
 
-type SerieBuilder(pm:ParseMessageAtLineList) =
-    member this.Bind(mx: FallibleOption<'a>*ParseMessageAtLineList, f: 'a -> FallibleOption<'b>*ParseMessageAtLineList) : FallibleOption<'b>*ParseMessageAtLineList =
+type SerieBuilder(pm:ProcessMessages) =
+    member this.Bind(mx: FallibleOption<'a>*ProcessMessages, f: 'a -> FallibleOption<'b>*ProcessMessages) : FallibleOption<'b>*ProcessMessages =
         let (vl,pm2) = mx
         match vl.Result with
         |   FallibleOptionValue.Value -> f (vl.Data)
@@ -43,15 +43,15 @@ type SerieBuilder(pm:ParseMessageAtLineList) =
         |   FallibleOptionValue.ErrorResult  -> FallibleOption.ErrorResult(),pm2
         |   _ -> failwith "Illegal value for mx"
 
-    member this.Return (x: 'a): FallibleOption<'a>*ParseMessageAtLineList = FallibleOption.Value x, pm
+    member this.Return (x: 'a): FallibleOption<'a>*ProcessMessages = FallibleOption.Value x, pm
 
 
 let faillableSequence pm = new SerieBuilder(pm)
 
 
 module List =
-    let choosefo<'a,'b, 'c> (f:'c->FallibleOption<'a>*ParseMessageAtLineList) l = l |> List.map(f) |> List.filter(fun (i:FallibleOption<'a>*ParseMessageAtLineList) -> not((fst i).IsNoResult))
-    let tryFindFo<'a,'b, 'c> pm (f:'c->FallibleOption<'a>*ParseMessageAtLineList) l = 
+    let choosefo<'a,'b, 'c> (f:'c->FallibleOption<'a>*ProcessMessages) l = l |> List.map(f) |> List.filter(fun (i:FallibleOption<'a>*ProcessMessages) -> not((fst i).IsNoResult))
+    let tryFindFo<'a,'b, 'c> pm (f:'c->FallibleOption<'a>*ProcessMessages) l = 
         l
         |>  List.skipWhile(fun e -> 
                 let (i,pm) = f e
@@ -60,4 +60,13 @@ module List =
             | []    ->  FallibleOption.NoResult(), pm
             | h::_  ->  f h
 
+type CrossMatch =
+    |   None = 0
+    |   Warn = 1
+    |   Error= 2
+
+type ProcessingOptions = {
+        //UsePrimitiveDefaultWhenMissing : bool   // use default value for missing source data (primitive types only)
+    CrossMatch : CrossMatch
+}
 
