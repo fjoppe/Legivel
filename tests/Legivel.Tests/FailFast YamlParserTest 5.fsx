@@ -40,18 +40,18 @@ let TotLns (ps:DocumentLocation) = printfn "Total lines: %d" ps.Line
 let PrintNode crr =
     match crr with
     |   NoRepresentation rr ->
-        //printfn "Cannot parse: \"%s\"" rr.RestString
+        printfn "Cannot parse:" 
         rr.StopLocation |>  TotLns
         rr.Error |> ErrMsg
         rr.Warn |> WarnMsg
     |   PartialRepresentaton rr ->
         rr.StopLocation |>  TotLns
-        //rr.Warn |> WarnMsg
-        //printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
+        rr.Warn |> WarnMsg
+        printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
     |   CompleteRepresentaton rr ->
         rr.StopLocation |>  TotLns
-        //rr.Warn |> WarnMsg
-        //printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
+        rr.Warn |> WarnMsg
+        printfn "%s" (SerializeToCanonical rr.Document (rr.TagShorthands))
     |   EmptyRepresentation rr ->
         printfn "Document was empty"
         rr.StopLocation |>  TotLns
@@ -92,5 +92,9 @@ let YamlParseWithErrors s =
 let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
+
+let st  = System.Diagnostics.Stopwatch.StartNew()
 YamlParse s
+st.Stop()
+printfn "Elapsed: %O" (st.Elapsed)
 

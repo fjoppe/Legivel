@@ -37,7 +37,7 @@ let YamlParseWithWarning s =
         let repr = (engine.``l-yaml-stream`` s)
         let crrp = repr.Head
         match crrp with
-            |   NoRepresentation _ -> failwith "Unexpected error"
+            |   NoRepresentation nr -> failwith (sprintf "Unexpected errors\n%s" (nr.Error|> List.fold(fun c s -> sprintf "%s\n%O" c s) ""))
             |   CompleteRepresentaton cr -> cr
             |   PartialRepresentaton pr -> pr
             |   EmptyRepresentation er -> failwith "Unexpected empty"

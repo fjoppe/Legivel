@@ -36,7 +36,8 @@ module YamlMapped =
     let tagResolutionYamlExtended = Legivel.TagResolution.SchemaUtils.tagResolution YEFailSafeResolution (YamlExtended.MappingGlobalTag, YamlExtended.SequenceGlobalTag, YamlExtended.StringGlobalTag)
 
 
-    let Schema = { YamlExtended.Schema with
+    let Schema = 
+    { YamlExtended.Schema with
         GlobalTags = providedScalarTags @ providedSeqTags @ providedMappingTags
         TagResolution = tagResolutionYamlExtended providedMappingTags providedSeqTags providedScalarTags
     }
