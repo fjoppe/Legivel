@@ -13,7 +13,6 @@ let private apisGuruList = lazy (
         fun _ _ _ _ -> true
     use client = new System.Net.WebClient()
     let list = client.DownloadString("https://api.apis.guru/v2/list.json")
-    printf "yaml: %s" list
     JsonValue.Parse(list)
              .Properties()
   )
@@ -39,7 +38,7 @@ open FsUnitTyped
 open TestUtils
 open Legivel.RepresentationGraph
 
-//[<Ignore "Activate when peformance has improved">]
+// [<Ignore "Activate when peformance has improved">]
 [<TestCaseSource("apisGuruYamlSchemaUrls")>]
 let ``Parse schema from APIs.guru``(url:string) =
     let schema =
