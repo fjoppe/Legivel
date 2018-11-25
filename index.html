@@ -70,9 +70,9 @@ human readable data-format.</p>
 <span class="l">20: </span>
 <span class="l">21: </span>
 <span class="l">22: </span>
-<span class="l">23: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="prep">#r</span> <span class="s">&quot;Legivel.Mapper.dll&quot;</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="prep">#r</span> <span class="s">&quot;Legivel.Parser.dll&quot;</span>
+<span class="prep">#r</span> <span class="s">&quot;Legivel.Mapper.dll&quot;</span>
 <span class="k">open</span> <span class="i">Legivel</span><span class="o">.</span><span class="i">Serialization</span>
 
 <span class="k">type</span> <span class="i">PlayEvent</span> <span class="o">=</span> {
@@ -93,8 +93,12 @@ human readable data-format.</p>
 <span class="s">player: Sammy Sosa</span>
 <span class="s">action: grand slam</span>
 <span class="s">...&quot;</span> 
-
-<span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">PlayEvent</span><span class="o">&gt;</span> <span class="i">yaml</span>
+</code></pre></td>
+</tr>
+</table>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="i">Deserialize</span><span class="o">&lt;</span><span class="i">PlayEvent</span><span class="o">&gt;</span> <span class="i">yaml</span>
 </code></pre></td>
 </tr>
 </table>
@@ -109,14 +113,15 @@ human readable data-format.</p>
 <h2><a name="Examples-amp-documentation" class="anchor" href="#Examples-amp-documentation">Examples &amp; documentation</a></h2>
 <p>Legivel comes with comprehensible documentation.</p>
 <ul>
-<li><p><a href="tutorial.html">Tutorial</a> contains more examples how to use this library.</p></li>
+<li><a href="tutorial.html">Tutorial</a> contains more examples how to use this library.</li>
+<li><a href="processingoptions.html">Processing Options</a> customize the yaml processing</li>
 <li>
-<p><a href="reference/index.html">API Reference</a> contains automatically generated documentation for all types, modules
-and functions in the library.</p>
+<a href="reference/index.html">API Reference</a> contains automatically generated documentation for all types, modules
+and functions in the library.
 </li>
-<li><p><a href="customization.html">Customization</a> contains information to customize yaml-processing.</p></li>
-<li><p><a href="features.html">Features</a> documents the details of implemented features.</p></li>
-<li><p><a href="WishList.html">Wish List</a> contains pending ideas, which may be added in future.</p></li>
+<li><a href="customization.html">Customization</a> contains information to customize yaml-processing.</li>
+<li><a href="features.html">Features</a> documents the details of implemented features.</li>
+<li><a href="WishList.html">Wish List</a> contains pending ideas, which may be added in future.</li>
 </ul>
 <h2><a name="Contributing-and-copyright" class="anchor" href="#Contributing-and-copyright">Contributing and copyright</a></h2>
 <p>The project is hosted on <a href="https://github.com/fjoppe/Legivel">GitHub</a> where you can <a href="https://github.com/fjoppe/Legivel/issues">report issues</a>, fork

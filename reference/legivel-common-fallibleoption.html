@@ -54,14 +54,14 @@
         <td class="member-name">
 
           <code onmouseout="hideTip(event, '4', 4)" onmouseover="showTip(event, '4', 4)">
-            errorsOrValues f l
+            errorsOrValues pm f l
           </code>
           <div class="tip" id="4">
-            <strong>Signature:</strong> f:(FallibleOption&lt;&#39;a,&#39;b list&gt; list -&gt; FallibleOption&lt;&#39;c,&#39;b list&gt;) -&gt; l:FallibleOption&lt;&#39;a,&#39;b list&gt; list -&gt; FallibleOption&lt;&#39;c,&#39;b list&gt;<br />
+            <strong>Signature:</strong> pm:&#39;a -&gt; f:((FallibleOption&lt;&#39;b&gt; * ProcessMessages) list -&gt; FallibleOption&lt;&#39;c&gt; * &#39;a) -&gt; l:(FallibleOption&lt;&#39;b&gt; * ProcessMessages) list -&gt; FallibleOption&lt;&#39;c&gt; * &#39;a<br />
                           <strong>Type parameters:</strong> 'a, 'b, 'c          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Common.fs#L26-26" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Common.fs#L27-27" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -72,10 +72,10 @@
         <td class="member-name">
 
           <code onmouseout="hideTip(event, '5', 5)" onmouseover="showTip(event, '5', 5)">
-            forCollection f _arg1
+            forCollection f (r, pm)
           </code>
           <div class="tip" id="5">
-            <strong>Signature:</strong> f:(&#39;a -&gt; FallibleOption&lt;&#39;b,&#39;c&gt; list) -&gt; _arg1:FallibleOption&lt;&#39;a,&#39;c&gt; -&gt; FallibleOption&lt;&#39;b,&#39;c&gt; list<br />
+            <strong>Signature:</strong> f:(&#39;a * ProcessMessages -&gt; (FallibleOption&lt;&#39;b&gt; * ProcessMessages) list) -&gt; (r:FallibleOption&lt;&#39;a&gt; * pm:ProcessMessages) -&gt; (FallibleOption&lt;&#39;b&gt; * ProcessMessages) list<br />
                           <strong>Type parameters:</strong> 'a, 'b, 'c          </div>
         </td>
         <td class="xmldoc">

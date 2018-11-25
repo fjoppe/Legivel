@@ -53,33 +53,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '9', 9)" onmouseover="showTip(event, '9', 9)">
-            bind f o
-          </code>
-          <div class="tip" id="9">
-            <strong>Signature:</strong> f:(&#39;a -&gt; FallibleOption&lt;&#39;b,&#39;c&gt;) -&gt; o:FallibleOption&lt;&#39;a,&#39;c&gt; -&gt; FallibleOption&lt;&#39;b,&#39;c&gt;<br />
-                          <strong>Type parameters:</strong> 'a, 'b, 'c          </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Common.fs#L92-92" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
           <code onmouseout="hideTip(event, '10', 10)" onmouseover="showTip(event, '10', 10)">
-            ifnoresult f o
+            bind f (arg2, arg3)
           </code>
           <div class="tip" id="10">
-            <strong>Signature:</strong> f:(unit -&gt; FallibleOption&lt;&#39;a,&#39;c&gt;) -&gt; o:FallibleOption&lt;&#39;a,&#39;c&gt; -&gt; FallibleOption&lt;&#39;a,&#39;c&gt;<br />
+            <strong>Signature:</strong> f:(&#39;a -&gt; FallibleOption&lt;&#39;b&gt; * &#39;c) -&gt; (FallibleOption&lt;&#39;a&gt; * &#39;c) -&gt; FallibleOption&lt;&#39;b&gt; * &#39;c<br />
                           <strong>Type parameters:</strong> 'a, 'b, 'c          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Common.fs#L103-103" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Common/Legivel.Common.fs#L165-165" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -90,14 +72,14 @@
         <td class="member-name">
 
           <code onmouseout="hideTip(event, '11', 11)" onmouseover="showTip(event, '11', 11)">
-            map f o
+            ErrorResult ()
           </code>
           <div class="tip" id="11">
-            <strong>Signature:</strong> f:(&#39;a -&gt; &#39;b) -&gt; o:FallibleOption&lt;&#39;a,&#39;c&gt; -&gt; FallibleOption&lt;&#39;b,&#39;c&gt;<br />
-                          <strong>Type parameters:</strong> 'a, 'b, 'c          </div>
+            <strong>Signature:</strong> unit -&gt; FallibleOption&lt;&#39;b&gt;<br />
+                          <strong>Type parameters:</strong> 'b          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Common.fs#L97-97" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Common/Legivel.Common.fs#L160-160" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -108,14 +90,68 @@
         <td class="member-name">
 
           <code onmouseout="hideTip(event, '12', 12)" onmouseover="showTip(event, '12', 12)">
-            Value v
+            ifnoresult f (arg2, arg3)
           </code>
           <div class="tip" id="12">
-            <strong>Signature:</strong> v:&#39;?7866 -&gt; FallibleOption&lt;&#39;?7866,&#39;?7867&gt;<br />
-                          <strong>Type parameters:</strong> '?7866, '?7867          </div>
+            <strong>Signature:</strong> f:(unit -&gt; FallibleOption&lt;&#39;a&gt; * &#39;c) -&gt; (FallibleOption&lt;&#39;a&gt; * &#39;c) -&gt; FallibleOption&lt;&#39;a&gt; * &#39;c<br />
+                          <strong>Type parameters:</strong> 'a, 'c          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Common.fs#L109-109" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Common/Legivel.Common.fs#L181-181" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '13', 13)" onmouseover="showTip(event, '13', 13)">
+            map f (arg2, arg3)
+          </code>
+          <div class="tip" id="13">
+            <strong>Signature:</strong> f:(&#39;a -&gt; &#39;b) -&gt; (FallibleOption&lt;&#39;a&gt; * &#39;c) -&gt; FallibleOption&lt;&#39;b&gt; * &#39;c<br />
+                          <strong>Type parameters:</strong> 'a, 'b, 'c          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Common/Legivel.Common.fs#L173-173" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '14', 14)" onmouseover="showTip(event, '14', 14)">
+            NoResult ()
+          </code>
+          <div class="tip" id="14">
+            <strong>Signature:</strong> unit -&gt; FallibleOption&lt;&#39;b&gt;<br />
+                          <strong>Type parameters:</strong> 'b          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Common/Legivel.Common.fs#L158-158" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '15', 15)" onmouseover="showTip(event, '15', 15)">
+            Value v
+          </code>
+          <div class="tip" id="15">
+            <strong>Signature:</strong> v:&#39;b -&gt; FallibleOption&lt;&#39;b&gt;<br />
+                          <strong>Type parameters:</strong> 'b          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Common/Legivel.Common.fs#L162-162" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>

@@ -51,14 +51,6 @@
     <tbody>
         <tr>
           <td class="type-name">
-            <a href="legivel-customization-mapping-alltryfindidiomaticmappers.html">AllTryFindIdiomaticMappers</a>
-          </td>
-          <td class="xmldoc"><p>Structure containing all TryFindMapper functions available</p>
-
-</td>
-        </tr>
-        <tr>
-          <td class="type-name">
             <a href="legivel-customization-mapping-dufieldmapping.html">DUFieldMapping</a>
           </td>
           <td class="xmldoc"></td>
@@ -90,14 +82,6 @@
             <a href="legivel-customization-mapping-error.html">Error</a>
           </td>
           <td class="xmldoc"><p>Returned when deserialization contained errors</p>
-
-</td>
-        </tr>
-        <tr>
-          <td class="type-name">
-            <a href="legivel-customization-mapping-iyamltonativemapping.html">IYamlToNativeMapping</a>
-          </td>
-          <td class="xmldoc"><p>Base type for any yaml to native mapping, for simple and compex types.</p>
 
 </td>
         </tr>
@@ -171,22 +155,6 @@
 
 </td>
         </tr>
-        <tr>
-          <td class="type-name">
-            <a href="legivel-customization-mapping-tryfindidiomaticmapperfortype.html">TryFindIdiomaticMapperForType</a>
-          </td>
-          <td class="xmldoc"><p>signature of a TryFindMapper function, which may return a mapping construct for the given native type</p>
-
-</td>
-        </tr>
-        <tr>
-          <td class="type-name">
-            <a href="legivel-customization-mapping-tryfindmapperreturntype.html">TryFindMapperReturnType</a>
-          </td>
-          <td class="xmldoc"><p>The return type of a TryFindMapper function</p>
-
-</td>
-        </tr>
     </tbody>
   </table>
   <table class="table table-bordered module-list">
@@ -214,15 +182,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '55', 55)" onmouseover="showTip(event, '55', 55)">
-            BuildInTryFindMappers 
+          <code onmouseout="hideTip(event, '67', 67)" onmouseover="showTip(event, '67', 67)">
+            BuildInTryFindMappers po
           </code>
-          <div class="tip" id="55">
-            <strong>Signature:</strong> TryFindIdiomaticMapperForType list<br />
+          <div class="tip" id="67">
+            <strong>Signature:</strong> po:ProcessingOptions -&gt; TryFindIdiomaticMapperForType list<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L561-561" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L603-603" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -234,15 +202,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '56', 56)" onmouseover="showTip(event, '56', 56)">
+          <code onmouseout="hideTip(event, '68', 68)" onmouseover="showTip(event, '68', 68)">
             CreateTypeMappings (...)
           </code>
-          <div class="tip" id="56">
-            <strong>Signature:</strong> tryFindMappers:TryFindIdiomaticMapperForType list -&gt; nullTagUri:string -&gt; stringTagUri:string -&gt; TryFindMapperReturnType<br />
+          <div class="tip" id="68">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; tryFindMappers:TryFindIdiomaticMapperForType list -&gt; nullTagUri:string -&gt; stringTagUri:string -&gt; TryFindMapperReturnType<br />
                           <strong>Type parameters:</strong> 'tp          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L575-575" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L617-617" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -254,15 +222,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '57', 57)" onmouseover="showTip(event, '57', 57)">
+          <code onmouseout="hideTip(event, '69', 69)" onmouseover="showTip(event, '69', 69)">
             CustomDeserializeYaml (...)
           </code>
-          <div class="tip" id="57">
-            <strong>Signature:</strong> tryFindMappers:TryFindIdiomaticMapperForType list -&gt; mapYmlDocToNative:(IYamlToNativeMapping -&gt; ParsedDocumentResult -&gt; Result&lt;&#39;tp&gt;) -&gt; parseYmlToNative:((ParsedDocumentResult -&gt; Result&lt;&#39;tp&gt;) -&gt; GlobalTagSchema -&gt; string -&gt; Result&lt;&#39;tp&gt; list) -&gt; schema:GlobalTagSchema -&gt; nullTagUri:string -&gt; stringTagUri:string -&gt; yml:string -&gt; Result&lt;&#39;tp&gt; list<br />
+          <div class="tip" id="69">
+            <strong>Signature:</strong> tryFindMappers:TryFindIdiomaticMapperForType list -&gt; mapYmlDocToNative:(ProcessMessages -&gt; AllTryFindIdiomaticMappers -&gt; IYamlToNativeMapping -&gt; ParsedDocumentResult -&gt; Result&lt;&#39;tp&gt;) -&gt; parseYmlToNative:((ParsedDocumentResult -&gt; Result&lt;&#39;tp&gt;) -&gt; GlobalTagSchema -&gt; string -&gt; Result&lt;&#39;tp&gt; list) -&gt; schema:GlobalTagSchema -&gt; nullTagUri:string -&gt; stringTagUri:string -&gt; yml:string -&gt; Result&lt;&#39;tp&gt; list<br />
                           <strong>Type parameters:</strong> 'tp          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L628-628" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L672-672" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -274,15 +242,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '58', 58)" onmouseover="showTip(event, '58', 58)">
-            MapYamlDocumentToNative mapper pdr
+          <code onmouseout="hideTip(event, '70', 70)" onmouseover="showTip(event, '70', 70)">
+            MapYamlDocumentToNative (...)
           </code>
-          <div class="tip" id="58">
-            <strong>Signature:</strong> mapper:IYamlToNativeMapping -&gt; pdr:ParsedDocumentResult -&gt; Result&lt;&#39;tp&gt;<br />
+          <div class="tip" id="70">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; mappers:AllTryFindIdiomaticMappers -&gt; mapper:IYamlToNativeMapping -&gt; pdr:ParsedDocumentResult -&gt; Result&lt;&#39;tp&gt;<br />
                           <strong>Type parameters:</strong> 'tp          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L604-604" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L646-646" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -294,15 +262,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '59', 59)" onmouseover="showTip(event, '59', 59)">
+          <code onmouseout="hideTip(event, '71', 71)" onmouseover="showTip(event, '71', 71)">
             ParseYamlToNative mapToNative schema yml
           </code>
-          <div class="tip" id="59">
+          <div class="tip" id="71">
             <strong>Signature:</strong> mapToNative:(ParsedDocumentResult -&gt; Result&lt;&#39;tp&gt;) -&gt; schema:GlobalTagSchema -&gt; yml:string -&gt; Result&lt;&#39;tp&gt; list<br />
                           <strong>Type parameters:</strong> 'tp          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L615-615" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L659-659" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -314,15 +282,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '60', 60)" onmouseover="showTip(event, '60', 60)">
+          <code onmouseout="hideTip(event, '72', 72)" onmouseover="showTip(event, '72', 72)">
             YamlScalarToNativeMappings 
           </code>
-          <div class="tip" id="60">
+          <div class="tip" id="72">
             <strong>Signature:</strong> ScalarToNativeMapping list<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L50-50" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Customization.fs#L47-47" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>

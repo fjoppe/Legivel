@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Legivel.Mapper Processing Options
+</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="F# Yaml deserializer"/>
+    <meta name="author" content="Frank Joppe"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="https://fjoppe.github.io/Legivel/content/style.css" />
+    <script type="text/javascript" src="https://fjoppe.github.io/Legivel/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="https://github.com/fjoppe/Legivel">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="https://fjoppe.github.io/Legivel/index.html">Legivel</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+<h1><a name="Legivel-Mapper-Processing-Options" class="anchor" href="#Legivel-Mapper-Processing-Options">Legivel.Mapper Processing Options</a></h1>
+<p>Calling <code>Deserialize</code> will run the yaml-to-model conversion with default options.</p>
+<p>With the <code>DeserializeWithOptions</code>, you can customize your yaml processing.</p>
+<h1><a name="Cross-Check" class="anchor" href="#Cross-Check">Cross Check</a></h1>
+<p>By default, the model is leading, which means that any extra yaml in the source document will be ignored
+as long as it minimally includes all content required for the target model. With the processing option <code>MappingMode</code>
+you can require cross-check between content and model.</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="i">ProcessingOptionsType</span> <span class="o">=</span> {
+    <span class="i">Name</span>  <span class="o">:</span> <span class="i">string</span>
+    <span class="i">EMail</span> <span class="o">:</span> <span class="i">string</span> <span class="i">option</span>
+}
+
+<span class="k">let</span> <span class="i">yml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="s">Name: Frank</span>
+<span class="s">#   below must cause a warning bc they&#39;re not part of the target type</span>
+<span class="s">Should Give A Warning : Morning</span>
+<span class="s">&quot;</span>
+
+<span class="i">DeserializeWithOptions</span><span class="o">&lt;</span><span class="i">ProcessingOptionsType</span><span class="o">&gt;</span> [<span class="i">MappingMode</span>(<span class="i">MapYaml</span><span class="o">.</span><span class="i">WithCrossCheck</span>)] <span class="i">yml</span>
+</code></pre></td>
+</tr>
+</table>
+<p>Which results in:</p>
+<table class="pre"><tr><td><pre><code>[Succes
+   {Data = {Name = "Frank";
+            EMail = None;};
+    Warn =
+     [{Location = (l4, c1);
+       Message =
+        "Field 'Should Give A Warning' cannot be mapped to target type 'FSI_0043+ProcessingOptionsType'";}];}]</code></pre></td></tr></table>
+<p>Cross checking has the following options:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="c">//  (default) The model is leading, any extra yaml content is ignored</span>
+<span class="i">MapYaml</span><span class="o">.</span><span class="i">ToModelOnly</span>     
+
+<span class="c">//  Cross-Check the yaml to the model (in certain cases), extra yaml causes warnings</span>
+<span class="i">MapYaml</span><span class="o">.</span><span class="i">WithCrossCheck</span>  
+
+<span class="c">//  Cross-Check the yaml to the model (in certain cases), extra yaml causes errors</span>
+<span class="i">MapYaml</span><span class="o">.</span><span class="i">AndRequireFullProjection</span>
+</code></pre></td>
+</tr>
+</table>
+<p>certain cases: Record types.</p>
+
+
+        </div>
+        <div class="span3">
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">Legivel</li>
+            <li><a href="https://fjoppe.github.io/Legivel/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/Legivel">Get Library via NuGet</a></li>
+            <li><a href="https://github.com/fjoppe/Legivel">Source Code on GitHub</a></li>
+            <li><a href="https://fjoppe.github.io/Legivel/license.html">License</a></li>
+            <li><a href="https://fjoppe.github.io/Legivel/release-notes.html">Release Notes</a></li>
+            
+            <li class="nav-header">Getting started</li>
+            <li><a href="https://fjoppe.github.io/Legivel/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="https://fjoppe.github.io/Legivel/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="https://github.com/fjoppe/Legivel"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>

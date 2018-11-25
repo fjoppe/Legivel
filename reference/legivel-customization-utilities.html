@@ -44,6 +44,29 @@
 </div>
 
 <!-- Render nested types and modules, if there are any -->
+  <h2>Nested types and modules</h2>
+  <div>
+      <table class="table table-bordered type-list">
+    <thead>
+      <tr><td>Type</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td class="type-name">
+            <a href="legivel-customization-utilities-processmessagelist.html">ProcessMessageList</a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+        <tr>
+          <td class="type-name">
+            <a href="legivel-customization-utilities-processmessages.html">ProcessMessages</a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
 
   <h3>Functions and values</h3>
   <table class="table table-bordered member-list">
@@ -54,138 +77,48 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '67', 67)" onmouseover="showTip(event, '67', 67)">
+          <code onmouseout="hideTip(event, '79', 79)" onmouseover="showTip(event, '79', 79)">
+            AddError l e
+          </code>
+          <div class="tip" id="79">
+            <strong>Signature:</strong> l:ProcessMessages -&gt; e:ParseMessageAtLine -&gt; FallibleOption&lt;&#39;a&gt; * ProcessMessages<br />
+                          <strong>Type parameters:</strong> 'a          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L21-21" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '80', 80)" onmouseover="showTip(event, '80', 80)">
+            AddWarning l w
+          </code>
+          <div class="tip" id="80">
+            <strong>Signature:</strong> l:ProcessMessages -&gt; w:ParseMessageAtLine -&gt; FallibleOption&lt;&#39;a&gt; * ProcessMessages<br />
+                          <strong>Type parameters:</strong> 'a          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L22-22" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '81', 81)" onmouseover="showTip(event, '81', 81)">
             AreTypesEqual t1 t2
           </code>
-          <div class="tip" id="67">
+          <div class="tip" id="81">
             <strong>Signature:</strong> t1:Type -&gt; t2:Type -&gt; bool<br />
                       </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L14-14" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '68', 68)" onmouseover="showTip(event, '68', 68)">
-            GetCustomAttributeDU st
-          </code>
-          <div class="tip" id="68">
-            <strong>Signature:</strong> st:UnionCaseInfo -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
-                          <strong>Type parameters:</strong> 'T          </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L78-78" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '69', 69)" onmouseover="showTip(event, '69', 69)">
-            GetCustomAttributeFld st
-          </code>
-          <div class="tip" id="69">
-            <strong>Signature:</strong> st:FieldInfo -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
-                          <strong>Type parameters:</strong> 'T          </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L71-71" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '70', 70)" onmouseover="showTip(event, '70', 70)">
-            GetCustomAttributeMmbr st
-          </code>
-          <div class="tip" id="70">
-            <strong>Signature:</strong> st:MemberInfo -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
-                          <strong>Type parameters:</strong> 'T          </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L64-64" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '71', 71)" onmouseover="showTip(event, '71', 71)">
-            GetCustomAttributeTp st
-          </code>
-          <div class="tip" id="71">
-            <strong>Signature:</strong> st:Type -&gt; FallibleOption&lt;&#39;T,ParseMessageAtLine list&gt;<br />
-                          <strong>Type parameters:</strong> 'T          </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L56-56" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '72', 72)" onmouseover="showTip(event, '72', 72)">
-            GetErrors l
-          </code>
-          <div class="tip" id="72">
-            <strong>Signature:</strong> l:FallibleOption&lt;&#39;d,&#39;e list&gt; list -&gt; &#39;e list<br />
-                          <strong>Type parameters:</strong> 'd, 'e          </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L12-12" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '73', 73)" onmouseover="showTip(event, '73', 73)">
-            getMapNode n
-          </code>
-          <div class="tip" id="73">
-            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;(Node * Node) list&gt;,ParseMessageAtLine list&gt;<br />
-                      </div>
-        </td>
-        <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L20-20" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '74', 74)" onmouseover="showTip(event, '74', 74)">
-            getMapNodeQuiet n
-          </code>
-          <div class="tip" id="74">
-            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;(Node * Node) list&gt;,&#39;a&gt;<br />
-                          <strong>Type parameters:</strong> 'a          </div>
         </td>
         <td class="xmldoc">
             <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L26-26" class="github-link">
@@ -198,15 +131,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '75', 75)" onmouseover="showTip(event, '75', 75)">
-            getScalarNode n
+          <code onmouseout="hideTip(event, '82', 82)" onmouseover="showTip(event, '82', 82)">
+            GetCustomAttributeDU msgList st
           </code>
-          <div class="tip" id="75">
-            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;string&gt;,ParseMessageAtLine list&gt;<br />
-                      </div>
+          <div class="tip" id="82">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; st:UnionCaseInfo -&gt; FallibleOption&lt;&#39;T&gt; * ProcessMessages<br />
+                          <strong>Type parameters:</strong> 'T          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L44-44" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L90-90" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -216,15 +149,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '76', 76)" onmouseover="showTip(event, '76', 76)">
-            getScalarNodeQuiet n
+          <code onmouseout="hideTip(event, '83', 83)" onmouseover="showTip(event, '83', 83)">
+            GetCustomAttributeFld msgList st
           </code>
-          <div class="tip" id="76">
-            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;string&gt;,&#39;a&gt;<br />
-                          <strong>Type parameters:</strong> 'a          </div>
+          <div class="tip" id="83">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; st:FieldInfo -&gt; FallibleOption&lt;&#39;T&gt; * ProcessMessages<br />
+                          <strong>Type parameters:</strong> 'T          </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L50-50" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L83-83" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -234,11 +167,65 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '77', 77)" onmouseover="showTip(event, '77', 77)">
-            getSeqNode n
+          <code onmouseout="hideTip(event, '84', 84)" onmouseover="showTip(event, '84', 84)">
+            GetCustomAttributeMmbr msgList st
           </code>
-          <div class="tip" id="77">
-            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;Node list&gt;,ParseMessageAtLine list&gt;<br />
+          <div class="tip" id="84">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; st:MemberInfo -&gt; FallibleOption&lt;&#39;T&gt; * ProcessMessages<br />
+                          <strong>Type parameters:</strong> 'T          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L76-76" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '85', 85)" onmouseover="showTip(event, '85', 85)">
+            GetCustomAttributeTp msgList st
+          </code>
+          <div class="tip" id="85">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; st:Type -&gt; FallibleOption&lt;&#39;T&gt; * ProcessMessages<br />
+                          <strong>Type parameters:</strong> 'T          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L68-68" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '86', 86)" onmouseover="showTip(event, '86', 86)">
+            GetErrors l
+          </code>
+          <div class="tip" id="86">
+            <strong>Signature:</strong> l:(FallibleOption&lt;&#39;d&gt; * ProcessMessages) list -&gt; (FallibleOption&lt;&#39;d&gt; * ProcessMessages) list<br />
+                          <strong>Type parameters:</strong> 'd          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L24-24" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '87', 87)" onmouseover="showTip(event, '87', 87)">
+            getMapNode msgList n
+          </code>
+          <div class="tip" id="87">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; n:Node -&gt; FallibleOption&lt;NodeData&lt;(Node * Node) list&gt;&gt; * ProcessMessages<br />
                       </div>
         </td>
         <td class="xmldoc">
@@ -252,12 +239,12 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '78', 78)" onmouseover="showTip(event, '78', 78)">
-            getSeqNodeQuiet n
+          <code onmouseout="hideTip(event, '88', 88)" onmouseover="showTip(event, '88', 88)">
+            getMapNodeQuiet msgList n
           </code>
-          <div class="tip" id="78">
-            <strong>Signature:</strong> n:Node -&gt; FallibleOption&lt;NodeData&lt;Node list&gt;,&#39;?7410&gt;<br />
-                          <strong>Type parameters:</strong> '?7410          </div>
+          <div class="tip" id="88">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; n:Node -&gt; FallibleOption&lt;NodeData&lt;(Node * Node) list&gt;&gt; * ProcessMessages<br />
+                      </div>
         </td>
         <td class="xmldoc">
             <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L38-38" class="github-link">
@@ -270,10 +257,82 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '79', 79)" onmouseover="showTip(event, '79', 79)">
+          <code onmouseout="hideTip(event, '89', 89)" onmouseover="showTip(event, '89', 89)">
+            getScalarNode msgList n
+          </code>
+          <div class="tip" id="89">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; n:Node -&gt; FallibleOption&lt;NodeData&lt;string&gt;&gt; * ProcessMessages<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L56-56" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '90', 90)" onmouseover="showTip(event, '90', 90)">
+            getScalarNodeQuiet msgList n
+          </code>
+          <div class="tip" id="90">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; n:Node -&gt; FallibleOption&lt;NodeData&lt;string&gt;&gt; * ProcessMessages<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L62-62" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '91', 91)" onmouseover="showTip(event, '91', 91)">
+            getSeqNode msgList n
+          </code>
+          <div class="tip" id="91">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; n:Node -&gt; FallibleOption&lt;NodeData&lt;Node list&gt;&gt; * ProcessMessages<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L44-44" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '92', 92)" onmouseover="showTip(event, '92', 92)">
+            getSeqNodeQuiet msgList n
+          </code>
+          <div class="tip" id="92">
+            <strong>Signature:</strong> msgList:ProcessMessages -&gt; n:Node -&gt; FallibleOption&lt;NodeData&lt;Node list&gt;&gt; * ProcessMessages<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/CustomizationUtils.fs#L50-50" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '93', 93)" onmouseover="showTip(event, '93', 93)">
             NoDocumentLocation 
           </code>
-          <div class="tip" id="79">
+          <div class="tip" id="93">
             <strong>Signature:</strong> DocumentLocation<br />
                       </div>
         </td>

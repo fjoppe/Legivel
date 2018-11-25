@@ -52,15 +52,75 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '123', 123)" onmouseover="showTip(event, '123', 123)">
+          <code onmouseout="hideTip(event, '201', 201)" onmouseover="showTip(event, '201', 201)">
+            CloneWith(uri, rgx, toCanon)
+          </code>
+          <div class="tip" id="201">
+            <strong>Signature:</strong> (uri:string * rgx:string * toCanon:(string -&gt; string option)) -&gt; GlobalTag<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L82-82" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Clone Global Tag and modify with given properties</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '202', 202)" onmouseover="showTip(event, '202', 202)">
+            CloneWith(uri, nk, rgx, toCanon)
+          </code>
+          <div class="tip" id="202">
+            <strong>Signature:</strong> (uri:string * nk:NodeKind * rgx:string * toCanon:(string -&gt; string option)) -&gt; GlobalTag<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L74-74" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Clone Global Tag and modify with given properties</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '203', 203)" onmouseover="showTip(event, '203', 203)">
+            IsMatch(arg1)
+          </code>
+          <div class="tip" id="203">
+            <strong>Signature:</strong> Node -&gt; bool<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L92-92" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Returns true if the given Node complies to the rules o this tag</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '204', 204)" onmouseover="showTip(event, '204', 204)">
             Kind
           </code>
-          <div class="tip" id="123">
+          <div class="tip" id="204">
             <strong>Signature:</strong> NodeKind<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/RepresentationGraph.fs#L66-66" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L70-70" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -73,15 +133,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '124', 124)" onmouseover="showTip(event, '124', 124)">
+          <code onmouseout="hideTip(event, '205', 205)" onmouseover="showTip(event, '205', 205)">
             Regex
           </code>
-          <div class="tip" id="124">
+          <div class="tip" id="205">
             <strong>Signature:</strong> string<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/RepresentationGraph.fs#L67-67" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L71-71" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -94,15 +154,56 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '125', 125)" onmouseover="showTip(event, '125', 125)">
+          <code onmouseout="hideTip(event, '206', 206)" onmouseover="showTip(event, '206', 206)">
+            SetTagFunctions(arg1)
+          </code>
+          <div class="tip" id="206">
+            <strong>Signature:</strong> TagFunctions -&gt; GlobalTag<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L97-97" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Set Tagfunctions and return new GlobalTag</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '207', 207)" onmouseover="showTip(event, '207', 207)">
+            TagFunctions
+          </code>
+          <div class="tip" id="207">
+            <strong>Signature:</strong> TagFunctions<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L96-96" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Retrieve tagfunctions</p>
+
+
+              <p>CompiledName: <code>get_TagFunctions</code></p>
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '208', 208)" onmouseover="showTip(event, '208', 208)">
             ToCanonical(arg1)
           </code>
-          <div class="tip" id="125">
+          <div class="tip" id="208">
             <strong>Signature:</strong> string -&gt; string option<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/RepresentationGraph.fs#L79-79" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L94-94" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -114,15 +215,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '126', 126)" onmouseover="showTip(event, '126', 126)">
+          <code onmouseout="hideTip(event, '209', 209)" onmouseover="showTip(event, '209', 209)">
             Uri
           </code>
-          <div class="tip" id="126">
+          <div class="tip" id="209">
             <strong>Signature:</strong> string<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/RepresentationGraph.fs#L65-65" class="github-link">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L69-69" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -130,6 +231,74 @@
 
 
               <p>CompiledName: <code>get_Uri</code></p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <h3>Static members</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Static member</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '210', 210)" onmouseover="showTip(event, '210', 210)">
+            Create(arg1, arg2, arg3)
+          </code>
+          <div class="tip" id="210">
+            <strong>Signature:</strong> (string * NodeKind * TagFunctions) -&gt; GlobalTag<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L66-66" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Create a Global Tag based on uri, nodekind, tagfunctions</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '211', 211)" onmouseover="showTip(event, '211', 211)">
+            Create(arg1, arg2, arg3, arg4)
+          </code>
+          <div class="tip" id="211">
+            <strong>Signature:</strong> (string * NodeKind * string * TagFunctions) -&gt; GlobalTag<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L64-64" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Create a Global Tag based on uri, nodekind, regex, tagfunctions</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '212', 212)" onmouseover="showTip(event, '212', 212)">
+            Create(uri, nk, rgx, toCanon, tgfn)
+          </code>
+          <div class="tip" id="212">
+            <strong>Signature:</strong> (uri:string * nk:NodeKind * rgx:string * toCanon:(string -&gt; string option) * tgfn:TagFunctions) -&gt; GlobalTag<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L55-55" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Create a Global Tag based on uri, nodekind, regex, to Canonical func, tagfunctions</p>
+
+
         </td>
       </tr>
     </tbody>

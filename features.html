@@ -58,8 +58,8 @@ except <a href="http://yaml.org/type/yaml.html">!!yaml</a>.</p>
 <span class="k">open</span> <span class="i">Legivel</span><span class="o">.</span><span class="i">TagResolution</span>
 
 <span class="k">let</span> <span class="i">YamlParse</span> <span class="i">s</span> <span class="o">=</span>
-    <span class="k">let</span> <span class="i">parser</span> <span class="o">=</span> <span class="i">Yaml12Parser</span>()
-    <span class="k">let</span> <span class="i">repr</span> <span class="o">=</span> (<span class="i">parser</span><span class="o">.</span><span class="i">``l-yaml-stream``</span> <span class="i">YamlExtended</span><span class="o">.</span><span class="i">Schema</span> <span class="i">s</span>)
+    <span class="k">let</span> <span class="i">parser</span> <span class="o">=</span> <span class="i">Yaml12Parser</span>(<span class="i">YamlExtended</span><span class="o">.</span><span class="i">Schema</span>)
+    <span class="k">let</span> <span class="i">repr</span> <span class="o">=</span> (<span class="i">parser</span><span class="o">.</span><span class="i">``l-yaml-stream``</span> <span class="i">s</span>)
     <span class="i">repr</span><span class="o">.</span><span class="i">Head</span>
 </code></pre></td>
 </tr>
