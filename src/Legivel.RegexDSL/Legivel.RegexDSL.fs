@@ -15,21 +15,47 @@ exception RegexException of string
 type Plain =
     private {
         ``fixed`` : string
+        mutable optimized : RGXType list
         Token     : Token list
     }
     override this.ToString() = sprintf "%s" this.``fixed``
 
-    static member (+) (r1:Plain, r2:Plain) = {``fixed`` = r1.``fixed`` + r2.``fixed``; Token = r1.Token @ r2.Token}
+    member this.OptimizeOnce() = 
+        if (this.optimized = []) then
+            let unescapedString = 
+                this.``fixed``
+                    .Replace("\\{","{")
+                    .Replace("\\}","}")
+                    .Replace("\\[","[")
+                    .Replace("\\]","]")
+                    .Replace("\\(","(")
+                    .Replace("\\)",")")
+                    .Replace("\\|","|")
+                    .Replace("\\+","+")
+                    .Replace("\\*","*")
+                    .Replace("\\.",".")
+                    .Replace("\\?","?")
+                    .Replace("\\\\","\\")
 
-    static member Create r t = {``fixed`` = r; Token = t}
+            this.optimized <-
+                unescapedString.ToCharArray()
+                |>  List.ofArray
+                |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) this.Token)
+                |>  List.rev
+
+    static member (+) (r1:Plain, r2:Plain) = 
+        let appd = r1.``fixed`` + r2.``fixed``
+        {``fixed`` = appd; ``optimized`` = []; Token = r1.Token @ r2.Token}
+
+    static member Create r t = {``fixed`` = r; Token = t; optimized = []}
 
 
-type OneInSet =
+and OneInSet =
     private {
         not      : bool
         mainset  : string
         subtractset : string
-        Token     : Token list
+        Token'     : Lazy<Token list>
     }
     static member subtractable = [
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
@@ -46,25 +72,32 @@ type OneInSet =
         |   (true, true)    -> sprintf "[%s-[^%s]]" (this.subtractset) (this.mainset)
         |   (true, false)   -> sprintf "[%s-[%s]]"  (this.mainset) (this.subtractset)
         |   (false, true)   -> sprintf "[^%s]" (this.mainset)
-        |   (false, false)  -> sprintf "[%s]" (this.mainset) 
+        |   (false, false)  -> sprintf "[%s]" (this.mainset)
+
     static member (-) (r1:OneInSet, r2:OneInSet) =
-        let subtr = r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token = r1.Token |> List.filter(fun tf -> subtr |> List.exists(fun te -> te = tf) |> not)}
+        let subtr = lazy(r2.Token'.Force() |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token' = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))}
+
     static member (-) (r1:OneInSet, r2:Plain) =
-        let subtr = r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token = r1.Token |> List.filter(fun tf -> subtr |> List.exists(fun te -> te = tf) |> not)}
+        let subtr = lazy(r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token' = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))}
+
     static member (+) (r1:OneInSet, r2:OneInSet) =
-        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token = r1.Token @ r2.Token |> List.distinct}
+        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token' = lazy(r1.Token'.Force() @ r2.Token'.Force()) }
+
     static member (+) (_:OneInSet, _:Plain) =
         failwith "Unsupported RGX addition"
 
-    static member Create r tl = {mainset= r; subtractset = ""; not = false; Token = tl}
+    static member Create r tl = {mainset= r; subtractset = ""; not = false; Token' = lazy(tl)}
+
+
+    member this.Token with get () = this.Token'.Force()
 
     member this.Not() = 
         {this with not = true}
 
 
-type RGXType =
+and RGXType =
     |   Plain of Plain
     |   OneInSet   of OneInSet
     |   Or         of RGXType list
@@ -189,9 +222,11 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
 
         let rec repeatWhileMatching t acc =
             let pr = conditionalParse t tkl
-            let nwa = (snd pr @ acc)
-            if (fst pr) && nwa.Length > acc.Length then repeatWhileMatching t nwa
-            else acc //|> List.rev
+            let added : 'a list = snd pr
+            if (fst pr) && added.Length > 0 then 
+                let nwa = (added @ acc)
+                repeatWhileMatching t nwa
+            else acc 
 
         let checkParseCondition() =
             let noToken = TokenData.Create Token.NoToken ""
@@ -205,7 +240,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
             match rgx with
             |   OneInSet ois    -> 
                 if checkParseCondition() then
-                    rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+                    rs.Get() |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
                 else
                     (false, [])
             |   Plain pl        -> 
@@ -220,28 +255,10 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                     |   (_, []) -> true, []
                     | _ ->
                         if pl.``fixed``.Length > 1 then
-                            let unescapedString =
-                                pl.``fixed``
-                                    .Replace("\\{","{")
-                                    .Replace("\\}","}")
-                                    .Replace("\\[","[")
-                                    .Replace("\\]","]")
-                                    .Replace("\\(","(")
-                                    .Replace("\\)",")")
-                                    .Replace("\\|","|")
-                                    .Replace("\\+","+")
-                                    .Replace("\\*","*")
-                                    .Replace("\\.",".")
-                                    .Replace("\\?","?")
-                                    .Replace("\\\\","\\")
-                            let concat = 
-                                unescapedString.ToCharArray()
-                                |>  List.ofArray
-                                |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) pl.Token)
-                                |>  List.rev
-                            parse (Concat concat) tkl
+                            pl.OptimizeOnce()
+                            parse (Concat pl.optimized) tkl
                         else
-                            rs.Stream |> Seq.take 1 |> Seq.head |> fun i -> pl.``fixed`` = i.Source (*pl.Token  |> List.exists(fun e -> e=i.Token)*) |> mkResult i tkl
+                            rs.Get() |> fun i -> pl.``fixed`` = i.Source |> mkResult i tkl
                 else
                     (false, [])
             |   Or rl           -> 
@@ -318,15 +335,6 @@ let Match(s, p) =
 let IsMatch(s:RollingStream<TokenData>, p) = 
     let pos = s.Position
     AssesInput s p |> fst
-    //|> TokenDataToString
-    //|>  function
-    //|   Some mts -> 
-    //    let ml = Match(mts, p)
-    //    ml.Length > 0
-    //    |>  function
-    //        |   true -> true
-    //        |   false -> failwith "Difference between assesinput and regex"
-    //| None -> false
     |> fun res -> 
         s.Position <- pos
         res
@@ -342,17 +350,7 @@ let IsMatchStr(s, p) =
 let HasMatches(s,p) = 
     AssesInput s p 
     |>  fun (b, tkl) -> b, (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString()
-    //|> TokenDataToString
-    //|>  function
-    //|   Some mts -> 
-    //    let ml = Match(mts, p)
-    //    if ml.Length > 0 then
-    //        let m0 = ml.[0]
-    //        (true, m0)
-    //    else
-    //        failwith "Difference between assesinput and regex"
-    //        //(false, "")
-    //|   None -> (false, "")
+
 
 [<DebuggerStepThrough>]
 let (|Regex|_|) pattern input =
@@ -374,7 +372,6 @@ let (|Regex2|_|) (pattern:RGXType) (input:RollingStream<TokenData>) =
             Some(MatchResult.Create fullMatch groups)
         else 
             failwith "Difference between assesinput and regex"
-            //None
     )
     |>  function
         |   None -> input.Position <- p;None

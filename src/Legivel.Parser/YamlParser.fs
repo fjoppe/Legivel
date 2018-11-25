@@ -17,6 +17,7 @@ open System.Collections.Generic
 
 exception ParseException of string
 
+
 type Context = 
     | ``Block-out`` = 0
     | ``Block-in``  = 1
@@ -35,17 +36,6 @@ type TagKind = Verbatim of string | ShortHandNamed of string * string | ShortHan
 
 let ``start-of-line`` = RGP ("^", [Token.NoToken])
 let ``end-of-file`` = RGP ("\\z", [Token.NoToken])
-
-
-let ``Read stream until stop condition`` (strm:TextReader) (stopCondition:string->bool) =
-    let rec reader acc =
-        let accRev() = acc |> List.rev
-        let str = strm.ReadLine()
-        if str = null then (accRev(), None)
-        else
-            if not(stopCondition str) then reader (str :: acc)
-            else (accRev(), Some str)
-    reader []
 
 
 let CreateScalarNode tag pi d = 
@@ -70,32 +60,7 @@ type ParseRestrictions = {
     }
     with
         static member Create() = { AllowedMultiLine = true }
-
-
-type ParseMessage = {
-        Warn  : MessageAtLine list 
-        Error : Map<DocumentLocation,MessageAtLine list>
-        Cancel: Set<DocumentLocation> // to cancel errors
-        Terminates : MessageAtLine list 
-    }
-    with
-        static member Create() = {Warn = [];Error=Map.empty; Cancel=Set.empty<DocumentLocation>; Terminates=[]}
-        member this.AddError (mal:MessageAtLine)   = 
-            let addOrUpdateError (errMp:Map<_,_>) (nmal:MessageAtLine) =
-                let (lst, nwErr) = if errMp.ContainsKey(nmal.Location) then (errMp.[nmal.Location], errMp.Remove(nmal.Location)) else ([],errMp)
-                nwErr.Add(nmal.Location,nmal :: lst) 
-            let newTerm = if mal.Action = MessageAction.Terminate then mal :: this.Terminates else this.Terminates
-            if this.Error.ContainsKey(mal.Location) && this.Error.[mal.Location] |> List.exists(fun i -> i.Code = mal.Code)  then { this with Terminates = newTerm }
-            else {this with Error = addOrUpdateError (this.Error) mal; Terminates = newTerm}
-        member this.AddWarning (mal:MessageAtLine) = 
-            if this.Warn |> List.exists(fun e -> e.Location = mal.Location && e.Code = mal.Code) then this
-            else {this with Warn  = mal :: this.Warn}
-        member this.AddCancel mal   = 
-            //let newErr = if this.Error.ContainsKey(mal) then this.Error.Remove(mal) else this.Error
-            let newTerm = this.Terminates |> List.filter(fun i -> i.Location <> mal)
-            if this.Cancel.Contains(mal) then { this with Terminates = newTerm }
-            else {this with Cancel = this.Cancel.Add(mal); Terminates = newTerm }
-
+       
 
 [<NoEquality; NoComparison>]
 type RollingTokenizer = private {
@@ -109,7 +74,6 @@ type RollingTokenizer = private {
         member this.Reset() = this.Data.Position <- this.ContextPosition
         member this.Advance() = { this with ContextPosition = this.Data.Position}
         member this.EOF = this.Data.EOF
-        member this.Peek(n) = this.Data.Peek(n)
         member this.Peek()  = this.Data.Peek()
         static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); ContextPosition = 0}
 
@@ -124,7 +88,7 @@ with
 
 type ScalarMemoizeValue = {
     SreamPositionEnd : int
-    Value            : FallibleOption<Node, ErrorMessage>
+    Value            : FallibleOption<Node>
     PositionDelta    : DocumentLocation
     Length           : int
 }
@@ -162,7 +126,7 @@ type ParseState = {
         Anchors     : Map<string, Node>
         
         /// Parsing messages (warns/errors)
-        Messages    : ParseMessage
+        mutable Messages    : ParseMessage
         
         /// Document directives
         Directives  : Directive list
@@ -189,7 +153,10 @@ type ParseState = {
         //Caching : Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>
     }
     with
-        static member AddErrorMessageDel (ps:ParseState) sl = (sl |> List.fold(fun (p:ParseState) s -> p.AddErrorMessage s) ps)
+        static member AddErrorMessageDel (ps:ParseState) sl = 
+            sl 
+            |> List.iter(fun s -> ps.AddErrorMessage s |> ignore)
+            ps
 
         static member PositionDelta s =
             let patt = "\u000d\u000a|\u000d|\u000a" // see rule [28] ``b-break``
@@ -205,7 +172,7 @@ type ParseState = {
         member this.TrackPosition s =
             ParseState.PositionDelta s ||> this.SetPositionDelta (s.Length)
 
-        static member HasNoTerminatingError (ps:ParseState) = ps.Messages.Terminates = []
+        static member HasNoTerminatingError (ps:ParseState) = ps.Messages.Terminates.Count = 0
 
         member this.Advance() = { this with Input = this.Input.Advance() }
 
@@ -219,22 +186,12 @@ type ParseState = {
             if this.Anchors.ContainsKey s then this.Anchors.[s] |> Some
             else None
 
-        member this.MarkParseRange pss =
-            let filterRange msl =
-                msl
-                |> List.filter(fun (m:MessageAtLine) -> m.Location >= pss.Location && m.Location <= this.Location)
-            
-            (this.Messages.Error |> Map.toList |> List.map snd |> List.collect id) @ this.Messages.Warn
-            |> filterRange
-            |> List.fold(fun (s:ParseState) i -> s.AddCancelMessage (i.Location)) this
-
-
         [<DebuggerStepThrough>]
         member this.SkipIfMatch p = 
             match (HasMatches(this.Input.Data, p)) with
             |   (true, mt)  -> 
                 let nxt = this.Advance()
-                (nxt.TrackPosition mt).MarkParseRange this
+                nxt.TrackPosition mt
             |   (false, _)    -> this
         
         member this.SetStyleContext cn = { this with c = cn}
@@ -247,14 +204,14 @@ type ParseState = {
 
         member this.SetChomping tn = { this with t = tn }
 
-        member inline this.OneOf with get() = EitherBuilder(this, (fun ps -> ps.Input.Reset()), (fun ps -> ps.Advance()), ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
+        member inline this.OneOf with get() = EitherBuilder(this, this.Messages, (fun ps -> ps.Input.Reset()), (fun ps -> ps.Advance()), ParseState.HasNoTerminatingError)
 
-        member this.AddErrorMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddError s}
-        member this.AddWarningMessage (s:MessageAtLine) = {this with Messages = this.Messages.AddWarning s}
-        member this.AddCancelMessage s = {this with Messages = this.Messages.AddCancel s}
+        member this.AddErrorMessage (s:MessageAtLine) = this.Messages.AddError s; FallibleOption.ErrorResult(), this.Messages
+        member this.AddWarningMessage (s:MessageAtLine) = this.Messages.AddWarning s; FallibleOption.NoResult(), this.Messages
+        member this.AddCancelMessage s = this.Messages.AddCancel s
 
         member this.Errors   with get() = this.Messages.Error.Count
-        member this.Warnings with get() = this.Messages.Warn |> List.length
+        member this.Warnings with get() = this.Messages.Warn.Count
 
         member this.AddDirective d = {this with Directives = d:: this.Directives}
         member this.SetDirectives d = { this with Directives = d }
@@ -267,9 +224,9 @@ type ParseState = {
 
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
-        static member Create inputStr = {
+        static member Create pm inputStr = {
                 Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
-                Anchors = Map.empty; Messages=ParseMessage.Create(); Directives=[]; 
+                Anchors = Map.empty; Messages=pm; Directives=[]; 
                 TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
                 LocalTagSchema = None; NodePath = [];
                 TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
@@ -297,7 +254,8 @@ module ParseState =
         |> SetSubIndent (ps.m)
         |> RevokeIndentation (ps.IndentLevels)
 
-    let ResetEnv ps pso = pso |> FallibleOption.map(fun (any, prt) -> any, (renv(prt,ps)))
+    let ResetEnv (ps:ParseState) (pso:FallibleOption<_>, pm:ParseMessage) = (pso, pm) |> FallibleOption.map(fun (any, prt) -> any, (renv(prt,ps)))
+
     let ResetDocumentParseState ps = 
         { ps with 
             ParseState.Location = (DocumentLocation.Create 1 1)
@@ -310,42 +268,36 @@ module ParseState =
         }
 
     let AddErrorMessage m (ps:ParseState) = ps.AddErrorMessage m
-    let AddErrorMessageList el (ps:ParseState) = (el |> List.fold(fun ps e -> ps |> AddErrorMessage e) ps)
+    let AddErrorMessageList el (ps:ParseState) = 
+        el |> List.iter(fun e -> ps |> AddErrorMessage e |> ignore)
+        FallibleOption.ErrorResult()
     let AddWarningMessage m (ps:ParseState) = ps.AddWarningMessage m
     let AddCancelMessage m (ps:ParseState) = ps.AddCancelMessage m
+    let SetTrackPositon m (ps:ParseState) = ps.AddCancelMessage m; ps
 
-    let PreserveNoResult (outErrors:MessageAtLine list) =
-        if outErrors.Length = 0 then FallibleOption<_,_>.NoResult()
-        else FallibleOption<_,_>.ErrorResult outErrors
+    let PreserveNoResult outErrors =
+        if not(outErrors.HasErrorOccurred) then FallibleOption.NoResult()
+        else FallibleOption.ErrorResult()
 
-    let PreserveErrors _ struct (ct,pso:FallibleOption<_,_>) = 
-        let outErrors = ct.Messages.Error |> Map.toList |> List.map snd |> List.collect id
-        pso.Result |> 
+    let PreserveErrors (ps:ParseState) (ct:EitherResult<ParseState,_>) = 
+        let pm = ct.Messages
+        ct.ResultValue |> 
         function 
-        |   FallibleOption.Value  -> 
-            let (n,p) = pso.Data
-            FallibleOption<_,_>.Value (n,p |> AddErrorMessageList outErrors)  //  errors already preserved in p
-        |   FallibleOption.NoResult    -> PreserveNoResult outErrors
-        |   FallibleOption.ErrorResult -> 
-            let e = pso.Error
-            e @ outErrors
-            |> List.distinct
-            |> PreserveNoResult // ErrorResult(e)
+        |   FallibleOptionValue.Value  -> 
+            let (n,p) = ct.Result.Data
+            FallibleOption.Value (n,p),pm  //  errors already preserved in p
+        |   FallibleOptionValue.NoResult    -> PreserveNoResult(ct),pm.TrackPosition (ps.Location)
+        |   FallibleOptionValue.ErrorResult -> PreserveNoResult(ct),pm.TrackPosition (ps.Location)
         |   _ -> failwith "Illegal value"
 
-    let TrackParseLocation ps (pso:FallibleOption<_,_>) =
+    let TrackParseLocation ps (pso:FallibleOption<_>, pm:ParseMessage) =
         match pso.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let (n, psr) = pso.Data
-            FallibleOption<_,_>.Value(n,psr |> AddCancelMessage (ps.Location))
-        |   _ -> pso
-
-    let MarkParseRange (pss:ParseState) (pso:FallibleOption<_,_>) =
-        match pso.Result with
-        |   FallibleOption.Value -> 
-            let (n, (psr:ParseState)) = pso.Data
-            FallibleOption<_,_>.Value(n, psr.MarkParseRange pss)
-        |   _ -> pso
+            let pm = pm.TrackPosition (psr.Location)
+            let psr = SetTrackPositon (psr.Location) psr
+            FallibleOption.Value(n,psr), pm
+        |   _ -> pso, pm
 
     let AddErrorMessageDel m (ps:ParseState) = ParseState.AddErrorMessageDel ps m 
     let AddDirective d (ps:ParseState) = ps.AddDirective d
@@ -358,48 +310,56 @@ module ParseState =
     let IncUnrecognizedCollection (ps:ParseState) = ps.UpdateTagReport {ps.TagReport with Unrecognized = {ps.TagReport.Unrecognized with Collection = ps.TagReport.Unrecognized.Collection + 1}}
 
 
-    let inline OneOf (ps:ParseState) = EitherBuilder(ps, (fun ps -> ps.Input.Reset()), (fun ps -> ps.Advance()), ParseState.AddErrorMessageDel, ParseState.HasNoTerminatingError)
+    let inline OneOf (ps:ParseState) = EitherBuilder(ps, ps.Messages, (fun ps -> ps.Input.Reset()), (fun ps -> ps.Advance()), ParseState.HasNoTerminatingError)
 
-    let ``Match and Advance`` (patt:RGXType) postAdvanceFunc (ps:ParseState) =
+    let ``Match and Advance`` (patt:RGXType) (postAdvanceFunc:ParseState -> FallibleOption<_>*ParseMessage) (ps:ParseState) =
         match (HasMatches(ps.Input.Data, patt)) with
-        |   (true, mt) -> ps |> AddCancelMessage (ps.Location) |> Advance |> TrackPosition mt |> postAdvanceFunc
-        |   (false, _)    -> ps.Input.Reset(); FallibleOption<_,_>.NoResult()
+        |   (true, mt) -> 
+            ps |> AddCancelMessage (ps.Location) 
+            ps |> Advance |> TrackPosition mt |> postAdvanceFunc
+        |   (false, _)    -> ps.Input.Reset(); (FallibleOption.NoResult(), ps.Messages)
 
 
-    let inline ``Match and Parse`` (patt:RGXType) parseFunc (ps:ParseState) =
+    let inline ``Match and Parse`` (patt:RGXType) (parseFunc: string -> ParseState -> FallibleOption<_> * ParseMessage) (ps:ParseState) =
         match (HasMatches(ps.Input.Data, patt)) with
         |   (true, mt) -> ps |> Advance |> TrackPosition mt |> parseFunc mt
-        |   (false, _)    -> ps.Input.Reset(); FallibleOption<_,_>.NoResult()
+        |   (false, _)    -> ps.Input.Reset(); (FallibleOption.NoResult(), ps.Messages)
 
 
-    let ProcessErrors (ps:ParseState) =
+    let inline AddMessagesToOutput (ps:ParseState) (rs:FallibleOption<_>) = (rs, ps.Messages)
+
+    let ProcessErrors (pm:ParseMessage) =
+        pm.Error
+        |>  List.ofSeq
+        |>  List.iter(fun m -> if m.Location < pm.Cancel then pm.Error.Remove(m) |> ignore)
         let freeForm = 
-            ps.Messages.Error
-            |>  Map.toList
-            |>  List.map snd
-            |>  List.collect id
-            |>  List.filter(fun m -> m.Code = MessageCode.Freeform) 
-            |>  List.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
-        let cancelable = 
-            ps.Messages.Error 
-            |>  Map.toList
-            |>  List.map snd
-            |>  List.collect id
-            |>  List.filter(fun m ->m.Code <> MessageCode.Freeform) 
-            |>  List.distinct
+            pm.Error
+            |>  Seq.filter(fun m -> m.Code = MessageCode.Freeform) 
+            |>  Seq.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
         let filteredErrors = 
-            cancelable 
-            |> List.filter(fun m -> not(List<_>(ps.Messages.Cancel) |> Seq.exists(fun k -> m.Location = k)))
-        let newErrors =
-            freeForm @ filteredErrors
-            |>  List.groupBy(fun m -> m.Location)
-            |>  Map.ofList
-        {ps with Messages = {ps.Messages with Error = newErrors; Cancel = Set.empty<DocumentLocation>}}
+            pm.Error
+            |>  Seq.filter(fun m -> m.Code <> MessageCode.Freeform) 
+            |>  Seq.distinctBy(fun m -> m.Location,m.Code)
+        let newErrors = freeForm |>  Seq.append filteredErrors |> List.ofSeq |> Seq.ofList
+
+        pm.Error.Clear()
+        pm.Error.AddRange(newErrors)
+        pm.AddCancel DocumentLocation.Empty |> ignore
+
+        let newWarns = 
+            pm.Warn
+            |>  Seq.distinctBy(fun m -> m.Location.Line,m.Location.Column,m.Message)
+            |> List.ofSeq |> Seq.ofList
+
+        pm.Warn.Clear()
+        pm.Warn.AddRange(newWarns)
+
+        pm
 
 
     let PostProcessErrors fr =
         fr
-        |> FallibleOption.map(fun (node, ps:ParseState) ->(node,ProcessErrors ps))
+        |>  fun (fo, pm) -> fo, ProcessErrors pm
         |> FallibleOption.map(fun (node, ps:ParseState) ->
             let rg = RGP("---", [Token.``t-hyphen``]) ||| RGP("...", [Token.``t-dot``])
             let p = ps.Input.Position
@@ -410,34 +370,28 @@ module ParseState =
                     |   (true, _) -> 
                         let errs = 
                             ps.Messages.Error 
-                            |>  Map.toList
-                            |>  List.map snd
-                            |>  List.collect id 
-                            |>  List.filter(fun m -> m.Action = MessageAction.Continue && m.Location <> ps.Location)
-                            |>  List.groupBy(fun m -> m.Location)
-                            |>  Map.ofList
-                        let psne = {ps with Messages = {ps.Messages with Error = errs}}
-                        (node,psne)
+                            |>  Seq.filter(fun m -> m.Action = MessageAction.Continue && m.Location <> ps.Location)
+                        ps.Messages.Error.Clear()
+                        ps.Messages.Error.AddRange(errs)
+                        (node,ps)
             ps.Input.Position <- p
             rs
         )
 
-    let ToRepresentation (pso:ParseState) (no:FallibleOption<_,_>)  =
-        let mal2pm (ml:MessageAtLine list) = (ml |> List.map(fun w -> ParseMessageAtLine.Create (w.Location) (w.Message.Force())))
-        let wr = pso.Messages.Warn  |> mal2pm
+    let ToRepresentation (pso:ParseState) (no:FallibleOption<_>, pm:ParseMessage)  =
+        let mal2pm (ml:MessageAtLine seq) = (ml |> List.ofSeq |> List.map(fun w -> ParseMessageAtLine.Create (w.Location) (w.Message.Force())))
+        let wr = pm.Warn  |> mal2pm
         match no.Result with
-        |   FallibleOption.NoResult    -> EmptyRepresentation(EmptyDocumentResult.Create wr pso.Location), pso
-        |   FallibleOption.ErrorResult ->
-            let el = no.Error
-            let psr = pso |> AddErrorMessageList el 
-            let er = psr.Messages.Error |> Map.toList |> List.map snd |> List.collect id|> mal2pm
-            let erss = ErrorResult.Create wr er (psr.Location) 
+        |   FallibleOptionValue.NoResult    -> EmptyRepresentation(EmptyDocumentResult.Create wr pso.Location), pso
+        |   FallibleOptionValue.ErrorResult ->
+            let er = pm.Error |> mal2pm
+            let erss = ErrorResult.Create wr er (pso.Location) 
             NoRepresentation(erss),pso
-        |   FallibleOption.Value  ->
+        |   FallibleOptionValue.Value  ->
             let (n, (ps2:ParseState)) = no.Data
-            let wr2 = wr @ (ps2.Messages.Warn  |> mal2pm)
+            let wr2 = (ps2.Messages.Warn |> mal2pm)
             if ps2.Errors > 0 then
-                let er = ps2.Messages.Error |> Map.toList |> List.map snd |> List.collect id |> mal2pm
+                let er = ps2.Messages.Error |> mal2pm
                 let erss = ErrorResult.Create wr2 er (ps2.Location) 
                 NoRepresentation(erss),ps2
             else
@@ -455,7 +409,7 @@ module ParseState =
 
 let getParseInfo pso psn = ParseInfo.Create (pso.Location) (psn.Location)
 
-type ParseFuncResult<'a> = FallibleOption<'a * ParseState, ErrorMessage>        //  returns parsed node, if possible
+type ParseFuncResult<'a> = (FallibleOption<'a * ParseState>*ParseMessage)      //  returns parsed node, if possible
 type ParseFuncSignature<'a> = (ParseState -> ParseFuncResult<'a>)
 
 type FlowFoldPrevType = Empty | TextLine
@@ -506,12 +460,14 @@ let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->unit) =
     let logger s ps = 
 #if DEBUG
-        sprintf "%s\t l:%d col:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error |> Map.toList |> List.length) (ps.Messages.Warn.Length) (ps.Input.Position)
+        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
         //sprintf "%d" (ps.Location.Line)
         |> loggingFunction
 #else
         ()
 #endif
+
+    member private this.ParserMessages = ParseMessage.Create()
 
     member private this.GlobalTagSchema
         with get() = globalTagSchema 
@@ -522,18 +478,18 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
     new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, fun _ -> ())
 
-    member private this.LogReturn str ps (pso:FallibleOption<_,_>) = 
+    member private this.LogReturn str ps (pso:FallibleOption<_>, pm:ParseMessage) = 
 #if DEBUG
         match pso.Result with
-        |   FallibleOption.Value -> 
-            let  (any,prs) = pso.Data
-            sprintf "/%s (Value) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.n) (prs.c) (prs.Anchors.Count) (ps.Messages.Error |> Map.toList |> List.length) (prs.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
-        |   FallibleOption.NoResult -> sprintf "/%s (NoResult) l:%d i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error  |> Map.toList |> List.length) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction 
-        |   FallibleOption.ErrorResult -> sprintf "/%s (ErrorResult (#%d)) l:%d i:%d c:%A &a:%d e:%d+%d w:%d sp:%d" str (pso.Error |> List.length) (ps.Location.Line) (ps.n) (ps.c) (ps.Anchors.Count) (pso.Error |> List.length) (ps.Errors) (ps.Messages.Warn.Length) (ps.Input.Position) |> loggingFunction
+        |   FallibleOptionValue.Value -> 
+            let  (_,prs) = pso.Data
+            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
+        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
         |   _   -> failwith "Illegal value for pso.Result"
-        pso
+        pso,pm
 #else
-        pso
+        pso,pm
 #endif
 
 
@@ -596,9 +552,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
     member this.``content with properties`` (``follow up func``: ParseFuncSignature<'a>) ps =
         let addAnchor (anchor:string) (n:Node) (ps:ParseState) = if anchor<> "" then (ps.AddAnchor anchor n) else ps
-        let cnsproperties = this.``c-ns-properties`` ps
+        let (cnsproperties,pm) = this.``c-ns-properties`` ps
         match cnsproperties.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let (prs, (tag,tl), (anchor,_)) = cnsproperties.Data
             prs 
             |> ``follow up func``
@@ -609,9 +565,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 |> this.ResolveTag prs tag tl 
                 |> this.PostProcessAndValidateNode
             )
-        |   FallibleOption.NoResult -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult (cnsproperties.Error)
-
+        |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
+        |   _ -> failwith "Illegal value for cnsproperties"
 
     member this.``join lines`` (strlst:string list) = String.Join("\n", strlst)
 
@@ -686,10 +642,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         let convertPrainEscapedMultiLine (str:string) = str.Replace("\x0d\x0a", "\n")
         this.``flow fold lines`` convertPrainEscapedMultiLine ps str
 
-    member this.ResolveTag (ps:ParseState) tag tagLocation (node:Node) : FallibleOption<Node * ParseState, ErrorMessage> =
+    member this.ResolveTag (ps:ParseState) tag tagLocation (node:Node) : FallibleOption<Node * ParseState>*ParseMessage =
         let checkTagKindMatch (t:GlobalTag) rs =
-            if t.Kind = node.Kind then FallibleOption<_,_>.Value(rs)
-            else FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (tagLocation) MessageCode.ErrTagKindMismatch (lazy sprintf "Tag-kind mismatch, tag: %A, node: %A" (t.Kind) (node.Kind))]
+            if t.Kind = node.Kind then FallibleOption.Value(rs), ps.Messages
+            else
+                ps.AddErrorMessage <| MessageAtLine.CreateContinue (tagLocation) MessageCode.ErrTagKindMismatch (lazy sprintf "Tag-kind mismatch, tag: %A, node: %A" (t.Kind) (node.Kind))
+                
 
         let ResolveNonSpecificTag nst = 
             TagResolutionInfo.Create nst (ps.NodePath) (node)
@@ -698,13 +656,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             |   Some t -> checkTagKindMatch t (node.SetTag (Global t), ps)
             |   None -> 
                 let psunresvd = 
-                    ps 
-                    |> ParseState.AddWarningMessage(MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "Cannot resolve tag: '%s'" nst))
-                    |> ParseState.IncUnresolved
-                FallibleOption<_,_>.Value(node, psunresvd)
+                    ps |> ParseState.AddWarningMessage(MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "Cannot resolve tag: '%s'" nst)) |> ignore
+                    ps |> ParseState.IncUnresolved
+                FallibleOption.Value(node, psunresvd), psunresvd.Messages
 
         let ResolveLocalTag tag =
-            FallibleOption<_,_>.Value(node.SetTag (Local (LocalTag.Create tag (this.GlobalTagSchema.LocalTags))), ps)
+            FallibleOption.Value(node.SetTag (Local (LocalTag.Create tag (this.GlobalTagSchema.LocalTags))), ps),ps.Messages
 
         let ResolveShorthand tsh sub =
             match tsh.MappedTagBase with
@@ -715,90 +672,89 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |   Some t  -> checkTagKindMatch t (node.SetTag (Global t),ps)
                     |   None    -> 
                         match node.Kind with
-                        |   Scalar  -> FallibleOption<_,_>.Value(Unrecognized (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub)) |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar) 
-                        |   _       -> FallibleOption<_,_>.Value(Global (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub))       |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection)
-            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> FallibleOption<_,_>.Value(Local (LocalTag.Create (tsh.MappedTagBase+sub) (this.GlobalTagSchema.LocalTags))|> node.SetTag, ps)
-            |   _ -> FallibleOption<_,_>.NoResult()
+                        |   Scalar  -> FallibleOption.Value(Unrecognized (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub)) |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar), ps.Messages
+                        |   _       -> FallibleOption.Value(Global (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub))       |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection), ps.Messages
+            |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> FallibleOption.Value(Local (LocalTag.Create (tsh.MappedTagBase+sub) (this.GlobalTagSchema.LocalTags))|> node.SetTag, ps), ps.Messages
+            |   _ -> FallibleOption.NoResult(), ps.Messages
 
 
-        let TryResolveTagShortHand name (sub:string) : FallibleOption<Node * ParseState, ErrorMessage> =
+        let TryResolveTagShortHand name (sub:string) : FallibleOption<Node * ParseState>*ParseMessage =
+            ps.TagShorthands 
+            |> List.tryFind(fun tsh -> tsh.ShortHand = name) 
+            |>  function
+                | Some tsh -> ResolveShorthand tsh sub |> fst, ps.Messages
+                | None -> FallibleOption.NoResult(), ps.Messages
+
+        let ResolveTagShortHand name (sub:string) : FallibleOption<Node * ParseState>*ParseMessage =
             ps.TagShorthands 
             |> List.tryFind(fun tsh -> tsh.ShortHand = name) 
             |>  function
                 | Some tsh -> ResolveShorthand tsh sub
-                | None -> FallibleOption<_,_>.NoResult()
-
-        let ResolveTagShortHand name (sub:string) : FallibleOption<Node * ParseState, ErrorMessage> =
-            ps.TagShorthands 
-            |> List.tryFind(fun tsh -> tsh.ShortHand = name) 
-            |>  function
-                | Some tsh -> ResolveShorthand tsh sub
-                | None ->
-                    let n = node.SetTag (NonSpecific.UnresolvedTag)
-                    let p = ps.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "The %s handle wasn't declared." name))
-                    FallibleOption<_,_>.Value(n, p)
+                | None -> ps.AddErrorMessage (MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrHandleNotDeclared (lazy sprintf "The %s handle wasn't declared." name))
 
         match tag with
         |   NonSpecificQM   -> ResolveNonSpecificTag "?"
         |   NonSpecificQT   -> ResolveNonSpecificTag "!"
         |   ShortHandPrimary name -> 
             TryResolveTagShortHand "!" name
-            |> FallibleOption.ifnoresult(fun () -> ResolveLocalTag ("!"+name) )
+            |> FallibleOption.ifnoresult(fun () -> ResolveLocalTag ("!"+name))
         |   ShortHandSecondary sub  -> ResolveTagShortHand "!!" sub
         |   ShortHandNamed (name, sub)  -> ResolveTagShortHand name sub
         |   Verbatim name   -> ResolveLocalTag name
-        |   TagKind.Empty   -> FallibleOption<_,_>.Value(node,ps)
+        |   TagKind.Empty   -> FallibleOption.Value(node,ps), ps.Messages
 
 #if DEBUG
     member this.KeyToString (key:ScalarMemoizeKey) =
         sprintf "<%d,%d>" (key.FunctionNumber) (key.SreamPositionStart)
 #endif
 
-    member this.CacheNode key (postParseState:ParseState) posDelta len (potetialNode:FallibleOption<Node * ParseState, ErrorMessage>) =
+    member this.CacheNode key (postParseState:ParseState) posDelta len (potetialNode:FallibleOption<Node * ParseState>, pm:ParseMessage) : FallibleOption<Node * ParseState> * ParseMessage=
         let pos = postParseState.Input.Position
         let cv = 
             match potetialNode.Result with
-            |   FallibleOption.Value -> 
+            |   FallibleOptionValue.Value -> 
                 let (n,_) = potetialNode.Data
 
 #if DEBUG
                 logger (sprintf "> cached: %s end: %d >> %s" (this.KeyToString key) pos (n.ToPrettyString())) postParseState
 #endif
-                ScalarMemoizeValue.Create pos (FallibleOption<_,_>.Value n) posDelta len
-            |   FallibleOption.NoResult   -> ScalarMemoizeValue.Create pos (FallibleOption<_,_>.NoResult()) posDelta len
-            |   FallibleOption.ErrorResult -> ScalarMemoizeValue.Create pos (FallibleOption<_,_>.ErrorResult <| potetialNode.Error) posDelta len
+                ScalarMemoizeValue.Create pos (FallibleOption.Value n) posDelta len
+            |   FallibleOptionValue.NoResult   -> ScalarMemoizeValue.Create pos (FallibleOption.NoResult()) posDelta len
+            |   FallibleOptionValue.ErrorResult -> ScalarMemoizeValue.Create pos (FallibleOption.ErrorResult()) posDelta len
             |   _   -> failwith "Illegal value for potetialNode"
         this.Caching.Add(key, cv)
-        potetialNode
+        potetialNode, pm
 
     member this.UncacheNode key (preParseState:ParseState) =
+        let pm = preParseState.Messages
         let cv = this.Caching.[key]
         preParseState.Input.Position <- cv.SreamPositionEnd
         match cv.Value.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let n = cv.Value.Data
 
 #if DEBUG
             logger (sprintf "> uncached: %s end: %d >> %s" (this.KeyToString key) (cv.SreamPositionEnd) (n.ToPrettyString())) preParseState
 #endif
             let postCacheState = preParseState.SetPositionDelta (cv.Length) (cv.PositionDelta.Line) (cv.PositionDelta.Column)
-            FallibleOption<_,_>.Value(n,postCacheState)
-        |   FallibleOption.NoResult -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult <| cv.Value.Error
+            FallibleOption.Value(n,postCacheState), pm
+        |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         |   _ -> failwith "Illegal value for cv"
 
-    member this.PostProcessAndValidateNode (fn : FallibleOption<Node * ParseState, ErrorMessage>) : FallibleOption<Node * ParseState, ErrorMessage> = 
+    member this.PostProcessAndValidateNode (fn : FallibleOption<Node * ParseState>, pm:ParseMessage) : FallibleOption<Node * ParseState>*ParseMessage = 
         match fn.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let (n,ps)  = fn.Data
-            n.NodeTag.PostProcessAndValidateNode n 
+            n.NodeTag.PostProcessAndValidateNode (ps.Messages) n 
             |> FallibleOption.map(fun nd -> (nd,ps))
-        |   FallibleOption.NoResult -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult <| fn.Error
+        |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         |   _ -> failwith "Illegal value for fn"
 
     member this.ResolvedNullNode (ps:ParseState) =  
-        (this.ResolveTag ps NonSpecificQM (ps.Location) (PlainEmptyNode (getParseInfo ps ps))).Data |> fst // should never be None
+        let n,_ = (this.ResolveTag ps NonSpecificQM (ps.Location) (PlainEmptyNode (getParseInfo ps ps)))
+        n.Data |> fst // should never be None
 
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
@@ -1146,46 +1102,44 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``s-separate-lines`` ps = (this.``s-l-comments`` + (this.``s-flow-line-prefix`` ps)) ||| this.``s-separate-in-line``
 
     //  [82]    http://www.yaml.org/spec/1.2/spec.html#l-directive
-    member this.``l-directive`` (ps:ParseState) : FallibleOption<ParseState,ErrorMessage> = 
-        let ParseDirective prs : FallibleOption<Directive*ParseState,MessageAtLine list> =
+    member this.``l-directive`` (ps:ParseState) : FallibleOption<ParseState>*ParseMessage = 
+        let ParseDirective prs : FallibleOption<Directive*ParseState>*ParseMessage =
             let ``ns-yaml-directive`` = this.``ns-yaml-directive`` + this.``s-l-comments``
             let ``ns-tag-directive`` = this.``ns-tag-directive``  + this.``s-l-comments``
             let ``ns-reserved-directive`` = GRP(this.``ns-reserved-directive``) + this.``s-l-comments``
             match prs.Input.Data with
             |   Regex2(``ns-yaml-directive``)  mt -> 
-                let ps = 
-                    match (mt.ge1.Split('.') |> List.ofArray) with
-                    | [a;b] when a="1" && b<"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
-                    | [a;b] when a="1" && b="2" -> ps
-                    | [a;b] when a="1" && b>"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
-                    | [a;_] when a>"1"          -> ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "YAML %s document cannot be parsed, only YAML 1.2 is supported" mt.ge1))
-                    | _                         -> ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "Illegal directive: %%YAML %s, document cannot be parsed" mt.ge1))
+                //let ps = 
+                match (mt.ge1.Split('.') |> List.ofArray) with
+                | [a;b] when a="1" && b<"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
+                | [a;b] when a="1" && b="2" -> FallibleOption.NoResult(), ps.Messages
+                | [a;b] when a="1" && b>"2" -> ps |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "YAML %s document will be parsed as YAML 1.2" mt.ge1))
+                | [a;_] when a>"1"          -> ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "YAML %s document cannot be parsed, only YAML 1.2 is supported" mt.ge1))
+                | _                         -> ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "Illegal directive: %%YAML %s, document cannot be parsed" mt.ge1))
+                |> ignore
                 let ymlcnt = ps.Directives |> List.filter(function | YAML _ -> true | _ -> false) |> List.length
-                let ps = 
-                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy "The YAML directive must only be given at most once per document.")))
-                    else ps
-                if ps.Errors >0 then
-                    FallibleOption<_,_>.ErrorResult (ps.Messages.Error |> Map.toList |> List.map snd |> List.collect id)
+                if ymlcnt>0 then 
+                    (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy "The YAML directive must only be given at most once per document.")))
+
+                elif ps.Errors >0 then FallibleOption.ErrorResult(), ps.Messages
                 else
-                    FallibleOption<_,_>.Value(YAML(mt.ge1), ps.Advance())
+                    FallibleOption.Value(YAML(mt.ge1), ps.Advance()), ps.Messages
             |   Regex2(``ns-tag-directive``)   mt    -> 
                 let tg = mt.ge2 |> fst
                 let ymlcnt = ps.Directives |> List.filter(function | TAG (t,_) ->  (t=tg) | _ -> false) |> List.length
-                let ps = 
-                    if ymlcnt>0 then (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) (MessageCode.Freeform) (lazy sprintf "The TAG directive must only be given at most once per handle in the same document: %s" tg)))
-                    else ps
-                if ps.Errors >0 then
-                    FallibleOption<_,_>.ErrorResult (ps.Messages.Error  |> Map.toList |> List.map snd |> List.collect id)
+                if ymlcnt>0 then 
+                    (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) (MessageCode.Freeform) (lazy sprintf "The TAG directive must only be given at most once per handle in the same document: %s" tg)))
                 else
                     let tagPfx = snd mt.ge2
                     let lcTag = this.``c-primary-tag-handle`` + OOM(this.``ns-tag-char``)
                     if System.Uri.IsWellFormedUriString(tagPfx, UriKind.Absolute) || IsMatchStr(tagPfx, lcTag) then
-                        FallibleOption<_,_>.Value(TAG(mt.ge2),  ps.Advance() |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2)))
+                        FallibleOption.Value(TAG(mt.ge2),  ps.Advance() |> ParseState.AddTagShortHand (TagShorthand.Create (mt.ge2))), ps.Messages
                     else
-                        let ps = (ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg)))
-                        FallibleOption<_,_>.ErrorResult (ps.Messages.Error  |> Map.toList |> List.map snd |> List.collect id)
-            |   Regex2(``ns-reserved-directive``) mt -> FallibleOption<_,_>.Value(RESERVED(mt.Groups), ps |> ParseState.Advance |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) (MessageCode.Freeform) (lazy sprintf "Reserved directive will ignored: %%%s" mt.ge1)))
-            |   _   -> FallibleOption<_,_>.NoResult()
+                        ps |> ParseState.AddErrorMessage (MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy sprintf "Tag is not a valid Uri-, or local-tag prefix: %s" tg))
+            |   Regex2(``ns-reserved-directive``) mt -> 
+                ps |> ParseState.Advance |> ParseState.AddWarningMessage (MessageAtLine.CreateContinue (ps.Location) (MessageCode.Freeform) (lazy sprintf "Reserved directive will ignored: %%%s" mt.ge1)) |> ignore
+                FallibleOption.Value(RESERVED(mt.Groups), ps), ps.Messages
+            |   _   -> FallibleOption.NoResult(), ps.Messages
 
 
         ps 
@@ -1193,7 +1147,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |> FallibleOption.bind(fun (t,prs) ->
             prs 
             |> ParseState.``Match and Advance`` (this.``s-l-comments``) 
-                (fun prs2 -> prs2.AddDirective t |> FallibleOption<ParseState,ErrorMessage>.Value)
+                (fun prs2 -> (prs2.AddDirective t |> FallibleOption.Value), prs2.Messages)
         )
 
 
@@ -1239,16 +1193,16 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``ns-global-tag-prefix`` = this.``ns-tag-char`` + ZOM(this.``ns-uri-char``)
 
     //  [96]    http://www.yaml.org/spec/1.2/spec.html#c-ns-properties(n,c)
-    member this.``c-ns-properties`` ps : FallibleOption<ParseState * (TagKind*DocumentLocation) * (string*DocumentLocation), ErrorMessage> =
+    member this.``c-ns-properties`` ps : FallibleOption<ParseState * (TagKind*DocumentLocation) * (string*DocumentLocation)>*ParseMessage =
         logger "c-ns-properties" ps
         
         let anchor pst  =
             pst |> ParseState.``Match and Advance`` (RGP ("&", [Token.``t-ampersand``])) (fun psr ->
                 let illAnchor = OOM(this.``ns-char``)
                 match psr with
-                |   Regex3(this.``ns-anchor-name``) (mt,prs) -> FallibleOption<_,_>.Value(prs, mt.FullMatch)
-                |   Regex3(illAnchor) (mt,_) -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrAnchorSyntax (lazy sprintf "Anchor has incorrect format: &%s" mt.FullMatch)]
-                |   _ -> FallibleOption<_,_>.NoResult()
+                |   Regex3(this.``ns-anchor-name``) (mt,prs) -> FallibleOption.Value(prs, mt.FullMatch), prs.Messages
+                |   Regex3(illAnchor) (mt,prs) -> psr.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrAnchorSyntax (lazy sprintf "Anchor has incorrect format: &%s" mt.FullMatch)
+                |   _ -> FallibleOption.NoResult(), psr.Messages
             )
             |> FallibleOption.map(fun (p,a) -> p,(a,pst.Location))
 
@@ -1264,22 +1218,22 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             let illShorthandSecondary = this.``c-secondary-tag-handle`` 
             let shorthandPrimary = this.``c-primary-tag-handle``+ GRP(OOM(this.``ns-tag-char``))
             match pst with
-            |   Regex3(illVerbatimNoLocaltag) _ -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrVerbatimTagNoLocal (lazy "Verbatim tags aren't resolved, so ! is invalid.")]
+            |   Regex3(illVerbatimNoLocaltag) _ -> pst.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrVerbatimTagNoLocal (lazy "Verbatim tags aren't resolved, so ! is invalid.")
             |   Regex3(verbatim) (mt, prs) -> 
                 let tag = mt.ge1
                 let lcTag = this.``c-primary-tag-handle`` + OOM(this.``ns-tag-char``)
                 if System.Uri.IsWellFormedUriString(tag, UriKind.Absolute) || IsMatchStr(tag, lcTag) then
-                    FallibleOption<_,_>.Value(prs, Verbatim mt.ge1)
+                    FallibleOption.Value(prs, Verbatim mt.ge1),prs.Messages
                 else
-                    FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrVerbatimTagIncorrectFormat (lazy "Verbatim tag is neither a local or global tag.")]                    
-            |   Regex3(illVerbatim) _ -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrVerbatimTag (lazy "Verbatim tag starting with '!<' is missing a closing '>'")]
-            |   Regex3(shorthandNamed) (mt, prs) -> FallibleOption<_,_>.Value(prs, ShortHandNamed mt.ge2)
-            |   Regex3(illShorthandNamed) (mt,_) -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrShorthandNamed (lazy sprintf "The %s handle has no suffix." mt.FullMatch)]
-            |   Regex3(shorthandSecondary) (mt, prs) -> FallibleOption<_,_>.Value(prs, ShortHandSecondary mt.ge1)
-            |   Regex3(illShorthandSecondary) _ -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrShorthandSecondary (lazy "The !! handle has no suffix.")]
-            |   Regex3(shorthandPrimary) (mt, prs) -> FallibleOption<_,_>.Value(prs, ShortHandPrimary mt.ge1)
-            |   Regex3(this.``c-non-specific-tag``) (_, prs) -> FallibleOption<_,_>.Value(prs, NonSpecificQT)
-            |   _ -> FallibleOption<_,_>.NoResult()
+                    pst.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrVerbatimTagIncorrectFormat (lazy "Verbatim tag is neither a local or global tag.")
+            |   Regex3(illVerbatim) _ -> pst.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrVerbatimTag (lazy "Verbatim tag starting with '!<' is missing a closing '>'")
+            |   Regex3(shorthandNamed) (mt, prs) -> FallibleOption.Value(prs, ShortHandNamed mt.ge2),prs.Messages
+            |   Regex3(illShorthandNamed) (mt,_) -> pst.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrShorthandNamed (lazy sprintf "The %s handle has no suffix." mt.FullMatch)
+            |   Regex3(shorthandSecondary) (mt, prs) -> FallibleOption.Value(prs, ShortHandSecondary mt.ge1),prs.Messages
+            |   Regex3(illShorthandSecondary) _ -> pst.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrShorthandSecondary (lazy "The !! handle has no suffix.")
+            |   Regex3(shorthandPrimary) (mt, prs) -> FallibleOption.Value(prs, ShortHandPrimary mt.ge1),prs.Messages
+            |   Regex3(this.``c-non-specific-tag``) (_, prs) -> FallibleOption.Value(prs, NonSpecificQT),prs.Messages
+            |   _ -> FallibleOption.NoResult(), ps.Messages
             |> FallibleOption.map(fun (p,t) -> p,(t,pst.Location))
 
         let matchTagAnchor pst =
@@ -1288,11 +1242,11 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (anchor)
                 |> FallibleOption.map(fun (psa,a) -> (psa, tg, a))
 
-            let tg = (pst|> tag)
+            let (tg, pm) = (pst|> tag)
             match tg.Result with
-            |   FallibleOption.NoResult    -> afterTag pst (TagKind.Empty, pst.Location)
-            |   FallibleOption.Value       -> tg.Data ||>  afterTag 
-            |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult (tg.Error)
+            |   FallibleOptionValue.NoResult    -> afterTag pst (TagKind.Empty, pst.Location)
+            |   FallibleOptionValue.Value       -> tg.Data ||>  afterTag 
+            |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
             |   _   -> failwith "Illegal value for tg"
 
         let matchAnchorTag pst =
@@ -1301,25 +1255,24 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 |> ParseState.``Match and Advance`` (OPT(this.``s-separate`` ps)) (tag)
                 |> FallibleOption.map(fun (psa,t) -> (psa, t, anch))
 
-            let anch = (pst|> anchor)
+            let (anch, pm) = (pst|> anchor)
             match anch.Result with
-            |   FallibleOption.NoResult     -> afterAnchor pst ("",pst.Location)
-            |   FallibleOption.Value        -> anch.Data ||> afterAnchor 
-            |   FallibleOption.ErrorResult  -> FallibleOption<_,_>.ErrorResult (anch.Error)
+            |   FallibleOptionValue.NoResult     -> afterAnchor pst ("",pst.Location)
+            |   FallibleOptionValue.Value        -> anch.Data ||> afterAnchor 
+            |   FallibleOptionValue.ErrorResult  -> FallibleOption.ErrorResult(), pm
             |   _   -> failwith "Illegal value for tg"
 
         (ps |> ParseState.OneOf) {
             either (matchTagAnchor)
             either (matchAnchorTag)
-            ifneither(FallibleOption<_,_>.NoResult())
+            ifneither(FallibleOption.NoResult())
         }
-        |> fun struct (ct,pso) -> 
-                let outErrors = ct.Messages.Error |> Map.toList |> List.map snd |> List.collect id
-                pso.Result |>
+        |> fun ct -> 
+                ct.Result.Result |>
                 function 
-                |   FallibleOption.NoResult     -> ParseState.PreserveNoResult outErrors
-                |   FallibleOption.Value        -> FallibleOption<_,_>.Value (pso.Data)
-                |   FallibleOption.ErrorResult  -> FallibleOption<_,_>.ErrorResult (pso.Error)
+                |   FallibleOptionValue.NoResult     -> ParseState.PreserveNoResult ct, ct.Messages
+                |   FallibleOptionValue.Value        -> FallibleOption.Value (ct.Result.Data), ct.Messages
+                |   FallibleOptionValue.ErrorResult  -> FallibleOption.ErrorResult(), ct.Messages
                 |   _   -> failwith "Illegal value"
             
 
@@ -1351,8 +1304,8 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             prs |> ParseState.``Match and Parse`` (this.``ns-anchor-name``) (fun mt prs2 ->
                 let retrievedAnchor = ps.GetAnchor mt
                 match retrievedAnchor with
-                |   Some ra -> FallibleOption<_,_>.Value(ra, prs2)
-                |   None    -> FallibleOption<_,_>.ErrorResult  [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrAnchorNotExists (lazy sprintf "Referenced anchor '%s' is unknown." mt)]
+                |   Some ra -> (FallibleOption.Value(ra, prs2), prs2.Messages)
+                |   None    -> (prs2.AddErrorMessage <|  MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrAnchorNotExists (lazy sprintf "Referenced anchor '%s' is unknown." mt))
                
         ))
         |> ParseState.TrackParseLocation ps
@@ -1418,9 +1371,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             |   Context.``Block-key`` | Context.``Flow-key`` -> //  single line
                 processSingleLine prs content
             | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
-        |   Regex3(``illegal-chars``) _ -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrDquoteIllegalChars (lazy "Literal string contains illegal characters.")]
-        |   Regex3(``illegal-patt``) _  -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingDquote (lazy "Missing \" in string literal.")]
-        |   _ -> FallibleOption<_,_>.NoResult()
+        |   Regex3(``illegal-chars``) _ -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrDquoteIllegalChars (lazy "Literal string contains illegal characters.")
+        |   Regex3(``illegal-patt``) _  -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingDquote (lazy "Missing \" in string literal.")
+        |   _ -> FallibleOption.NoResult(), ps.Messages
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-double-quoted" ps        
 
@@ -1500,8 +1453,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 processSingleLine prs content
             | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
         |   Regex3(``illegal-patt``) _ ->
-            FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingSquote (lazy "Missing \' in string literal.")]
-        |   _ -> FallibleOption<_,_>.NoResult()
+            MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingSquote (lazy "Missing \' in string literal.")
+            |>  ps.AddErrorMessage
+        |   _ -> FallibleOption.NoResult(), ps.Messages
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-single-quoted" ps        
 
@@ -1603,17 +1557,18 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> this.PostProcessAndValidateNode
                     )
 
-            let nssflowseqentries = (this.``ns-s-flow-seq-entries`` prs)
+            let (nssflowseqentries,pm) = (this.``ns-s-flow-seq-entries`` prs)
             match  nssflowseqentries.Result with
-            |   FallibleOption.Value  ->
+            |   FallibleOptionValue.Value  ->
                 let (c, prs2) = nssflowseqentries.Data
                 prs2 
-                |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> FallibleOption<_,_>.Value (c, psx))
+                |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> FallibleOption.Value (c, psx), pm)
                 |> FallibleOption.ifnoresult(fun () -> 
-                    FallibleOption<_,_>.ErrorResult ((prs2.Messages.Error |> Map.toList |> List.map snd |> List.collect id) @ [MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect sequence syntax, are you missing a comma, or ]?")])
+                    MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect sequence syntax, are you missing a comma, or ]?")
+                    |>  prs2.AddErrorMessage
                 )
-            |   FallibleOption.NoResult -> prs |> noResult
-            |   FallibleOption.ErrorResult -> prs |> ParseState.AddErrorMessageList (nssflowseqentries.Error) |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption<_,_>.ErrorResult nssflowseqentries.Error)
+            |   FallibleOptionValue.NoResult -> prs |> noResult
+            |   FallibleOptionValue.ErrorResult -> prs |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
             | _ -> failwith "Illegal value for nssflowseqentries"
 
         )
@@ -1632,21 +1587,21 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> this.ResolveTag psr NonSpecificQM (psr.Location)
                     |> this.PostProcessAndValidateNode
 
-            let nsflowseqentry =(this.``ns-flow-seq-entry`` psp)
+            let (nsflowseqentry,pm) =(this.``ns-flow-seq-entry`` psp)
             match  nsflowseqentry.Result with
-            |   FallibleOption.Value ->
+            |   FallibleOptionValue.Value ->
                 let (entry, prs) = nsflowseqentry.Data
                 let lst = entry :: lst
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
                 let commaPattern = this.``c-collect-entry`` + OPT(this.``s-separate`` prs)
                 match prs with 
-                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst |> ParseState.MarkParseRange prs
+                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst
                 |   _ ->  
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
-            |   FallibleOption.NoResult     -> psp |> noResult (FallibleOption<_,_>.NoResult())
-            |   FallibleOption.ErrorResult  -> psp |> ParseState.AddErrorMessageList (nsflowseqentry.Error) |> noResult (FallibleOption<_,_>.ErrorResult (nsflowseqentry.Error))
+            |   FallibleOptionValue.NoResult     -> psp |> noResult (FallibleOption.NoResult(), pm)
+            |   FallibleOptionValue.ErrorResult  -> psp |> noResult (FallibleOption.ErrorResult(), pm)
             | _ -> failwith "Illegal value for nsflowseqentry"
 
         ``ns-s-flow-seq-entries`` ps []
@@ -1660,7 +1615,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         (ps |> ParseState.OneOf) {
             either(this.``ns-flow-pair`` >> FallibleOption.bind(fun ((ck, cv), prs) -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) [(ck,cv)] |> this.ResolveTag prs NonSpecificQM (prs.Location)))
             either(this.``ns-flow-node``)
-            ifneither(FallibleOption<_,_>.NoResult())
+            ifneither(FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -1672,18 +1627,21 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         logger "c-flow-mapping" ps
         ps |> ParseState.``Match and Advance`` (this.``c-mapping-start`` + OPT(this.``s-separate`` ps)) (fun prs ->
             let prs = prs.SetStyleContext(this.``in-flow`` prs)
-            let mres = this.``ns-s-flow-map-entries`` prs
+            let (mres,pm) = this.``ns-s-flow-map-entries`` prs
 
             let noResult prs = prs |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQM (prs2.Location))
 
             match mres.Result with
-            |   FallibleOption.Value  -> 
+            |   FallibleOptionValue.Value  -> 
                 let (c, prs2) = mres.Data
                 prs2 
-                |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> FallibleOption<_,_>.Value(c, prs2))
-                |> FallibleOption.ifnoresult(fun () -> FallibleOption<_,_>.ErrorResult ((prs2.Messages.Error  |> Map.toList |> List.map snd |> List.collect id) @ [MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect mapping syntax, are you missing a comma, or }?")]))
-            |   FallibleOption.NoResult     -> prs |> noResult 
-            |   FallibleOption.ErrorResult  -> prs |> ParseState.AddErrorMessageList (mres.Error) |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption<_,_>.ErrorResult (mres.Error))
+                |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> FallibleOption.Value(c, prs2), prs2.Messages)
+                |> FallibleOption.ifnoresult(fun () ->
+                    MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect mapping syntax, are you missing a comma, or }?")
+                    |>  prs2.AddErrorMessage
+                )
+            |   FallibleOptionValue.NoResult     -> prs |> noResult 
+            |   FallibleOptionValue.ErrorResult  -> prs |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
             | _ -> failwith "Illegal value for mres"
                
         )
@@ -1702,21 +1660,21 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> this.ResolveTag psr NonSpecificQM (psr.Location)
                     |> this.PostProcessAndValidateNode
 
-            let nsflowmapentry = (this.``ns-flow-map-entry`` psp) 
+            let (nsflowmapentry,pm) = (this.``ns-flow-map-entry`` psp) 
             match nsflowmapentry.Result with
-            |   FallibleOption.Value  -> 
+            |   FallibleOptionValue.Value  -> 
                 let ((ck, cv), prs) = nsflowmapentry.Data
                 let lst = (ck, cv) :: lst
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
                 let commaPattern = this.``c-collect-entry`` + OPT(this.``s-separate`` prs)
                 match prs with
-                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst |> ParseState.MarkParseRange prs
+                |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst
                 |   _ -> 
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst  
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
-            |   FallibleOption.NoResult -> psp |> noResult (FallibleOption<_,_>.NoResult())
-            |   FallibleOption.ErrorResult -> psp |> ParseState.AddErrorMessageList (nsflowmapentry.Error) |> noResult (FallibleOption<_,_>.ErrorResult (nsflowmapentry.Error))
+            |   FallibleOptionValue.NoResult -> psp |> noResult (FallibleOption.NoResult(),pm)
+            |   FallibleOptionValue.ErrorResult -> psp |> noResult (FallibleOption.ErrorResult(), pm)
             | _ -> failwith "Illegal value for nsflowmapentry"
 
         ``ns-s-flow-map-entries`` ps []
@@ -1731,7 +1689,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-map-implicit-entry``)
-            ifneither (FallibleOption<_,_>.NoResult())        
+            ifneither (FallibleOption.NoResult())        
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -1740,13 +1698,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [143]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-explicit-entry(n,c)
     member this.``ns-flow-map-explicit-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-map-explicit-entry" ps
-        let nsflowmapimplicitentry = (this.``ns-flow-map-implicit-entry`` ps)
+        let (nsflowmapimplicitentry,pm) = (this.``ns-flow-map-implicit-entry`` ps)
         match  nsflowmapimplicitentry.Result with
-        |   FallibleOption.Value -> FallibleOption<_,_>.Value (nsflowmapimplicitentry.Data)
-        |   FallibleOption.NoResult -> FallibleOption<_,_>.Value((this.ResolvedNullNode ps, this.ResolvedNullNode ps), ps)       // ( ``e-node`` + ``e-node``)
-        |   FallibleOption.ErrorResult -> 
-            let ps = ps |> ParseState.AddErrorMessageList nsflowmapimplicitentry.Error
-            FallibleOption<_,_>.Value((this.ResolvedNullNode ps, this.ResolvedNullNode ps), ps)       // ( ``e-node`` + ``e-node``)
+        |   FallibleOptionValue.Value -> FallibleOption.Value (nsflowmapimplicitentry.Data), pm
+        |   FallibleOptionValue.NoResult -> FallibleOption.Value((this.ResolvedNullNode ps, this.ResolvedNullNode ps), ps), pm       // ( ``e-node`` + ``e-node``)
+        |   FallibleOptionValue.ErrorResult -> 
+            FallibleOption.Value((this.ResolvedNullNode ps, this.ResolvedNullNode ps), ps),pm       // ( ``e-node`` + ``e-node``)
         | _ -> failwith "Illegal value for nsflowmapimplicitentry"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-explicit-entry" ps       
@@ -1758,7 +1715,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``ns-flow-map-yaml-key-entry``)
             either (this.``c-ns-flow-map-empty-key-entry``)
             either (this.``c-ns-flow-map-json-key-entry``)
-            ifneither (FallibleOption<_,_>.NoResult())        
+            ifneither (FallibleOption.NoResult())        
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -1767,23 +1724,22 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [145]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-yaml-key-entry(n,c)
     member this.``ns-flow-map-yaml-key-entry`` (ps:ParseState) =
         logger "ns-flow-map-yaml-key-entry" ps
-        let nsflowyamlnode = (this.``ns-flow-yaml-node`` (ps |> ParseState.RestrictMultiLine)) 
+        let (nsflowyamlnode,pm) = (this.``ns-flow-yaml-node`` (ps |> ParseState.RestrictMultiLine)) 
         match nsflowyamlnode.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let  (ck, prs) = nsflowyamlnode.Data
             let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs)) |> ParseState.ResetRestrictions
-            let cnsflowmapseparatevalue = (this.``c-ns-flow-map-separate-value`` prs) 
+            let (cnsflowmapseparatevalue,pm2) = (this.``c-ns-flow-map-separate-value`` prs) 
             match cnsflowmapseparatevalue.Result with
-            |   FallibleOption.Value -> 
+            |   FallibleOptionValue.Value -> 
                 let (cv, prs2)  = cnsflowmapseparatevalue.Data
-                FallibleOption<_,_>.Value((ck,cv), prs2)
-            |   FallibleOption.NoResult -> FallibleOption<_,_>.Value((ck, this.ResolvedNullNode prs), prs)  //  ``e-node``
-            |   FallibleOption.ErrorResult -> 
-                let prs = prs |> ParseState.AddErrorMessageList cnsflowmapseparatevalue.Error
-                FallibleOption<_,_>.Value((ck, this.ResolvedNullNode prs), prs)  //  ``e-node``
+                FallibleOption.Value((ck,cv), prs2),pm2 
+            |   FallibleOptionValue.NoResult -> FallibleOption.Value((ck, this.ResolvedNullNode prs), prs), pm2  //  ``e-node``
+            |   FallibleOptionValue.ErrorResult -> 
+                FallibleOption.Value((ck, this.ResolvedNullNode prs), prs),pm2  //  ``e-node``
             | _ -> failwith "Illegal value for cnsflowmapseparatevalue"
-        |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult nsflowyamlnode.Error
+        |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for nsflowyamlnode"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-map-yaml-key-entry" ps     
@@ -1791,13 +1747,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [146]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-empty-key-entry(n,c)
     member this.``c-ns-flow-map-empty-key-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-ns-flow-map-empty-key-entry" ps
-        let cnsflowmapseparatevalue = (this.``c-ns-flow-map-separate-value`` ps) 
+        let (cnsflowmapseparatevalue,pm) = (this.``c-ns-flow-map-separate-value`` ps) 
         match cnsflowmapseparatevalue.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let (c, prs) = cnsflowmapseparatevalue.Data
-            FallibleOption<_,_>.Value((this.ResolvedNullNode prs, c), prs)   //  ``e-node``
-        |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult (cnsflowmapseparatevalue.Error)
+            FallibleOption.Value((this.ResolvedNullNode prs, c), prs), pm   //  ``e-node``
+        |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for cnsflowmapseparatevalue"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-flow-map-empty-key-entry" ps     
@@ -1806,15 +1762,14 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``c-ns-flow-map-separate-value`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-ns-flow-map-separate-value" ps
         ps |> ParseState.``Match and Advance`` this.``c-mapping-value`` (fun prs ->
-            if IsMatch(prs.Input.Data, (this.``ns-plain-safe`` prs)) then FallibleOption<_,_>.NoResult()
+            if IsMatch(prs.Input.Data, (this.``ns-plain-safe`` prs)) then FallibleOption.NoResult(), prs.Messages
             else
-                let nsflownode = prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
+                let (nsflownode,pm) = prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
                 match nsflownode.Result with
-                |   FallibleOption.ErrorResult ->
-                    let prs = prs |> ParseState.AddErrorMessageList (nsflownode.Error)
+                |   FallibleOptionValue.ErrorResult ->
                     PlainEmptyNode (getParseInfo ps prs) |> this.ResolveTag prs NonSpecificQM (prs.Location)  //  ``e-node``
-                |   FallibleOption.NoResult -> PlainEmptyNode (getParseInfo ps prs) |> this.ResolveTag prs NonSpecificQM (prs.Location) //  ``e-node``
-                |   _  -> nsflownode
+                |   FallibleOptionValue.NoResult -> PlainEmptyNode (getParseInfo ps prs) |> this.ResolveTag prs NonSpecificQM (prs.Location) //  ``e-node``
+                |   _  -> nsflownode, pm
         )
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-flow-map-separate-value" ps     
@@ -1822,39 +1777,37 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [148]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-json-key-entry(n,c)
     member this.``c-ns-flow-map-json-key-entry`` (ps:ParseState) =
         logger "c-ns-flow-map-json-key-entry" ps
-        let cflowjsonnode = (this.``c-flow-json-node`` ps) 
+        let (cflowjsonnode,pm) = (this.``c-flow-json-node`` ps) 
         match cflowjsonnode.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let (ck, prs) = cflowjsonnode.Data
             let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
-            let cnsflowmapadjacentvalue = (this.``c-ns-flow-map-adjacent-value`` prs) 
+            let (cnsflowmapadjacentvalue,pm2) = (this.``c-ns-flow-map-adjacent-value`` prs) 
             match cnsflowmapadjacentvalue.Result with
-            |   FallibleOption.Value  -> 
+            |   FallibleOptionValue.Value  -> 
                 let (cv, prs2) = cnsflowmapadjacentvalue.Data
-                FallibleOption<_,_>.Value((ck,cv), prs2)
-            |   FallibleOption.NoResult -> FallibleOption<_,_>.Value((ck, this.ResolvedNullNode prs), prs)  //  ``e-node``
-            |   FallibleOption.ErrorResult -> 
-                let prs = prs |> ParseState.AddErrorMessageList cnsflowmapadjacentvalue.Error
-                FallibleOption<_,_>.Value((ck, this.ResolvedNullNode prs), prs)  //  ``e-node``
+                FallibleOption.Value((ck,cv), prs2), pm2
+            |   FallibleOptionValue.NoResult -> FallibleOption.Value((ck, this.ResolvedNullNode prs), prs), pm2  //  ``e-node``
+            |   FallibleOptionValue.ErrorResult -> 
+                FallibleOption.Value((ck, this.ResolvedNullNode prs), prs), pm2  //  ``e-node``
             | _ -> failwith "Illegal value for cnsflowmapadjacentvalue"
-        |   FallibleOption.NoResult -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult cflowjsonnode.Error
+        |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm 
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for cflowjsonnode"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-ns-flow-map-json-key-entry" ps
 
     //  [149]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-adjacent-value(n,c)
-    member this.``c-ns-flow-map-adjacent-value`` (ps:ParseState) : FallibleOption<_,_> =
+    member this.``c-ns-flow-map-adjacent-value`` (ps:ParseState) : FallibleOption<_>*ParseMessage =
         logger "c-ns-flow-map-adjacent-value" ps
         ps |> ParseState.``Match and Advance`` (this.``c-mapping-value``) (fun prs ->
             let prs = prs.SkipIfMatch (OPT(this.``s-separate`` ps))
-            let nsflownode = (this.``ns-flow-node`` prs) 
+            let (nsflownode,pm) = (this.``ns-flow-node`` prs) 
             match nsflownode.Result  with
-            |   FallibleOption.Value -> FallibleOption<_,_>.Value <| nsflownode.Data
-            |   FallibleOption.NoResult -> FallibleOption<_,_>.Value(this.ResolvedNullNode prs, prs)  //  ``e-node``
-            |   FallibleOption.ErrorResult -> 
-                let prs = prs |> ParseState.AddErrorMessageList (nsflownode.Error)
-                FallibleOption<_,_>.Value(this.ResolvedNullNode prs, prs)  //  ``e-node``
+            |   FallibleOptionValue.Value -> FallibleOption.Value <| nsflownode.Data, pm
+            |   FallibleOptionValue.NoResult -> FallibleOption.Value(this.ResolvedNullNode prs, prs), pm  //  ``e-node``
+            |   FallibleOptionValue.ErrorResult -> 
+                FallibleOption.Value(this.ResolvedNullNode prs, prs), pm  //  ``e-node``
             | _ -> failwith "Illegal value for nsflownode"
         )
         |> ParseState.TrackParseLocation ps
@@ -1868,9 +1821,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         (ps |> ParseState.OneOf) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-pair-entry``)
-            ifneither (FallibleOption<_,_>.NoResult())        
+            ifneither (FallibleOption.NoResult())        
         }
-        |> ParseState.PreserveErrors ps
+        |> ParseState.PreserveErrors ps 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-flow-pair" ps
 
@@ -1881,7 +1834,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``ns-flow-pair-yaml-key-entry``)
             either (this.``c-ns-flow-map-empty-key-entry``)
             either (this.``c-ns-flow-pair-json-key-entry``)
-            ifneither (FallibleOption<_,_>.NoResult())        
+            ifneither (FallibleOption.NoResult())        
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -1891,20 +1844,20 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``ns-flow-pair-yaml-key-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-pair-yaml-key-entry" ps
         let ``ns-s-implicit-yaml-key`` (ps:ParseState) = (this.``ns-s-implicit-yaml-key`` (ps.SetStyleContext Context.``Flow-key``))
-        let nssimplicityamlkey = (``ns-s-implicit-yaml-key`` ps) 
+        let (nssimplicityamlkey, pm) = (``ns-s-implicit-yaml-key`` ps) 
         match nssimplicityamlkey.Result with
-        |   FallibleOption.Value ->
+        |   FallibleOptionValue.Value ->
             let (ck, prs) = nssimplicityamlkey.Data
-            let cnsflowmapseparatevalue = (this.``c-ns-flow-map-separate-value`` prs) 
+            let (cnsflowmapseparatevalue, pm2) = (this.``c-ns-flow-map-separate-value`` prs) 
             match cnsflowmapseparatevalue.Result with
-            |   FallibleOption.Value -> 
+            |   FallibleOptionValue.Value -> 
                 let (cv, prs2) = cnsflowmapseparatevalue.Data
-                FallibleOption<_,_>.Value((ck, cv), prs2)
-            |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-            |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult cnsflowmapseparatevalue.Error
+                FallibleOption.Value((ck, cv), prs2), pm2
+            |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm2
+            |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm2
             | _ -> failwith "Illegal value for cnsflowmapseparatevalue"
-        |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult nssimplicityamlkey.Error
+        |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for nssimplicityamlkey"
         |> ParseState.TrackParseLocation ps
         |> ParseState.ResetEnv ps
@@ -1913,20 +1866,20 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [153]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-pair-json-key-entry(n,c)
     member this.``c-ns-flow-pair-json-key-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-ns-flow-pair-json-key-entry" ps
-        let cssimplicitjsonkey = (this.``c-s-implicit-json-key`` (ps.SetStyleContext Context.``Flow-key``)) 
+        let (cssimplicitjsonkey,pm) = (this.``c-s-implicit-json-key`` (ps.SetStyleContext Context.``Flow-key``)) 
         match cssimplicitjsonkey.Result with
-        |   FallibleOption.Value ->
+        |   FallibleOptionValue.Value ->
             let (ck, prs) = cssimplicitjsonkey.Data
-            let cnsflowmapadjacentvalue = (this.``c-ns-flow-map-adjacent-value`` prs) 
+            let (cnsflowmapadjacentvalue, pm2) = (this.``c-ns-flow-map-adjacent-value`` prs) 
             match cnsflowmapadjacentvalue.Result with
-            |   FallibleOption.Value -> 
+            |   FallibleOptionValue.Value -> 
                 let (cv, prs2) = cnsflowmapadjacentvalue.Data
-                FallibleOption<_,_>.Value((ck, cv), prs2)
-            |   FallibleOption.NoResult -> FallibleOption<_,_>.NoResult()
-            |   FallibleOption.ErrorResult  -> FallibleOption<_,_>.ErrorResult cnsflowmapadjacentvalue.Error
+                FallibleOption.Value((ck, cv), prs2), pm2
+            |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm2
+            |   FallibleOptionValue.ErrorResult  -> FallibleOption.ErrorResult(), pm2
             | _ -> failwith "Illegal value for cnsflowmapadjacentvalue"
-        |   FallibleOption.NoResult -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult cssimplicitjsonkey.Error
+        |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for cssimplicitjsonkey"
         |> ParseState.TrackParseLocation ps
         |> ParseState.ResetEnv ps
@@ -1937,16 +1890,17 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         logger "ns-s-implicit-yaml-key" ps
 //        let ``n/a`` = 0
 //        let ps = ps.SetIndent ``n/a``
-        let nsflowyamlnode = (this.``ns-flow-yaml-node`` (ps |> ParseState.ResetTrackLength |> ParseState.RestrictMultiLine)) 
+        let (nsflowyamlnode,pm) = (this.``ns-flow-yaml-node`` (ps |> ParseState.ResetTrackLength |> ParseState.RestrictMultiLine)) 
         match nsflowyamlnode.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let (ck, prs) = nsflowyamlnode.Data
             let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
             if prs.TrackLength > 1024 then
-                FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrLengthExceeds1024 (lazy "The mapping key is too long. The maximum allowed length is 1024.)")]
-            else FallibleOption<_,_>.Value(ck, prs)
-        |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult (nsflowyamlnode.Error)
+                MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrLengthExceeds1024 (lazy "The mapping key is too long. The maximum allowed length is 1024.)")
+                |>  prs.AddErrorMessage
+            else FallibleOption.Value(ck, prs), pm
+        |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for nsflowyamlnode"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-s-implicit-yaml-key" ps
@@ -1956,17 +1910,18 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         logger "c-s-implicit-json-key" ps
 //        let ``n/a`` = 0
 //        let ps = ps.SetIndent ``n/a``
-        let cflowjsonnode = (this.``c-flow-json-node`` (ps |> ParseState.ResetTrackLength |> ParseState.RestrictMultiLine)) 
+        let (cflowjsonnode,pm) = (this.``c-flow-json-node`` (ps |> ParseState.ResetTrackLength |> ParseState.RestrictMultiLine)) 
         match cflowjsonnode.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let (c, prs) = cflowjsonnode.Data
             if prs.TrackLength > 1024 then
-                FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrLengthExceeds1024 (lazy "The mapping key is too long. The maximum allowed length is 1024.)")]
+                MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrLengthExceeds1024 (lazy "The mapping key is too long. The maximum allowed length is 1024.)")
+                |>  prs.AddErrorMessage
             else 
                 let prs = prs.SkipIfMatch (OPT(this.``s-separate-in-line``))
-                FallibleOption<_,_>.Value(c, prs)
-        |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult cflowjsonnode.Error
+                FallibleOption.Value(c, prs), pm
+        |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for cflowjsonnode"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "c-s-implicit-json-key" ps
@@ -1986,17 +1941,19 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 (this.``ns-plain-one-line`` ps) + OOM(this.``s-ns-plain-next-line`` ps)
             let callMemoized = this.Memoize memFunc
             callMemoized (1561, ps.n, ps.c) ps
-        let preErr = 
+        let (preErr, pm) = 
+            let pm = ps.Messages
             if not(ps.Restrictions.AllowedMultiLine) then 
                 match ps.c with
-                | Context.``Flow-out``  | Context.``Flow-in``   -> FallibleOption<_,_>.NoResult()
+                | Context.``Flow-out``  | Context.``Flow-in``   -> FallibleOption.NoResult(), pm
                 | Context.``Block-key`` | Context.``Flow-key``  -> 
                     match ps with
                     |   Regex3(``illegl multiline`` ps) _ -> 
-                        FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrPlainScalarMultiLine (lazy "This plain scalar cannot span multiple lines; this restrictin applies to mapping keys.")]
-                    |   _ -> FallibleOption<_,_>.NoResult()
+                        MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrPlainScalarMultiLine (lazy "This plain scalar cannot span multiple lines; this restrictin applies to mapping keys.")
+                        |>  ps.AddErrorMessage
+                    |   _ -> FallibleOption.NoResult(), pm
                 | _  -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
-            else FallibleOption<_,_>.NoResult()
+            else FallibleOption.NoResult(), pm
 
         //  this is a 'hack', although the specs require mandatory whitespace in any non-empty line of a multiline plain scalar
         //  the regex does provide this mandatory rule.
@@ -2018,11 +1975,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             this.UncacheNode ck ps
         else
             match preErr.Result with
-            |   FallibleOption.NoResult ->
+            |   FallibleOptionValue.NoResult ->
                 match (ps.c, ps) with
                 |   Context.``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
                 |   Context.``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
+#if DEBUG
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+#endif
                     let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
                     |> this.``split by linefeed``
@@ -2033,7 +1992,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> this.CacheNode ck prs dl (mt.FullMatch.Length)
                 |   Context.``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
                 |   Context.``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
+#if DEBUG
                     logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+#endif
                     let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
                     mt.FullMatch
                     |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
@@ -2041,12 +2002,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> this.PostProcessAndValidateNode
                     |> this.CacheNode ck prs dl (mt.FullMatch.Length)
                 |   _, Regex3(``illegal-ns-plain`` ps) (_,prs) -> 
-                    FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrPlainScalarRestrictedIndicator (lazy "Reserved indicators can't start a plain scalar.")]
+                    MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrPlainScalarRestrictedIndicator (lazy "Reserved indicators can't start a plain scalar.")
+                    |> prs.AddErrorMessage
                     |> this.CacheNode ck prs (DocumentLocation.Empty) 0
                 |   Context.``Block-out``, _
                 |   Context.``Block-in``, _ -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
-                |   _ -> FallibleOption<_,_>.NoResult()
-            | x -> preErr
+                |   _ -> FallibleOption.NoResult(), pm
+            | x -> preErr, pm
         |> ParseState.ResetEnv ps 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-yaml-content" ps
@@ -2059,7 +2021,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``c-double-quoted``)
             either (this.``c-flow-mapping``)
             either (this.``c-flow-sequence``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2071,7 +2033,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         ps.OneOf {
             either (this.``ns-flow-yaml-content``)
             either (this.``c-flow-json-content``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2083,13 +2045,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         let ``ns-flow-yaml-content`` psp =
             psp 
             |> ParseState.``Match and Advance`` (this.``s-separate`` psp) (this.``ns-flow-yaml-content``)
-            |> FallibleOption.ifnoresult (fun () -> FallibleOption<_,_>.Value (PlainEmptyNode (getParseInfo ps psp), psp))    //  ``e-scalar`` None
+            |> FallibleOption.ifnoresult (fun () -> FallibleOption.Value (PlainEmptyNode (getParseInfo ps psp), psp), psp.Messages)    //  ``e-scalar`` None
 
         ps.OneOf {
             either (this.``c-ns-alias-node``)
             either (this.``ns-flow-yaml-content``)
             either (this.``content with properties`` ``ns-flow-yaml-content``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2103,7 +2065,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         ps.OneOf {
             either (this.``c-flow-json-content``)
             either (this.``content with properties`` ``c-flow-json-content``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2115,14 +2077,14 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         let ``ns-flow-content`` ps =
             ps |> ParseState.``Match and Advance`` (this.``s-separate`` ps) (this.``ns-flow-content``)
 
-        let ``empty content`` psp = FallibleOption<_,_>.Value (PlainEmptyNode (getParseInfo ps psp), psp) //  ``e-scalar`` None
+        let ``empty content`` psp = FallibleOption.Value (PlainEmptyNode (getParseInfo ps psp), psp), psp.Messages //  ``e-scalar`` None
     
         ps.OneOf {
             either (this.``c-ns-alias-node``)
             either (this.``ns-flow-content``)
             either (this.``content with properties`` ``ns-flow-content``)
             either (this.``content with properties`` ``empty content``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2141,30 +2103,29 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             if i = "" then None    
             else Some(Int32.Parse i)
 
-        let ``indent chomp`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
+        let ``indent chomp`` ps : FallibleOption<int option * ParseState> * ParseMessage = 
             let p = GRP(this.``c-indentation-indicator``) + GRP(this.``c-chomping-indicator``) + this.``s-b-comment``
             match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (i, c) = mt.ge2
-                FallibleOption<_,_>.Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance |> ParseState.TrackPosition mt.FullMatch)
-            |   _ -> FallibleOption<_,_>.NoResult()
+                FallibleOption.Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance |> ParseState.TrackPosition mt.FullMatch), ps.Messages
+            |   _ -> FallibleOption.NoResult(), ps.Messages
 
-        let ``chomp indent`` ps : FallibleOption<int option * ParseState,ErrorMessage> = 
+        let ``chomp indent`` ps : FallibleOption<int option * ParseState>* ParseMessage = 
             let p = GRP(this.``c-chomping-indicator``) + GRP(this.``c-indentation-indicator``) + this.``s-b-comment``
             match ps.Input.Data with
             | Regex2(p)  mt -> 
                 let (c, i) = mt.ge2
-                FallibleOption<_,_>.Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance |> ParseState.TrackPosition mt.FullMatch)
-            |   _ -> FallibleOption<_,_>.NoResult()
+                FallibleOption.Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance |> ParseState.TrackPosition mt.FullMatch), ps.Messages
+            |   _ -> FallibleOption.NoResult(), ps.Messages
 
-        let ``illformed chomping`` ps : FallibleOption<int option * ParseState,ErrorMessage> =
+        let ``illformed chomping`` ps : FallibleOption<int option * ParseState> * ParseMessage =
             let p = GRP(OOMNG(this.``nb-char``)) + this.``s-b-comment``
             match ps.Input.Data with
-            | Regex2(p)  mt -> 
-                FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrFoldedChompIndicator (lazy sprintf "Illegal chomp indicator '%s'" (mt.ge1))]
-            |   _ -> FallibleOption<_,_>.NoResult()
+            | Regex2(p)  mt -> ps.AddErrorMessage <| MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrFoldedChompIndicator (lazy sprintf "Illegal chomp indicator '%s'" (mt.ge1))
+            |   _ -> FallibleOption.NoResult(), ps.Messages
 
-        let nochomp = FallibleOption<_,_>.Value(None, ps.SetChomping Chomping.``Clip``)
+        let nochomp = FallibleOption.Value(None, ps.SetChomping Chomping.``Clip``)
         (ps |> ParseState.OneOf) {
             either(``indent chomp``)
             either(``chomp indent``)
@@ -2206,7 +2167,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``l-trail-comments`` ps = (this.``s-indent(<n)`` ps) + this.``c-nb-comment-text`` + this.``b-comment`` + ZOM(this.``l-comment``)
 
     //  [170]   http://www.yaml.org/spec/1.2/spec.html#c-l+literal(n)
-    member this.``c-l+literal`` ps = 
+    member this.``c-l+literal`` (ps:ParseState) = 
         logger "c-l+literal" ps
         let trimIndent pst (slist: string list) =
             let skipIndent s = 
@@ -2221,16 +2182,16 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
             let trimTail sin sout =
                 match sin with
-                |   []  -> sout |> List.rev |> FallibleOption<_,_>.Value
+                |   []  -> sout |> List.rev |> FallibleOption.Value, ps.Messages
                 |   h :: _ ->
                     let patt = this.``l-chomped-empty`` pst + RGP("\\z", [Token.EOF])
-                    if (h="") || IsMatchStr(h, patt) then sout |> List.rev |> FallibleOption<_,_>.Value
+                    if (h="") || IsMatchStr(h, patt) then sout |> List.rev |> FallibleOption.Value, ps.Messages
                     else 
-                        FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrBadFormatLiteral (lazy sprintf "Unexpected characters '%s'" h)]                    
+                        ps.AddErrorMessage <| MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrBadFormatLiteral (lazy sprintf "Unexpected characters '%s'" h) 
 
             let rec trimMain sin sout =
                 match sin with
-                |   []  -> sout |> List.rev |> FallibleOption<_,_>.Value
+                |   []  -> sout |> List.rev |> FallibleOption.Value, ps.Messages
                 |   h :: rest ->
                     if (h="") then 
                         trimMain rest (unIndent h :: sout)
@@ -2242,7 +2203,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
             let rec trimHead sin sout =
                 match sin with
-                |   []  -> sout |> List.rev |> FallibleOption<_,_>.Value
+                |   []  -> sout |> List.rev |> FallibleOption.Value, ps.Messages
                 |   h :: rest ->
                     if (h="") then
                         trimHead rest (unIndent h :: sout)
@@ -2250,7 +2211,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                         let tooManySpaces = RGSF((this.``s-indent(n)`` pst) + OOM(RGP (this.``s-space``, [Token.``t-space``])))
                         match h with
                         |   Regex(``l-empty``)  _ -> trimHead rest (unIndent h :: sout)
-                        |   Regex(tooManySpaces) _ -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (pst.Location) MessageCode.ErrTooManySpacesLiteral (lazy "A leading all-space line must not have too many spaces.")]
+                        |   Regex(tooManySpaces) _ -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (pst.Location) MessageCode.ErrTooManySpacesLiteral (lazy "A leading all-space line must not have too many spaces.")
                         |   _ -> trimMain sin sout
             trimHead slist []
 
@@ -2266,31 +2227,31 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
                     let p = this.``l-literal-content`` ps
                     match ps.Input.Data  with
-                    |   Regex2(p)  m -> FallibleOption<_,_>.Value(m.ge1, ps |> ParseState.TrackPosition m.FullMatch)
-                    |   _ -> FallibleOption<_,_>.NoResult()
+                    |   Regex2(p)  m -> FallibleOption.Value(m.ge1, ps |> ParseState.TrackPosition m.FullMatch), ps.Messages
+                    |   _ -> FallibleOption.NoResult(), ps.Messages
                 (this.``c-b-block-header`` prs)
                 |> FallibleOption.bind(fun (pm, prs2) ->
                     match pm with
-                    |   Some(m) -> FallibleOption<_,_>.Value m
+                    |   Some(m) -> FallibleOption.Value m, prs2.Messages
                     |   None    ->
-                        let literalcontent = (``literal-content`` prs2) 
+                        let (literalcontent, pm2) = (``literal-content`` prs2) 
                         match literalcontent.Result with
-                        |   FallibleOption.Value ->  
+                        |   FallibleOptionValue.Value ->  
                             let (ms, _) = literalcontent.Data
                             let split = ms |> this.``split by linefeed`` 
                             let aut = split |> this.``auto detect indent in block`` prs2.n
                             if aut < 0 then failwith "Autodetected indentation is less than zero"
                             prs2.Input.Reset()
-                            FallibleOption<_,_>.Value aut
-                        |   _  -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '|'")]
+                            FallibleOption.Value aut, pm2
+                        |   _  -> prs2.AddErrorMessage <| MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '|'")
                     |> FallibleOption.bind(fun m ->
                         (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
                         |> FallibleOption.bind(fun (ms, ps2) ->  
                             if ms = "" then
-                                let detectLessIndented = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
+                                let (detectLessIndented, pm) = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
                                 match detectLessIndented.Result with
-                                |   FallibleOption.Value ->  FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "The text is less indented than the indicated level.")]
-                                |   _ -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrBadFormatLiteral (lazy "The literal has bad syntax.")]
+                                |   FallibleOptionValue.Value ->  ps2.AddErrorMessage <| MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "The text is less indented than the indicated level.")
+                                |   _ -> ps2.AddErrorMessage <| MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrBadFormatLiteral (lazy "The literal has bad syntax.")
                             else
                                 let dl = ParseState.PositionDelta ms ||> DocumentLocation.Create
                                 let split = ms |> this.``split by linefeed`` 
@@ -2390,24 +2351,24 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     let ps = if ps.n < 1 then ps.SetIndent 1 else ps
                     let patt = this.``l-folded-content`` (ps.FullIndented)
                     match ps with
-                    |   Regex3(patt)  (m,p) -> FallibleOption<_,_>.Value(m.ge1, p |> ParseState.TrackPosition m.FullMatch)
-                    |   _ -> FallibleOption<_,_>.NoResult()
+                    |   Regex3(patt)  (m,p) -> FallibleOption.Value(m.ge1, p |> ParseState.TrackPosition m.FullMatch), ps.Messages
+                    |   _ -> FallibleOption.NoResult(), ps.Messages
 
                 (this.``c-b-block-header`` prs)
                 |> FallibleOption.bind(fun (pm, prs2) -> 
                     match pm with
-                    |   Some(m) -> FallibleOption<_,_>.Value m
+                    |   Some(m) -> FallibleOption.Value m, prs2.Messages
                     |   None    ->
-                        let foldedcontent = (``folded-content`` prs2) 
+                        let (foldedcontent, pm2) = (``folded-content`` prs2) 
                         match foldedcontent.Result with
-                        |   FallibleOption.Value ->  
+                        |   FallibleOptionValue.Value ->  
                             let (ms, _) = foldedcontent.Data
                             let split = ms |> this.``split by linefeed`` 
                             let aut = split |> this.``auto detect indent in block`` prs2.n
                             if aut < 0 then failwith "Autodetected indentation is less than zero"
                             prs2.Input.Reset()
-                            FallibleOption<_,_>.Value aut
-                        |   _  -> FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '>'")]
+                            FallibleOption.Value aut, pm2
+                        |   _  -> prs2.AddErrorMessage <| MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '>'")
                     |> FallibleOption.bind(fun m ->
                         let mapScalar (s, prs) =  
                             CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
@@ -2422,7 +2383,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                                 |> ``block fold lines`` ps2
                                 |> this.``chomp lines`` ps2 
                                 |> this.``join lines``
-                            FallibleOption<_,_>.Value(s, ps2 |> ParseState.Advance)
+                            (FallibleOption.Value(s, ps2 |> ParseState.Advance), prs.Messages)
                             |> FallibleOption.bind mapScalar
                             |> this.PostProcessAndValidateNode
                             |> this.CacheNode ck prs dl (ms.Length)
@@ -2470,9 +2431,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         let m = this.``auto detect indent in line`` ps
         if m < 1 then 
             if ps.Input.Peek().Token = Token.``t-quotationmark`` then
-                FallibleOption<_,_>.ErrorResult [CreateErrorMessage.TabIndentError ps]
+                ps.AddErrorMessage <| CreateErrorMessage.TabIndentError ps
             else
-                FallibleOption<_,_>.NoResult()
+                FallibleOption.NoResult(), ps.Messages
         else
             let rec ``l+block-sequence`` (psp:ParseState) (acc: Node list) =
                 let contentOrNone rs psr = 
@@ -2483,17 +2444,17 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                             |> this.ResolveTag psp NonSpecificQM (psp.Location)
                             |> this.PostProcessAndValidateNode
                     else
-                        let prsc = psr |> ParseState.ProcessErrors
-                        FallibleOption<_,_>.ErrorResult (prsc.Messages.Error  |> Map.toList |> List.map snd |> List.collect id)
+                        //let prsc = psr |> ParseState.ProcessErrors
+                        FallibleOption.ErrorResult(), psr.Messages
 
                 let pspf = psp.FullIndented
-                let clblockseqentry = pspf |> ParseState.``Match and Advance`` (this.``s-indent(n)`` pspf) (this.``c-l-block-seq-entry``)
+                let (clblockseqentry, pm) = pspf |> ParseState.``Match and Advance`` (this.``s-indent(n)`` pspf) (this.``c-l-block-seq-entry``)
                 match clblockseqentry.Result with
-                |   FallibleOption.Value -> 
+                |   FallibleOptionValue.Value -> 
                     let (c, prs2) = clblockseqentry.Data
                     ``l+block-sequence`` prs2 (c :: acc)
-                |   FallibleOption.NoResult       -> contentOrNone (FallibleOption<_,_>.NoResult()) psp
-                |   FallibleOption.ErrorResult    -> psp |> ParseState.AddErrorMessageList clblockseqentry.Error |> contentOrNone (FallibleOption<_,_>.ErrorResult clblockseqentry.Error)
+                |   FallibleOptionValue.NoResult       -> psp |> contentOrNone (FallibleOption.NoResult(), pm)
+                |   FallibleOptionValue.ErrorResult    -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
                 | _ -> failwith "Illegal value for clblockseqentry"
             let ps = ps.SetSubIndent m
             ``l+block-sequence`` ps []
@@ -2507,7 +2468,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
         ps |> ParseState.``Match and Advance`` (RGP("-", [Token.``t-hyphen``])) (fun prs ->
             if IsMatch(prs.Input.Data, (this.``ns-char``)) then // Not followed by an ns-char
-                FallibleOption<_,_>.NoResult()
+                FallibleOption.NoResult(), prs.Messages
             else
                 //prs.Input.Reset()
                 let prs = prs.SetStyleContext Context.``Block-in``
@@ -2531,7 +2492,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     {
                         either (this.``ns-l-compact-sequence``)
                         either (this.``ns-l-compact-mapping``)
-                        ifneither (FallibleOption<_,_>.NoResult())
+                        ifneither (FallibleOption.NoResult())
                     }
                     |> ParseState.PreserveErrors ps
             )
@@ -2541,7 +2502,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             either (this.``s-l+block-node``)
             ifneitherfn (fun() ->
                 let prs2 = ps.SkipIfMatch (this.``e-node`` + this.``s-l-comments``)
-                FallibleOption<_,_>.Value(this.ResolvedNullNode prs2, prs2))
+                FallibleOption.Value(this.ResolvedNullNode prs2, prs2), prs2.Messages)
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2567,33 +2528,33 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 psp.Input.Reset()
                 if (ilen > psp.n) || (psp.n :: psp.IndentLevels) |> List.contains(ilen) then
                     if psp.Input.EOF then
-                        contentOrNone (FallibleOption<_,_>.NoResult()) psp
+                        contentOrNone (FallibleOption.NoResult(), psp.Messages) psp
                     else
-                        let ws = psp.Input.Data.Take()
+                        let ws = psp.Input.Data.Get()
                         psp.Input.Reset()
                         if ws.Token = Token.``t-tab`` then
-                            FallibleOption<_,_>.ErrorResult [CreateErrorMessage.TabIndentError psp]
+                            psp.AddErrorMessage <| CreateErrorMessage.TabIndentError psp
                         else
-                            contentOrNone (FallibleOption<_,_>.NoResult()) psp
+                            contentOrNone (FallibleOption.NoResult(), psp.Messages) psp
                 else
-                    FallibleOption<_,_>.ErrorResult [CreateErrorMessage.IndentLevelError psp] 
+                    psp.AddErrorMessage <| CreateErrorMessage.IndentLevelError psp
             else
                 //psp.Input.Reset()
-                let clblockseqentry = psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
+                let (clblockseqentry, pm) = psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
                 match clblockseqentry.Result  with
-                |   FallibleOption.Value -> 
+                |   FallibleOptionValue.Value -> 
                     let (c, prs2) = clblockseqentry.Data
                     ``ns-l-compact-sequence`` (prs2.Advance()) (c :: acc)
-                |   FallibleOption.NoResult        -> contentOrNone (FallibleOption<_,_>.NoResult()) psp
-                |   FallibleOption.ErrorResult   -> psp |> ParseState.AddErrorMessageList clblockseqentry.Error |> contentOrNone (FallibleOption<_,_>.ErrorResult clblockseqentry.Error)
+                |   FallibleOptionValue.NoResult        -> contentOrNone (FallibleOption.NoResult(), pm) psp
+                |   FallibleOptionValue.ErrorResult   -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
                 | _ -> failwith "Illegal value for clblockseqentry"
-        let clblockseqentry = (this.``c-l-block-seq-entry`` ps) 
+        let (clblockseqentry, pm) = (this.``c-l-block-seq-entry`` ps) 
         match clblockseqentry.Result with
-        |   FallibleOption.Value  -> 
+        |   FallibleOptionValue.Value  -> 
             let (c, prs) = clblockseqentry.Data
             ``ns-l-compact-sequence`` prs [c]
-        |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult clblockseqentry.Error
+        |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for clblockseqentry"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-l-compact-sequence" ps
@@ -2604,9 +2565,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         let m = this.``auto detect indent in line`` ps
         if m < 1 then 
             if ps.Input.Peek().Token = Token.``t-tab`` then
-                FallibleOption<_,_>.ErrorResult [CreateErrorMessage.TabIndentError ps]
+                ps.AddErrorMessage <| CreateErrorMessage.TabIndentError ps
             else
-                FallibleOption<_,_>.NoResult() 
+                FallibleOption.NoResult(), ps.Messages
         else
             let rec ``l+block-mapping`` (psp:ParseState) (acc:(Node*Node) list) = 
                 let contentOrNone rs psr = 
@@ -2617,16 +2578,16 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                             |> this.ResolveTag psr NonSpecificQM (psr.Location)
                             |> this.PostProcessAndValidateNode
                     else
-                        let prsc = psr |> ParseState.ProcessErrors
-                        FallibleOption<_,_>.ErrorResult (prsc.Messages.Error |> Map.toList |> List.map snd |> List.collect id)
+                        //let prsc = psr |> ParseState.ProcessErrors
+                        FallibleOption.ErrorResult(), psr.Messages
 
-                let nslblockmapentry = (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
+                let (nslblockmapentry, pm) = (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
                 match nslblockmapentry.Result with
-                |   FallibleOption.Value  -> 
+                |   FallibleOptionValue.Value  -> 
                     let ((ck, cv), prs) = nslblockmapentry.Data
                     ``l+block-mapping`` prs ((ck,cv) :: acc)
-                |   FallibleOption.NoResult    ->  contentOrNone (FallibleOption<_,_>.NoResult()) psp
-                |   FallibleOption.ErrorResult -> psp |> ParseState.AddErrorMessageList nslblockmapentry.Error |> contentOrNone (FallibleOption<_,_>.ErrorResult nslblockmapentry.Error)
+                |   FallibleOptionValue.NoResult    -> psp |> contentOrNone (FallibleOption.NoResult(), pm) 
+                |   FallibleOptionValue.ErrorResult -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
                 | _ -> failwith "Illegal value for nslblockmapentry"
             let ps = ps.SetSubIndent m
             ``l+block-mapping`` ps []
@@ -2640,7 +2601,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         (ps |> ParseState.OneOf) {
             either (this.``c-l-block-map-explicit-entry``)
             either (this.``ns-l-block-map-implicit-entry``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2649,22 +2610,22 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [189]   http://www.yaml.org/spec/1.2/spec.html#c-l-block-map-explicit-entry(n)
     member this.``c-l-block-map-explicit-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-l-block-map-explicit-entry" ps
-        let clblockmapexplicitkey = (this.``c-l-block-map-explicit-key`` ps) 
+        let (clblockmapexplicitkey, pm) = (this.``c-l-block-map-explicit-key`` ps) 
         match clblockmapexplicitkey.Result with
-        |   FallibleOption.Value ->
+        |   FallibleOptionValue.Value ->
             let (ck, prs1) = clblockmapexplicitkey.Data
-            let noResult prs1 =
-                prs1 |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs2 -> FallibleOption<_,_>.Value((ck, this.ResolvedNullNode prs2), prs2))
-            let lblockmapexplicitvalue = (this.``l-block-map-explicit-value`` prs1) 
+            let noResult pm prs1  =
+                prs1 |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs2 -> FallibleOption.Value((ck, this.ResolvedNullNode prs2), prs2), pm)
+            let (lblockmapexplicitvalue, pm2) = (this.``l-block-map-explicit-value`` prs1) 
             match lblockmapexplicitvalue.Result with
-            |   FallibleOption.Value  -> 
+            |   FallibleOptionValue.Value  -> 
                 let (cv, prs1) = lblockmapexplicitvalue.Data
-                FallibleOption<_,_>.Value((ck, cv), prs1)
-            |   FallibleOption.NoResult  -> prs1 |> noResult
-            |   FallibleOption.ErrorResult -> prs1 |> ParseState.AddErrorMessageList lblockmapexplicitvalue.Error |> noResult
+                FallibleOption.Value((ck, cv), prs1), pm2
+            |   FallibleOptionValue.NoResult  -> prs1 |> noResult pm2
+            |   FallibleOptionValue.ErrorResult -> prs1 |> noResult pm2
             | _ -> failwith "Illegal value for lblockmapexplicitvalue"
-        |   FallibleOption.NoResult -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult clblockmapexplicitkey.Error
+        |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for clblockmapexplicitkey"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l-block-map-explicit-entry" ps
@@ -2693,13 +2654,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``ns-l-block-map-implicit-entry`` ps : ParseFuncResult<_> =
         logger "ns-l-block-map-implicit-entry" ps
         let matchValue (ck, prs) =
-            let clblockmapimplicitvalue = (this.``c-l-block-map-implicit-value`` prs) 
+            let (clblockmapimplicitvalue, pm) = (this.``c-l-block-map-implicit-value`` prs) 
             match clblockmapimplicitvalue.Result with
-            |   FallibleOption.Value -> 
+            |   FallibleOptionValue.Value -> 
                 let (cv, prs2) = clblockmapimplicitvalue.Data
-                FallibleOption<_,_>.Value((ck, cv), prs2)
-            |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-            |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult clblockmapimplicitvalue.Error
+                FallibleOption.Value((ck, cv), prs2), pm
+            |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+            |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
             | _ -> failwith "Illegal value for clblockmapimplicitvalue"
 
         let noResult psp =
@@ -2709,14 +2670,14 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> FallibleOption.bind(matchValue)
                 )
             else
-                let prsc = psp |> ParseState.ProcessErrors
-                FallibleOption<_,_>.ErrorResult (prsc.Messages.Error |> Map.toList |> List.map snd |> List.collect id)
+                //let prsc = psp |> ParseState.ProcessErrors
+                FallibleOption.ErrorResult (), psp.Messages
 
-        let nssblockmapimplicitkey = (this.``ns-s-block-map-implicit-key`` ps) 
+        let (nssblockmapimplicitkey, pm) = (this.``ns-s-block-map-implicit-key`` ps) 
         match nssblockmapimplicitkey.Result with
-        |   FallibleOption.Value -> matchValue(nssblockmapimplicitkey.Data)
-        |   FallibleOption.NoResult -> ps |> noResult 
-        |   FallibleOption.ErrorResult -> ps |> ParseState.AddErrorMessageList nssblockmapimplicitkey.Error |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption<_,_>.ErrorResult nssblockmapimplicitkey.Error)
+        |   FallibleOptionValue.Value -> matchValue(nssblockmapimplicitkey.Data)
+        |   FallibleOptionValue.NoResult -> ps |> noResult 
+        |   FallibleOptionValue.ErrorResult -> ps |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
         | _ -> failwith "Illegal value for nssblockmapimplicitkey"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "ns-l-block-map-implicit-entry" ps
@@ -2727,7 +2688,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         (ps |> ParseState.SetStyleContext Context.``Block-key`` |> ParseState.OneOf) {
             either (this.``c-s-implicit-json-key``)
             either (this.``ns-s-implicit-yaml-key``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2745,14 +2706,14 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                         this.ResolveTag prs NonSpecificQM (prs.Location) (PlainEmptyNode (getParseInfo ps prs))
                     )
                 else
-                    let prsc = prs |> ParseState.ProcessErrors
-                    FallibleOption<_,_>.ErrorResult (prsc.Messages.Error |> Map.toList |> List.map snd |> List.collect id)
+                    //let prsc = prs |> ParseState.ProcessErrors
+                    FallibleOption.ErrorResult(), prs.Messages
 
-            let slblocknode = (this.``s-l+block-node`` prs) 
+            let (slblocknode,pm) = (this.``s-l+block-node`` prs) 
             match slblocknode.Result with
-            |   FallibleOption.Value -> FallibleOption<_,_>.Value(slblocknode.Data)
-            |   FallibleOption.NoResult        -> prs |> noResult
-            |   FallibleOption.ErrorResult    -> prs |> ParseState.AddErrorMessageList slblocknode.Error |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption<_,_>.ErrorResult slblocknode.Error)
+            |   FallibleOptionValue.Value -> FallibleOption.Value(slblocknode.Data), pm
+            |   FallibleOptionValue.NoResult        -> prs |> noResult
+            |   FallibleOptionValue.ErrorResult    -> prs |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
             | _ -> failwith "Illegal value for slblocknode"
         )
         |> ParseState.ResetEnv ps
@@ -2770,21 +2731,21 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     |> this.ResolveTag prs NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
 
-            let nslblockmapentry = psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``ns-l-block-map-entry``)
+            let (nslblockmapentry, pm) = psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``ns-l-block-map-entry``)
             match nslblockmapentry.Result with
-            |   FallibleOption.Value  ->  
+            |   FallibleOptionValue.Value  ->  
                 let ((ck, cv), prs) = nslblockmapentry.Data
                 ``ns-l-compact-mapping`` prs ((ck,cv) :: acc)
-            |   FallibleOption.NoResult ->  contentOrNone (FallibleOption<_,_>.NoResult()) psp
-            |   FallibleOption.ErrorResult ->  psp |> ParseState.AddErrorMessageList nslblockmapentry.Error |> contentOrNone (FallibleOption<_,_>.ErrorResult nslblockmapentry.Error)
+            |   FallibleOptionValue.NoResult ->  contentOrNone (FallibleOption.NoResult(), pm) psp
+            |   FallibleOptionValue.ErrorResult ->  psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
             | _ -> failwith "Illegal value for nslblockmapentry"
-        let nslblockmapentry = (this.``ns-l-block-map-entry`` ps) 
+        let (nslblockmapentry, pm) = (this.``ns-l-block-map-entry`` ps) 
         match nslblockmapentry.Result with
-        |   FallibleOption.Value -> 
+        |   FallibleOptionValue.Value -> 
             let ((ck, cv), prs) = nslblockmapentry.Data
             ``ns-l-compact-mapping`` prs [(ck,cv)]
-        |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-        |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult nslblockmapentry.Error
+        |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
+        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for nslblockmapentry"
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-l-compact-mapping" ps
@@ -2795,24 +2756,24 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         (ps |> ParseState.OneOf) {
             either (this.``s-l+block-in-block``)
             either (this.``s-l+flow-in-block``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
-        |> this.LogReturn  "s-l+block-node" ps
+        |> this.LogReturn "s-l+block-node" ps
 
     //  [197]   http://www.yaml.org/spec/1.2/spec.html#s-l+flow-in-block(n)
     member this.``s-l+flow-in-block`` (ps:ParseState) : ParseFuncResult<_> =
         logger "s-l+flow-in-block" ps
         let prs = ps |> ParseState.SetIndent (ps.n + 1) |> ParseState.SetStyleContext Context.``Flow-out``
         prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (fun prs ->
-            let nsflownode = (this.``ns-flow-node`` prs) 
+            let (nsflownode, pm) = (this.``ns-flow-node`` prs) 
             match nsflownode.Result with
-            |   FallibleOption.Value -> 
+            |   FallibleOptionValue.Value -> 
                 let (c, prs2) = nsflownode.Data
-                FallibleOption<_,_>.Value(c, prs2.SkipIfMatch (this.``s-l-comments``)) 
-            |   FallibleOption.NoResult   -> FallibleOption<_,_>.NoResult()
-            |   FallibleOption.ErrorResult -> FallibleOption<_,_>.ErrorResult nsflownode.Error
+                FallibleOption.Value(c, prs2.SkipIfMatch (this.``s-l-comments``)), pm 
+            |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm 
+            |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
             | _ -> failwith "Illegal value for nsflownode"
         )
         |> ParseState.ResetEnv ps
@@ -2825,7 +2786,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         ps.OneOf {
             either (this.``s-l+block-scalar``)
             either (this.``s-l+block-collection``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2842,9 +2803,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     {
                         either   (this.``c-l+literal``)
                         either   (this.``c-l+folded``)
-                        ifneither (FallibleOption<_,_>.NoResult())
+                        ifneither (FallibleOption.NoResult())
                     }
-                    |> ParseState.PreserveErrors psp
+                    |> ParseState.PreserveErrors ps
             )
         psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
             (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
@@ -2852,7 +2813,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     either(this.``content with properties`` ``literal or folded``)
                     either   (this.``c-l+literal``)
                     either   (this.``c-l+folded``)
-                    ifneither (FallibleOption<_,_>.NoResult())
+                    ifneither (FallibleOption.NoResult())
                 }
                 |> ParseState.PreserveErrors ps
 
@@ -2872,7 +2833,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             pls.OneOf {
                 either (omit this.``l+block-sequence`` (this.``seq-spaces`` pls))
                 either (this.``l+block-mapping``)
-                ifneither(FallibleOption<_,_>.NoResult())
+                ifneither(FallibleOption.NoResult())
             }
             |> ParseState.PreserveErrors ps
             
@@ -2882,7 +2843,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         psp1.OneOf {
             either (``optional spaced content with properties``)
             either (``seq or map``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
         |> ParseState.TrackParseLocation ps
@@ -2922,7 +2883,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         if ps.Errors = 0 then
             (* Excluding c-forbidden content *)
             if IsMatch(ps.Input.Data, this.``c-forbidden``) then
-                FallibleOption<_,_>.NoResult()
+                FallibleOption.NoResult(), ps.Messages
             else
                 //ps.Input.Reset()
                 ps 
@@ -2930,7 +2891,8 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 |> ParseState.SetStyleContext Context.``Block-in``
                 |> this.``s-l+block-node`` 
         else
-            FallibleOption<_,_>.ErrorResult (ps.Messages.Error |> Map.toList |> List.map snd |> List.collect id)
+            FallibleOption.ErrorResult(), ps.Messages.TrackPosition (ps.Location)
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l-bare-document" ps
 
     //  [208]   http://www.yaml.org/spec/1.2/spec.html#l-explicit-document
@@ -2949,45 +2911,48 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     }
                 |> ParseState.PreserveErrors ps
             )
-        else FallibleOption<_,_>.ErrorResult (ps.Messages.Error |> Map.toList |> List.map snd |> List.collect id)
+        else (FallibleOption.ErrorResult(), ps.Messages.TrackPosition (ps.Location))
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l-explicit-document" ps
 
     //  [209]   http://www.yaml.org/spec/1.2/spec.html#l-directive-document
     member this.``l-directive-document`` (ps:ParseState) : ParseFuncResult<_> = 
         logger "l-directive-document" ps
         let rec readDirectives ps =
-            let ldirective = (this.``l-directive`` ps) 
+            let (ldirective, pm) = (this.``l-directive`` ps) 
             match ldirective.Result with
-            |   FallibleOption.Value -> readDirectives (ldirective.Data)
-            |   FallibleOption.NoResult -> ps
-            |   FallibleOption.ErrorResult -> ps |> ParseState.AddErrorMessageList (ldirective.Error)
+            |   FallibleOptionValue.Value -> readDirectives (ldirective.Data)
+            |   FallibleOptionValue.NoResult -> ps, pm
+            |   FallibleOptionValue.ErrorResult -> ps, pm
             | _ -> failwith "Illegal value for ldirective"
-        let psr = readDirectives ps
+        let psr, pm = readDirectives ps
         if psr.Errors = 0 then 
             if psr.Directives.Length > 0 then
                 this.``l-explicit-document`` psr
             else
-                FallibleOption<_,_>.NoResult()
+                (FallibleOption.NoResult(), pm)
         else
-            FallibleOption<_,_>.ErrorResult (psr.Messages.Error |> Map.toList |> List.map snd |> List.collect id)
+            (FallibleOption.ErrorResult(), pm.TrackPosition (ps.Location))
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l-directive-document" ps
 
     //  [210]   http://www.yaml.org/spec/1.2/spec.html#l-any-document
     member this.``l-any-document`` (ps:ParseState) : ParseFuncResult<_> =
         logger "l-any-document" ps
         this.Caching.Clear()
-        (ps |> ParseState.ResetDocumentParseState |> ParseState.OneOf) {
+        (ps (*|> ParseState.ResetDocumentParseState*) |> ParseState.OneOf) {
             either(this.``l-directive-document``)
             either(this.``l-explicit-document``)
             either(this.``l-bare-document``)
-            ifneither (FallibleOption<_,_>.NoResult())
+            ifneither (FallibleOption.NoResult())
         }
         |> ParseState.PreserveErrors ps
+        |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l-any-document" ps
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
     member this.``l-yaml-stream`` (input:string) : Representation list= 
-        let ps = ParseState.Create input 
+        let ps = ParseState.Create (this.ParserMessages) input 
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
@@ -3012,36 +2977,36 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 let noResultNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#NORESULTNODE#" (this.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
 
                 if not(IsEndOfStream ps) then
-                    (ps |> ParseState.OneOf) {
+                    (ps |> ParseState.ResetDocumentParseState |> ParseState.OneOf) {
                         either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (this.``l-any-document``))
-                        either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (fun psr -> if (IsEndOfStream psr) then FallibleOption<_,_>.Value(noResultNode, psr) else FallibleOption<_,_>.Value(quitNode, psr))) // for missing ``l-any-document``; which is optional
+                        either (ParseState.``Match and Advance`` (OOM(this.``l-document-suffix``) + ZOM(this.``l-document-prefix``)) (fun psr -> if (IsEndOfStream psr) then (FallibleOption.Value(noResultNode, psr),psr.Messages) else (FallibleOption.Value(quitNode, psr), psr.Messages))) // for missing ``l-any-document``; which is optional
                         either (ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (this.``l-explicit-document``))
-                        ifneither(FallibleOption<_,_>.ErrorResult [MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy "Incorrect Syntax, this content cannot be related to previous document structure.")])
+                        ifneitherpm(ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.Freeform (lazy "Incorrect Syntax, this content cannot be related to previous document structure."))
                     }
                     |> ParseState.PreserveErrors ps
-                    |> ParseState.PostProcessErrors
-                    |>  fun parsedDocument ->
+                    |> ParseState.PostProcessErrors 
+                    |>  fun (parsedDocument, pm) ->
                         match parsedDocument.Result with
-                        |   FallibleOption.Value -> 
-                            let (n, ps2) = parsedDocument.Data
+                        |   FallibleOptionValue.Value -> 
+                            let (n:Node, ps2) = parsedDocument.Data
                             if (n.NodeTag.EqualIfNonSpecific(quitNode.NodeTag)) then 
-                                FallibleOption<_,_>.NoResult()
+                                (FallibleOption.NoResult(),pm)
                                 |> ParseState.ToRepresentation ps 
                                 |> addToList representations
                             else
                                 if (n.NodeTag.EqualIfNonSpecific(noResultNode.NodeTag)) then
                                     (ps2, representations)
                                 else 
-                                    FallibleOption<_,_>.Value (n, ps2)
+                                    (FallibleOption.Value (n, ps2), pm)
                                     |> ParseState.ToRepresentation ps 
                                     |> addToList representations
                                     |> successorDoc
-                        |   FallibleOption.NoResult -> 
-                                FallibleOption<_,_>.NoResult()
+                        |   FallibleOptionValue.NoResult -> 
+                                (FallibleOption.NoResult(),pm)
                                 |> ParseState.ToRepresentation ps 
                                 |> addToList representations
-                        |   FallibleOption.ErrorResult ->
-                                FallibleOption<_,_>.ErrorResult parsedDocument.Error
+                        |   FallibleOptionValue.ErrorResult ->
+                                (FallibleOption.ErrorResult(), pm)
                                 |> ParseState.ToRepresentation ps
                                 |> fun (r,ps) -> (ps, r :: (representations |> List.skip 1))
                         | _ -> failwith "Illegal value for parsedDocument"
@@ -3050,7 +3015,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
             psr 
             |>  this.``l-any-document``
-            |>  ParseState.PostProcessErrors
+            |>  ParseState.PostProcessErrors 
             |>  ParseState.ToRepresentation psr
             |>  function
                 |   (NoRepresentation rr,ps2) -> 
@@ -3063,11 +3028,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     x
                     |>  addToList []
                     |>  successorDoc
-            |>  FallibleOption<_,_>.Value
+            |> FallibleOption.Value
+            |> ParseState.AddMessagesToOutput psr
         )
-        |>  fun representationOption ->
+        |>  fun (representationOption, pm) ->
             match representationOption.Result with
-            | FallibleOption.Value  -> 
+            | FallibleOptionValue.Value  -> 
                 let (_, representations) = representationOption.Data
                 representations |> List.rev
             |   _ -> []

@@ -2,7 +2,6 @@
 // This block of code is omitted in the generated HTML documentation. Use 
 // it to define helpers that you do not want to show in the documentation.
 #I __SOURCE_DIRECTORY__
-#I "../../bin/Legivel.Parser"
 #I "../../bin/Legivel.Mapper"
 
 
@@ -31,7 +30,6 @@ Example
 
 This example demonstrates Yaml to Native conversion using this library:
 *)
-(*** define-output:test ***)
 #r "Legivel.Parser.dll"
 #r "Legivel.Mapper.dll"
 open Legivel.Serialization
@@ -55,7 +53,8 @@ player: Sammy Sosa
 action: grand slam
 ..." 
 
-let result = Deserialize<PlayEvent> yaml
+(*** define-output:test ***)
+Deserialize<PlayEvent> yaml
 (**
 Which results in:
 *)
@@ -69,7 +68,7 @@ Examples & documentation
 Legivel comes with comprehensible documentation. 
 
  * [Tutorial](tutorial.html) contains more examples how to use this library.
-
+ * [Processing Options](processingoptions.html) customize the yaml processing
  * [API Reference](reference/index.html) contains automatically generated documentation for all types, modules
    and functions in the library.
 *  [Customization](customization.html) contains information to customize yaml-processing.

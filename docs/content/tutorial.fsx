@@ -2,7 +2,6 @@
 // This block of code is omitted in the generated HTML documentation. Use 
 // it to define helpers that you do not want to show in the documentation.
 #I __SOURCE_DIRECTORY__
-#I "../../bin/Legivel.Parser"
 #I "../../bin/Legivel.Mapper"
 #r "Legivel.Parser.dll"
 #r "Legivel.Mapper.dll"

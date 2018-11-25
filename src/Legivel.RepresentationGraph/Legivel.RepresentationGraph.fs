@@ -25,7 +25,7 @@ type TagFunctions = {
         GetHash     : Node -> Lazy<NodeHash>
 
         /// Called after node construction and tag resolution
-        PostProcessAndValidateNode     : Node -> FallibleOption<Node, ErrorMessage>
+        PostProcessAndValidateNode     : ParseMessage -> Node -> FallibleOption<Node>*ParseMessage
 
         /// true if the Node is a match for the specified tag
         IsMatch     : Node -> GlobalTag -> bool
@@ -165,13 +165,13 @@ and
             |   Local        lt -> lt.LocalTag.GetHash n
             |   NonSpecific  lt -> lt.LocalTag.GetHash n
 
-        member this.PostProcessAndValidateNode n =
+        member this.PostProcessAndValidateNode (pm:ParseMessage) n =
             match this with
-            |   Global       gt -> gt.PostProcessAndValidateNode n
-            |   Unrecognized gt -> gt.PostProcessAndValidateNode n
+            |   Global       gt -> gt.PostProcessAndValidateNode pm n
+            |   Unrecognized gt -> gt.PostProcessAndValidateNode pm n
             // local tags are checked by the application, so always valid here
-            |   Local        _  -> FallibleOption<_,_>.Value(n) 
-            |   NonSpecific  _  -> FallibleOption<_,_>.Value(n)
+            |   Local        _  -> FallibleOption.Value(n), pm
+            |   NonSpecific  _  -> FallibleOption.Value(n), pm
 
         member this.Uri 
             with get() =
