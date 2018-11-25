@@ -68,7 +68,7 @@ Examples & documentation
 Legivel comes with comprehensible documentation. 
 
  * [Tutorial](tutorial.html) contains more examples how to use this library.
- * [Processing Options](processingoptions.html) customize the yaml processing
+ * [Processing Options](ProcessingOptions.html) customize the yaml processing
  * [API Reference](reference/index.html) contains automatically generated documentation for all types, modules
    and functions in the library.
 *  [Customization](customization.html) contains information to customize yaml-processing.
