@@ -1,3 +1,8 @@
+#### 0.2.2 - November 25 2018
+*   Legivel.Parser: Performance impovements - Further tweaking
+*   Feature: Processing options (Yaml.Mapper), cross check yaml with model (records)
+*   Fix the creation of documentation
+
 #### 0.2.1 - August 19 2018
 *   Legivel.Parser: Performance impovments - complete rewrite 
 

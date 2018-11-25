@@ -23,7 +23,7 @@ NUGET
     SourceLink.Fake (1.1)
 GITHUB
   remote: fsharp/FAKE
-    modules/Octokit/Octokit.fsx (0e2a58d4065fc3dda72448c1a3d978ab433c170f)
+    modules/Octokit/Octokit.fsx (76457c09afe4b2229466bb2c730f605ef1a3097a)
       Octokit (>= 0.20)
 GROUP Test
 RESTRICTION: == net45
