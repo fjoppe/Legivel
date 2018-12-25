@@ -1,40 +1,48 @@
 RESTRICTION: == net45
 NUGET
   remote: https://www.nuget.org/api/v2
-    FAKE (4.64.2)
-    FSharp.Charting (0.91.1)
+    FAKE (5.8.4)
+    FSharp.Charting (2.1)
+      FSharp.Core (>= 4.0.0.1)
     FSharp.Core (4.0.0.1) - redirects: force
-    FSharp.Data (2.4.6)
-    NUnit (3.10.1)
+    FSharp.Data (3.0)
+      FSharp.Core (>= 4.0.0.1)
+    Microsoft.CodeCoverage (15.9)
+    Microsoft.NET.Test.Sdk (15.9)
+      Microsoft.CodeCoverage (>= 15.9)
+    NUnit (3.11)
+    NUnit3TestAdapter (3.12)
     System.ValueTuple (4.5)
 
 GROUP Build
 RESTRICTION: == net45
 NUGET
   remote: https://www.nuget.org/api/v2
-    FAKE (4.63.2)
+    FAKE (5.8.4)
     FSharp.Compiler.Service (2.0.0.6)
     FSharp.Formatting (2.14.4)
       FSharp.Compiler.Service (2.0.0.6)
       FSharpVSPowerTools.Core (>= 2.3 < 2.4)
     FSharpVSPowerTools.Core (2.3)
       FSharp.Compiler.Service (>= 2.0.0.3)
-    Octokit (0.24)
+    Octokit (0.32)
     SourceLink.Fake (1.1)
 GITHUB
   remote: fsharp/FAKE
-    modules/Octokit/Octokit.fsx (76457c09afe4b2229466bb2c730f605ef1a3097a)
+    modules/Octokit/Octokit.fsx (457ae4cfb9bb4a39f0eb1352140584d7d04ebe5d)
       Octokit (>= 0.20)
 GROUP Test
 RESTRICTION: == net45
 NUGET
   remote: https://www.nuget.org/api/v2
-    FSharp.Data (2.4.6)
-    NLog (4.4.12)
-    NLog.FSharp (4.2.3)
-      NLog (>= 4.2.3)
-    NUnit (3.10.1)
-    NUnit.ConsoleRunner (3.8)
+    FSharp.Core (4.5.4)
+    FSharp.Data (3.0)
+      FSharp.Core (>= 4.0.0.1)
+    NLog (4.5.11)
+    NLog.FSharp (4.5.3)
+      NLog (>= 4.5.3)
+    NUnit (3.11)
+    NUnit.ConsoleRunner (3.9)
 GITHUB
   remote: fsprojects/FsUnit
-    src/FsUnit.NUnit/FsUnitTyped.fs (bd259f8dbbb1dc0f4618c5ce211bf144fe01d817)
+    src/FsUnit.NUnit/FsUnitTyped.fs (00ab8a2399867ffa5f234bcc1c16aa912f1a27c0)
