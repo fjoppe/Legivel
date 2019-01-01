@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Legivel Wish List
+</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="F# Yaml deserializer"/>
+    <meta name="author" content="Frank Joppe"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="/Legivel/content/style.css" />
+    <script type="text/javascript" src="/Legivel/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+          <li><a href="https://github.com/fjoppe/Legivel">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="/Legivel/index.html">Legivel</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+<h1><a name="Legivel-Wish-List" class="anchor" href="#Legivel-Wish-List">Legivel Wish List</a></h1>
+<h2><a name="Processing-options" class="anchor" href="#Processing-options">Processing options</a></h2>
+<p>The processing of the Legivel Mapper should be configurable with attributes and processing options.</p>
+<p>The following options are desired:</p>
+<ul>
+<li>Use default value if missing. ie a missing mandatory int should get value 0, a missing string should get an empty string (!)</li>
+</ul>
+<p>The following attributes are desired:</p>
+<ul>
+<li>Attribute in which one can define a default value on a field, in case of a missing value</li>
+</ul>
+<h2><a name="Wrapped-style-Discriminated-Union" class="anchor" href="#Wrapped-style-Discriminated-Union">Wrapped style Discriminated Union</a></h2>
+<p>The following Yaml must be mapped to a DU's Union Cases, with containing data:</p>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip"><code lang="yaml">post: data1     #   'post' is DU-case, 'data1' is contained data
+get:  data2     #   'post' and 'get' are in a sequence in this example
+</code></pre></td></tr></table>
+<p>Implementation is tricky; probably requires a dedicated list-of-DU mapper.</p>
+<h2><a name="More-FSharp-types-support" class="anchor" href="#More-FSharp-types-support">More FSharp types support</a></h2>
+<p>Support for:</p>
+<ul>
+<li>FSharp Map</li>
+<li>FSharp Set (using YamlExtended tag "!!set"?)</li>
+<li>Tuples? (not sure about this one)</li>
+</ul>
+<h2><a name="Multi-platform-support" class="anchor" href="#Multi-platform-support">Multi-platform support</a></h2>
+<p>This library currently supports net461, obviously it should also support netstandard16 or something higher.</p>
+<h2><a name="Readable-Serialization" class="anchor" href="#Readable-Serialization">Readable Serialization</a></h2>
+<p>Currently, Legivel only supports Yaml parsing. The Legivel.Parser also has a ToCanonical serializer, but this
+is in machine format, not in human-readable format. This feature should be taken into two steps,
+in the Legivel.Mapper a mapper must convert native to the generic format, and the Legivel.Parser
+should get the generic to readable string function. Adding this feature contradicts "Parser" in the name Legivel.Parser,
+but let's solve that naming problem later.</p>
+
+
+        </div>
+        <div class="span3">
+          <img src="/Legivel/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />  
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">Legivel</li>
+            <li><a href="/Legivel/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/Legivel">Get Library via NuGet</a></li>
+            <li><a href="https://github.com/fjoppe/Legivel">Source Code on GitHub</a></li>
+            <li><a href="/Legivel/license.html">License</a></li>
+            <li><a href="/Legivel/release-notes.html">Release Notes</a></li>
+            
+            <li class="nav-header">Getting started</li>
+            <li><a href="/Legivel/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="/Legivel/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="https://github.com/fjoppe/Legivel"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>

@@ -1,5 +1,4 @@
 FSharp.Core
-group Test
-  NUnit
-  NLog.FSharp
-  File:FsUnitTyped.fs
+NUnit
+NLog.FSharp
+File:FsUnitTyped.fs

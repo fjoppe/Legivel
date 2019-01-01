@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>release-notes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="F# Yaml deserializer"/>
+    <meta name="author" content="Frank Joppe"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="/Legivel/content/style.css" />
+    <script type="text/javascript" src="/Legivel/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+          <li><a href="https://github.com/fjoppe/Legivel">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="/Legivel/index.html">Legivel</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+<h4><a name="0-2-2-November-25-2018" class="anchor" href="#0-2-2-November-25-2018">0.2.2 - November 25 2018</a></h4>
+<ul>
+<li>Legivel.Parser: Performance impovements - Further tweaking</li>
+<li>Feature: Processing options (Yaml.Mapper), cross check yaml with model (records)</li>
+<li>Fix the creation of documentation</li>
+</ul>
+<h4><a name="0-2-1-August-19-2018" class="anchor" href="#0-2-1-August-19-2018">0.2.1 - August 19 2018</a></h4>
+<ul>
+<li>Legivel.Parser: Performance impovments - complete rewrite</li>
+</ul>
+<h4><a name="0-1-1-November-26-2017" class="anchor" href="#0-1-1-November-26-2017">0.1.1 - November 26 2017</a></h4>
+<ul>
+<li>Legvel.Mapper: Added support for recursive types</li>
+<li>Legivel.Parser: Made RegexDSL public</li>
+<li>Legivel.Parser: Added CloneWith methods to GlobalTag</li>
+<li>Legivel.Parser: Made GlobalTag.Create public</li>
+<li>Legivel.Parser: Made GlobalTag.TagFunctions public</li>
+<li>Legivel.Parser: Made NodeData.Create public</li>
+<li>Legivel.Parser: Made ParseInfo.Create public</li>
+<li>Legivel.Parser: Created extra SchemaUtils convenience functions for customization</li>
+<li>Legivel.Parser: Moved MessageAtLine from Internals to Common namespace and made public</li>
+<li>Legvel.Mapper: Made SuccessInfo.Create public</li>
+<li>Legvel.Mapper: Made ErrorInfo.Create public</li>
+</ul>
+<h4><a name="0-1-0-November-11-2017" class="anchor" href="#0-1-0-November-11-2017">0.1.0 - November 11 2017</a></h4>
+<ul>
+<li>Legivel.Mapper: Added support for FSharp Map type</li>
+<li>Updated documentation for Map type</li>
+</ul>
+<h4><a name="0-0-8-November-10-2017" class="anchor" href="#0-0-8-November-10-2017">0.0.8 - November 10 2017</a></h4>
+<ul>
+<li>Fix: using YamlCore schema for int and float, as "20:30:56" was translated to a numeric</li>
+<li>Added unittest to check correct docs/tutorial output</li>
+</ul>
+<h4><a name="0-0-7-November-08-2017" class="anchor" href="#0-0-7-November-08-2017">0.0.7 - November 08 2017</a></h4>
+<ul>
+<li>Legivel.Mapper: Made "string" detection injectable (for record fieldnames)</li>
+<li>Legivel.Mapper: Fixed bug in strig to float parsing</li>
+<li>Legivel.Mapper: Added Timestamp primitive type</li>
+<li>Legivel.Mapper: Added Merge tag</li>
+</ul>
+<h4><a name="0-0-6-October-28-2017" class="anchor" href="#0-0-6-October-28-2017">0.0.6 - October 28 2017</a></h4>
+<ul>
+<li>Legivel.Mapper: map "null" for option types to "None"</li>
+<li>Legivel.Mapper: Made "null" detection generic/injectable</li>
+<li>Legivel.Mapper: removed field "StopLocation" in Succes result</li>
+<li>Added documentation for Legivel customization</li>
+<li>Added wishlist to documentation</li>
+</ul>
+<h4><a name="0-0-5-October-25-2017" class="anchor" href="#0-0-5-October-25-2017">0.0.5 - October 25 2017</a></h4>
+<ul>
+<li>Fixing too many framework dependencies issue</li>
+<li>Having another shot at nuget release</li>
+</ul>
+<h4><a name="0-0-4-October-24-2017" class="anchor" href="#0-0-4-October-24-2017">0.0.4 - October 24 2017</a></h4>
+<ul>
+<li>Fixing Nuget dependencies</li>
+<li>Adding more info to Nuge package</li>
+</ul>
+<h4><a name="0-0-3-October-23-2017" class="anchor" href="#0-0-3-October-23-2017">0.0.3 - October 23 2017</a></h4>
+<ul>
+<li>First Nuget package</li>
+</ul>
+<h4><a name="0-0-2-October-22-2017" class="anchor" href="#0-0-2-October-22-2017">0.0.2 - October 22 2017</a></h4>
+<ul>
+<li>Renamed product to 'Legivel'</li>
+<li>Wrote majority of the documentation</li>
+</ul>
+<h4><a name="0-0-1-December-29-2016" class="anchor" href="#0-0-1-December-29-2016">0.0.1 - December 29 2016</a></h4>
+<ul>
+<li>Initial source publication on Github (started in sept 2016)</li>
+</ul>
+
+
+        </div>
+        <div class="span3">
+          <img src="/Legivel/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />  
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">Legivel</li>
+            <li><a href="/Legivel/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/Legivel">Get Library via NuGet</a></li>
+            <li><a href="https://github.com/fjoppe/Legivel">Source Code on GitHub</a></li>
+            <li><a href="/Legivel/license.html">License</a></li>
+            <li><a href="/Legivel/release-notes.html">Release Notes</a></li>
+            
+            <li class="nav-header">Getting started</li>
+            <li><a href="/Legivel/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="/Legivel/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="https://github.com/fjoppe/Legivel"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>
