@@ -187,7 +187,7 @@ Target.create "RunTests" (fun _ ->
 
     projects
     |> Seq.map (fun f -> 
-        DotNet.exec id "test" (sprintf "%s --no-build --test-adapter-path %s" f (Path.combine __SOURCE_DIRECTORY__ "packages/NUnit3TestAdapter")
+        DotNet.exec id "test" (sprintf "%s --test-adapter-path %s" f (Path.combine __SOURCE_DIRECTORY__ "packages/NUnit3TestAdapter")
         ))
     |> Seq.map (fun r -> r.ExitCode)
     |>Seq.reduce (+)
