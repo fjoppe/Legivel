@@ -50,13 +50,13 @@ mappings. Note that prerequisite statements as #I/#r/open are left out of these 
 <span class="l">6: </span>
 <span class="l">7: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="id">int</span><span class="pn">&gt;</span> <span class="s">&quot;1&quot;</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span onmouseout="hideTip(event, 'fs4', 4)" onmouseover="showTip(event, 'fs4', 4)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs5', 5)" onmouseover="showTip(event, 'fs5', 5)" class="id">int</span><span class="pn">&gt;</span> <span class="s">&quot;1&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs3', 3)" onmouseover="showTip(event, 'fs3', 3)" class="id">float</span><span class="pn">&gt;</span> <span class="s">&quot;3.14&quot;</span>
+<span onmouseout="hideTip(event, 'fs4', 6)" onmouseover="showTip(event, 'fs4', 6)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs6', 7)" onmouseover="showTip(event, 'fs6', 7)" class="id">float</span><span class="pn">&gt;</span> <span class="s">&quot;3.14&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs4', 4)" onmouseover="showTip(event, 'fs4', 4)" class="id">bool</span><span class="pn">&gt;</span> <span class="s">&quot;True&quot;</span>
+<span onmouseout="hideTip(event, 'fs4', 8)" onmouseover="showTip(event, 'fs4', 8)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs7', 9)" onmouseover="showTip(event, 'fs7', 9)" class="id">bool</span><span class="pn">&gt;</span> <span class="s">&quot;True&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs5', 5)" onmouseover="showTip(event, 'fs5', 5)" class="id">DateTime</span><span class="pn">&gt;</span> <span class="s">&quot;2014-09-12&quot;</span>
+<span onmouseout="hideTip(event, 'fs4', 10)" onmouseover="showTip(event, 'fs4', 10)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs8', 11)" onmouseover="showTip(event, 'fs8', 11)" class="id">DateTime</span><span class="pn">&gt;</span> <span class="s">&quot;2014-09-12&quot;</span>
 </code></pre></td>
 </tr>
 </table>
@@ -64,12 +64,13 @@ mappings. Note that prerequisite statements as #I/#r/open are left out of these 
 <p>In the examples below, an integer list is parsed. However you can use any supported type as list element.</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs2', 6)" onmouseover="showTip(event, 'fs2', 6)" class="id">int</span> <span onmouseout="hideTip(event, 'fs6', 7)" onmouseover="showTip(event, 'fs6', 7)" class="id">list</span><span class="pn">&gt;</span> <span class="s">&quot;[ 1, 1, 2, 3, 5, 8, 13 ]&quot;</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span onmouseout="hideTip(event, 'fs4', 12)" onmouseover="showTip(event, 'fs4', 12)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs5', 13)" onmouseover="showTip(event, 'fs5', 13)" class="id">int</span> <span onmouseout="hideTip(event, 'fs9', 14)" onmouseover="showTip(event, 'fs9', 14)" class="id">list</span><span class="pn">&gt;</span> <span class="s">&quot;[ 1, 1, 2, 3, 5, 8, 13 ]&quot;</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = [1; 1; 2; 3; 5; 8; 13];
+         Warn = [];}]</code></pre></td></tr></table>
 <p>Yaml flow style:</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
 <span class="l">2: </span>
@@ -77,7 +78,7 @@ mappings. Note that prerequisite statements as #I/#r/open are left out of these 
 <span class="l">4: </span>
 <span class="l">5: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs2', 8)" onmouseover="showTip(event, 'fs2', 8)" class="id">int</span> <span onmouseout="hideTip(event, 'fs6', 9)" onmouseover="showTip(event, 'fs6', 9)" class="id">list</span><span class="pn">&gt;</span> <span class="s">&quot;</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span onmouseout="hideTip(event, 'fs4', 15)" onmouseover="showTip(event, 'fs4', 15)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs5', 16)" onmouseover="showTip(event, 'fs5', 16)" class="id">int</span> <span onmouseout="hideTip(event, 'fs9', 17)" onmouseover="showTip(event, 'fs9', 17)" class="id">list</span><span class="pn">&gt;</span> <span class="s">&quot;</span>
 <span class="s">- 1</span>
 <span class="s">- 2</span>
 <span class="s">- 3</span>
@@ -86,7 +87,8 @@ mappings. Note that prerequisite statements as #I/#r/open are left out of these 
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = [1; 2; 3];
+         Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Record-mapping" class="anchor" href="#Record-mapping">Record mapping</a></h1>
 <p>In the example below, Yaml from <a href="http://www.yaml.org/spec/1.2/spec.html#id2760193">example 2.4</a> is mapped to a record type.
 You can use attributes in the type definition, if the field name in Yaml is different than the record field name.</p>
@@ -110,15 +112,15 @@ You can use attributes in the type definition, if the field name in Yaml is diff
 <span class="l">18: </span>
 <span class="l">19: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">open</span> <span class="id">Legivel</span><span class="pn">.</span><span class="id">Attributes</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">open</span> <span onmouseout="hideTip(event, 'fs1', 18)" onmouseover="showTip(event, 'fs1', 18)" class="id">Legivel</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs10', 19)" onmouseover="showTip(event, 'fs10', 19)" class="id">Attributes</span>
 
-<span class="k">type</span> <span onmouseout="hideTip(event, 'fs7', 10)" onmouseover="showTip(event, 'fs7', 10)" class="rt">PlayerStats</span> <span class="o">=</span> <span class="pn">{</span>
-    <span onmouseout="hideTip(event, 'fs8', 11)" onmouseover="showTip(event, 'fs8', 11)" class="id">name</span>    <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs9', 12)" onmouseover="showTip(event, 'fs9', 12)" class="rt">string</span>
-    <span onmouseout="hideTip(event, 'fs10', 13)" onmouseover="showTip(event, 'fs10', 13)" class="id">hr</span>      <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 14)" onmouseover="showTip(event, 'fs2', 14)" class="vt">int</span>
-    <span class="pn">[&lt;</span><span class="id">YamlField</span><span class="pn">(</span><span class="s">&quot;avg&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs11', 15)" onmouseover="showTip(event, 'fs11', 15)" class="id">average</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs3', 16)" onmouseover="showTip(event, 'fs3', 16)" class="vt">float</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs11', 20)" onmouseover="showTip(event, 'fs11', 20)" class="id">PlayerStats</span> <span class="o">=</span> <span class="pn">{</span>
+    <span onmouseout="hideTip(event, 'fs12', 21)" onmouseover="showTip(event, 'fs12', 21)" class="id">name</span>    <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs13', 22)" onmouseover="showTip(event, 'fs13', 22)" class="id">string</span>
+    <span onmouseout="hideTip(event, 'fs14', 23)" onmouseover="showTip(event, 'fs14', 23)" class="id">hr</span>      <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 24)" onmouseover="showTip(event, 'fs5', 24)" class="id">int</span>
+    <span class="pn">[&lt;</span><span onmouseout="hideTip(event, 'fs15', 25)" onmouseover="showTip(event, 'fs15', 25)" class="id">YamlField</span><span class="pn">(</span><span class="s">&quot;avg&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs16', 26)" onmouseover="showTip(event, 'fs16', 26)" class="id">average</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs6', 27)" onmouseover="showTip(event, 'fs6', 27)" class="id">float</span>
 <span class="pn">}</span>
 
-<span class="k">let</span> <span onmouseout="hideTip(event, 'fs12', 17)" onmouseover="showTip(event, 'fs12', 17)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs17', 28)" onmouseover="showTip(event, 'fs17', 28)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
 <span class="s">-</span>
 <span class="s">  name: Mark McGwire</span>
 <span class="s">  hr:   65</span>
@@ -128,12 +130,17 @@ You can use attributes in the type definition, if the field name in Yaml is diff
 <span class="s">  hr:   63</span>
 <span class="s">  avg:  0.288&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs7', 18)" onmouseover="showTip(event, 'fs7', 18)" class="id">PlayerStats</span> <span onmouseout="hideTip(event, 'fs6', 19)" onmouseover="showTip(event, 'fs6', 19)" class="id">list</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs12', 20)" onmouseover="showTip(event, 'fs12', 20)" class="id">yaml</span>
+<span onmouseout="hideTip(event, 'fs4', 29)" onmouseover="showTip(event, 'fs4', 29)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs11', 30)" onmouseover="showTip(event, 'fs11', 30)" class="id">PlayerStats</span> <span onmouseout="hideTip(event, 'fs9', 31)" onmouseover="showTip(event, 'fs9', 31)" class="id">list</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs17', 32)" onmouseover="showTip(event, 'fs17', 32)" class="id">yaml</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = [{name = "Mark McGwire";
+                  hr = 65;
+                  average = 0.278;}; {name = "Sammy Sosa";
+                                      hr = 63;
+                                      average = 0.288;}];
+         Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Option-mapping" class="anchor" href="#Option-mapping">Option mapping</a></h1>
 <p>In the example below, an option is parsed. When a value is available, it is mapped to Some(data).
 If the value is absent, it is mapped to None.</p>
@@ -146,32 +153,36 @@ If the value is absent, it is mapped to None.</p>
 <span class="l">7: </span>
 <span class="l">8: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs13', 21)" onmouseover="showTip(event, 'fs13', 21)" class="rt">OptionExample</span> <span class="o">=</span> <span class="pn">{</span>
-  <span onmouseout="hideTip(event, 'fs14', 22)" onmouseover="showTip(event, 'fs14', 22)" class="id">opt1</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 23)" onmouseover="showTip(event, 'fs2', 23)" class="vt">int</span> <span onmouseout="hideTip(event, 'fs15', 24)" onmouseover="showTip(event, 'fs15', 24)" class="rt">option</span>
-  <span onmouseout="hideTip(event, 'fs16', 25)" onmouseover="showTip(event, 'fs16', 25)" class="id">opt2</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 26)" onmouseover="showTip(event, 'fs2', 26)" class="vt">int</span> <span onmouseout="hideTip(event, 'fs15', 27)" onmouseover="showTip(event, 'fs15', 27)" class="rt">option</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs18', 33)" onmouseover="showTip(event, 'fs18', 33)" class="id">OptionExample</span> <span class="o">=</span> <span class="pn">{</span>
+  <span onmouseout="hideTip(event, 'fs19', 34)" onmouseover="showTip(event, 'fs19', 34)" class="id">opt1</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 35)" onmouseover="showTip(event, 'fs5', 35)" class="id">int</span> <span onmouseout="hideTip(event, 'fs20', 36)" onmouseover="showTip(event, 'fs20', 36)" class="id">option</span>
+  <span onmouseout="hideTip(event, 'fs21', 37)" onmouseover="showTip(event, 'fs21', 37)" class="id">opt2</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 38)" onmouseover="showTip(event, 'fs5', 38)" class="id">int</span> <span onmouseout="hideTip(event, 'fs20', 39)" onmouseover="showTip(event, 'fs20', 39)" class="id">option</span>
 <span class="pn">}</span>
 
-<span class="k">let</span> <span onmouseout="hideTip(event, 'fs12', 28)" onmouseover="showTip(event, 'fs12', 28)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;opt1: 31&quot;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs17', 40)" onmouseover="showTip(event, 'fs17', 40)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;opt1: 31&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs13', 29)" onmouseover="showTip(event, 'fs13', 29)" class="id">OptionExample</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs12', 30)" onmouseover="showTip(event, 'fs12', 30)" class="id">yaml</span>
+<span onmouseout="hideTip(event, 'fs4', 41)" onmouseover="showTip(event, 'fs4', 41)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs18', 42)" onmouseover="showTip(event, 'fs18', 42)" class="id">OptionExample</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs17', 43)" onmouseover="showTip(event, 'fs17', 43)" class="id">yaml</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = {opt1 = Some 31;
+                 opt2 = None;};
+         Warn = [];}]</code></pre></td></tr></table>
 <p>Also "null" is translated to None:</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
 <span class="l">2: </span>
 <span class="l">3: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span onmouseout="hideTip(event, 'fs12', 31)" onmouseover="showTip(event, 'fs12', 31)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;{ opt1: 31, opt2: null }&quot;</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span onmouseout="hideTip(event, 'fs17', 44)" onmouseover="showTip(event, 'fs17', 44)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;{ opt1: 31, opt2: null }&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs13', 32)" onmouseover="showTip(event, 'fs13', 32)" class="id">OptionExample</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs12', 33)" onmouseover="showTip(event, 'fs12', 33)" class="id">yaml</span>
+<span onmouseout="hideTip(event, 'fs4', 45)" onmouseover="showTip(event, 'fs4', 45)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs18', 46)" onmouseover="showTip(event, 'fs18', 46)" class="id">OptionExample</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs17', 47)" onmouseover="showTip(event, 'fs17', 47)" class="id">yaml</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = {opt1 = Some 31;
+                 opt2 = None;};
+         Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Discriminated-Union-mapping" class="anchor" href="#Discriminated-Union-mapping">Discriminated Union mapping</a></h1>
 <p>Discriminated unions can be compiled to a C# enum, or to an ordinary DU.
 They can also be appear as a value in Yaml (plain style), or one key/value pair in a mapping
@@ -185,17 +196,18 @@ to customize the yaml-to-union-case mapping.</p>
 <span class="l">5: </span>
 <span class="l">6: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs17', 34)" onmouseover="showTip(event, 'fs17', 34)" class="vt">UnionCaseEnum</span> <span class="o">=</span>
-    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs18', 35)" onmouseover="showTip(event, 'fs18', 35)" class="en">One</span><span class="o">=</span><span class="n">1</span>
-    <span class="pn">|</span>   <span class="pn">[&lt;</span><span class="id">YamlValue</span><span class="pn">(</span><span class="s">&quot;two&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs19', 36)" onmouseover="showTip(event, 'fs19', 36)" class="en">Two</span><span class="o">=</span><span class="n">2</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs22', 48)" onmouseover="showTip(event, 'fs22', 48)" class="id">UnionCaseEnum</span> <span class="o">=</span>
+    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs23', 49)" onmouseover="showTip(event, 'fs23', 49)" class="id">One</span><span class="o">=</span><span class="n">1</span>
+    <span class="pn">|</span>   <span class="pn">[&lt;</span><span onmouseout="hideTip(event, 'fs24', 50)" onmouseover="showTip(event, 'fs24', 50)" class="id">YamlValue</span><span class="pn">(</span><span class="s">&quot;two&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs25', 51)" onmouseover="showTip(event, 'fs25', 51)" class="id">Two</span><span class="o">=</span><span class="n">2</span>
 
-<span class="k">let</span> <span onmouseout="hideTip(event, 'fs12', 37)" onmouseover="showTip(event, 'fs12', 37)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;two # alias&quot;</span>
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs17', 38)" onmouseover="showTip(event, 'fs17', 38)" class="id">UnionCaseEnum</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs12', 39)" onmouseover="showTip(event, 'fs12', 39)" class="id">yaml</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs17', 52)" onmouseover="showTip(event, 'fs17', 52)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;two # alias&quot;</span>
+<span onmouseout="hideTip(event, 'fs4', 53)" onmouseover="showTip(event, 'fs4', 53)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs22', 54)" onmouseover="showTip(event, 'fs22', 54)" class="id">UnionCaseEnum</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs17', 55)" onmouseover="showTip(event, 'fs17', 55)" class="id">yaml</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = Two;
+         Warn = [];}]</code></pre></td></tr></table>
 <p>The following example demonstrates embedded style yaml which maps
 to a Union Case with record data:</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
@@ -216,28 +228,30 @@ to a Union Case with record data:</p>
 <span class="l">16: </span>
 <span class="l">17: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs20', 40)" onmouseover="showTip(event, 'fs20', 40)" class="rt">SomeData</span> <span class="o">=</span> <span class="pn">{</span>
-    <span onmouseout="hideTip(event, 'fs21', 41)" onmouseover="showTip(event, 'fs21', 41)" class="id">Name</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs9', 42)" onmouseover="showTip(event, 'fs9', 42)" class="rt">string</span>
-    <span onmouseout="hideTip(event, 'fs22', 43)" onmouseover="showTip(event, 'fs22', 43)" class="id">Age</span>  <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 44)" onmouseover="showTip(event, 'fs2', 44)" class="vt">int</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs26', 56)" onmouseover="showTip(event, 'fs26', 56)" class="id">SomeData</span> <span class="o">=</span> <span class="pn">{</span>
+    <span onmouseout="hideTip(event, 'fs27', 57)" onmouseover="showTip(event, 'fs27', 57)" class="id">Name</span> <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs13', 58)" onmouseover="showTip(event, 'fs13', 58)" class="id">string</span>
+    <span onmouseout="hideTip(event, 'fs28', 59)" onmouseover="showTip(event, 'fs28', 59)" class="id">Age</span>  <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 60)" onmouseover="showTip(event, 'fs5', 60)" class="id">int</span>
 <span class="pn">}</span>
 
-<span class="pn">[&lt;</span><span class="id">YamlField</span><span class="pn">(</span><span class="s">&quot;TypeOf&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span>
-<span class="k">type</span> <span onmouseout="hideTip(event, 'fs23', 45)" onmouseover="showTip(event, 'fs23', 45)" class="rt">UnionCaseWithData</span> <span class="o">=</span>
-    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs24', 46)" onmouseover="showTip(event, 'fs24', 46)" class="uc">One</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs20', 47)" onmouseover="showTip(event, 'fs20', 47)" class="rt">SomeData</span>
-    <span class="pn">|</span>   <span class="pn">[&lt;</span><span class="id">YamlValue</span><span class="pn">(</span><span class="s">&quot;two&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs25', 48)" onmouseover="showTip(event, 'fs25', 48)" class="uc">Two</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs20', 49)" onmouseover="showTip(event, 'fs20', 49)" class="rt">SomeData</span>
+<span class="pn">[&lt;</span><span onmouseout="hideTip(event, 'fs15', 61)" onmouseover="showTip(event, 'fs15', 61)" class="id">YamlField</span><span class="pn">(</span><span class="s">&quot;TypeOf&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs29', 62)" onmouseover="showTip(event, 'fs29', 62)" class="id">UnionCaseWithData</span> <span class="o">=</span>
+    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs30', 63)" onmouseover="showTip(event, 'fs30', 63)" class="id">One</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs26', 64)" onmouseover="showTip(event, 'fs26', 64)" class="id">SomeData</span>
+    <span class="pn">|</span>   <span class="pn">[&lt;</span><span onmouseout="hideTip(event, 'fs24', 65)" onmouseover="showTip(event, 'fs24', 65)" class="id">YamlValue</span><span class="pn">(</span><span class="s">&quot;two&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs31', 66)" onmouseover="showTip(event, 'fs31', 66)" class="id">Two</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs26', 67)" onmouseover="showTip(event, 'fs26', 67)" class="id">SomeData</span>
 
-<span class="k">let</span> <span onmouseout="hideTip(event, 'fs12', 50)" onmouseover="showTip(event, 'fs12', 50)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs17', 68)" onmouseover="showTip(event, 'fs17', 68)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
 <span class="s">    Name: &#39;Frank&#39;</span>
 <span class="s">    Age:  43</span>
 <span class="s">    TypeOf : One</span>
 <span class="s">&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs23', 51)" onmouseover="showTip(event, 'fs23', 51)" class="id">UnionCaseWithData</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs12', 52)" onmouseover="showTip(event, 'fs12', 52)" class="id">yaml</span>
+<span onmouseout="hideTip(event, 'fs4', 69)" onmouseover="showTip(event, 'fs4', 69)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs29', 70)" onmouseover="showTip(event, 'fs29', 70)" class="id">UnionCaseWithData</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs17', 71)" onmouseover="showTip(event, 'fs17', 71)" class="id">yaml</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes {Data = One {Name = "Frank";
+                     Age = 43;};
+         Warn = [];}]</code></pre></td></tr></table>
 <h1><a name="Map-mapping" class="anchor" href="#Map-mapping">Map mapping</a></h1>
 <p>Yaml mapping Nodes can be converted to an FSharp Map type as follows:</p>
 <table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
@@ -259,63 +273,77 @@ to a Union Case with record data:</p>
 <span class="l">17: </span>
 <span class="l">18: </span>
 </pre></td>
-<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs26', 53)" onmouseover="showTip(event, 'fs26', 53)" class="vt">ProductType</span> <span class="o">=</span>
-    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs27', 54)" onmouseover="showTip(event, 'fs27', 54)" class="en">Zero</span><span class="o">=</span><span class="n">0</span>      
-    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs28', 55)" onmouseover="showTip(event, 'fs28', 55)" class="en">Light</span><span class="o">=</span><span class="n">1</span>
-    <span class="pn">|</span>   <span class="pn">[&lt;</span><span class="id">YamlValue</span><span class="pn">(</span><span class="s">&quot;normal&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs29', 56)" onmouseover="showTip(event, 'fs29', 56)" class="en">Normal</span><span class="o">=</span><span class="n">2</span>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs32', 72)" onmouseover="showTip(event, 'fs32', 72)" class="id">ProductType</span> <span class="o">=</span>
+    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs33', 73)" onmouseover="showTip(event, 'fs33', 73)" class="id">Zero</span><span class="o">=</span><span class="n">0</span>      
+    <span class="pn">|</span>   <span onmouseout="hideTip(event, 'fs34', 74)" onmouseover="showTip(event, 'fs34', 74)" class="id">Light</span><span class="o">=</span><span class="n">1</span>
+    <span class="pn">|</span>   <span class="pn">[&lt;</span><span onmouseout="hideTip(event, 'fs24', 75)" onmouseover="showTip(event, 'fs24', 75)" class="id">YamlValue</span><span class="pn">(</span><span class="s">&quot;normal&quot;</span><span class="pn">)</span><span class="pn">&gt;]</span> <span onmouseout="hideTip(event, 'fs35', 76)" onmouseover="showTip(event, 'fs35', 76)" class="id">Normal</span><span class="o">=</span><span class="n">2</span>
 
 
-<span class="k">type</span> <span onmouseout="hideTip(event, 'fs30', 57)" onmouseover="showTip(event, 'fs30', 57)" class="rt">Contents</span> <span class="o">=</span> <span class="pn">{</span>
-    <span onmouseout="hideTip(event, 'fs31', 58)" onmouseover="showTip(event, 'fs31', 58)" class="id">Name</span>     <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs9', 59)" onmouseover="showTip(event, 'fs9', 59)" class="rt">string</span>
-    <span onmouseout="hideTip(event, 'fs32', 60)" onmouseover="showTip(event, 'fs32', 60)" class="id">SugarMg</span>  <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 61)" onmouseover="showTip(event, 'fs2', 61)" class="vt">int</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs36', 77)" onmouseover="showTip(event, 'fs36', 77)" class="id">Contents</span> <span class="o">=</span> <span class="pn">{</span>
+    <span onmouseout="hideTip(event, 'fs37', 78)" onmouseover="showTip(event, 'fs37', 78)" class="id">Name</span>     <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs13', 79)" onmouseover="showTip(event, 'fs13', 79)" class="id">string</span>
+    <span onmouseout="hideTip(event, 'fs38', 80)" onmouseover="showTip(event, 'fs38', 80)" class="id">SugarMg</span>  <span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 81)" onmouseover="showTip(event, 'fs5', 81)" class="id">int</span>
 <span class="pn">}</span>
 
-<span class="k">let</span> <span onmouseout="hideTip(event, 'fs12', 62)" onmouseover="showTip(event, 'fs12', 62)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs17', 82)" onmouseover="showTip(event, 'fs17', 82)" class="id">yaml</span> <span class="o">=</span> <span class="s">&quot;</span>
 <span class="s">    Zero  : { Name: &#39;RefreshBubbles No Sugar&#39;, SugarMg:  10 }</span>
 <span class="s">    Light : { Name: &#39;RefreshBubbles Light&#39;, SugarMg:  40 }</span>
 <span class="s">    normal : { Name: &#39;RefreshBubbles Heroes&#39;, SugarMg:  150 }</span>
 <span class="s">&quot;</span>
 
-<span class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs33', 63)" onmouseover="showTip(event, 'fs33', 63)" class="id">Map</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs26', 64)" onmouseover="showTip(event, 'fs26', 64)" class="id">ProductType</span><span class="pn">,</span><span onmouseout="hideTip(event, 'fs30', 65)" onmouseover="showTip(event, 'fs30', 65)" class="id">Contents</span><span class="pn">&gt;</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs12', 66)" onmouseover="showTip(event, 'fs12', 66)" class="id">yaml</span>
+<span onmouseout="hideTip(event, 'fs4', 83)" onmouseover="showTip(event, 'fs4', 83)" class="id">Deserialize</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs39', 84)" onmouseover="showTip(event, 'fs39', 84)" class="id">Map</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs32', 85)" onmouseover="showTip(event, 'fs32', 85)" class="id">ProductType</span><span class="pn">,</span><span onmouseout="hideTip(event, 'fs36', 86)" onmouseover="showTip(event, 'fs36', 86)" class="id">Contents</span><span class="pn">&gt;</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs17', 87)" onmouseover="showTip(event, 'fs17', 87)" class="id">yaml</span>
 </code></pre></td>
 </tr>
 </table>
 <p>Which results in:</p>
-<table class="pre"><tr><td><pre><code>No value has been returned</code></pre></td></tr></table>
+<table class="pre"><tr><td><pre><code>[Succes
+   {Data =
+     map
+       [(Zero, {Name = "RefreshBubbles No Sugar";
+                SugarMg = 10;}); (Light, {Name = "RefreshBubbles Light";
+                                          SugarMg = 40;});
+        (Normal, {Name = "RefreshBubbles Heroes";
+                  SugarMg = 150;})];
+    Warn = [];}]</code></pre></td></tr></table>
 
-<div class="tip" id="fs1">namespace System</div>
-<div class="tip" id="fs2">Multiple items<br />val int : value:&#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; = int</div>
-<div class="tip" id="fs3">Multiple items<br />val float : value:&#39;T -&gt; float (requires member op_Explicit)<br /><br />--------------------<br />type float = Double<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; = float</div>
-<div class="tip" id="fs4">type bool = Boolean</div>
-<div class="tip" id="fs5">Multiple items<br />type DateTime =<br />&#160;&#160;struct<br />&#160;&#160;&#160;&#160;new : ticks:int64 -&gt; DateTime + 10 overloads<br />&#160;&#160;&#160;&#160;member Add : value:TimeSpan -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddDays : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddHours : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMilliseconds : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMinutes : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMonths : months:int -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddSeconds : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddTicks : value:int64 -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddYears : value:int -&gt; DateTime<br />&#160;&#160;&#160;&#160;...<br />&#160;&#160;end<br /><br />--------------------<br />DateTime ()<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em></div>
-<div class="tip" id="fs6">type &#39;T list = List&lt;&#39;T&gt;</div>
-<div class="tip" id="fs7">type PlayerStats =<br />&#160;&#160;{name: string;<br />&#160;&#160;&#160;hr: int;<br />&#160;&#160;&#160;average: float;}</div>
-<div class="tip" id="fs8">PlayerStats.name: string</div>
-<div class="tip" id="fs9">Multiple items<br />val string : value:&#39;T -&gt; string<br /><br />--------------------<br />type string = String</div>
-<div class="tip" id="fs10">PlayerStats.hr: int</div>
-<div class="tip" id="fs11">PlayerStats.average: float</div>
-<div class="tip" id="fs12">val yaml : string</div>
-<div class="tip" id="fs13">type OptionExample =<br />&#160;&#160;{opt1: int option;<br />&#160;&#160;&#160;opt2: int option;}</div>
-<div class="tip" id="fs14">OptionExample.opt1: int option</div>
-<div class="tip" id="fs15">type &#39;T option = Option&lt;&#39;T&gt;</div>
-<div class="tip" id="fs16">OptionExample.opt2: int option</div>
-<div class="tip" id="fs17">type UnionCaseEnum =<br />&#160;&#160;| One = 1<br />&#160;&#160;| Two = 2</div>
-<div class="tip" id="fs18">UnionCaseEnum.One: UnionCaseEnum = 1</div>
-<div class="tip" id="fs19">UnionCaseEnum.Two: UnionCaseEnum = 2</div>
-<div class="tip" id="fs20">type SomeData =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Age: int;}</div>
-<div class="tip" id="fs21">SomeData.Name: string</div>
-<div class="tip" id="fs22">SomeData.Age: int</div>
-<div class="tip" id="fs23">type UnionCaseWithData =<br />&#160;&#160;| One of SomeData<br />&#160;&#160;| Two of SomeData</div>
-<div class="tip" id="fs24">union case UnionCaseWithData.One: SomeData -&gt; UnionCaseWithData</div>
-<div class="tip" id="fs25">union case UnionCaseWithData.Two: SomeData -&gt; UnionCaseWithData</div>
-<div class="tip" id="fs26">type ProductType =<br />&#160;&#160;| Zero = 0<br />&#160;&#160;| Light = 1<br />&#160;&#160;| Normal = 2</div>
-<div class="tip" id="fs27">ProductType.Zero: ProductType = 0</div>
-<div class="tip" id="fs28">ProductType.Light: ProductType = 1</div>
-<div class="tip" id="fs29">ProductType.Normal: ProductType = 2</div>
-<div class="tip" id="fs30">type Contents =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;SugarMg: int;}</div>
-<div class="tip" id="fs31">Contents.Name: string</div>
-<div class="tip" id="fs32">Contents.SugarMg: int</div>
-<div class="tip" id="fs33">Multiple items<br />module Map<br /><br />from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&lt;&#39;Key,&#39;Value (requires comparison)&gt; =<br />&#160;&#160;interface IEnumerable<br />&#160;&#160;interface IComparable<br />&#160;&#160;interface IEnumerable&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface ICollection&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface IDictionary&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member Add : key:&#39;Key * value:&#39;Value -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member ContainsKey : key:&#39;Key -&gt; bool<br />&#160;&#160;override Equals : obj -&gt; bool<br />&#160;&#160;member Remove : key:&#39;Key -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;...<br /><br />--------------------<br />new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;</div>
+<div class="tip" id="fs1">namespace Legivel</div>
+<div class="tip" id="fs2">module Serialization<br /><br />from Legivel</div>
+<div class="tip" id="fs3">namespace System</div>
+<div class="tip" id="fs4">val Deserialize : yaml:string -&gt; DeserializeResult&lt;&#39;tp&gt; list</div>
+<div class="tip" id="fs5">Multiple items<br />val int : value:&#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; = int</div>
+<div class="tip" id="fs6">Multiple items<br />val float : value:&#39;T -&gt; float (requires member op_Explicit)<br /><br />--------------------<br />type float = Double<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; = float</div>
+<div class="tip" id="fs7">type bool = Boolean</div>
+<div class="tip" id="fs8">Multiple items<br />type DateTime =<br />&#160;&#160;struct<br />&#160;&#160;&#160;&#160;new : ticks:int64 -&gt; DateTime + 10 overloads<br />&#160;&#160;&#160;&#160;member Add : value:TimeSpan -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddDays : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddHours : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMilliseconds : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMinutes : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMonths : months:int -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddSeconds : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddTicks : value:int64 -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddYears : value:int -&gt; DateTime<br />&#160;&#160;&#160;&#160;...<br />&#160;&#160;end<br /><br />--------------------<br />DateTime ()<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em></div>
+<div class="tip" id="fs9">type &#39;T list = List&lt;&#39;T&gt;</div>
+<div class="tip" id="fs10">module Attributes<br /><br />from Legivel</div>
+<div class="tip" id="fs11">type PlayerStats =<br />&#160;&#160;{name: string;<br />&#160;&#160;&#160;hr: int;<br />&#160;&#160;&#160;average: float;}</div>
+<div class="tip" id="fs12">PlayerStats.name: string</div>
+<div class="tip" id="fs13">Multiple items<br />val string : value:&#39;T -&gt; string<br /><br />--------------------<br />type string = String</div>
+<div class="tip" id="fs14">PlayerStats.hr: int</div>
+<div class="tip" id="fs15">Multiple items<br /><br />--------------------<br />new : Name:string -&gt; YamlFieldAttribute</div>
+<div class="tip" id="fs16">PlayerStats.average: float</div>
+<div class="tip" id="fs17">val yaml : string</div>
+<div class="tip" id="fs18">type OptionExample =<br />&#160;&#160;{opt1: int option;<br />&#160;&#160;&#160;opt2: int option;}</div>
+<div class="tip" id="fs19">OptionExample.opt1: int option</div>
+<div class="tip" id="fs20">type &#39;T option = Option&lt;&#39;T&gt;</div>
+<div class="tip" id="fs21">OptionExample.opt2: int option</div>
+<div class="tip" id="fs22">type UnionCaseEnum =<br />&#160;&#160;| One = 1<br />&#160;&#160;| Two = 2</div>
+<div class="tip" id="fs23">UnionCaseEnum.One: UnionCaseEnum = 1</div>
+<div class="tip" id="fs24">Multiple items<br /><br />--------------------<br />new : Id:string -&gt; YamlValueAttribute</div>
+<div class="tip" id="fs25">UnionCaseEnum.Two: UnionCaseEnum = 2</div>
+<div class="tip" id="fs26">type SomeData =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Age: int;}</div>
+<div class="tip" id="fs27">SomeData.Name: string</div>
+<div class="tip" id="fs28">SomeData.Age: int</div>
+<div class="tip" id="fs29">type UnionCaseWithData =<br />&#160;&#160;| One of SomeData<br />&#160;&#160;| Two of SomeData</div>
+<div class="tip" id="fs30">union case UnionCaseWithData.One: SomeData -&gt; UnionCaseWithData</div>
+<div class="tip" id="fs31">union case UnionCaseWithData.Two: SomeData -&gt; UnionCaseWithData</div>
+<div class="tip" id="fs32">type ProductType =<br />&#160;&#160;| Zero = 0<br />&#160;&#160;| Light = 1<br />&#160;&#160;| Normal = 2</div>
+<div class="tip" id="fs33">ProductType.Zero: ProductType = 0</div>
+<div class="tip" id="fs34">ProductType.Light: ProductType = 1</div>
+<div class="tip" id="fs35">ProductType.Normal: ProductType = 2</div>
+<div class="tip" id="fs36">type Contents =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;SugarMg: int;}</div>
+<div class="tip" id="fs37">Contents.Name: string</div>
+<div class="tip" id="fs38">Contents.SugarMg: int</div>
+<div class="tip" id="fs39">Multiple items<br />module Map<br /><br />from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&lt;&#39;Key,&#39;Value (requires comparison)&gt; =<br />&#160;&#160;interface IEnumerable<br />&#160;&#160;interface IComparable<br />&#160;&#160;interface IEnumerable&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface ICollection&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface IDictionary&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member Add : key:&#39;Key * value:&#39;Value -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member ContainsKey : key:&#39;Key -&gt; bool<br />&#160;&#160;override Equals : obj -&gt; bool<br />&#160;&#160;member Remove : key:&#39;Key -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;...<br /><br />--------------------<br />new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;</div>
 
         </div>
         <div class="span3">

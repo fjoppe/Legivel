@@ -5,16 +5,16 @@
     <Name>Legivel.Tests</Name>
     <AssemblyName>Legivel.Tests</AssemblyName>
     <RootNamespace>YamlParser.Tests</RootNamespace>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <!-- <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>ed4cd570-a206-4922-88aa-991a2e8c2642</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <ProjectGuid>ed4cd570-a206-4922-88aa-991a2e8c2642</ProjectGuid> -->
     <TargetFrameworks>net45;netcoreapp2.0</TargetFrameworks>
-    <TargetFrameworkProfile />
+    <!-- <TargetFrameworkProfile />
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
     <NoWarn>NU1701</NoWarn>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -34,6 +34,12 @@
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.0'">
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net45'">
+    <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net45'">
     <!-- <Reference Include="FSharp.Charting">
@@ -94,8 +100,24 @@
       <Paket>True</Paket>
     </Reference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="NUnit3TestAdapter" />
-    <!-- <PackageReference Include="NUnit" /> -->
+    <PackageReference Include="NUnit3TestAdapter" framework="netcoreapp2.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Legivel.Mapper.Merged\Legivel.Mapper.fsproj">
+      <Name>Legivel.Mapper</Name>
+      <Project>{f1048c7d-0ad1-41e2-86ef-d8aa4bae982d}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.Parser.Merged\Legivel.Parser.fsproj">
+      <Name>Legivel.Parser</Name>
+      <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.YamlPath.Merged\Legivel.YamlPath.fsproj">
+      <Name>Legivel.YamlPath</Name>
+      <Project>{e8e3c303-65c3-40f1-8e7f-5b43868a9e6f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\paket-files\fsprojects\FsUnit\src\FsUnit.NUnit\FsUnitTyped.fs">
@@ -140,22 +162,8 @@
       <Link>TestTokenizer.fs</Link>
     </Compile>
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Legivel.Mapper.Merged\Legivel.Mapper.fsproj">
-      <Name>Legivel.Mapper</Name>
-      <Project>{f1048c7d-0ad1-41e2-86ef-d8aa4bae982d}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Legivel.Parser.Merged\Legivel.Parser.fsproj">
-      <Name>Legivel.Parser</Name>
-      <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Legivel.YamlPath.Merged\Legivel.YamlPath.fsproj">
-      <Name>Legivel.YamlPath</Name>
-      <Project>{e8e3c303-65c3-40f1-8e7f-5b43868a9e6f}</Project>
-      <Private>True</Private>
-    </ProjectReference>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.0'">
+    <Compile Include="Main.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

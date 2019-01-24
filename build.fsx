@@ -3,7 +3,6 @@
 // --------------------------------------------------------------------------------------
 
 #r "paket: groupref FakeBuild //"
-
 #load "./.fake/build.fsx/intellisense.fsx"
 
 open System.IO
@@ -13,9 +12,8 @@ open Fake.DotNet
 open Fake.IO
 open Fake.IO.FileSystemOperators
 open Fake.IO.Globbing.Operators
-open Fake.DotNet.Testing
 open Fake.Tools
-open Fake.Api
+
 
 // --------------------------------------------------------------------------------------
 // START TODO: Provide project-specific details below
@@ -52,7 +50,7 @@ let solutionFile  = "Legivel.Merged.sln"
 let configuration = "Release"
 
 // Pattern specifying assemblies to be tested using Expecto
-let testAssemblies = "tests/**/bin" </> configuration </> "**" </> "*Tests.exe"
+let testAssemblies = "tests/**/*Merged/bin" </> configuration </> "**" </> "*Tests.dll"
 
 // Git configuration (used for publishing documentation in gh-pages branch)
 // The profile where the project is posted
@@ -128,7 +126,7 @@ Target.create "CopyBinaries" (fun _ ->
 let buildConfiguration = DotNet.Custom <| Environment.environVarOrDefault "configuration" configuration
 
 Target.create "Clean" (fun _ ->
-    Shell.cleanDirs ["bin"; "temp"]
+    Shell.cleanDirs ["bin"; "temp"; "obj"]
 )
 
 Target.create "CleanDocs" (fun _ ->
@@ -166,25 +164,36 @@ Target.create "Build" (fun _ ->
 // Run the unit tests using test runner
 
 Target.create "RunTests" (fun _ ->
-    let assemblies = !! testAssemblies
+    // let assemblies = !! testAssemblies
+    let projects = !! "tests/**/*Merged/**fsproj"
 
-    let setParams f =
-        match Environment.isWindows with
-        | true ->
-            fun p ->
-                { p with
-                    FileName = f}
-        | false ->
-            fun p ->
-                { p with
-                    FileName = "mono"
-                    Arguments = f }
-    assemblies
-    |> Seq.map (fun f ->
-        Process.execSimple (setParams f) System.TimeSpan.MaxValue
-    )
+    // let setParams f =
+    //     match Environment.isWindows with
+    //     | true ->
+    //         fun p ->
+    //             { p with
+    //                 FileName = sprintf "dotnet test %s" f }
+    //     | false ->
+    //         fun p ->
+    //             { p with
+    //                 FileName = "mono"
+    //                 Arguments = f }
+    // projects
+    // |> Seq.map (fun f ->
+    //     Process.execSimple (setParams f) System.TimeSpan.MaxValue
+    // )
+    // |>Seq.reduce (+)
+    // |> (fun i -> if i > 0 then failwith "")
+
+    projects
+    |> Seq.map (fun f -> 
+        DotNet.exec id "test" (sprintf "%s --no-build --test-adapter-path %s" f (Path.combine __SOURCE_DIRECTORY__ "packages/NUnit3TestAdapter")
+        ))
+    |> Seq.map (fun r -> r.ExitCode)
     |>Seq.reduce (+)
     |> (fun i -> if i > 0 then failwith "")
+
+ 
 )
 
 // --------------------------------------------------------------------------------------
@@ -403,4 +412,4 @@ Target.create "All" ignore
   ==> "PublishNuget"
   ==> "Release"
 
-Target.runOrDefault "All"
+Target.runOrDefaultWithArguments "All"
