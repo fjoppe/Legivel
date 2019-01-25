@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>MapYaml - Legivel</title>
+    <title>NonSpecific - Legivel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Frank Joppe"/>
@@ -35,81 +35,76 @@
 
 
 
-<h1>MapYaml</h1>
+<h1>NonSpecific</h1>
 <p>
-
-    <span>Namespace: Legivel</span><br />
-        <span>Parent Module: <a href="legivel-serialization.html">Serialization</a></span><br />
-    </p>
+  <span>Namespace: Legivel</span><br />
+  <span>Parent Module: <a href="legivel-tagresolution.html">TagResolution</a></span>
+  </p>
 <div class="xmldoc">
+<p>Non specific tags, "!", "?" and unresolved</p>
+
 </div>
-  <h3>Record Fields</h3>
+
+<!-- Render nested types and modules, if there are any -->
+
+  <h3>Functions and values</h3>
   <table class="table table-bordered member-list">
     <thead>
-      <tr><td>Record Field</td><td>Description</td></tr>
+      <tr><td>Function or value</td><td>Description</td></tr>
     </thead>
     <tbody>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '146', 146)" onmouseover="showTip(event, '146', 146)">
-            AndRequireFullProjection
+          <code onmouseout="hideTip(event, '33', 33)" onmouseover="showTip(event, '33', 33)">
+            NonSpecificTagQM 
           </code>
-          <div class="tip" id="146">
-            <strong>Signature:</strong> MapYaml<br />
-              <strong>Modifiers:</strong> static<br />
+          <div class="tip" id="33">
+            <strong>Signature:</strong> TagKind<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/YamlMapper.fsi#L12-12" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/TagResolution.fs#L258-258" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>The model and yaml must be eachothers exact projection. Significant difference is reported as an error.</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '147', 147)" onmouseover="showTip(event, '147', 147)">
-            ToModelOnly
+          <code onmouseout="hideTip(event, '34', 34)" onmouseover="showTip(event, '34', 34)">
+            NonSpecificTagQT 
           </code>
-          <div class="tip" id="147">
-            <strong>Signature:</strong> MapYaml<br />
-              <strong>Modifiers:</strong> static<br />
+          <div class="tip" id="34">
+            <strong>Signature:</strong> TagKind<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/YamlMapper.fsi#L8-8" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/TagResolution.fs#L257-257" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>The model is leading and defines the minimal yaml required for succesful deserialization. Any unrecognized yaml is ignored.</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '148', 148)" onmouseover="showTip(event, '148', 148)">
-            WithCrossCheck
+          <code onmouseout="hideTip(event, '35', 35)" onmouseover="showTip(event, '35', 35)">
+            UnresolvedTag 
           </code>
-          <div class="tip" id="148">
-            <strong>Signature:</strong> MapYaml<br />
-              <strong>Modifiers:</strong> static<br />
+          <div class="tip" id="35">
+            <strong>Signature:</strong> TagKind<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/YamlMapper.fsi#L10-10" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/TagResolution.fs#L259-259" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>The model and yaml are desired to be eachothers projection. Significant unrecognized yaml is reported as warning.</p>
-
-
+          
         </td>
       </tr>
     </tbody>

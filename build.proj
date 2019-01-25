@@ -13,9 +13,9 @@
     <CoreBuildDependsOn>
     </CoreBuildDependsOn>
   </PropertyGroup>
-  <ItemGroup>
+  <!-- <ItemGroup>
     <DotNetCliToolReference Include="dotnet-fake" Version="5.*" />
-  </ItemGroup>  
+  </ItemGroup>   -->
   <Target Name="Build">
     <Exec IgnoreStandardErrorWarningFormat="true" Command="fake build" WorkingDirectory="$(RepoRootDir)" />
   </Target>

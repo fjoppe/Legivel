@@ -61,6 +61,7 @@
     <Compile Include="Internals.fs" />
     <Compile Include="TagResolution.fsi" />
     <Compile Include="TagResolution.fs" />
+    <Compile Include="HardValues.fs" />
     <Compile Include="YamlParser.fsi" />
     <Compile Include="YamlParser.fs" />
     <Compile Include="Serialization.fs" />

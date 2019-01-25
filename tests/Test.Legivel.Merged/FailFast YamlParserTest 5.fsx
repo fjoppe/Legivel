@@ -61,9 +61,8 @@ let PrintNode crr =
 let YamlParse s =
     try
         let repr = (engine.``l-yaml-stream`` s)
-        //let crr = repr.Head
-        //PrintNode crr
-        ()
+        let crr = repr.Head
+        PrintNode crr
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
@@ -94,5 +93,8 @@ let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
 
+let st  = System.Diagnostics.Stopwatch.StartNew()
 YamlParse s
+st.Stop()
+printfn "Elapsed: %O" (st.Elapsed)
 

@@ -1,3 +1,6 @@
+#### 0.3.0 - Januari 25 2019
+*   Added netstandard2.0 support
+
 #### 0.2.2 - November 25 2018
 *   Legivel.Parser: Performance impovements - Further tweaking
 *   Feature: Processing options (Yaml.Mapper), cross check yaml with model (records)

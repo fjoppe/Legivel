@@ -1,3 +1,4 @@
+version 5.193.0
 framework: auto-detect
 
 source https://nuget.org/api/v2

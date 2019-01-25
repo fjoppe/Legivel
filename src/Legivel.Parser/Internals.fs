@@ -7,13 +7,13 @@ module internal ParserMonads =
     [<Struct>]
     type EitherResult<'a,'b> = {
         Context : 'a
-        Result'  : FallibleOption<'b>*ParseMessage
+        mutable Result'  : FallibleOption<'b>*ParseMessage
         HasErrorOccurred : bool
     }
     with
         static member Create c r = { Context = c; Result' = r; HasErrorOccurred = false}
         member this.SetContext c = { this with Context = c}
-        member this.SetResult  r = { this with Result' = r }
+        member this.SetResult  r = this.Result' <- r; this // { this with Result' = r }
         member this.SetError()   = { this with HasErrorOccurred = true }
         member this.Result with get() = this.Result' |> fst
         member this.ResultValue with get() = this.Result.Result

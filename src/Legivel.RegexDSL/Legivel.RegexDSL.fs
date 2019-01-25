@@ -235,7 +235,8 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                 |   Some x  -> condition (rs, x)
                 |   None    -> condition (rs, noToken)
 
-        if rs.EOF then (false, [])
+        if rs.EOF then 
+            (false, [])
         else
             match rgx with
             |   OneInSet ois    -> 

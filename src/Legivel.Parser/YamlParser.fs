@@ -758,250 +758,187 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
-    member this.``c-printable`` = 
-        RGO (
-            "\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
-            "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
-                                                   //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
-            [
-            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-            Token.``ns-dec-digit``; Token.``c-escape``
-            ])
+    member this.``c-printable`` = HardValues.``c-printable``
 
     //  [2] http://www.yaml.org/spec/1.2/spec.html#nb-json
-    member ths.``nb-json`` = 
-        RGO ("\u0009\u0020-\uffff",
-            [
-            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-            Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
-            ])
+    member ths.``nb-json`` = HardValues.``nb-json``
 
     //  [3] http://www.yaml.org/spec/1.2/spec.html#c-byte-order-mark
-    member this.``c-byte-order-mark`` = RGP ("\ufeff", [Token.``byte-order-mark``])
+    member this.``c-byte-order-mark`` = HardValues.``c-byte-order-mark``
 
     //  [4] http://www.yaml.org/spec/1.2/spec.html#c-sequence-entry
-    member this.``c-sequence-entry`` = RGP ("-", [Token.``t-hyphen``])
+    member this.``c-sequence-entry`` = HardValues.``c-sequence-entry``
 
     //  [5] http://www.yaml.org/spec/1.2/spec.html#c-mapping-key
-    member this.``c-mapping-key`` = RGP ("\\?", [Token.``t-questionmark``])
+    member this.``c-mapping-key`` = HardValues.``c-mapping-key``
 
     //  [6] http://www.yaml.org/spec/1.2/spec.html#c-mapping-value
-    member this.``c-mapping-value`` = RGP (":", [Token.``t-colon``])
+    member this.``c-mapping-value`` = HardValues.``c-mapping-value``
 
     //  [7] http://www.yaml.org/spec/1.2/spec.html#c-collect-entry
-    member this.``c-collect-entry`` = RGP(",", [Token.``t-comma``])
+    member this.``c-collect-entry`` = HardValues.``c-collect-entry``
 
     //  [8] http://www.yaml.org/spec/1.2/spec.html#c-sequence-start
-    member this.``c-sequence-start`` = RGP("\[", [Token.``t-square-bracket-start``])
+    member this.``c-sequence-start`` = HardValues.``c-sequence-start``
 
     //  [9] http://www.yaml.org/spec/1.2/spec.html#c-sequence-end
-    member this.``c-sequence-end`` = RGP("\]", [Token.``t-square-bracket-end``])
+    member this.``c-sequence-end`` = HardValues.``c-sequence-end``
 
     //  [10]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-start
-    member this.``c-mapping-start`` = RGP ("\{",[Token.``t-curly-bracket-start``])
+    member this.``c-mapping-start`` = HardValues.``c-mapping-start``
 
     //  [11]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-end
-    member this.``c-mapping-end`` = RGP("\}", [Token.``t-curly-bracket-end``])
+    member this.``c-mapping-end`` = HardValues.``c-mapping-end``
 
     //  [12]    http://www.yaml.org/spec/1.2/spec.html#c-comment
-    member this.``c-comment`` = RGP ("#", [Token.``t-hash``])
+    member this.``c-comment`` = HardValues.``c-comment``
 
     //  [13]    http://www.yaml.org/spec/1.2/spec.html#c-anchor
-    member this.``c-anchor`` = "&"
+    member this.``c-anchor`` = HardValues.``c-anchor``
 
     //  [14]    http://www.yaml.org/spec/1.2/spec.html#c-alias
-    member this.``c-alias`` = "*"
+    member this.``c-alias`` = HardValues.``c-alias``
 
     //  [15]    http://www.yaml.org/spec/1.2/spec.html#c-tag
-    member this.``c-tag`` = "!"
+    member this.``c-tag`` = HardValues.``c-tag``
 
     //  [16]    http://www.yaml.org/spec/1.2/spec.html#c-literal
-    member this.``c-literal`` = "|"
+    member this.``c-literal`` = HardValues.``c-literal``
 
     //  [17]    http://www.yaml.org/spec/1.2/spec.html#c-folded
-    member this.``c-folded`` = RGP(">", [Token.``t-gt``])
+    member this.``c-folded`` = HardValues.``c-folded``
 
     //  [18]    http://www.yaml.org/spec/1.2/spec.html#c-single-quote
-    member this.``c-single-quote`` = RGP ("\'", [Token.``t-single-quote``])
+    member this.``c-single-quote`` = HardValues.``c-single-quote``
 
     //  [19]    http://www.yaml.org/spec/1.2/spec.html#c-double-quote
-    member this.``c-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+    member this.``c-double-quote`` = HardValues.``c-double-quote``
 
     //  [20]    http://www.yaml.org/spec/1.2/spec.html#c-directive
-    member this.``c-directive`` = "%"
+    member this.``c-directive`` = HardValues.``c-directive``
 
     //  [21]    http://www.yaml.org/spec/1.2/spec.html#c-reserved
-    member this.``c-reserved`` = RGO ("\u0040\u0060", [Token.``t-commat``;Token.``t-tick``])
+    member this.``c-reserved`` = HardValues.``c-reserved``
 
     //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
-    member this.``c-indicator`` = 
-        RGO  (
-            "\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
-            [ 
-            Token.``t-hyphen``; Token.``t-questionmark``; Token.``t-colon``
-            Token.``t-comma``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
-            Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
-            Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
-            Token.``t-percent``; Token.``t-commat``;Token.``t-tick``
-            ])
-
+    member this.``c-indicator`` = HardValues.``c-indicator``
 
     //  [23]    http://www.yaml.org/spec/1.2/spec.html#c-flow-indicator
-    member this.``c-flow-indicator`` = 
-        RGO  (@",\[\]\{\}", 
-            [
-                Token.``t-comma``
-                Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
-                Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``
-            ])
+    member this.``c-flow-indicator`` = HardValues.``c-flow-indicator``
 
     //  [24]    http://www.yaml.org/spec/1.2/spec.html#b-line-feed
-    member this.``b-line-feed`` = RGP ("\u000a", [Token.NewLine])
+    member this.``b-line-feed`` = HardValues.``b-line-feed``
 
     //  [25]    http://www.yaml.org/spec/1.2/spec.html#b-carriage-return
-    member this.``b-carriage-return`` = RGP ("\u000d", [Token.NewLine])
+    member this.``b-carriage-return`` = HardValues.``b-carriage-return``
 
     //  [i26]   http://www.yaml.org/spec/1.2/spec.html#b-char
-    member this.``b-char`` = this.``b-line-feed`` ||| this.``b-carriage-return``
+    member this.``b-char`` = HardValues.``b-char``
 
     //  [27]    http://www.yaml.org/spec/1.2/spec.html#nb-char
-    member this.``nb-char``  = this.``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) // this.``b-char``
+    member this.``nb-char``  = HardValues.``nb-char``
 
     //  [28]    http://www.yaml.org/spec/1.2/spec.html#b-break
-    member this.``b-break`` = 
-            (this.``b-carriage-return`` + this.``b-line-feed``) |||  //  DOS, Windows
-            this.``b-carriage-return``                          |||  //  MacOS upto 9.x
-            this.``b-line-feed``                                     //  UNIX, MacOS X
+    member this.``b-break`` = HardValues.``b-break``
 
     //  [29]    http://www.yaml.org/spec/1.2/spec.html#b-as-line-feed
-    member this.``b-as-line-feed`` = this.``b-break``
+    member this.``b-as-line-feed`` = HardValues.``b-as-line-feed``
 
     //  [30]    http://www.yaml.org/spec/1.2/spec.html#b-non-content
-    member this.``b-non-content`` = this.``b-break``
+    member this.``b-non-content`` = HardValues.``b-non-content``
 
     //  [31]    http://www.yaml.org/spec/1.2/spec.html#s-space
-    member this.``s-space`` : string = "\u0020"  // space
+    member this.``s-space`` : string = HardValues.``s-space``
 
     //  [32]    http://www.yaml.org/spec/1.2/spec.html#s-tab
-    member this.``s-tab`` = "\u0009"    // tab
+    member this.``s-tab`` = HardValues.``s-tab``
 
     //  [33]    http://www.yaml.org/spec/1.2/spec.html#s-white
-    member this.``s-white`` = RGO(this.``s-space`` + this.``s-tab``, [Token.``t-space``; Token.``t-tab``])
+    member this.``s-white`` = HardValues.``s-white``
 
     //  [34]    http://www.yaml.org/spec/1.2/spec.html#ns-char
-    member this.``ns-char`` = this.``nb-char`` - this.``s-white``
+    member this.``ns-char`` = HardValues.``ns-char``
 
     //  [35]    http://www.yaml.org/spec/1.2/spec.html#ns-dec-digit
-    member this.``ns-dec-digit`` = RGO ("\u0030-\u0039", [Token.``ns-dec-digit``])      //  0-9
+    member this.``ns-dec-digit`` = HardValues.``ns-dec-digit``
 
     //  [36]    http://www.yaml.org/spec/1.2/spec.html#ns-hex-digit
-    member this.``ns-hex-digit`` =
-        this.``ns-dec-digit`` +
-        RGO ("\u0041-\u0046", [Token.``c-printable``])  +  //  A-F
-        RGO ("\u0061-\u0066", [Token.``c-printable``])     //  a-f
+    member this.``ns-hex-digit`` = HardValues.``ns-hex-digit``
 
     //  [37]    http://www.yaml.org/spec/1.2/spec.html#ns-ascii-letter
-    member this.``ns-ascii-letter`` = 
-        RGO ("\u0041-\u005A", [Token.``c-printable``]) +   //  A-Z
-        RGO ("\u0061-\u007A", [Token.``c-printable``])     //  a-z
+    member this.``ns-ascii-letter`` = HardValues.``ns-ascii-letter``
 
     //  [38]    http://www.yaml.org/spec/1.2/spec.html#ns-word-char
-    member this.``ns-word-char`` =
-        this.``ns-dec-digit`` + (RGO (@"\-", [Token.``t-hyphen``])) + this.``ns-ascii-letter``
+    member this.``ns-word-char`` = HardValues.``ns-word-char``
 
     //  [39]    http://www.yaml.org/spec/1.2/spec.html#ns-uri-char
-    member this.``ns-uri-char`` = 
-        RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        RGO (
-            @"#;/?:@&=+$,_.!~*\'\(\)\[\]", 
-            [
-            Token.``t-hash``; Token.``t-forward-slash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
-            Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
-            Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
-            Token.``c-printable``
-        ]) + this.``ns-word-char``
+    member this.``ns-uri-char`` = HardValues.``ns-uri-char``
 
     //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
-    member this.``ns-tag-char`` = 
-        RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        (RGO (
-            @"#;/?:@&=+$_.~*\'\(\)", 
-            [
-            Token.``t-hash``; Token.``t-forward-slash``;Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
-            Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
-            Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
-            Token.``c-printable``;
-        ]) - this.``c-flow-indicator``) + this.``ns-word-char``
+    member this.``ns-tag-char`` = HardValues.``ns-tag-char``
 
     //  [41]    http://www.yaml.org/spec/1.2/spec.html#c-escape
-    member this.``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
+    member this.``c-escape`` = HardValues.``c-escape``
 
     //  [42]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-null
-    member this.``ns-esc-null`` = RGP ("0", [Token.``ns-dec-digit``])
+    member this.``ns-esc-null`` = HardValues.``ns-esc-null``
 
     //  [43]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-bell
-    member this.``ns-esc-bell`` = RGP ("a", [Token.``c-printable``])
+    member this.``ns-esc-bell`` = HardValues.``ns-esc-bell``
 
     //  [44]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backspace
-    member this.``ns-esc-backspace`` = RGP( "b", [Token.``c-printable``])
+    member this.``ns-esc-backspace`` = HardValues.``ns-esc-backspace``
 
     //  [45]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-horizontal-tab
-    member this.``ns-esc-horizontal-tab`` = RGP ("t", [Token.``c-printable``])
+    member this.``ns-esc-horizontal-tab`` = HardValues.``ns-esc-horizontal-tab``
 
     //  [46]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-feed
-    member this.``ns-esc-line-feed`` = RGP ("n", [Token.``c-printable``])
+    member this.``ns-esc-line-feed`` = HardValues.``ns-esc-line-feed``
 
     //  [47]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-vertical-tab
-    member this.``ns-esc-vertical-tab`` = RGP ("v", [Token.``c-printable``])
+    member this.``ns-esc-vertical-tab`` = HardValues.``ns-esc-vertical-tab``
 
     //  [48]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-form-feed
-    member this.``ns-esc-form-feed`` = RGP ("f", [Token.``c-printable``])
+    member this.``ns-esc-form-feed`` = HardValues.``ns-esc-form-feed``
 
     //  [49]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-carriage-return
-    member this.``ns-esc-carriage-return`` = RGP ("r", [Token.``c-printable``])
+    member this.``ns-esc-carriage-return`` = HardValues.``ns-esc-carriage-return``
 
     //  [50]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-escape
-    member this.``ns-esc-escape`` = RGP ("e", [Token.``c-printable``])
+    member this.``ns-esc-escape`` = HardValues.``ns-esc-escape``
 
     //  [51]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-space
-    member this.``ns-esc-space`` = RGP ("\u0020", [Token.``t-space``])
+    member this.``ns-esc-space`` = HardValues.``ns-esc-space``
 
     //  [52]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-double-quote
-    member this.``ns-esc-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+    member this.``ns-esc-double-quote`` = HardValues.``ns-esc-double-quote``
 
     //  [53]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-slash
-    member this.``ns-esc-slash`` = RGP ("/", [Token.``c-printable``])
+    member this.``ns-esc-slash`` = HardValues.``ns-esc-slash``
 
     //  [54]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backslash
-    member this.``ns-esc-backslash`` = RGP ("\\\\", [Token.``c-escape``])
+    member this.``ns-esc-backslash`` = HardValues.``ns-esc-backslash``
 
     //  [55]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-next-line
-    member this.``ns-esc-next-line`` = RGP ("N", [Token.``c-printable``])
+    member this.``ns-esc-next-line`` = HardValues.``ns-esc-next-line``
 
     //  [56]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-non-breaking-space
-    member this.``ns-esc-non-breaking-space`` = RGP ("_", [Token.``c-printable``])
+    member this.``ns-esc-non-breaking-space`` = HardValues.``ns-esc-non-breaking-space``
 
     //  [57]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-separator
-    member this.``ns-esc-line-separator`` = RGP ("L", [Token.``c-printable``])
+    member this.``ns-esc-line-separator`` = HardValues.``ns-esc-line-separator``
 
     //  [58]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-paragraph-separator
-    member this.``ns-esc-paragraph-separator`` = RGP ("P", [Token.``c-printable``])
+    member this.``ns-esc-paragraph-separator`` = HardValues.``ns-esc-paragraph-separator``
 
     //  [59]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-8-bit
-    member this.``ns-esc-8-bit`` = (RGP ("x", [Token.``c-printable``])) + Repeat(this.``ns-hex-digit``,2)
+    member this.``ns-esc-8-bit`` = HardValues.``ns-esc-8-bit``
 
     //  [60]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-16-bit
-    member this.``ns-esc-16-bit`` = RGP ("u", [Token.``c-printable``]) + Repeat(this.``ns-hex-digit``,4)
+    member this.``ns-esc-16-bit`` = HardValues.``ns-esc-16-bit``
 
     //  [61]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-32-bit
-    member this.``ns-esc-32-bit`` = RGP ("U", [Token.``c-printable``]) + Repeat(this.``ns-hex-digit``,8) // currently not supported
+    member this.``ns-esc-32-bit`` = HardValues.``ns-esc-32-bit``
 
     //  [62]    http://www.yaml.org/spec/1.2/spec.html#c-ns-esc-char
     member this.``c-ns-esc-char`` = 
@@ -1037,7 +974,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``s-indent(<=n)`` ps = Range(RGP (this.``s-space``, [Token.``t-space``]), 0, ps.n)  (* Where m ≤ n *)
 
     //  [66]    http://www.yaml.org/spec/1.2/spec.html#s-separate-in-line
-    member this.``s-separate-in-line`` = OOM(this.``s-white``) ||| ``start-of-line``
+    member this.``s-separate-in-line`` = HardValues.``s-separate-in-line``
 
     //  [67]    http://www.yaml.org/spec/1.2/spec.html#s-line-prefix(n,c)
     member this.``s-line-prefix`` ps =
@@ -1062,7 +999,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``b-l-trimmed`` ps = this.``b-non-content`` + OOM(this.``l-empty`` ps)
 
     //  [72]    http://www.yaml.org/spec/1.2/spec.html#b-as-space
-    member this.``b-as-space`` = this.``b-break``
+    member this.``b-as-space`` = HardValues.``b-as-space``
 
     //  [73]    http://www.yaml.org/spec/1.2/spec.html#b-l-folded(n,c)
     member this.``b-l-folded`` ps = (this.``b-l-trimmed`` ps) ||| this.``b-as-space``
@@ -1072,19 +1009,19 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         OPT(this.``s-separate-in-line``) + (this.``b-l-folded`` (ps.SetStyleContext Context.``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
 
     //  [75]    http://www.yaml.org/spec/1.2/spec.html#c-nb-comment-text
-    member this.``c-nb-comment-text`` = RGP("#", [Token.``t-hash``]) + ZOM(this.``nb-char``)
+    member this.``c-nb-comment-text`` = HardValues.``c-nb-comment-text``
 
     //  [76]    http://www.yaml.org/spec/1.2/spec.html#b-comment
-    member this.``b-comment`` = this.``b-non-content`` ||| RGP("\\z", [Token.EOF]) // EOF..
+    member this.``b-comment`` = HardValues.``b-comment``
 
     //  [77]    http://www.yaml.org/spec/1.2/spec.html#s-b-comment
-    member this.``s-b-comment`` = OPT(this.``s-separate-in-line`` + OPT(this.``c-nb-comment-text``)) + this.``b-comment`` 
+    member this.``s-b-comment`` = HardValues.``s-b-comment``
 
     //  [78]    http://www.yaml.org/spec/1.2/spec.html#l-comment
-    member this.``l-comment`` = this.``s-separate-in-line`` + OPT(this.``c-nb-comment-text``) + this.``b-comment``
+    member this.``l-comment`` = HardValues.``l-comment``
 
     //  [79]    http://www.yaml.org/spec/1.2/spec.html#s-l-comments
-    member this.``s-l-comments`` = (this.``s-b-comment`` ||| ``start-of-line``) + ZOM(this.``l-comment``)
+    member this.``s-l-comments`` = HardValues.``s-l-comments``
 
     //  [80]    http://www.yaml.org/spec/1.2/spec.html#s-separate(n,c)
     member this.``s-separate`` ps = 
@@ -1152,45 +1089,43 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
 
     //  [83]    http://www.yaml.org/spec/1.2/spec.html#ns-reserved-directive
-    member this.``ns-reserved-directive`` = 
-        this.``ns-directive-name`` + ZOMNG(this.``s-separate-in-line`` + this.``ns-directive-parameter``)
+    member this.``ns-reserved-directive`` = HardValues.``ns-reserved-directive``
 
     //  [84]    http://www.yaml.org/spec/1.2/spec.html#ns-directive-name
-    member this.``ns-directive-name`` = OOM(this.``ns-char``)
+    member this.``ns-directive-name`` = HardValues.``ns-directive-name``
 
     //  [85]    http://www.yaml.org/spec/1.2/spec.html#ns-directive-parameter
-    member this.``ns-directive-parameter`` = OOM(this.``ns-char``)
+    member this.``ns-directive-parameter`` = HardValues.``ns-directive-parameter``
 
     //  [86]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-directive
-    member this.``ns-yaml-directive`` = RGP("YAML", [Token.``c-printable``]) + this.``s-separate-in-line`` + GRP(this.``ns-yaml-version``)
+    member this.``ns-yaml-directive`` = HardValues.``ns-yaml-directive``
 
     //  [87]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-version
-    member this.``ns-yaml-version`` = OOM(this.``ns-dec-digit``) + RGP("\\.", [Token.``c-printable``]) + OOM(this.``ns-dec-digit``)
+    member this.``ns-yaml-version`` = HardValues.``ns-yaml-version``
 
     //  [88]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-directive
-    member this.``ns-tag-directive`` = 
-        RGP ("TAG", [Token.``c-printable``]) + this.``s-separate-in-line`` + GRP(this.``c-tag-handle``) + this.``s-separate-in-line`` + GRP(this.``ns-tag-prefix``)
+    member this.``ns-tag-directive`` = HardValues.``ns-tag-directive``
 
     //  [89]    http://www.yaml.org/spec/1.2/spec.html#c-tag-handle
-    member this.``c-tag-handle`` = this.``c-named-tag-handle`` ||| this.``c-secondary-tag-handle`` ||| this.``c-primary-tag-handle``
+    member this.``c-tag-handle`` = HardValues.``c-tag-handle``
 
     //  [90]    http://www.yaml.org/spec/1.2/spec.html#c-primary-tag-handle
-    member this.``c-primary-tag-handle`` = RGP ("!", [Token.``t-quotationmark``])
+    member this.``c-primary-tag-handle`` = HardValues.``c-primary-tag-handle``
 
     //  [91]    http://www.yaml.org/spec/1.2/spec.html#c-secondary-tag-handle
-    member this.``c-secondary-tag-handle`` = RGP ("!!", [Token.``t-quotationmark``])
+    member this.``c-secondary-tag-handle`` = HardValues.``c-secondary-tag-handle``
 
     //  [92]    http://www.yaml.org/spec/1.2/spec.html#c-named-tag-handle
-    member this.``c-named-tag-handle`` = RGP ("!", [Token.``t-quotationmark``]) + OOM(this.``ns-word-char``) + RGP ("!", [Token.``t-quotationmark``]) 
+    member this.``c-named-tag-handle`` = HardValues.``c-named-tag-handle``
 
     //  [93]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-prefix
-    member this.``ns-tag-prefix`` = this.``c-ns-local-tag-prefix`` ||| this.``ns-global-tag-prefix``
+    member this.``ns-tag-prefix`` = HardValues.``ns-tag-prefix``
 
     //  [94]    http://www.yaml.org/spec/1.2/spec.html#c-ns-local-tag-prefix
-    member this.``c-ns-local-tag-prefix`` = RGP ("!", [Token.``t-quotationmark``]) + ZOM(this.``ns-uri-char``)
+    member this.``c-ns-local-tag-prefix`` = HardValues.``c-ns-local-tag-prefix``
 
     //  [95]    http://www.yaml.org/spec/1.2/spec.html#ns-global-tag-prefix
-    member this.``ns-global-tag-prefix`` = this.``ns-tag-char`` + ZOM(this.``ns-uri-char``)
+    member this.``ns-global-tag-prefix`` = HardValues.``ns-global-tag-prefix``
 
     //  [96]    http://www.yaml.org/spec/1.2/spec.html#c-ns-properties(n,c)
     member this.``c-ns-properties`` ps : FallibleOption<ParseState * (TagKind*DocumentLocation) * (string*DocumentLocation)>*ParseMessage =
@@ -1277,25 +1212,25 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             
 
     //  [97]    http://www.yaml.org/spec/1.2/spec.html#c-ns-tag-property
-    member this.``c-ns-tag-property`` = this.``c-verbatim-tag`` ||| this.``c-ns-shorthand-tag`` ||| this.``c-non-specific-tag``
+    member this.``c-ns-tag-property`` = HardValues.``c-ns-tag-property``
 
     //  [98]    http://www.yaml.org/spec/1.2/spec.html#c-verbatim-tag
-    member this.``c-verbatim-tag`` = RGP ("!", [Token.``t-quotationmark``]) + RGP ("<", [Token.``c-printable``]) + OOM(this.``ns-uri-char``) + RGP (">", [Token.``t-gt``]) 
+    member this.``c-verbatim-tag`` = HardValues.``c-verbatim-tag``
 
     //  [99]    http://www.yaml.org/spec/1.2/spec.html#c-ns-shorthand-tag
-    member this.``c-ns-shorthand-tag`` = this.``c-tag-handle`` + OOM(this.``ns-tag-char``)
+    member this.``c-ns-shorthand-tag`` = HardValues.``c-ns-shorthand-tag``
 
     //  [100]   http://www.yaml.org/spec/1.2/spec.html#c-non-specific-tag
-    member this.``c-non-specific-tag`` = RGP ("!", [Token.``t-quotationmark``])
+    member this.``c-non-specific-tag`` = HardValues.``c-non-specific-tag``
 
     //  [101]   http://www.yaml.org/spec/1.2/spec.html#c-ns-anchor-property
-    member this.``c-ns-anchor-property`` = RGP ("&", [Token.``t-ampersand``]) + this.``ns-anchor-name``
+    member this.``c-ns-anchor-property`` = HardValues.``c-ns-anchor-property``
 
     //  [102]   http://www.yaml.org/spec/1.2/spec.html#ns-anchor-char
-    member this.``ns-anchor-char`` =  this.``ns-char`` - this.``c-flow-indicator``
+    member this.``ns-anchor-char`` =  HardValues.``ns-anchor-char``
 
     //  [103]   http://www.yaml.org/spec/1.2/spec.html#ns-anchor-name
-    member this.``ns-anchor-name`` = OOM(this.``ns-anchor-char``)
+    member this.``ns-anchor-name`` = HardValues.``ns-anchor-name``
 
     //  [104]   http://www.yaml.org/spec/1.2/spec.html#c-ns-alias-node
     member this.``c-ns-alias-node`` ps : ParseFuncResult<_> =
@@ -1312,16 +1247,16 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |> this.LogReturn "c-ns-alias-node" ps
 
     //  [105]   http://www.yaml.org/spec/1.2/spec.html#e-scalar
-    member this.``e-scalar`` = RGP (String.Empty, [])     // we'll see if this works..
+    member this.``e-scalar`` = HardValues.``e-scalar``
 
     //  [106]   http://www.yaml.org/spec/1.2/spec.html#e-node
-    member this.``e-node`` = this.``e-scalar``
+    member this.``e-node`` = HardValues.``e-node``
 
     //  [107]   http://www.yaml.org/spec/1.2/spec.html#nb-double-char
-    member this.``nb-double-char`` = this.``c-ns-esc-char`` ||| (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]))
+    member this.``nb-double-char`` = HardValues.``nb-double-char``
 
     //  [108]   http://www.yaml.org/spec/1.2/spec.html#ns-double-char
-    member this.``ns-double-char`` = this.``c-ns-esc-char`` |||  (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]) - this.``s-white``)
+    member this.``ns-double-char`` = HardValues.``ns-double-char``
 
     //  [109]   http://www.yaml.org/spec/1.2/spec.html#c-double-quoted(n,c)
     member this.``c-double-quoted`` ps : ParseFuncResult<_> = 
@@ -1387,7 +1322,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [111]   http://www.yaml.org/spec/1.2/spec.html#nb-double-one-line
-    member this.``nb-double-one-line`` = ZOM(this.``nb-double-char``)
+    member this.``nb-double-one-line`` = HardValues.``nb-double-one-line``
 
     //  [112]   http://www.yaml.org/spec/1.2/spec.html#s-double-escaped(n)
     member this.``s-double-escaped`` (ps:ParseState) = ZOM(this.``s-white``) + this.``c-escape`` + this.``b-non-content`` + ZOM(this.``l-empty`` (ps.SetStyleContext Context.``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
@@ -1396,7 +1331,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``s-double-break`` ps = (this.``s-double-escaped`` ps) ||| (this.``s-flow-folded`` ps)
 
     //  [114]   http://www.yaml.org/spec/1.2/spec.html#nb-ns-double-in-line
-    member this.``nb-ns-double-in-line`` = ZOM(ZOM(this.``s-white``) + this.``ns-double-char``)
+    member this.``nb-ns-double-in-line`` = HardValues.``nb-ns-double-in-line``
 
     //  [115]   http://www.yaml.org/spec/1.2/spec.html#s-double-next-line(n)
     member this.``s-double-next-line`` ps =  //  note, spec is recursive, below is an attempt to rewrite recursive regex 
@@ -1407,14 +1342,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``nb-double-multi-line`` ps = this.``nb-ns-double-in-line`` + ((this.``s-double-next-line`` ps) ||| ZOM(this.``s-white``))
 
     //  [117]    http://www.yaml.org/spec/1.2/spec.html#c-quoted-quote
-    member this.``c-quoted-quote`` = this.``c-single-quote`` + this.``c-single-quote``
+    member this.``c-quoted-quote`` = HardValues.``c-quoted-quote``
 
     //  [118]   http://www.yaml.org/spec/1.2/spec.html#nb-single-char
-    member this.``nb-single-char`` = this.``c-quoted-quote`` ||| (this.``nb-json`` - this.``c-single-quote``)
+    member this.``nb-single-char`` = HardValues.``nb-single-char``
 
     //  [119]   http://www.yaml.org/spec/1.2/spec.html#ns-single-char
-    member this.``ns-single-char`` = // this.``nb-single-char`` - this.``s-white``
-        this.``c-quoted-quote`` ||| (this.``nb-json`` - this.``c-single-quote`` - this.``s-white``)
+    member this.``ns-single-char`` = HardValues.``ns-single-char``
 
     //  [120]   http://www.yaml.org/spec/1.2/spec.html#c-single-quoted(n,c)
     member this.``c-single-quoted`` ps : ParseFuncResult<_> = 
@@ -1470,10 +1404,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [122]   http://www.yaml.org/spec/1.2/spec.html#nb-single-one-line    
-    member this.``nb-single-one-line`` = ZOM(this.``nb-single-char``)
+    member this.``nb-single-one-line`` = HardValues.``nb-single-one-line``
 
     //  [123]   http://www.yaml.org/spec/1.2/spec.html#nb-ns-single-in-line
-    member this.``nb-ns-single-in-line`` = ZOM(ZOM(this.``s-white``) + this.``ns-single-char``)
+    member this.``nb-ns-single-in-line`` = HardValues.``nb-ns-single-in-line``
 
     //  [124]   http://www.yaml.org/spec/1.2/spec.html#s-single-next-line(n)
     member this.``s-single-next-line`` ps = //  note, spec is recursive, below is an attempt to rewrite recursive regex 
@@ -1501,10 +1435,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         callMemoized (127, ps.n, ps.c) ps
 
     //  [128]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe-out
-    member this.``ns-plain-safe-out`` = this.``ns-char``
+    member this.``ns-plain-safe-out`` = HardValues.``ns-plain-safe-out``
 
     //  [129]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe-in
-    member this.``ns-plain-safe-in`` = this.``ns-char`` - this.``c-flow-indicator``
+    member this.``ns-plain-safe-in`` = HardValues.``ns-plain-safe-in``
 
     //  [130]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-char(c)
     member this.``ns-plain-char`` ps = (this.``ns-char`` + this.``c-comment``) ||| ((this.``ns-plain-safe`` ps) - (RGO (":#", [Token.``t-colon``; Token.``t-hash``]))) ||| (this.``c-mapping-value`` + (this.``ns-plain-safe`` ps))
@@ -2136,10 +2070,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |> this.LogReturn "c-b-block-header" ps
 
     //  [163]   http://www.yaml.org/spec/1.2/spec.html#c-indentation-indicator(m)
-    member this.``c-indentation-indicator`` = OPT(this.``ns-dec-digit``)
+    member this.``c-indentation-indicator`` = HardValues.``c-indentation-indicator``
 
     //  [164]   http://www.yaml.org/spec/1.2/spec.html#c-chomping-indicator(t)
-    member this.``c-chomping-indicator`` = OPT(RGP("\\+", [Token.``t-plus``]) ||| this.``c-sequence-entry``)
+    member this.``c-chomping-indicator`` = HardValues.``c-chomping-indicator``
 
     //  [165]   http://www.yaml.org/spec/1.2/spec.html#b-chomped-last(t)
     member this.``b-chomped-last`` ps =
@@ -2857,13 +2791,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |   _ ->    failwith "Unsupported document style."
 
     //  [202]   http://www.yaml.org/spec/1.2/spec.html#l-document-prefix
-    member this.``l-document-prefix`` = OPT(this.``c-byte-order-mark``) + ZOM(this.``l-comment``)
+    member this.``l-document-prefix`` = HardValues.``l-document-prefix``
 
     //  [203]   http://www.yaml.org/spec/1.2/spec.html#c-directives-end
-    member this.``c-directives-end`` = this.``c-sequence-entry`` + this.``c-sequence-entry`` + this.``c-sequence-entry`` // RGP ("---", [Token.``c-directives-end``])
+    member this.``c-directives-end`` = HardValues.``c-directives-end``
 
     //  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
-    member this.``c-document-end`` = 
+    member this.``c-document-end`` =
         let dot = RGP("\\.", [Token.``t-dot``])
         //RGP ("\\.\\.\\.", [Token.``c-document-end``])
         dot + dot + dot
@@ -2872,9 +2806,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``l-document-suffix`` = this.``c-document-end`` + this.``s-l-comments``
 
     //  [206]   http://www.yaml.org/spec/1.2/spec.html#c-forbidden
-    member this.``c-forbidden`` =
+    member this.``c-forbidden`` = 
         (``start-of-line`` ||| this.``b-break``) +
-        ( this.``c-directives-end`` ||| this.``c-document-end``) +
+        (this.``c-directives-end`` ||| this.``c-document-end``) +
         (this.``b-char`` ||| this.``s-white`` ||| ``end-of-file``)
 
     //  [207]   http://www.yaml.org/spec/1.2/spec.html#l-bare-document

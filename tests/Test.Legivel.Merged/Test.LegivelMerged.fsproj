@@ -161,6 +161,8 @@
     <Compile Include="..\Test.Legivel.Tokenizer\TestTokenizer.fs">
       <Link>TestTokenizer.fs</Link>
     </Compile>
+    <None Include="FailFast YamlParserTest 5.fsx" />
+    <None Include="QuotationTest.fsx" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.0'">
     <Compile Include="Main.fs" />

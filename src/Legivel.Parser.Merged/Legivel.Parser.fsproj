@@ -93,6 +93,7 @@
     <Compile Include="..\Legivel.Parser\TagResolution.fs">
       <Link>TagResolution.fs</Link>
     </Compile>
+    <Compile Include="..\Legivel.Parser\HardValues.fs" Link="HardValues.fs" />
     <Compile Include="..\Legivel.Parser\YamlParser.fsi">
       <Link>YamlParser.fsi</Link>
     </Compile>
