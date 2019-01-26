@@ -56,6 +56,7 @@ and OneInSet =
         mainset  : string
         subtractset : string
         Token'     : Lazy<Token list>
+        TokenQuickCheck : Lazy<uint32>
     }
     static member subtractable = [
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
@@ -76,19 +77,22 @@ and OneInSet =
 
     static member (-) (r1:OneInSet, r2:OneInSet) =
         let subtr = lazy(r2.Token'.Force() |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token' = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))}
+        let tokens = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
 
     static member (-) (r1:OneInSet, r2:Plain) =
         let subtr = lazy(r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token' = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))}
+        let tokens = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))
+        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
 
     static member (+) (r1:OneInSet, r2:OneInSet) =
-        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token' = lazy(r1.Token'.Force() @ r2.Token'.Force()) }
+        let tokens = lazy(r1.Token'.Force() @ r2.Token'.Force()) 
+        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
 
     static member (+) (_:OneInSet, _:Plain) =
         failwith "Unsupported RGX addition"
 
-    static member Create r tl = {mainset= r; subtractset = ""; not = false; Token' = lazy(tl)}
+    static member Create r tl = {mainset= r; subtractset = ""; not = false; Token' = lazy(tl); TokenQuickCheck = lazy(tl |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
 
 
     member this.Token with get () = this.Token'.Force()
@@ -241,7 +245,14 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
             match rgx with
             |   OneInSet ois    -> 
                 if checkParseCondition() then
-                    rs.Get() |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+                    rs.Get() 
+                    |> fun i -> 
+                        if uint32(i.Token) >= 0b0100_0000_0000_0000_0000_0000_0000_0000u then
+                            ois.Token |> List.exists(fun e -> e=i.Token)
+                        else
+                            let checkItWith = ois.TokenQuickCheck.Force()
+                            (checkItWith &&& uint32(i.Token) > 0u) 
+                        |> mkResult i tkl
                 else
                     (false, [])
             |   Plain pl        -> 

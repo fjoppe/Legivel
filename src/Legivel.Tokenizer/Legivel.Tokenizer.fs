@@ -7,42 +7,41 @@ open System.Collections.Concurrent
 type RSList<'a> = System.Collections.Generic.List<'a>
 
 type Token =
-    //|   Symbol  = 0
-    |   ``t-space``             = 1
-    |   ``t-tab``               = 24
-    |   NewLine                 = 2
-    |   ``c-printable``         = 3
-    |   Other                   = 4
-    |   EOF                     = 5
-    |   NoToken                 = 32
-    |   ``t-hyphen``    = 6
-    |   ``t-plus``      = 33
-    |   ``t-questionmark``       = 7
-    |   ``t-colon``     = 8
-    |   ``t-comma``     = 9
-    |   ``t-dot``       = 34
-    |   ``t-square-bracket-start``    = 10
-    |   ``t-square-bracket-end``      = 11
-    |   ``t-curly-bracket-start``     = 12
-    |   ``t-curly-bracket-end``       = 13
-    |   ``t-hash``           = 14
-    |   ``t-ampersand``            = 15
-    |   ``t-asterisk``             = 16
-    |   ``t-quotationmark``               = 17
-    |   ``t-pipe``           = 18
-    |   ``t-gt``            = 19
-    |   ``t-single-quote``      = 20
-    |   ``t-double-quote``      = 21
-    |   ``t-percent``         = 22
-    |   ``t-commat``          = 23
-    |   ``t-tick``             = 32
-    |   ``t-forward-slash``     = 35
-    |   ``t-equals``            = 36
-    //|   ``ns-yaml-directive``   = 24
-    |   ``nb-json``             = 29
-    |   ``ns-dec-digit``        = 30
-    |   ``c-escape``            = 31
-    |   ``byte-order-mark``     = 37
+    |   ``t-space``                 = 0b0000_0000_0000_0000_0000_0000_0000_0001
+    |   ``t-tab``                   = 0b0000_0000_0000_0000_0000_0000_0000_0010
+    |   NewLine                     = 0b0000_0000_0000_0000_0000_0000_0000_0100
+    |   ``c-printable``             = 0b0000_0000_0000_0000_0000_0000_0000_1000
+    |   ``t-hyphen``                = 0b0000_0000_0000_0000_0000_0000_0001_0000
+    |   ``t-plus``                  = 0b0000_0000_0000_0000_0000_0000_0010_0000
+    |   ``t-questionmark``          = 0b0000_0000_0000_0000_0000_0000_0100_0000
+    |   ``t-colon``                 = 0b0000_0000_0000_0000_0000_0000_1000_0000
+    |   ``t-dot``                   = 0b0000_0000_0000_0000_0000_0001_0000_0000
+    |   ``t-square-bracket-start``  = 0b0000_0000_0000_0000_0000_0010_0000_0000
+    |   ``t-square-bracket-end``    = 0b0000_0000_0000_0000_0000_0100_0000_0000
+    |   ``t-curly-bracket-start``   = 0b0000_0000_0000_0000_0000_1000_0000_0000
+    |   ``t-curly-bracket-end``     = 0b0000_0000_0000_0000_0001_0000_0000_0000
+    |   ``t-hash``                  = 0b0000_0000_0000_0000_0010_0000_0000_0000
+    |   ``t-ampersand``             = 0b0000_0000_0000_0000_0100_0000_0000_0000
+    |   ``t-asterisk``              = 0b0000_0000_0000_0000_1000_0000_0000_0000
+    |   ``t-quotationmark``         = 0b0000_0000_0000_0001_0000_0000_0000_0000
+    |   ``t-pipe``                  = 0b0000_0000_0000_0010_0000_0000_0000_0000
+    |   ``t-gt``                    = 0b0000_0000_0000_0100_0000_0000_0000_0000
+    |   ``t-single-quote``          = 0b0000_0000_0000_1000_0000_0000_0000_0000
+    |   ``t-double-quote``          = 0b0000_0000_0001_0000_0000_0000_0000_0000
+    |   ``t-percent``               = 0b0000_0000_0010_0000_0000_0000_0000_0000
+    |   ``t-commat``                = 0b0000_0000_0100_0000_0000_0000_0000_0000
+    |   ``t-tick``                  = 0b0000_0000_1000_0000_0000_0000_0000_0000
+    |   ``t-forward-slash``         = 0b0000_0001_0000_0000_0000_0000_0000_0000
+    |   ``t-equals``                = 0b0000_0010_0000_0000_0000_0000_0000_0000
+    |   ``nb-json``                 = 0b0000_0100_0000_0000_0000_0000_0000_0000
+    |   ``ns-dec-digit``            = 0b0000_1000_0000_0000_0000_0000_0000_0000
+    |   ``c-escape``                = 0b0001_0000_0000_0000_0000_0000_0000_0000
+    |   ``t-comma``                 = 0b0010_0000_0000_0000_0000_0000_0000_0000
+    |   ``byte-order-mark``         = 0b0100_0000_0000_0000_0000_0000_0000_0000
+    //  these aren't used in regex:
+    |   Other                       = 0b0100_0000_0000_0000_0000_0000_0000_0001
+    |   EOF                         = 0b0100_0000_0000_0000_0000_0000_0000_0010
+    |   NoToken                     = 0b0100_0000_0000_0000_0000_0000_0000_0011
 
 type TokenData = {
         Token   : Token
@@ -72,17 +71,7 @@ let tokenizer str =
             else
                 cnt
 
-    let rec charRead cnd acc =
-        new string(acc |> List.rev |> Array.ofList)
-        //let chri = strm.Peek()
-        //if chri < 0 then new string(acc |> List.rev |> Array.ofList)
-        //else
-        //    let chr = char(chri)
-        //    if cnd(chr) then
-        //        strm.Read() |> ignore
-        //        charRead cnd (chr :: acc)
-        //    else
-        //        new string(acc |> List.rev |> Array.ofList)
+    let rec charRead (acc:char) = acc.ToString()
     
     let isSpace = (fun c -> c = ' ')
     let isTab = (fun c -> c = '\t')
@@ -139,14 +128,14 @@ let tokenizer str =
         else
             let chr = char(chri)
             [
-                (isSpace, fun() -> TokenData.Create Token.``t-space`` (charRead isSpace [chr]))
-                (isTab, fun() -> TokenData.Create Token.``t-tab`` (charRead isTab [chr]))
+                (isSpace, fun() -> TokenData.Create Token.``t-space`` (charRead chr))
+                (isTab, fun() -> TokenData.Create Token.``t-tab`` (charRead chr))
                 (isNewLine, fun() -> TokenData.Create Token.NewLine (string chr))
                 (isEscape, fun() -> TokenData.Create Token.``c-escape`` (string chr))
                 (isSymbol, fun() -> TokenData.Create (``c-indicator`` chr) (string chr))
-                (isDigit, fun() -> TokenData.Create Token.``ns-dec-digit`` (charRead isDigit [chr]))
-                (isText, fun()-> TokenData.Create Token.``c-printable`` (charRead isText [chr]))
-                (isJson, fun()-> TokenData.Create Token.``nb-json`` (charRead isJson [chr]))
+                (isDigit, fun() -> TokenData.Create Token.``ns-dec-digit`` (charRead chr))
+                (isText, fun()-> TokenData.Create Token.``c-printable`` (charRead chr))
+                (isJson, fun()-> TokenData.Create Token.``nb-json`` (charRead chr))
                 ((fun _ -> true), fun() -> TokenData.Create Token.Other (string chr))
             ]
             |>  List.skipWhile(fun (c,_) -> c chr |> not)
@@ -191,63 +180,12 @@ let tokenProcessor str =
             enqueueTodo [t0]
             false
 
-    //let ``Try to combine c-sequence-entry and text``() =
-    //    let tl = tokenTake 2
-    //    let tokens = tl |> List.map TokenData.token
-    //    match tokens with
-    //    |   [Token.``t-hyphen``; Token.``t-space``] ->
-    //        enqueueTodo tl
-    //        false
-    //    |   [Token.``t-hyphen``; _] -> 
-    //        let [c;s] = tl |> List.map TokenData.source
-    //        enqueueProcessed [TokenData.Create Token.``c-printable`` (sprintf "%s%s" c s)]
-    //        true
-    //    |   _ -> 
-    //        enqueueTodo tl
-    //        false
-
-    //let ``Try conversion to c-directives-end``() =
-    //    let tl = tokenTake 3
-    //    if tl |> List.map TokenData.token = [Token.``t-hyphen``; Token.``t-hyphen``; Token.``t-hyphen``] then
-    //        enqueueProcessed [TokenData.Create Token.``c-directives-end`` "---"]
-    //        true
-    //    else
-    //        enqueueTodo tl
-    //        false
-
-    //let ``Try conversion to c-document-end``() =
-    //    let tl = getToken()
-    //    if tl = TokenData.Create Token.``c-printable`` "..." then
-    //        enqueueProcessed [TokenData.Create Token.``c-document-end`` "..."]
-    //        true
-    //    else
-    //        enqueueTodo [tl]
-    //        false
-
-    //let ``Try conversion to l-directive``() =
-    //    let tl = tokenTake 2
-    //    if tl |> List.map TokenData.token = [Token.``t-percent`` ;Token.``c-printable``] then
-    //        let [t0;t1] = tl 
-    //        let s = t1 |> TokenData.source
-    //        match s with
-    //        |   "YAML"  ->  enqueueProcessed [t0; TokenData.Create Token.``ns-yaml-directive`` s]
-    //        |   "TAG"   ->  enqueueProcessed [t0; TokenData.Create Token.``ns-tag-directive`` s]
-    //        |   _       ->  enqueueProcessed [t0; TokenData.Create Token.``ns-reserved-directive`` s]
-    //        true
-    //    else
-    //        enqueueTodo tl
-    //        false
-
     let rec aggregator() = 
         if processed.Count > 0 then processed.Dequeue()
         else
             [
                 ``Try conversion DOS/Windows break``
                 ``Try conversion to b-break``
-                //``Try conversion to l-directive``
-                //``Try conversion to c-directives-end``
-                //``Try conversion to c-document-end``
-                //``Try to combine c-sequence-entry and text``
             ]
             |>  List.fold(fun s (fn:unit->bool) -> if not(s) then fn() else true) false
             |>  function
