@@ -93,6 +93,6 @@ let YamlParseWithErrors s =
 let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-
 YamlParse s
+
 

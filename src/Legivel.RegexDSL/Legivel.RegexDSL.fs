@@ -114,27 +114,31 @@ and RGXType =
     |   Optional   of RGXType
     |   Group      of RGXType
 
-    override this.ToString() = 
-        match this with
-        |   Plain    r -> r.ToString()
-        |   OneInSet r -> r.ToString()
-        |   Or       l ->
-                let l = l |> List.rev
-                let body = l.Tail |> List.fold(fun s e -> sprintf "(?:%s)|%O" s e) (sprintf "%O" l.Head)
-                sprintf "(?:%s)" body
-        |   Concat   l ->
-                let l = l |> List.rev
-                l.Tail |> List.fold(fun s e -> sprintf "(?:%s)%O" s e) (sprintf "%O" l.Head)
-        |   IterRange(t,mx,mno) ->
-                match mno with
-                |   Some(mn) ->  sprintf "(?:%O){%d,%d}" t mn mx
-                |   None     ->  sprintf "(?:%O){%d}" t mx
-        |   ZeroOrMore t -> sprintf "(?:%O)*" t
-        |   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
-        |   OneOrMore  t -> sprintf "(?:%O)+" t
-        |   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
-        |   Optional   t -> sprintf "(?:%O)?" t
-        |   Group      t -> sprintf "(%O)" t
+    member this.ToStringOnce() = 
+        let str =
+            match this with
+            |   Plain    r -> r.ToString()
+            |   OneInSet r -> r.ToString()
+            |   Or       l ->
+                    let l = l |> List.rev
+                    let body = l.Tail |> List.fold(fun s e -> sprintf "(?:%s)|%O" s e) (sprintf "%O" l.Head)
+                    sprintf "(?:%s)" body
+            |   Concat   l ->
+                    let l = l |> List.rev
+                    l.Tail |> List.fold(fun s e -> sprintf "(?:%s)%O" s e) (sprintf "%O" l.Head)
+            |   IterRange(t,mx,mno) ->
+                    match mno with
+                    |   Some(mn) ->  sprintf "(?:%O){%d,%d}" t mn mx
+                    |   None     ->  sprintf "(?:%O){%d}" t mx
+            |   ZeroOrMore t -> sprintf "(?:%O)*" t
+            |   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
+            |   OneOrMore  t -> sprintf "(?:%O)+" t
+            |   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
+            |   Optional   t -> sprintf "(?:%O)?" t
+            |   Group      t -> sprintf "(%O)" t
+        str
+
+    override this.ToString() = this.ToStringOnce()
 
     static member private DoConcat (r1:RGXType, r2:RGXType) = 
         match (r1,r2) with
@@ -212,10 +216,10 @@ let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
 let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenData -> bool) (rs:RollingStream<TokenData>) (rg:RGXType) =
-    let rec parse rgx tkl =
-        let conditionalParse rgx tk =
+    let rec parse rgx tkl gl =
+        let conditionalParse rgx tk gl =
             let p = rs.Position
-            let r = parse rgx tk 
+            let r = parse rgx tk gl
             if not(fst(r)) then rs.Position <- p
             r
 
@@ -224,12 +228,12 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
             | true ->  (true, t :: tkl) 
             | false -> (false, tkl)
 
-        let rec repeatWhileMatching t acc =
-            let pr = conditionalParse t tkl
+        let rec repeatWhileMatching t acc gl =
+            let pr = conditionalParse t tkl gl
             let added : 'a list = snd pr
-            if (fst pr) && added.Length > 0 then 
+            if (fst pr) && added <> [] then 
                 let nwa = (added @ acc)
-                repeatWhileMatching t nwa
+                repeatWhileMatching t nwa gl
             else acc 
 
         let checkParseCondition() =
@@ -268,7 +272,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                     | _ ->
                         if pl.``fixed``.Length > 1 then
                             pl.OptimizeOnce()
-                            parse (Concat pl.optimized) tkl
+                            parse (Concat pl.optimized) tkl gl
                         else
                             rs.Get() |> fun i -> pl.``fixed`` = i.Source |> mkResult i tkl
                 else
@@ -277,7 +281,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                 let rec pickFirst l =
                     match l with
                     |   h::tl -> 
-                        let rs = conditionalParse h tkl
+                        let rs = conditionalParse h tkl gl
                         if fst(rs) then (true, snd rs @ tkl)
                         else pickFirst tl
                     |   [] -> (false, tkl)
@@ -286,7 +290,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                 let rec pickAll acc l =
                     match l with
                     |   h::tl -> 
-                        let rs = parse h tkl
+                        let rs = parse h tkl gl
                         if fst(rs) then pickAll (snd rs @ acc) tl
                         else (false, tkl)
                     |   [] -> (true, acc)
@@ -295,7 +299,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                 let dec a = if a>=0 then (a-1) else a
                 let rec repeatRange min max rx acc =
                     if max>0 then
-                        let pr = conditionalParse rx tkl
+                        let pr = conditionalParse rx tkl gl
                         let nwacc = (snd pr @ acc)
                         if (fst pr) && nwacc.Length > acc.Length && max>0 then repeatRange (dec min) (dec max) rx nwacc
                         else (min<=0),acc
@@ -304,13 +308,13 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                 match mno with
                 |   Some minVal -> repeatRange minVal mxo irx []
                 |   None        -> repeatRange mxo mxo irx []
-            |   ZeroOrMore t        -> true, repeatWhileMatching t tkl
-            |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl
-            |   OneOrMore t         ->  repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
-            |   OneOrMoreNonGreedy t -> repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
-            |   Optional t          -> true, conditionalParse t tkl |> snd
-            |   Group t             -> parse t tkl
-    parse rg []
+            |   ZeroOrMore t         -> true, repeatWhileMatching t tkl gl
+            |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl gl
+            |   OneOrMore t          ->  repeatWhileMatching t tkl gl |> fun l -> (l.Length>=1), l
+            |   OneOrMoreNonGreedy t -> repeatWhileMatching t tkl gl |> fun l -> (l.Length>=1), l
+            |   Optional t           -> true, conditionalParse t tkl gl |> snd
+            |   Group t              -> parse t tkl gl
+    parse rg [] []
     |> fun (b,t) -> b, t |> List.rev
 
 let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) = AssesInputPostParseCondition (fun _ -> true) rs rg

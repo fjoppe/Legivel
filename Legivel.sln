@@ -35,7 +35,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.Tests", "tests\Legivel.Tests\Legivel.Tests.fsproj", "{ED4CD570-A206-4922-88AA-991A2E8C2642}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.Mapper", "src\Legivel.Mapper\Legivel.Mapper.fsproj", "{F1048C7D-0AD1-41E2-86EF-D8AA4BAE982D}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Legivel.Mapper", "src\Legivel.Mapper\Legivel.Mapper.fsproj", "{F1048C7D-0AD1-41E2-86EF-D8AA4BAE982D}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.Legivel.Tokenizer", "tests\Test.Legivel.Tokenizer\Test.Legivel.Tokenizer.fsproj", "{F0A16E37-F48D-4D0B-A1D4-70ADD40B6327}"
 EndProject
@@ -57,7 +57,15 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.RepresentationGraph
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.Legivel.Common", "tests\Test.Legivel.Common\Test.Legivel.Common.fsproj", "{152F0E06-25B0-4B32-87C7-098DBD5AEE80}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{199E101D-0A89-4EBA-9410-3A8A03F85B1A}"
+	ProjectSection(SolutionItems) = preProject
+		Performance1.psess = Performance1.psess
+	EndProjectSection
+EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU

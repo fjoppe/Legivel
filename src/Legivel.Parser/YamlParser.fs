@@ -158,12 +158,15 @@ type ParseState = {
             |> List.iter(fun s -> ps.AddErrorMessage s |> ignore)
             ps
 
-        static member PositionDelta s =
-            let patt = "\u000d\u000a|\u000d|\u000a" // see rule [28] ``b-break``
-            let lines = Regex.Split(s, patt) |> List.ofArray
-            let lc = (lines.Length-1)  //  counts \n in a string
-            let lcc = (lines |> List.last).Length // local column count
-            lc, lcc
+        static member PositionDelta (s:string) =
+            let inc i = i + 1
+            let rec processline (inp: char array) pos lc lcc =
+                if pos >= Array.length inp then lc, lcc
+                else
+                    if inp.[pos] = '\n' then processline inp (inc pos) (inc lc) 0
+                    else
+                        processline inp (inc pos) lc (inc lcc)
+            processline (s.ToCharArray()) 0 0 0
 
         member this.SetPositionDelta sl lc lcc =
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
@@ -414,13 +417,21 @@ type ParseFuncSignature<'a> = (ParseState -> ParseFuncResult<'a>)
 
 type FlowFoldPrevType = Empty | TextLine
 
+let memoizeRGXType = new Dictionary<RGXType, string>()
+let stringify (pattern:RGXType) =
+    if memoizeRGXType.ContainsKey(pattern) then
+        memoizeRGXType.[pattern]
+    else
+        let tosr = RGSF(pattern)
+        memoizeRGXType.Add(pattern, tosr)
+        tosr
 
 [<DebuggerStepThrough>]
 let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
     AssesInput (ps.Input.Data) pattern
     |>  TokenDataToString
     |>  Option.bind(fun inps -> 
-        let m = Regex.Match(inps, RGSF(pattern), RegexOptions.Multiline)
+        let m = Regex.Match(inps, (stringify pattern), RegexOptions.Multiline)
         if m.Success then 
             let lst = [ for g in m.Groups -> g.Value ]
             let fullMatch = lst |> List.head
@@ -437,7 +448,7 @@ let (|Regex4|_|) (pattern:RGXType, condition:(RollingStream<TokenData> * TokenDa
     AssesInputPostParseCondition condition (ps.Input.Data) pattern
     |>  TokenDataToString
     |>  Option.bind(fun inps -> 
-        let m = Regex.Match(inps, RGSF(pattern), RegexOptions.Multiline)
+        let m = Regex.Match(inps, (stringify pattern), RegexOptions.Multiline)
         if m.Success then 
             let lst = [ for g in m.Groups -> g.Value ]
             let fullMatch = lst |> List.head
