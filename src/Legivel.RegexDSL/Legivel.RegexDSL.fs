@@ -55,6 +55,7 @@ and OneInSet =
         not      : bool
         mainset  : string
         subtractset : string
+        OneInSet : Lazy<string>
         Token'     : Lazy<Token list>
         TokenQuickCheck : Lazy<uint32>
     }
@@ -65,6 +66,12 @@ and OneInSet =
             Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
             Token.``c-escape``; 
             ]
+
+    static member OptimizeSet (ms:string) (ss:string) =
+        let sar = ss.ToCharArray()
+        ms.ToCharArray()
+        |>  Array.filter(fun c -> not (Array.exists(fun ce -> ce = c) sar))
+        |>  fun ca -> new string(ca)
 
     override this.ToString() =
         let subtract = this.subtractset <> ""
@@ -78,21 +85,28 @@ and OneInSet =
     static member (-) (r1:OneInSet, r2:OneInSet) =
         let subtr = lazy(r2.Token'.Force() |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
         let tokens = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
+        let ms = r1.mainset
+        let ss =  r1.subtractset + r2.mainset
+        {mainset = ms; subtractset = ss; OneInSet = lazy(OneInSet.OptimizeSet ms ss); not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
 
     static member (-) (r1:OneInSet, r2:Plain) =
         let subtr = lazy(r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
         let tokens = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
+        let ms = r1.mainset
+        let ss = r1.subtractset + r2.``fixed``
+        {mainset = ms; subtractset = ss; OneInSet = lazy(OneInSet.OptimizeSet ms ss); not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
 
     static member (+) (r1:OneInSet, r2:OneInSet) =
         let tokens = lazy(r1.Token'.Force() @ r2.Token'.Force()) 
-        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
+        let ms = r1.mainset + r2.mainset
+        let ss = r1.subtractset + r2.subtractset
+        {mainset = ms; subtractset = ss; OneInSet = lazy(OneInSet.OptimizeSet ms ss); not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
 
     static member (+) (_:OneInSet, _:Plain) =
         failwith "Unsupported RGX addition"
 
-    static member Create r tl = {mainset= r; subtractset = ""; not = false; Token' = lazy(tl); TokenQuickCheck = lazy(tl |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
+    static member Create r tl = 
+        {mainset= r; subtractset = ""; OneInSet = lazy(OneInSet.OptimizeSet r ""); not = false; Token' = lazy(tl); TokenQuickCheck = lazy(tl |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
 
 
     member this.Token with get () = this.Token'.Force()
@@ -266,7 +280,12 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                             ois.Token |> List.exists(fun e -> e=i.Token)
                         else
                             let checkItWith = ois.TokenQuickCheck.Force()
-                            (checkItWith &&& uint32(i.Token) > 0u) 
+                            if (checkItWith &&& uint32(i.Token) > 0u) then
+                                let p = ois.OneInSet.Force()
+                                let r = p.Contains(i.Source)    // not ready yet to check one in set char-by-char
+                                true
+                            else
+                                false
                         |> mkResult i tkl gl
                 else
                     (false, ParseResult.Empty)
@@ -327,7 +346,7 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
             |   Group t              -> 
                 let s, res = parse t tkl gl
                 if s then
-                    s, { res with Groups = res.Match :: res.Groups }
+                    s, { res with Groups = (res.Match |> List.rev)  :: res.Groups }
                 else
                     s, res
 

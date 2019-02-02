@@ -124,7 +124,7 @@ module ``Test Regex Constructs``=
     let ``Parse Group sub-match in match``() =
         let testRegex = ZOM(RGO("AB", [Token.``c-printable``])) + GRP(ZOM(RGO("12", [Token.``ns-dec-digit``]))) + ZOM(RGO("CD", [Token.``c-printable``]))
 
-        let inputstring = "AA212DDC"
+        let inputstring = "AA2121DDC"
         let tokens = RollingStream<_>.Create (tokenProcessor inputstring) EndOfStream
         let (b, tkl) = AssesInput tokens testRegex
 
@@ -134,7 +134,34 @@ module ``Test Regex Constructs``=
         tkl.Groups.Head 
             |> List.fold(fun (str:StringBuilder) i -> str.Append(i.Source)) (StringBuilder())
             |> fun sb -> sb.ToString()
+            |>  shouldEqual "2121"
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF
+
+    [<Test>]
+    let ``Parse Group double sub-match in match``() =
+        let testRegex = 
+            ZOM(RGO("AB", [Token.``c-printable``])) 
+            + GRP(ZOM(RGO("12", [Token.``ns-dec-digit``]))) 
+            + GRP(ZOM(RGO("AB", [Token.``c-printable``]))) 
+            + ZOM(RGO("34", [Token.``ns-dec-digit``]))
+
+        let inputstring = "AA212BABBA34"
+        let tokens = RollingStream<_>.Create (tokenProcessor inputstring) EndOfStream
+        let (b, tkl) = AssesInput tokens testRegex
+
+        b   |>  shouldEqual true
+        tkl.Match |>  List.length |> shouldEqual (inputstring.Length)
+        tkl.Groups |>List.length |> shouldEqual 2
+        let ar = tkl.Groups |> List.rev |> List.toArray
+        ar.[0]
+            |> List.fold(fun (str:StringBuilder) i -> str.Append(i.Source)) (StringBuilder())
+            |> fun sb -> sb.ToString()
             |>  shouldEqual "212"
+        ar.[1]
+            |> List.fold(fun (str:StringBuilder) i -> str.Append(i.Source)) (StringBuilder())
+            |> fun sb -> sb.ToString()
+            |>  shouldEqual "BABBA"
+
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF
 
 
