@@ -14,6 +14,7 @@ let ReadStream (ip:TokenData list) =
 
 
 module ``Test Regex Constructs``=
+    open System.Text
 
     [<Test>]
     let ``Parse Plain Character - sunny day``() =
@@ -25,7 +26,7 @@ module ``Test Regex Constructs``=
         let (b, tkl) = AssesInput tokens testConstuct
 
         b   |>  shouldEqual true
-        tkl 
+        tkl.Match 
         |>  List.map(fun td -> td.Token)
         |>  shouldEqual [
             Token.``c-printable``
@@ -54,7 +55,7 @@ module ``Test Regex Constructs``=
         let (b, tkl) = AssesInput tokens testConstuct
 
         b   |>  shouldEqual true
-        tkl 
+        tkl.Match
         |>  List.map(fun td -> td.Token)
         |>  shouldEqual [
             Token.``t-hyphen``
@@ -84,7 +85,7 @@ module ``Test Regex Constructs``=
         let (b, tkl) = AssesInput tokens testConstuct
 
         b   |>  shouldEqual true
-        tkl 
+        tkl.Match 
         |>  List.map(fun td -> td.Token)
         |>  shouldEqual [
             Token.``c-printable``
@@ -102,7 +103,7 @@ module ``Test Regex Constructs``=
         let (b, tkl) = AssesInput tokens testConstuct
 
         b   |>  shouldEqual true
-        tkl |>  List.length |> shouldEqual 0
+        tkl.Match |>  List.length |> shouldEqual 0
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-hyphen``
 
     [<Test>]
@@ -115,8 +116,26 @@ module ``Test Regex Constructs``=
         let (b, tkl) = AssesInput tokens testConstuct
 
         b   |>  shouldEqual true
-        tkl |>  List.length |> shouldEqual 0
+        tkl.Match |>  List.length |> shouldEqual 0
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-hyphen``
+
+
+    [<Test>]
+    let ``Parse Group sub-match in match``() =
+        let testRegex = ZOM(RGO("AB", [Token.``c-printable``])) + GRP(ZOM(RGO("12", [Token.``ns-dec-digit``]))) + ZOM(RGO("CD", [Token.``c-printable``]))
+
+        let inputstring = "AA212DDC"
+        let tokens = RollingStream<_>.Create (tokenProcessor inputstring) EndOfStream
+        let (b, tkl) = AssesInput tokens testRegex
+
+        b   |>  shouldEqual true
+        tkl.Match |>  List.length |> shouldEqual (inputstring.Length)
+        tkl.Groups |>List.length |> shouldEqual 1
+        tkl.Groups.Head 
+            |> List.fold(fun (str:StringBuilder) i -> str.Append(i.Source)) (StringBuilder())
+            |> fun sb -> sb.ToString()
+            |>  shouldEqual "212"
+        tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.EOF
 
 
 module ``AssesInput for Block Sequence``=
@@ -134,7 +153,7 @@ module ``AssesInput for Block Sequence``=
         let (b, tkl) = AssesInput tokens ``l+block-sequence``
 
         b   |>  shouldEqual true
-        tkl 
+        tkl.Match 
         |>  List.map(fun td -> td.Token)
         |>  shouldEqual [
             Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
@@ -153,7 +172,7 @@ module ``AssesInput for Block Sequence``=
         let (b, tkl) = AssesInput tokens ``l+block-sequence``
 
         b   |>  shouldEqual true
-        tkl 
+        tkl.Match 
         |>  List.map(fun td -> td.Token)
         |>  shouldEqual [
             Token.``t-hyphen``; Token.``t-space``; Token.``ns-dec-digit``; Token.NewLine
@@ -170,7 +189,7 @@ module ``AssesInput for Block Sequence``=
         let (b, tkl) = AssesInput tokens ``l+block-sequence``
 
         b   |>  shouldEqual false
-        tkl |>  shouldEqual []
+        tkl.Match |>  shouldEqual []
         tokens.Stream |> Seq.head |> fun td -> td.Token |> shouldEqual Token.``t-square-bracket-start``
 
     [<Test>]

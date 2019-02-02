@@ -556,7 +556,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         ps.Input.Position <- p
         match tkl with
         |   (true, tl) -> 
-            let th = tl |> List.takeWhile(fun e -> e.Token = Token.``t-space``)
+            let th = tl.Match |> List.takeWhile(fun e -> e.Token = Token.``t-space``)
             th.Length - ps.n
         |   (false, _) -> -1
 
