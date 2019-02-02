@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>MatchResult - Legivel</title>
+    <title>EitherBuilder<'a, 'c, 'd> - Legivel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Frank Joppe"/>
@@ -35,56 +35,42 @@
 
 
 
-<h1>MatchResult</h1>
+<h1>EitherBuilder<'a, 'c, 'd></h1>
 <p>
 
-    <span>Namespace: Legivel.Utilities</span><br />
-        <span>Parent Module: <a href="legivel-utilities-regexdsl.html">RegexDSL</a></span><br />
-    </p>
+    <span>Namespace: Legivel.Internals</span><br />
+        <span>Parent Module: <a href="legivel-internals-parsermonads.html">ParserMonads</a></span><br />
+            <span>
+            Attributes: <br />
+[&lt;DebuggerStepThrough&gt;]<br />
+            
+        </span>
+</p>
 <div class="xmldoc">
-<p>MatchResult of a regex match</p>
-
 </div>
-  <h3>Record Fields</h3>
+  <h3>Constructors</h3>
   <table class="table table-bordered member-list">
     <thead>
-      <tr><td>Record Field</td><td>Description</td></tr>
+      <tr><td>Constructor</td><td>Description</td></tr>
     </thead>
     <tbody>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '572', 572)" onmouseover="showTip(event, '572', 572)">
-            FullMatch
+          <code onmouseout="hideTip(event, '523', 523)" onmouseover="showTip(event, '523', 523)">
+            new(...)
           </code>
-          <div class="tip" id="572">
-            <strong>Signature:</strong> string<br />
+          <div class="tip" id="523">
+            <strong>Signature:</strong> (context:&#39;c * messages:ParseMessage * resetNoRes:(&#39;c -&gt; unit) * advance:(&#39;c -&gt; &#39;c) * contAfterErr:(&#39;c -&gt; bool)) -&gt; EitherBuilder&lt;&#39;a,&#39;c,&#39;d&gt;<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fsi#L77-77" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L24-24" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '573', 573)" onmouseover="showTip(event, '573', 573)">
-            Groups
-          </code>
-          <div class="tip" id="573">
-            <strong>Signature:</strong> string list<br />
-                                  </div>
-        </td>
-        <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fsi#L78-78" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
+              <p>CompiledName: <code>.ctor</code></p>
         </td>
       </tr>
     </tbody>
@@ -98,99 +84,125 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '574', 574)" onmouseover="showTip(event, '574', 574)">
-            x.ge1
+          <code onmouseout="hideTip(event, '524', 524)" onmouseover="showTip(event, '524', 524)">
+            x.Either(pv, nw)
           </code>
-          <div class="tip" id="574">
-            <strong>Signature:</strong> string<br />
-                                  </div>
+          <div class="tip" id="524">
+            <strong>Signature:</strong> (pv:EitherResult&lt;&#39;c,&#39;f&gt; * nw:(&#39;c -&gt; FallibleOption&lt;&#39;f&gt; * ParseMessage)) -&gt; EitherResult&lt;&#39;c,&#39;f&gt;<br />
+                                    <span>
+            <strong>Attributes:</strong><br />
+[&lt;CustomOperation(&quot;either&quot;)&gt;]<br />
+          </span>
+          </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L370-370" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L31-31" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-              <p>CompiledName: <code>get_ge1</code></p>
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '575', 575)" onmouseover="showTip(event, '575', 575)">
-            x.ge2
+          <code onmouseout="hideTip(event, '525', 525)" onmouseover="showTip(event, '525', 525)">
+            x.IfNeither(pv, nw)
           </code>
-          <div class="tip" id="575">
-            <strong>Signature:</strong> string * string<br />
-                                  </div>
+          <div class="tip" id="525">
+            <strong>Signature:</strong> (pv:EitherResult&lt;&#39;c,&#39;f&gt; * nw:FallibleOption&lt;&#39;f&gt;) -&gt; EitherResult&lt;&#39;c,&#39;f&gt;<br />
+                                    <span>
+            <strong>Attributes:</strong><br />
+[&lt;CustomOperation(&quot;ifneither&quot;)&gt;]<br />
+          </span>
+          </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L371-371" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L51-51" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-              <p>CompiledName: <code>get_ge2</code></p>
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '576', 576)" onmouseover="showTip(event, '576', 576)">
-            x.ge3
+          <code onmouseout="hideTip(event, '526', 526)" onmouseover="showTip(event, '526', 526)">
+            x.IfNeitherFn(pv, nw)
           </code>
-          <div class="tip" id="576">
-            <strong>Signature:</strong> string * string * string<br />
-                                  </div>
+          <div class="tip" id="526">
+            <strong>Signature:</strong> (pv:EitherResult&lt;&#39;c,(&#39;f * &#39;c)&gt; * nw:(unit -&gt; FallibleOption&lt;&#39;f * &#39;c&gt; * ParseMessage)) -&gt; EitherResult&lt;&#39;c,(&#39;f * &#39;c)&gt;<br />
+                                    <span>
+            <strong>Attributes:</strong><br />
+[&lt;CustomOperation(&quot;ifneitherfn&quot;)&gt;]<br />
+          </span>
+          </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L372-372" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L90-90" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-              <p>CompiledName: <code>get_ge3</code></p>
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '577', 577)" onmouseover="showTip(event, '577', 577)">
-            x.ge4
+          <code onmouseout="hideTip(event, '527', 527)" onmouseover="showTip(event, '527', 527)">
+            x.IfNeitherPm(pv, nw)
           </code>
-          <div class="tip" id="577">
-            <strong>Signature:</strong> string * string * string * string<br />
-                                  </div>
+          <div class="tip" id="527">
+            <strong>Signature:</strong> (pv:EitherResult&lt;&#39;c,(&#39;f * &#39;c)&gt; * nw:(FallibleOption&lt;&#39;f * &#39;c&gt; * ParseMessage)) -&gt; EitherResult&lt;&#39;c,(&#39;f * &#39;c)&gt;<br />
+                                    <span>
+            <strong>Attributes:</strong><br />
+[&lt;CustomOperation(&quot;ifneitherpm&quot;)&gt;]<br />
+          </span>
+          </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L373-373" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L70-70" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-              <p>CompiledName: <code>get_ge4</code></p>
         </td>
       </tr>
-    </tbody>
-  </table>
-  <h3>Static members</h3>
-  <table class="table table-bordered member-list">
-    <thead>
-      <tr><td>Static member</td><td>Description</td></tr>
-    </thead>
-    <tbody>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '578', 578)" onmouseover="showTip(event, '578', 578)">
-            MatchResult.Create arg1 arg2
+          <code onmouseout="hideTip(event, '528', 528)" onmouseover="showTip(event, '528', 528)">
+            x.SetContext(er, nw)
           </code>
-          <div class="tip" id="578">
-            <strong>Signature:</strong> string -&gt; (string list) -&gt; MatchResult<br />
+          <div class="tip" id="528">
+            <strong>Signature:</strong> (er:EitherResult&lt;&#39;?8740,&#39;?8741&gt; * nw:&#39;?8740) -&gt; EitherResult&lt;&#39;?8740,&#39;?8741&gt;<br />
+                                    <span>
+            <strong>Attributes:</strong><br />
+[&lt;CustomOperation(&quot;setcontext&quot;)&gt;]<br />
+          </span>
+          </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L28-28" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '529', 529)" onmouseover="showTip(event, '529', 529)">
+            x.Yield(arg1)
+          </code>
+          <div class="tip" id="529">
+            <strong>Signature:</strong> &#39;d -&gt; EitherResult&lt;&#39;c,&#39;f&gt;<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L369-369" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L25-25" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>

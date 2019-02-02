@@ -1,5 +1,5 @@
 version 5.193.0
-framework: auto-detect
+framework: net45, netstandard2.0
 
 source https://nuget.org/api/v2
 
@@ -17,6 +17,7 @@ nuget NUnit
 nuget NLog
 nuget NUnit3TestAdapter
 nuget NLog.FSharp
+nuget System.ValueTuple
 github fsprojects/FsUnit src/FsUnit.NUnit/FsUnitTyped.fs
 
 clitool dotnet-fake

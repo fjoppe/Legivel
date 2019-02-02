@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>TagKind - Legivel</title>
+    <title>EitherResult<'a, 'b> - Legivel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Frank Joppe"/>
@@ -35,34 +35,39 @@
 
 
 
-<h1>TagKind</h1>
+<h1>EitherResult<'a, 'b></h1>
 <p>
 
-    <span>Namespace: Legivel</span><br />
-        <span>Parent Module: <a href="legivel-representationgraph.html">RepresentationGraph</a></span><br />
-    </p>
+    <span>Namespace: Legivel.Internals</span><br />
+        <span>Parent Module: <a href="legivel-internals-parsermonads.html">ParserMonads</a></span><br />
+            <span>
+            Attributes: <br />
+[&lt;Struct&gt;]<br />
+[&lt;NoEquality&gt;]<br />
+[&lt;NoComparison&gt;]<br />
+            
+        </span>
+</p>
 <div class="xmldoc">
-<p>A Tag can be Local, Global, Unrecognized or Non Specific</p>
-
 </div>
-  <h3>Union Cases</h3>
+  <h3>Record Fields</h3>
   <table class="table table-bordered member-list">
     <thead>
-      <tr><td>Union Case</td><td>Description</td></tr>
+      <tr><td>Record Field</td><td>Description</td></tr>
     </thead>
     <tbody>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '381', 381)" onmouseover="showTip(event, '381', 381)">
-            Global(GlobalTag)
+          <code onmouseout="hideTip(event, '530', 530)" onmouseover="showTip(event, '530', 530)">
+            Context
           </code>
-          <div class="tip" id="381">
-            <strong>Signature:</strong> GlobalTag<br />
+          <div class="tip" id="530">
+            <strong>Signature:</strong> &#39;a<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fsi#L110-110" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L9-9" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -72,15 +77,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '382', 382)" onmouseover="showTip(event, '382', 382)">
-            Local(LocalTag)
+          <code onmouseout="hideTip(event, '531', 531)" onmouseover="showTip(event, '531', 531)">
+            HasErrorOccurred
           </code>
-          <div class="tip" id="382">
-            <strong>Signature:</strong> LocalTag<br />
+          <div class="tip" id="531">
+            <strong>Signature:</strong> bool<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fsi#L112-112" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L11-11" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -90,33 +95,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '383', 383)" onmouseover="showTip(event, '383', 383)">
-            NonSpecific(LocalTag)
+          <code onmouseout="hideTip(event, '532', 532)" onmouseover="showTip(event, '532', 532)">
+            Result&#39;
           </code>
-          <div class="tip" id="383">
-            <strong>Signature:</strong> LocalTag<br />
+          <div class="tip" id="532">
+            <strong>Signature:</strong> FallibleOption&lt;&#39;b&gt; * ParseMessage<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fsi#L113-113" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '384', 384)" onmouseover="showTip(event, '384', 384)">
-            Unrecognized(GlobalTag)
-          </code>
-          <div class="tip" id="384">
-            <strong>Signature:</strong> GlobalTag<br />
-                                  </div>
-        </td>
-        <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fsi#L111-111" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L10-10" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -134,123 +121,138 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '385', 385)" onmouseover="showTip(event, '385', 385)">
-            x.AreEqual arg1 arg2
+          <code onmouseout="hideTip(event, '533', 533)" onmouseover="showTip(event, '533', 533)">
+            x.Messages
           </code>
-          <div class="tip" id="385">
-            <strong>Signature:</strong> Node -&gt; Node -&gt; bool<br />
+          <div class="tip" id="533">
+            <strong>Signature:</strong> ParseMessage<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L154-154" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L20-20" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Retrieves the function which determines whether two Nodes are yaml-wise equal</p>
-
-
+          
+              <p>CompiledName: <code>get_Messages</code></p>
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '386', 386)" onmouseover="showTip(event, '386', 386)">
-            x.CanonFn
+          <code onmouseout="hideTip(event, '534', 534)" onmouseover="showTip(event, '534', 534)">
+            x.Result
           </code>
-          <div class="tip" id="386">
-            <strong>Signature:</strong> string -&gt; string option<br />
+          <div class="tip" id="534">
+            <strong>Signature:</strong> FallibleOption&lt;&#39;b&gt;<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L184-184" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L18-18" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Retrieves the function which converts a string to its tag-Canonical form</p>
-
-
-              <p>CompiledName: <code>get_CanonFn</code></p>
+          
+              <p>CompiledName: <code>get_Result</code></p>
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '387', 387)" onmouseover="showTip(event, '387', 387)">
-            x.EqualIfNonSpecific(arg1)
+          <code onmouseout="hideTip(event, '535', 535)" onmouseover="showTip(event, '535', 535)">
+            x.ResultValue
           </code>
-          <div class="tip" id="387">
-            <strong>Signature:</strong> TagKind -&gt; bool<br />
+          <div class="tip" id="535">
+            <strong>Signature:</strong> FallibleOptionValue<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L149-149" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L19-19" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Special case: returns handle equality if the tag is non-specific. Used in sentinel pattern.</p>
-
-
+          
+              <p>CompiledName: <code>get_ResultValue</code></p>
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '388', 388)" onmouseover="showTip(event, '388', 388)">
-            x.PostProcessAndValidateNode arg1 arg2
+          <code onmouseout="hideTip(event, '536', 536)" onmouseover="showTip(event, '536', 536)">
+            x.SetContext(c)
           </code>
-          <div class="tip" id="388">
-            <strong>Signature:</strong> ParseMessage -&gt; Node -&gt; FallibleOption&lt;Node&gt; * ParseMessage<br />
+          <div class="tip" id="536">
+            <strong>Signature:</strong> c:&#39;a -&gt; EitherResult&lt;&#39;a,&#39;b&gt;<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L168-168" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L15-15" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Retrieves the function which is called after Node construction and tag resolution.</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '389', 389)" onmouseover="showTip(event, '389', 389)">
-            x.ToPrettyString()
+          <code onmouseout="hideTip(event, '537', 537)" onmouseover="showTip(event, '537', 537)">
+            x.SetError()
           </code>
-          <div class="tip" id="389">
-            <strong>Signature:</strong> unit -&gt; string<br />
+          <div class="tip" id="537">
+            <strong>Signature:</strong> unit -&gt; EitherResult&lt;&#39;a,&#39;b&gt;<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L142-142" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L17-17" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>For dev/debugging</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '390', 390)" onmouseover="showTip(event, '390', 390)">
-            x.Uri
+          <code onmouseout="hideTip(event, '538', 538)" onmouseover="showTip(event, '538', 538)">
+            x.SetResult(r)
           </code>
-          <div class="tip" id="390">
-            <strong>Signature:</strong> string<br />
+          <div class="tip" id="538">
+            <strong>Signature:</strong> (r:(FallibleOption&lt;&#39;b&gt; * ParseMessage)) -&gt; EitherResult&lt;&#39;a,&#39;b&gt;<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RepresentationGraph/Legivel.RepresentationGraph.fs#L176-176" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L16-16" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Retrieves the Uri for Global Tags and the handle for Local Tags</p>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <h3>Static members</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Static member</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
 
-
-              <p>CompiledName: <code>get_Uri</code></p>
+          <code onmouseout="hideTip(event, '539', 539)" onmouseover="showTip(event, '539', 539)">
+            EitherResult.Create c r
+          </code>
+          <div class="tip" id="539">
+            <strong>Signature:</strong> c:&#39;?8707 -&gt; (r:(FallibleOption&lt;&#39;?8708&gt; * ParseMessage)) -&gt; EitherResult&lt;&#39;?8707,&#39;?8708&gt;<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Parser/Internals.fs#L14-14" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
         </td>
       </tr>
     </tbody>

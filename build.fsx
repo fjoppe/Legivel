@@ -186,12 +186,12 @@ Target.create "RunTests" (fun _ ->
     // |> (fun i -> if i > 0 then failwith "")
 
     projects
-    |> Seq.map (fun f -> 
+    |>  Seq.map (fun f -> 
         DotNet.exec id "test" (sprintf "%s --test-adapter-path %s" f (Path.combine __SOURCE_DIRECTORY__ "packages/NUnit3TestAdapter")
         ))
-    |> Seq.map (fun r -> r.ExitCode)
-    |>Seq.reduce (+)
-    |> (fun i -> if i > 0 then failwith "")
+    |>  Seq.map (fun r -> r.ExitCode)
+    |>  Seq.reduce (+)
+    |>  (fun i -> if i > 0 then failwith "")
 
  
 )
