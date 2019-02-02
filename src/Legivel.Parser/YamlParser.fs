@@ -374,6 +374,7 @@ module ParseState =
                         let errs = 
                             ps.Messages.Error 
                             |>  Seq.filter(fun m -> m.Action = MessageAction.Continue && m.Location <> ps.Location)
+                            |>  List.ofSeq
                         ps.Messages.Error.Clear()
                         ps.Messages.Error.AddRange(errs)
                         (node,ps)
