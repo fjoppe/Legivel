@@ -54,49 +54,49 @@
       <Paket>True</Paket>
     </Reference>
     <Reference Include="FSharp.Data">
-      <HintPath>..\..\packages\test\FSharp.Data\lib\net45\FSharp.Data.dll</HintPath>
+      <HintPath>..\..\packages\FSharp.Data\lib\net45\FSharp.Data.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
     <Reference Include="NLog">
-      <HintPath>..\..\packages\test\NLog\lib\net45\NLog.dll</HintPath>
+      <HintPath>..\..\packages\NLog\lib\net45\NLog.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
     <Reference Include="NLog.FSharp">
-      <HintPath>..\..\packages\test\NLog.FSharp\lib\net40\NLog.FSharp.dll</HintPath>
+      <HintPath>..\..\packages\NLog.FSharp\lib\net40\NLog.FSharp.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
     <Reference Include="nunit.framework">
-      <HintPath>..\..\packages\test\NUnit\lib\net45\nunit.framework.dll</HintPath>
+      <HintPath>..\..\packages\NUnit\lib\net45\nunit.framework.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.0'">
     <Reference Include="FSharp.Core">
-      <HintPath>..\..\packages\test\FSharp.Core\lib\netstandard1.6\FSharp.Core.dll</HintPath>
+      <HintPath>..\..\packages\FSharp.Core\lib\netstandard1.6\FSharp.Core.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
     <Reference Include="FSharp.Data">
-      <HintPath>..\..\packages\test\FSharp.Data\lib\netstandard2.0\FSharp.Data.dll</HintPath>
+      <HintPath>..\..\packages\FSharp.Data\lib\netstandard2.0\FSharp.Data.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
     <Reference Include="NLog">
-      <HintPath>..\..\packages\test\NLog\lib\netstandard2.0\NLog.dll</HintPath>
+      <HintPath>..\..\packages\NLog\lib\netstandard2.0\NLog.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
     <Reference Include="NLog.FSharp">
-      <HintPath>..\..\packages\test\NLog.FSharp\lib\net40\NLog.FSharp.dll</HintPath>
+      <HintPath>..\..\packages\NLog.FSharp\lib\net40\NLog.FSharp.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
     <Reference Include="nunit.framework">
-      <HintPath>..\..\packages\test\NUnit\lib\netstandard2.0\nunit.framework.dll</HintPath>
+      <HintPath>..\..\packages\NUnit\lib\netstandard2.0\nunit.framework.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
