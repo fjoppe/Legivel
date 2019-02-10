@@ -9,6 +9,8 @@ open System.IO
 open Fake.Core
 open Fake.Core.TargetOperators
 open Fake.DotNet
+
+
 open Fake.IO
 open Fake.IO.FileSystemOperators
 open Fake.IO.Globbing.Operators
@@ -99,7 +101,7 @@ Target.create "AssemblyInfo" (fun _ ->
           (getAssemblyInfoAttributes projectName)
         )
 
-    !! "src/**/*.??proj"
+    !! "src/**Merged/*.??proj"
     |> Seq.map getProjectDetails
     |> Seq.iter (fun (projFileName, _, folderName, attributes) ->
         match projFileName with
@@ -125,8 +127,18 @@ Target.create "CopyBinaries" (fun _ ->
 
 let buildConfiguration = DotNet.Custom <| Environment.environVarOrDefault "configuration" configuration
 
+
+Target.create "ClearAll" (fun _ ->
+    let dirs = ["bin"; "temp"; "obj"]
+    Shell.cleanDirs dirs
+
+    let srcd =  dirs |> Seq.ofList |> Seq.map(fun d -> !! (sprintf "src/**/%s" d)) |> Seq.collect id
+    Shell.cleanDirs srcd
+)
+
 Target.create "Clean" (fun _ ->
-    Shell.cleanDirs ["bin"; "temp"; "obj"]
+    let dirs = ["bin"; "temp"; "obj"]
+    Shell.cleanDirs dirs
 )
 
 Target.create "CleanDocs" (fun _ ->
@@ -155,6 +167,7 @@ Target.create "Build" (fun _ ->
                     "Optimize", "True"
                     "DebugSymbols", "True"
                     "Configuration", configuration
+                    "version", release.AssemblyVersion
                 ]
          }
     MSBuild.build setParams solutionFile
@@ -200,11 +213,36 @@ Target.create "RunTests" (fun _ ->
 // Build a NuGet package
 
 Target.create "NuGet" (fun _ ->
-    Paket.pack(fun p ->
-        { p with
-            OutputPath = "bin"
-            Version = release.NugetVersion
-            ReleaseNotes = String.toLines release.Notes})
+    // Paket.pack(fun p ->
+    //     { p with
+    //         OutputPath = "bin"
+    //         Version = release.NugetVersion
+    //         ReleaseNotes = String.toLines release.Notes})
+
+    let file = !! "src/Legivel.Mapper.Merged/*.??proj" |> Seq.head
+    let nuspec = !! "src/Legivel.Mapper.Merged/*.nuspec" |> Seq.head
+
+    let nuspecContent = File.OpenText(nuspec).ReadToEnd()
+    let targetNuspec = nuspecContent.Replace("$version$", release.NugetVersion)
+    let targetNuspecFile = nuspec + ".target.nuspec"
+    if File.exists targetNuspecFile then File.delete targetNuspecFile
+    let tnsFileTxt = File.CreateText(targetNuspecFile)
+    tnsFileTxt.Write(targetNuspec)
+    tnsFileTxt.Close()
+
+    DotNet.pack(fun p ->
+    {
+        p with
+            OutputPath = Some(Path.combine __SOURCE_DIRECTORY__ "bin")
+            NoBuild = true
+            Common = 
+                { 
+                    DotNet.Options.Create() with 
+                        CustomParams = Some(sprintf "-p:PackageVersion=%s /p:NuspecFile=%s" release.NugetVersion targetNuspecFile)
+                }
+    }) file
+
+    File.delete targetNuspecFile
 )
 
 Target.create "PublishNuget" (fun _ ->

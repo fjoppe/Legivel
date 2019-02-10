@@ -10,7 +10,6 @@
     <ProjectGuid>b0b8f1c7-cb0d-495f-9b09-e8d68561aee7</ProjectGuid>
     <OutputType>Library</OutputType>
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
-    <!-- <TargetFrameworkVersion>v4.5</TargetFrameworkVersion> -->
     <TargetFrameworks>net45;netstandard2.0</TargetFrameworks>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <TargetFrameworkProfile />

@@ -8,7 +8,6 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Legivel.Mapper</RootNamespace>
     <AssemblyName>Legivel.Mapper</AssemblyName>
-    <!-- <TargetFrameworkVersion>v4.5</TargetFrameworkVersion> -->
     <TargetFrameworks>netstandard2.0;net45;</TargetFrameworks>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
@@ -42,6 +41,7 @@
     <Reference Include="System.Numerics" />
   </ItemGroup> -->
   <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="..\Legivel.Mapper\Attributes.fs">
       <Link>Attributes.fs</Link>
     </Compile>
@@ -63,7 +63,9 @@
     <Compile Include="..\Legivel.Mapper\YamlMapper.fs">
       <Link>YamlMapper.fs</Link>
     </Compile>
+    <None Include="Legivel.nuspec" />
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\Legivel.Parser.Merged\Legivel.Parser.fsproj">
       <Name>Legivel.Parser</Name>
