@@ -70,7 +70,7 @@ let ``Parse schema from APIs.guru``(url:string) =
     match schema with
     | Some(s) ->
         let stopwatch = System.Diagnostics.Stopwatch.StartNew()
-        let yml = YamlParseWithWarning s    // complete or partial representation
+        let yml = YamlParseFailSafeSchemaWithWarning s    // complete or partial representation
         stopwatch.Stop()
         printf "Elapsed time: %O" (stopwatch.Elapsed)
         match yml.Document with

@@ -1,5 +1,4 @@
 ﻿#I __SOURCE_DIRECTORY__ 
-#I "../../packages"
 
 #time
 
@@ -7,11 +6,10 @@
 //#r @"bin/Debug/Legivel.RepresentationGraph.dll"
 //#r @"bin/Debug/Legivel.Parser.dll"
 
-#r @"bin/Release/Legivel.Common.dll"
-#r @"bin/Release/Legivel.RepresentationGraph.dll"
-#r @"bin/Release/Legivel.Parser.dll"
+#r @"bin/Release/net45/FSharp.Core.dll"
+#r @"bin/Release/net45/Legivel.Parser.dll"
+#r @"bin/Release/net45/NLog.dll"
 
-#r @"test/NLog/lib/net45/NLog.dll"
 open System
 open System.Globalization
 open Legivel.Parser
@@ -31,7 +29,7 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let engine = Yaml12Parser(Failsafe.Schema, fun s -> logger.Trace(s))
+let engine = Yaml12Parser(Failsafe.Schema)
 
 let WarnMsg (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
 let ErrMsg  (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -61,8 +59,9 @@ let PrintNode crr =
 let YamlParse s =
     try
         let repr = (engine.``l-yaml-stream`` s)
-        let crr = repr.Head
-        PrintNode crr
+        let crr = repr.Head 
+        //PrintNode crr
+        ()
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
@@ -93,10 +92,10 @@ let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
 
-let st  = System.Diagnostics.Stopwatch.StartNew()
+//let st  = System.Diagnostics.Stopwatch.StartNew()
 YamlParse s
-st.Stop()
-printfn "Elapsed: %O" (st.Elapsed)
+//st.Stop()
+//printfn "Elapsed: %O" (st.Elapsed)
 
 
 

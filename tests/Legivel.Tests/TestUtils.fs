@@ -44,6 +44,18 @@ let YamlParseWithWarning s =
     with
     | e -> printfn "%A" e; raise e
 
+let YamlParseFailSafeSchemaWithWarning s =
+    let engine = Yaml12Parser(Failsafe.Schema)
+    try
+        let repr = (engine.``l-yaml-stream`` s)
+        let crrp = repr.Head
+        match crrp with
+            |   NoRepresentation nr -> failwith (sprintf "Unexpected errors\n%s" (nr.Error|> List.fold(fun c s -> sprintf "%s\n%O" c s) ""))
+            |   CompleteRepresentaton cr -> cr
+            |   PartialRepresentaton pr -> pr
+            |   EmptyRepresentation er -> failwith "Unexpected empty"
+    with
+    | e -> printfn "%A" e; raise e
 
 let YamlParseEmpty s =
     let engine = Yaml12Parser(YamlCore.Schema)

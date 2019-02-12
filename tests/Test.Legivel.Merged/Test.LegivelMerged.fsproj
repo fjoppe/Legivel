@@ -126,6 +126,8 @@
       <Link>paket-files/FsUnitTyped.fs</Link>
     </Compile>
     <Compile Include="AssemblyInfo.fs" />
+    <None Include="nlog.config" />
+    <None Include="nlog.fsx" />
     <None Include="paket.references" />
     <Content Include="App.config" />
     <Compile Include="..\Legivel.Tests\TestUtils.fs">
