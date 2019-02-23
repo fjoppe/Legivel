@@ -57,6 +57,8 @@ module TokenData =
 
 open TokenData
 
+let symbolStr = "-+?:,.[]{}#&*!|>\'\"%@`/=\ufeff".ToCharArray()
+
 let tokenizer str = 
     let strm = new StringReader(str)
 
@@ -79,7 +81,7 @@ let tokenizer str =
     let isEscape = (fun c -> c = '\\')
     let isWhite = (fun c -> c = ' ' || c = '\t')
     let isNewLine = (fun c -> c = '\x0a' || c = '\x0d')
-    let isSymbol = (fun c -> "-+?:,.[]{}#&*!|>\'\"%@`/=\ufeff".Contains(c.ToString()))
+    let isSymbol = (fun c -> symbolStr |> Array.exists(fun sc -> sc = c))
     
     //  c-printable
     let isText = (fun c ->
@@ -152,23 +154,17 @@ let tokenProcessor str =
     let todo = Stack<TokenData>()
 
     let getToken() = if todo.Count = 0 then tkn() else todo.Pop()
-    let tokenTake n = [1 .. n] |> List.map(fun _ -> getToken())
-    let enqueueTodo lst = lst |> List.rev |> List.iter todo.Push
+    let tokenTakeTwo() = Array.init 2 (fun _ -> getToken())
     let enqueueProcessed lst = lst |> List.iter processed.Enqueue
 
     let ``Try conversion DOS/Windows break``() =
-        let tl = tokenTake 2
-        if tl |> List.map TokenData.token = [Token.NewLine; Token.NewLine] then
-            let [t0;t1] = tl
-            let msBrk = sprintf "%s%s" t0.Source t1.Source
-            if msBrk = "\x0d\x0a" then
-                enqueueProcessed [TokenData.Create Token.NewLine "\n"]
-                true
-            else
-                enqueueTodo tl
-                false
+        let tl = tokenTakeTwo()
+        if tl.[0].Source = "\x0d" && tl.[1].Source = "\x0a" then
+            enqueueProcessed [TokenData.Create Token.NewLine "\n"]
+            true
         else
-            enqueueTodo tl
+            todo.Push tl.[1]
+            todo.Push tl.[0]
             false
 
     let ``Try conversion to b-break``() =
@@ -177,7 +173,7 @@ let tokenProcessor str =
             enqueueProcessed [TokenData.Create Token.NewLine "\n"]
             true
         else
-            enqueueTodo [t0]
+            todo.Push t0
             false
 
     let rec aggregator() = 
@@ -209,7 +205,7 @@ type RollingStream<'a when 'a : equality> = private {
         StopValue              : 'a
     }
     with
-        static member Create rdr sv = { TokenStream = RSList<'a>(); StreamPosition = 0; Current = rdr; StopValue = sv }
+        static member Create rdr sv = { TokenStream = RSList<'a>(65536); StreamPosition = 0; Current = rdr; StopValue = sv }
 
         member this.Get() =
             if this.EOF then 

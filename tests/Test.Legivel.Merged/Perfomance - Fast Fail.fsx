@@ -3,14 +3,10 @@
 #time
 
 #r @"bin/Debug/net45/FSharp.Core.dll"
-//#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
 #r @"bin/Debug/net45/Legivel.Parser.dll"
 #r @"bin/Debug/net45/NLog.dll"
 
-
-//#r @"bin/Release/net45/FSharp.Core.dll"
-//#r @"bin/Release/net45/Legivel.Parser.dll"
-//#r @"bin/Release/net45/NLog.dll"
+open System.Text
 
 open System
 open System.Globalization
@@ -21,6 +17,7 @@ open Legivel.RepresentationGraph
 open Legivel.Common
 open NLog
 open System.IO
+
 
 #load "nlog.fsx"
 
@@ -68,52 +65,35 @@ let YamlParse s =
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
-let YamlParseList s =
-    try
-        let repr = (engine.``l-yaml-stream`` s)
-        printfn "Total Documents: %d" (repr.Length)
-        repr |> List.iter(fun crr ->
-            PrintNode crr
-            printfn "..."
-        )
-    with
-    | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
 
-let YamlParseWithErrors s =
-    try
-        let repr = (engine.``l-yaml-stream`` s)
-        let crrp = repr.Head
-        match crrp with
-        |   NoRepresentation nr -> 
-            nr
-        |   _ -> failwith "Unexpected return type"
+let sb = StringBuilder()
 
-    with
-    | e -> printfn "%A" e; raise e
+sb.Append("TestKey:\n")
 
-let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
+//  a few phrases from: https://www.gutenberg.org/files/1184/1184-0.txt
+let randomPhrases = [
+    "- 'When the young man on board saw this person approach, he left his'\n"
+    "- 'much disliked by the crew as Edmond Dantès was beloved by them.'\n"
+    "- 'course she had taken, and what was her cargo. I believe, if she had not'\n"
+    "- 'three months after that; only be back again in three months, for the'\n"
+]
 
-//YamlParse "
-//{
-//\"adjacent\":value,
-//\"readable\":value,
-//\"empty\":
-//}
-// "
+let cartesionProduct sl ll =
+    let rec innerLoop ll csl acc =
+        match (ll,csl) with
+        |   ([], _) -> acc
+        |   (_, []) -> innerLoop ll sl acc
+        |   (hl::rl, hs::rs) -> innerLoop rl rs ((hl,hs)::acc)
+    innerLoop ll sl []
 
-YamlParse s
+    
+[0..23000]
+|>  cartesionProduct randomPhrases
+|>  List.map(fun (_, s) -> s)
+|>  List.fold(fun (s:StringBuilder) (i:string)  -> s.Append(i)) sb
+|>  ignore
 
 
+YamlParse (sb.ToString())
 
-let sd = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "logs/FailFast YamlParserTest 5.fsx.log.data"))
 
-sd.Split([|"\n"|], StringSplitOptions.RemoveEmptyEntries)
-|>  List.ofArray
-|>  List.map(fun s -> Int32.Parse(s))
-|>  List.groupBy id
-|>  List.map(fun (i, ls) -> i, ls.Length)
-|>  List.sortByDescending(fun (i, c) -> c,-i)
-|> List.filter(fun (i,c) -> c=3)
-//|>  List.length
-
-(8141 * 3) + 14904

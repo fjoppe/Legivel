@@ -160,9 +160,12 @@ and RGXType =
         |   _   -> Concat([r2; r1])
 
     static member (|||) (r1:RGXType, r2:RGXType) =
-        match r1 with
-        | Or     l ->   Or(r2 :: l)
-        | _       ->    Or([r2; r1])
+        match (r1,r2) with
+        |   (OneInSet o1, OneInSet o2)   -> OneInSet(o1 + o2)
+        |   _ ->
+            match r1 with
+            | Or     l ->   Or(r2 :: l)
+            | _       ->    Or([r2; r1])
 
     static member (-) (r1:RGXType, r2:RGXType) =
         match (r1,r2) with
@@ -281,8 +284,8 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                         else
                             let checkItWith = ois.TokenQuickCheck.Force()
                             if (checkItWith &&& uint32(i.Token) > 0u) then
-                                let p = ois.OneInSet.Force()
-                                let r = p.Contains(i.Source)    // not ready yet to check one in set char-by-char
+                                //let p = ois.OneInSet.Force()
+                                //let r = p.Contains(i.Source)    // not ready yet to check one in set char-by-char
                                 true
                             else
                                 false

@@ -158,6 +158,8 @@
       <Link>Test.Legivel.SpookyHash.fs</Link>
     </Compile>
     <Compile Include="Yaml.Mapper.Tests.fs" />
+    <Compile Include="PerformanceTests.fs" />
+    <None Include="Perfomance - Fast Fail.fsx" />
     <Compile Include="..\Legivel.Tests\APIs.guru.Tests.fs">
       <Link>APIs.guru.Tests.fs</Link>
     </Compile>

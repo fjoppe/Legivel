@@ -79,24 +79,6 @@ type RollingTokenizer = private {
         static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); ContextPosition = 0}
 
 
-//type ScalarMemoizeKey = {
-//    SreamPositionStart : int
-//    FunctionNumber     : int
-//}
-//with
-//    static member Create p f = { SreamPositionStart = p; FunctionNumber = f }
-
-
-//type ScalarMemoizeValue = {
-//    SreamPositionEnd : int
-//    Value            : FallibleOption<Node>
-//    PositionDelta    : DocumentLocation
-//    Length           : int
-//}
-//with
-//    static member Create p s d l = { SreamPositionEnd = p; Value = s; PositionDelta=d; Length=l }
-
-
 [<NoEquality; NoComparison>]
 type ParseState = {
         //  Document Location
@@ -152,6 +134,9 @@ type ParseState = {
 
         ///// Memoize scalar values by position and regex.
         //Caching : Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>
+#if DEBUG
+        LoggingFunction : (string->unit)
+#endif
     }
     with
         static member AddErrorMessageDel (ps:ParseState) sl = 
@@ -171,6 +156,9 @@ type ParseState = {
 
         member this.SetPositionDelta sl lc lcc =
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
+#if DEBUG
+            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
+#endif
             { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + sl }
 
         member this.TrackPosition s =
@@ -228,6 +216,19 @@ type ParseState = {
 
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
+
+#if DEBUG
+        static member Create pm inputStr lf = {
+                Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
+                Anchors = Map.empty; Messages=pm; Directives=[]; 
+                TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
+                LocalTagSchema = None; NodePath = [];
+                TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
+                Restrictions = ParseRestrictions.Create(); TrackLength = 0
+                IndentLevels = []
+                ; LoggingFunction = lf
+            }
+#else
         static member Create pm inputStr = {
                 Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
                 Anchors = Map.empty; Messages=pm; Directives=[]; 
@@ -238,7 +239,7 @@ type ParseState = {
                 IndentLevels = []
                 ; (*Caching = Dictionary()*)
             }
-
+#endif
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module ParseState = 
@@ -439,10 +440,10 @@ type ParsedItem = {
 
 [<NoComparison>]
 type ParsedCache = private {
-    Cached : Dictionary<int*Context, ParsedItem>
+    Cached : Dictionary<int*Context*NodeKind, ParsedItem>
 }
 with
-    static member Create() = { Cached = new Dictionary<int*Context, ParsedItem>() }
+    static member Create() = { Cached = new Dictionary<int*Context*NodeKind, ParsedItem>() }
     member this.Clear() = this.Cached.Clear()
     member this.GetOrParse(p, t, c, (ps:ParseState), parseFunc: ParseState -> ParseFuncResult<Node>) =
         let parseAndCache() =
@@ -459,25 +460,25 @@ with
                         Result = (r,m)
                     }
                 // calling "parseFunc" can change the dictionary, and we may override it here
-                if this.Cached.ContainsKey(sp,c) then this.Cached.Remove((sp,c)) |> ignore
-                this.Cached.Add((sp,c), chd)
+                if this.Cached.ContainsKey(sp,c,t) then this.Cached.Remove((sp,c,t)) |> ignore
+                this.Cached.Add((sp,c,t), chd)
             //|   FallibleOptionValue.NoResult ->
             //    let chd =
             //        {
             //            StartPosition = sp
             //            EndPosition = sp
             //            Type = t
-            //            Context = Context.NoContext
+            //            Context = c
             //            Result = (r,m)
             //        }
             //    // calling "parseFunc" can change the dictionary, and we may override it here
-            //    if this.Cached.ContainsKey(sp,Context.NoContext) then this.Cached.Remove((sp,Context.NoContext)) |> ignore
-            //    this.Cached.Add((sp,Context.NoContext), chd)
+            //    if this.Cached.ContainsKey(sp,c,t) then this.Cached.Remove((sp,c,t)) |> ignore
+            //    this.Cached.Add((sp,c,t), chd)
             |   _ -> ()
             (r,m)
 
-        if this.Cached.ContainsKey(p,c) then
-            let d = this.Cached.[(p, c)]
+        if this.Cached.ContainsKey(p,c,t) then
+            let d = this.Cached.[(p, c,t)]
             if d.Type = t then
                 ps.Input.Position <- d.EndPosition
                 d.Result
@@ -538,15 +539,19 @@ type CreateErrorMessage() =
 let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 
 
-type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->unit) =
+type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit)) =
     let logger s ps = 
-#if DEBUG
-        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
-        //sprintf "%d" (ps.Location.Line)
-        |> loggingFunction
-#else
+//#if DEBUG
+//        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
+//        //sprintf "%d" (ps.Location.Line)
+//        |> loggingFunction
+//#else
         ()
-#endif
+//#endif
+
+    let mutable logfunc = loggingFunction
+
+    member this.SetLogFunc f = logfunc <- f
 
     member private this.ParserMessages = ParseMessage.Create()
 
@@ -556,22 +561,29 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         /// Memoize scalar values by position and regex.
     //member private this.Caching = Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>()
 
+    new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, (fun _ -> ()))
 
-    new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, fun _ -> ())
-
-    member private this.LogReturn str ps (pso:FallibleOption<_>, pm:ParseMessage) = 
-#if DEBUG
-        match pso.Result with
-        |   FallibleOptionValue.Value -> 
-            let  (_,prs) = pso.Data
-            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
-        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-        |   _   -> failwith "Illegal value for pso.Result"
+    member private this.LogReturn str (ps:ParseState) (pso:FallibleOption<_>, pm:ParseMessage) = 
+        //match pso.Result with
+        //|   FallibleOptionValue.Value -> 
+        //    let  (_,prs) = pso.Data
+        //    logfunc (sprintf "%d -> %d" (ps.Location.Line) (prs.Location.Line))
+        //|   FallibleOptionValue.NoResult -> logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
+        //|   FallibleOptionValue.ErrorResult ->  logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
+        //|   _   -> failwith "Illegal value for pso.Result"
         pso,pm
-#else
-        pso,pm
-#endif
+//#if DEBUG
+//        match pso.Result with
+//        |   FallibleOptionValue.Value -> 
+//            let  (_,prs) = pso.Data
+//            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+//        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
+//        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+//        |   _   -> failwith "Illegal value for pso.Result"
+//        pso,pm
+//#else
+//        pso,pm
+//#endif
 
 
     //  Utility functions
@@ -1417,8 +1429,15 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
                 |> this.ResolveTag prs NonSpecificQT (prs.Location)
                 |> this.PostProcessAndValidateNode
+            
+            let memFunc ps = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) + this.``c-single-quote``
+            let callMemoized = this.Memoize memFunc
+            let patt = 
+                match ps.c with
+                |   Context.``Flow-out`` |   Context.``Flow-in``  -> callMemoized (1201, ps.n, ps.c) ps
+                |   Context.``Block-key``|   Context.``Flow-key`` -> callMemoized (1201, 0, ps.c) ps
+                | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
-            let patt = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) + this.``c-single-quote``
             let ``illegal-patt`` = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) 
 
             match ps with
@@ -2923,7 +2942,11 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
     member this.``l-yaml-stream`` (input:string) : Representation list= 
+#if DEBUG
+        let ps = ParseState.Create (this.ParserMessages) input logfunc
+#else
         let ps = ParseState.Create (this.ParserMessages) input
+#endif
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
