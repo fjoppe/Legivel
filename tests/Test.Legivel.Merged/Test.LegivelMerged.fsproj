@@ -167,6 +167,7 @@
       <Link>TestTokenizer.fs</Link>
     </Compile>
     <None Include="FailFast YamlParserTest 5.fsx" />
+    <None Include="RegexDSL-Base.fsx" />
     <None Include="FailFast - RegexDSL token parse.fsx" />
     <None Include="QuotationTest.fsx" />
     <!-- <Compile Include="Main.fs"/> -->
