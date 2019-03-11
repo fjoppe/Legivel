@@ -66,6 +66,13 @@ and DoublePathState = {
     AlternateState  :   (CharacterMatch*RegexState) option
     NextState       :   RegexState
 }
+and RepeatDoublePathState = {
+    CharCount       :   int
+    MainState       :   RegexState
+    InitialState    :   RegexState
+    AlternateState  :   (CharacterMatch*RegexState) option
+    NextState       :   RegexState
+}
 and ParallelPathState = {
     Targets         :   RegexState list
     NextState       :   RegexState
@@ -74,6 +81,7 @@ and RegexState =
     |   SingleRGS   of  SingleStepState
     |   ConcatRGS   of  SinglePathState
     |   OptionalRGS of  DoublePathState
+    |   ZeroOrMore  of  RepeatDoublePathState
     |   MultiRGS    of  ParallelPathState
     |   Final
     with
@@ -84,6 +92,7 @@ and RegexState =
                 |   ConcatRGS s -> s.NextState
                 |   MultiRGS  s -> s.NextState
                 |   OptionalRGS s -> s.NextState
+                |   ZeroOrMore  s -> s.NextState
                 |   Final -> Final
 
         member this.SetNextState ns =
@@ -92,6 +101,7 @@ and RegexState =
                 |   ConcatRGS s -> ConcatRGS {s  with NextState = ns}
                 |   MultiRGS  s -> MultiRGS  {s  with NextState = ns}
                 |   OptionalRGS s -> OptionalRGS {s  with NextState = ns}
+                |   ZeroOrMore s -> ZeroOrMore {s  with NextState = ns}
                 |   Final -> Final
 
         member this.IsFinalValue
@@ -143,40 +153,30 @@ let rec processState (td:TokenData) (st:RegexState) =
             else
                 ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = rr }, 0)
     |   OptionalRGS o ->
-        if o.NextState.IsFinalValue then    // optional at the end
-            let r = processState td o.MainState
-            match (r.IsMatch, r.NextState) with
-            |   CharacterMatch.Match,   Final -> ProcessResult.Create (CharacterMatch.Match, Final, r.Reduce)
-            |   CharacterMatch.Match,   _     -> 
-                let nxt = OptionalRGS { o with MainState = r.NextState; CharCount = o.CharCount + 1}
-                ProcessResult.Create (CharacterMatch.Match, nxt, 0)
-            |   CharacterMatch.NoMatch, _     -> ProcessResult.Create (CharacterMatch.Match,   Final, o.CharCount+1)
-        else
-            let ost = if o.AlternateState.IsNone then {o with AlternateState = Some (CharacterMatch.Match, o.NextState)} else o
-            let rm = processState td ost.MainState
+        let ost = if o.AlternateState.IsNone then {o with AlternateState = Some (CharacterMatch.Match, o.NextState)} else o
+        let rm = processState td ost.MainState
 
-            let am, ``as`` = ost.AlternateState.Value
-            let ra = 
-                if am = CharacterMatch.NoMatch ||  ``as``.IsFinalValue then
-                    ProcessResult.Create (am, ``as``, 0)
-                else
-                    processState td ``as`` 
+        let am, ``as`` = ost.AlternateState.Value
+        let ra = 
+            if am = CharacterMatch.NoMatch ||  ``as``.IsFinalValue then
+                ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            else
+                processState td ``as`` 
 
-            let repeatThisState ns =
-                OptionalRGS {
-                    ost with
-                        MainState = ns
-                        AlternateState = Some(ra.IsMatch, ra.NextState)
-                        CharCount = ost.CharCount + 1
-                }
+        let repeatThisState ns =
+            OptionalRGS {
+                ost with
+                    MainState = ns
+                    AlternateState = Some(ra.IsMatch, ra.NextState)
+                    CharCount = ost.CharCount + 1
+            }
 
-            match (rm.IsMatch, ra.IsMatch) with
-            |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  
-                                                                    -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, rm.Reduce)
-            |   (CharacterMatch.Match, CharacterMatch.NoMatch)      -> ProcessResult.Create (CharacterMatch.Match, repeatThisState rm.NextState, 0)
-            |   (CharacterMatch.Match, CharacterMatch.Match)        -> ProcessResult.Create (CharacterMatch.Match, repeatThisState rm.NextState, 0)
-            |   (CharacterMatch.NoMatch, CharacterMatch.Match)      -> ProcessResult.Create (CharacterMatch.Match, ra.NextState, 0)
-            |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
+        match (rm.IsMatch, ra.IsMatch) with
+        |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  
+                                                                -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, rm.Reduce)
+        |   (CharacterMatch.Match, _)      -> ProcessResult.Create (CharacterMatch.Match, repeatThisState rm.NextState, 0)
+        |   (CharacterMatch.NoMatch, CharacterMatch.Match)      -> ProcessResult.Create (CharacterMatch.Match, ra.NextState, 0)
+        |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
 
     |   Final   -> ProcessResult.Create (CharacterMatch.Match, Final, 0)
 
@@ -262,7 +262,6 @@ let CreatePushParser (rgx:RGXType) =
             |>  List.rev
             |>  List.map(fun i -> getParser i)
             |>  concatParser
-        //    ThompsonState.Create concatList, concatParser()
         |   Optional   t -> 
             let orp = getParser t
             optionalParser orp
@@ -421,6 +420,12 @@ let ``Parse Plain String with optional middle - sunny day``() =
     Assert.AreEqual(["A"; "B"; "C"; "D"; "E"; "F"] |> List.rev, m)
     Assert.AreEqual(Token.EOF, streamReader.Get().Token)
 
+    let yaml = "ABCDFCDEF"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(["A"; "B"; "C"; "D"; "F"; "C"; "D"; "E"; "F"] |> List.rev, m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
 
 ``Parse Plain Character - sunny day``()
 
