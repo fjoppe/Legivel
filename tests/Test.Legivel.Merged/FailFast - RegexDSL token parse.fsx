@@ -68,6 +68,7 @@ and DoublePathState = {
 }
 and RepeatDoublePathState = {
     CharCount       :   int
+    IterCount       :   int
     MainState       :   RegexState
     InitialState    :   RegexState
     AlternateState  :   (CharacterMatch*RegexState) option
@@ -81,27 +82,27 @@ and RegexState =
     |   SingleRGS   of  SingleStepState
     |   ConcatRGS   of  SinglePathState
     |   OptionalRGS of  DoublePathState
-    |   ZeroOrMore  of  RepeatDoublePathState
+    |   ZoMRGS      of  RepeatDoublePathState
     |   MultiRGS    of  ParallelPathState
     |   Final
     with
         member this.NextState 
             with get() = 
                 match this with
-                |   SingleRGS s -> s.NextState
-                |   ConcatRGS s -> s.NextState
-                |   MultiRGS  s -> s.NextState
+                |   SingleRGS   s -> s.NextState
+                |   ConcatRGS   s -> s.NextState
+                |   MultiRGS    s -> s.NextState
                 |   OptionalRGS s -> s.NextState
-                |   ZeroOrMore  s -> s.NextState
+                |   ZoMRGS      s -> s.NextState
                 |   Final -> Final
 
         member this.SetNextState ns =
                 match this with
-                |   SingleRGS s -> SingleRGS {s  with NextState = ns}
-                |   ConcatRGS s -> ConcatRGS {s  with NextState = ns}
-                |   MultiRGS  s -> MultiRGS  {s  with NextState = ns}
+                |   SingleRGS   s -> SingleRGS {s  with NextState = ns}
+                |   ConcatRGS   s -> ConcatRGS {s  with NextState = ns}
+                |   MultiRGS    s -> MultiRGS  {s  with NextState = ns}
                 |   OptionalRGS s -> OptionalRGS {s  with NextState = ns}
-                |   ZeroOrMore s -> ZeroOrMore {s  with NextState = ns}
+                |   ZoMRGS      s -> ZoMRGS {s  with NextState = ns}
                 |   Final -> Final
 
         member this.IsFinalValue
@@ -174,10 +175,47 @@ let rec processState (td:TokenData) (st:RegexState) =
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  
                                                                 -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, rm.Reduce)
-        |   (CharacterMatch.Match, _)      -> ProcessResult.Create (CharacterMatch.Match, repeatThisState rm.NextState, 0)
+        |   (CharacterMatch.Match, _)                           -> ProcessResult.Create (CharacterMatch.Match, repeatThisState rm.NextState, 0)
         |   (CharacterMatch.NoMatch, CharacterMatch.Match)      -> ProcessResult.Create (CharacterMatch.Match, ra.NextState, 0)
         |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
+    |   ZoMRGS zom ->
+        let zost = 
+            { zom with
+                MainState       = if zom.MainState.IsFinalValue then zom.InitialState else zom.MainState
+                AlternateState  = if zom.AlternateState.IsNone then Some (CharacterMatch.Match, zom.NextState) else zom.AlternateState
+            }
 
+        let rm = processState td zost.MainState
+
+        let am, ``as`` = zost.AlternateState.Value
+        let ra = 
+            if am = CharacterMatch.NoMatch ||  ``as``.IsFinalValue then
+                ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            else
+                processState td ``as`` 
+
+        let repeatThisState ns =
+            ZoMRGS {
+                zost with
+                    MainState = ns
+                    AlternateState = Some(ra.IsMatch, ra.NextState)
+                    CharCount = zost.CharCount + 1
+            }
+
+        match (rm.IsMatch, ra.IsMatch) with
+        |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  -> 
+            let newState =
+                ZoMRGS 
+                    { zost with
+                        MainState = zost.InitialState
+                        AlternateState = None
+                        CharCount = 0
+                        IterCount = zost.IterCount + 1
+                    }
+            ProcessResult.Create (CharacterMatch.Match, newState, 0)
+        |   (CharacterMatch.Match, _)                           -> ProcessResult.Create (CharacterMatch.Match, repeatThisState rm.NextState, 0)
+        |   (CharacterMatch.NoMatch, CharacterMatch.Match)      -> ProcessResult.Create (CharacterMatch.Match, ra.NextState, 0)
+        |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    -> ProcessResult.Create (CharacterMatch.Match, zost.NextState, zost.CharCount+1)
     |   Final   -> ProcessResult.Create (CharacterMatch.Match, Final, 0)
 
 
@@ -226,6 +264,9 @@ let concatParser (rl:RegexState list) =
 let optionalParser (ro:RegexState) =
     OptionalRGS {MainState = ro; AlternateState = None; NextState = Final; CharCount = 0}
 
+let zeroOrMoreParser (ro:RegexState) = 
+    ZoMRGS { MainState = ro; InitialState = ro; AlternateState = None; NextState = Final; CharCount = 0; IterCount = 0}
+
 
 //let itemRangeParser minRep maxRep (ts:ThompsonState, td:TokenData) =
 //    let quitOnkUpperBound (r:ThompsonState) = 
@@ -266,7 +307,10 @@ let CreatePushParser (rgx:RGXType) =
             let orp = getParser t
             optionalParser orp
             
-        //|   ZeroOrMore t -> sprintf "(?:%O)*" t
+        |   ZeroOrMore t -> 
+            let zomp = getParser t
+            zeroOrMoreParser zomp
+
         //|   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
         //|   OneOrMore  t -> sprintf "(?:%O)+" t
         //|   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
@@ -317,6 +361,13 @@ let processor (streamReader:RollingStream<TokenData>) (rst:RegexState) =
     rgxProcessor streamReader rst []
 
 
+
+let expected (str:string) =
+    str.ToCharArray() 
+    |> List.ofArray 
+    |> List.map(fun c -> c.ToString())
+    |> List.rev
+
 [<Test>]
 let ``Parse Plain Character - sunny day``() =
     let rgxst = RGP("A", [Token.``c-printable``]) |> CreatePushParser
@@ -326,7 +377,6 @@ let ``Parse Plain Character - sunny day``() =
     let (r,m) = processor streamReader rgxst
     Assert.AreEqual(CharacterMatch.Match, r)
     Assert.AreEqual(Token.EOF, streamReader.Get().Token)
-
 
 
 [<Test>]
@@ -399,6 +449,7 @@ let ``Parse Plain String with optional end - sunny day``() =
     let (r,m) = processor streamReader rgxst
     Assert.AreEqual(CharacterMatch.Match, r)
     Assert.AreEqual(["A"; "B"; "C"] |> List.rev, m)
+    Assert.AreEqual(expected "ABC", m)
     Assert.AreEqual("D", streamReader.Get().Source)
 
     let yaml = "ABCE"
@@ -406,6 +457,7 @@ let ``Parse Plain String with optional end - sunny day``() =
     let (r,m) = processor streamReader rgxst
     Assert.AreEqual(CharacterMatch.Match, r)
     Assert.AreEqual(["A"; "B"; "C"; "E"] |> List.rev, m)
+    Assert.AreEqual(expected "ABCE", m)
     Assert.AreEqual(Token.EOF, streamReader.Get().Token)
 
 
@@ -427,6 +479,84 @@ let ``Parse Plain String with optional middle - sunny day``() =
     Assert.AreEqual(["A"; "B"; "C"; "D"; "F"; "C"; "D"; "E"; "F"] |> List.rev, m)
     Assert.AreEqual(Token.EOF, streamReader.Get().Token)
 
+[<Test>]
+let ``Parse Zero Or More in the middle - sunny day``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) + RGP("CD", [Token.``c-printable``]) |> CreatePushParser
+
+    let yaml = "ABCD"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABCD", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let yaml = "ABCDE"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABCD", m)
+    Assert.AreEqual("E", streamReader.Get().Source)
+
+    let yaml = "ABECD"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABECD", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let yaml = "ABEECD"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEECD", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let yaml = "ABEEECD"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEEECD", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+[<Test>]
+let ``Parse Zero Or More at the end - sunny day``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) |> CreatePushParser
+
+    let yaml = "AB"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "AB", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let yaml = "ABC"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "AB", m)
+    Assert.AreEqual("C", streamReader.Get().Source)
+
+    let yaml = "ABEC"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABE", m)
+    Assert.AreEqual("C", streamReader.Get().Source)
+
+    let yaml = "ABEEC"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEE", m)
+    Assert.AreEqual("C", streamReader.Get().Source)
+
+    let yaml = "ABEE"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEE", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
 ``Parse Plain Character - sunny day``()
 
 ``Parse Plain String - sunny day``()
@@ -441,3 +571,6 @@ let ``Parse Plain String with optional middle - sunny day``() =
 
 ``Parse Plain String with optional middle - sunny day``()
 
+``Parse Zero Or More in the middle - sunny day``()
+
+``Parse Zero Or More at the end - sunny day``()
