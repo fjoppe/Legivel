@@ -293,6 +293,18 @@ let zeroOrMoreParser (ro:RegexState) =
             IterCount = 0
         }
 
+let oneOrMoreParser (ro:RegexState) = 
+    RepeatRGS 
+        {
+            Min = 1
+            Max = -1
+            MainState = ro
+            InitialState = ro
+            AlternateState = None
+            NextState = Final
+            CharCount = 0
+            IterCount = 0
+        }
 
 //let itemRangeParser minRep maxRep (ts:ThompsonState, td:TokenData) =
 //    let quitOnkUpperBound (r:ThompsonState) = 
@@ -336,9 +348,12 @@ let CreatePushParser (rgx:RGXType) =
         |   ZeroOrMore t -> 
             let zomp = getParser t
             zeroOrMoreParser zomp
+        |   OneOrMore  t -> 
+            let zomp = getParser t
+            oneOrMoreParser zomp
 
         //|   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
-        //|   OneOrMore  t -> sprintf "(?:%O)+" t
+
         //|   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
         //|   Group      t -> sprintf "(%O)" t
         //|   IterRange(t,mx,mno) ->
@@ -367,6 +382,7 @@ let EndOfStream = TokenData.Create (Token.EOF) ""
 
 
 let processor (streamReader:RollingStream<TokenData>) (rst:RegexState) =
+    let startPos = streamReader.Position
     let rec rgxProcessor (streamReader:RollingStream<TokenData>) (rst:RegexState) (matched) =
         let tk = streamReader.Get()
         let rt = processState tk rst
@@ -378,7 +394,9 @@ let processor (streamReader:RollingStream<TokenData>) (rst:RegexState) =
                 (CharacterMatch.Match, reduceMatch)
             else
                 rgxProcessor streamReader rt.NextState (tk.Source::matched)
-        |   CharacterMatch.NoMatch when rt.Reduce = 0 -> (CharacterMatch.NoMatch, [])
+        |   CharacterMatch.NoMatch when rt.Reduce = 0 -> 
+            streamReader.Position <- startPos
+            (CharacterMatch.NoMatch, [])
         |   CharacterMatch.NoMatch  -> 
             streamReader.Position <- streamReader.Position - rt.Reduce
             let reduceMatch = matched |> List.skip rt.Reduce
@@ -419,7 +437,7 @@ let ``Parse Plain String - sunny day``() =
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     let (r,m) = processor streamReader rgxst
     Assert.AreEqual(CharacterMatch.NoMatch, r)
-    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+    Assert.AreEqual("A", streamReader.Get().Source)
 
 
 [<Test>]
@@ -583,6 +601,47 @@ let ``Parse Zero Or More at the end - sunny day``() =
     Assert.AreEqual(expected "ABEE", m)
     Assert.AreEqual(Token.EOF, streamReader.Get().Token)
 
+
+[<Test>]
+let ``Parse One Or More in the middle - sunny day``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + OOM(RGP("E", [Token.``c-printable``])) + RGP("CD", [Token.``c-printable``]) |> CreatePushParser
+
+    let yaml = "ABCD"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.NoMatch, r)
+    Assert.AreEqual("A", streamReader.Get().Source)
+
+    let yaml = "ABECDF"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABECD", m)
+    Assert.AreEqual("F", streamReader.Get().Source)
+
+    let yaml = "ABEECD"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEECD", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let rgxst = RGP("AB", [Token.``c-printable``])  + OOM(RGP("EF", [Token.``c-printable``])) + RGP("ED", [Token.``c-printable``]) |> CreatePushParser
+
+    let yaml = "ABEFED"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEFED", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let yaml = "ABED"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.NoMatch, r)
+    Assert.AreEqual("A", streamReader.Get().Source)
+
+
 ``Parse Plain Character - sunny day``()
 
 ``Parse Plain String - sunny day``()
@@ -600,3 +659,5 @@ let ``Parse Zero Or More at the end - sunny day``() =
 ``Parse Zero Or More in the middle - sunny day``()
 
 ``Parse Zero Or More at the end - sunny day``()
+
+``Parse One Or More in the middle - sunny day``()
