@@ -256,6 +256,13 @@ SinglePathState = {
     NextState       :   RegexState
 }
 and [<NoComparison; NoEquality>]
+SingleTrackingPathState = {
+    Id              :   int
+    Track           :   string list
+    MainState       :   RegexState
+    NextState       :   RegexState
+}
+and [<NoComparison; NoEquality>]
 DoublePathState = {
     CharCount       :   int
     MainState       :   RegexState
@@ -285,6 +292,7 @@ RegexState =
     |   OptionalRGS of  DoublePathState
     |   RepeatRGS   of  RepeatDoublePathState
     |   MultiRGS    of  ParallelPathState
+    |   GroupRGS    of  SingleTrackingPathState
     |   Final
     with
         member this.NextState 
@@ -295,6 +303,7 @@ RegexState =
                 |   MultiRGS    s -> s.NextState
                 |   OptionalRGS s -> s.NextState
                 |   RepeatRGS   s -> s.NextState
+                |   GroupRGS    s -> s.NextState
                 |   Final -> Final
 
         member this.SetNextState ns =
@@ -304,6 +313,7 @@ RegexState =
                 |   MultiRGS    s -> MultiRGS  {s  with NextState = ns}
                 |   OptionalRGS s -> OptionalRGS {s  with NextState = ns}
                 |   RepeatRGS   s -> RepeatRGS {s  with NextState = ns}
+                |   GroupRGS    s -> GroupRGS {s  with NextState = ns}
                 |   Final -> Final
 
         member this.IsFinalValue
@@ -312,14 +322,24 @@ RegexState =
                 |   Final -> true
                 |   _     -> false
 
+type GroupResult = {
+        Id      :   int
+        Match   :   string list
+    }
+    with
+        static member CreateFrom (go:SingleTrackingPathState) = { Id = go.Id; Match = go.Track}
+        static member CreateEmpty (id) = { Id = id ; Match = []}
+
 [<NoComparison; NoEquality>]
 type ProcessResult = {
     IsMatch     : CharacterMatch
     NextState   : RegexState
     Reduce      : int
+    Groups      : GroupResult list
 }
     with
-        static member Create (m, n, r) = {IsMatch = m; NextState = n; Reduce = r}
+        static member Create (m, n, r) = {IsMatch = m; NextState = n; Reduce = r; Groups = []}
+        static member AddGroup g o = {o with Groups = g :: o.Groups}
 
 let rec processState (td:TokenData) (st:RegexState) =
 
@@ -336,11 +356,7 @@ let rec processState (td:TokenData) (st:RegexState) =
             |   CharacterMatch.Match   -> ProcessResult.Create (CharacterMatch.Match,   st.NextState, 0)
             |   CharacterMatch.NoMatch -> ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
     |   ConcatRGS s -> 
-        let repeatThisState ns =
-            ConcatRGS {
-                s with
-                    MainState = ns
-            }
+        let repeatThisState ns = ConcatRGS {s with MainState = ns}
         let r = processState td s.MainState
         match r.IsMatch with
         |   CharacterMatch.Match when r.NextState.IsFinalValue
@@ -362,21 +378,13 @@ let rec processState (td:TokenData) (st:RegexState) =
             else
                 ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = rr }, 0)
     |   OptionalRGS o ->
-        let ost = 
-            { o with
-                AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState
-            }
+        let ost = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
 
         let rm = processState td ost.MainState
         let ra = processAlternativeState (ost.AlternateState.Value)
 
         let continueThisState ns =
-            OptionalRGS {
-                ost with
-                    MainState = ns
-                    AlternateState = Some(ra.IsMatch, ra.NextState)
-                    CharCount = ost.CharCount + 1
-            }
+            OptionalRGS { ost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = ost.CharCount + 1}
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  
@@ -400,21 +408,9 @@ let rec processState (td:TokenData) (st:RegexState) =
         let iterMinOrAfter zost = zost.IterCount >= zost.Min
 
         let continueThisState ns =
-            RepeatRGS {
-                zost with
-                    MainState = ns
-                    AlternateState = Some(ra.IsMatch, ra.NextState)
-                    CharCount = zost.CharCount + 1
-            }
+            RepeatRGS { zost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = zost.CharCount + 1 }
 
-        let repeatThisState z =
-            RepeatRGS 
-                { z with
-                    MainState = z.InitialState
-                    AlternateState = None
-                    CharCount = 0
-                    IterCount = z.IterCount + 1
-                }
+        let repeatThisState z = RepeatRGS { z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1 }
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  -> 
@@ -433,6 +429,20 @@ let rec processState (td:TokenData) (st:RegexState) =
                 ProcessResult.Create (CharacterMatch.Match, zost.NextState, zost.CharCount+1)
             else
                 ProcessResult.Create (CharacterMatch.NoMatch, Final, zost.CharCount+1)
+    |   GroupRGS s ->
+        let repeatThisState ns = GroupRGS { s with MainState = ns; Track = td.Source::s.Track }
+
+        let r = processState td s.MainState
+        match r.IsMatch with
+        |   CharacterMatch.Match when r.NextState.IsFinalValue -> 
+            let t = { s with Track = td.Source :: s.Track }
+            ProcessResult.Create (CharacterMatch.Match, s.NextState, r.Reduce)
+            |>   ProcessResult.AddGroup (GroupResult.CreateFrom t)
+        |   CharacterMatch.Match    -> 
+            ProcessResult.Create (CharacterMatch.Match, repeatThisState r.NextState, 0)
+        |   CharacterMatch.NoMatch  -> 
+            ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            |>  ProcessResult.AddGroup (GroupResult.CreateEmpty s.Id)
 
     |   Final   -> ProcessResult.Create (CharacterMatch.Match, Final, 0)
 
@@ -521,24 +531,13 @@ let RangeParser (ro:RegexState) mn mx =
             IterCount = 0
         }
 
-//let itemRangeParser minRep maxRep (ts:ThompsonState, td:TokenData) =
-//    let quitOnkUpperBound (r:ThompsonState) = 
-//        if r.IterationCount = (maxRep-1) then r.SetState CharacterMatch.Match else r.SetState CharacterMatch.Indecisive
-//    let r = (ts,td) |> (ts.FunctionState |> List.head |> snd)
-//    match r.State with
-//    |   CharacterMatch.Match        -> quitOnkUpperBound r |> iterate |> reinit
-//    |   CharacterMatch.MatchContinue
-//    |   CharacterMatch.Indecisive   -> r
-//    |   CharacterMatch.MatchReduce  -> quitOnkUpperBound r |> iterate 
-//    |   CharacterMatch.NoMatch      ->
-//        if r.IterationCount < minRep || r.IterationCount >= maxRep then
-//            r
-//        else
-//            r.SetState (CharacterMatch.MatchReduce)
-//    |   _ -> failwith "Illegal state"
+let GroupParser (gc:int) (ro:RegexState) =
+    GroupRGS {Id = gc; Track  = []; MainState=ro; NextState = Final }
 
 
 let CreatePushParser (rgx:RGXType) =
+    let mutable groupCounter = 0
+
     let rec getParser rgx : (RegexState) =
         match rgx with
         |   Plain    pl -> 
@@ -559,10 +558,12 @@ let CreatePushParser (rgx:RGXType) =
         |   Optional   t -> 
             let orp = getParser t
             optionalParser orp
-            
+
+        |   ZeroOrMoreNonGreedy t
         |   ZeroOrMore t -> 
             let rp = getParser t
             zeroOrMoreParser rp
+        |   OneOrMoreNonGreedy  t 
         |   OneOrMore  t -> 
             let rp = getParser t
             oneOrMoreParser rp
@@ -571,18 +572,14 @@ let CreatePushParser (rgx:RGXType) =
             match mno with
             |   Some(mn) ->  RangeParser rp mn mx
             |   None     ->  RangeParser rp mx mx
-
-        //|   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
-
-        //|   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
-        //|   Group      t -> sprintf "(%O)" t
-        //|   IterRange(t,mx,mno) ->
-        //    ThompsonState.Create(),
-        //    match mno with
-        //    |   Some(mn) ->  itemRangeParser funcToRepeat mn mx
-        //    |   None     ->  itemRangeParser funcToRepeat mx mx
+        |   Group      t -> 
+            let rp = getParser t
+            let r = GroupParser groupCounter rp
+            groupCounter <- (groupCounter + 1)
+            r
 
     getParser rgx
+
 
 let EndOfStream = TokenData.Create (Token.EOF) ""
 
