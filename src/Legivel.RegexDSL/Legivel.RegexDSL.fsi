@@ -56,6 +56,29 @@ val GRP : RGXType -> RGXType
 /// Returns rest-string, where match 'm' is removed from source 's'
 val Advance : string * string -> string
 
+
+//  ================================================================================================
+//  Start Experimental - Thompson algorithm for Regex parsing
+//  ================================================================================================
+
+type CharacterMatch =
+    |   NoMatch         //  decided no match
+    |   Match           //  decided match
+
+[<NoComparison; NoEquality>]
+type RegexState 
+
+val CreatePushParser :  RGXType -> RegexState
+
+val MatchRegexState : RollingStream<TokenData> -> RegexState -> CharacterMatch * (string list)
+
+
+//  ================================================================================================
+//  End Experimental - Thompson algorithm for Regex parsing
+//  ================================================================================================
+
+
+
 type ParseResult = {
     Groups  : (TokenData list) list;
     Match   : (TokenData list)

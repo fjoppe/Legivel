@@ -197,6 +197,8 @@ let rec processState (td:TokenData) (st:RegexState) =
         let rm = processState td zost.MainState
         let ra = processAlternativeState (zost.AlternateState.Value)
 
+        let iterBelowMax zost = (not(hasMax) || zost.IterCount + 1 < zost.Max)
+
         let continueThisState ns =
             RepeatRGS {
                 zost with
@@ -216,18 +218,18 @@ let rec processState (td:TokenData) (st:RegexState) =
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  -> 
-            if (not(hasMax) || zost.Max > zost.IterCount) then // do repeat
+            if iterBelowMax zost then // do repeat
                 ProcessResult.Create (CharacterMatch.Match, repeatThisState zost, 0)
             else
                ProcessResult.Create (CharacterMatch.Match, zost.NextState, 0) 
         |   (CharacterMatch.Match, _)                           -> ProcessResult.Create (CharacterMatch.Match, continueThisState rm.NextState, 0)
         |   (CharacterMatch.NoMatch, CharacterMatch.Match)      -> 
-            if ((not(hasMax) || zost.Max > zost.IterCount) && zost.Min <= zost.IterCount) then
+            if (iterBelowMax zost && zost.Min <= zost.IterCount) then
                 ProcessResult.Create (CharacterMatch.Match, ra.NextState, 0)
             else
                 ProcessResult.Create (CharacterMatch.NoMatch, Final, zost.CharCount+1)
         |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    -> 
-            if ((not(hasMax) || zost.Max > zost.IterCount) && zost.Min <= zost.IterCount) then
+            if (iterBelowMax zost && zost.Min <= zost.IterCount) then
                 ProcessResult.Create (CharacterMatch.Match, zost.NextState, zost.CharCount+1)
             else
                 ProcessResult.Create (CharacterMatch.NoMatch, Final, zost.CharCount+1)
@@ -306,6 +308,19 @@ let oneOrMoreParser (ro:RegexState) =
             IterCount = 0
         }
 
+let RangeParser (ro:RegexState) mn mx = 
+    RepeatRGS 
+        {
+            Min = mn
+            Max = mx
+            MainState = ro
+            InitialState = ro
+            AlternateState = None
+            NextState = Final
+            CharCount = 0
+            IterCount = 0
+        }
+
 //let itemRangeParser minRep maxRep (ts:ThompsonState, td:TokenData) =
 //    let quitOnkUpperBound (r:ThompsonState) = 
 //        if r.IterationCount = (maxRep-1) then r.SetState CharacterMatch.Match else r.SetState CharacterMatch.Indecisive
@@ -346,31 +361,22 @@ let CreatePushParser (rgx:RGXType) =
             optionalParser orp
             
         |   ZeroOrMore t -> 
-            let zomp = getParser t
-            zeroOrMoreParser zomp
+            let rp = getParser t
+            zeroOrMoreParser rp
         |   OneOrMore  t -> 
-            let zomp = getParser t
-            oneOrMoreParser zomp
+            let rp = getParser t
+            oneOrMoreParser rp
+        |   IterRange(t,mx,mno) ->
+            let rp = getParser t
+            match mno with
+            |   Some(mn) ->  RangeParser rp mn mx
+            |   None     ->  RangeParser rp mx mx
 
         //|   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
 
         //|   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
         //|   Group      t -> sprintf "(%O)" t
         //|   IterRange(t,mx,mno) ->
-        //    let (funcStartState, funcToRepeat) = getParser t
-        //    //let range minRep maxRep (ts:ThompsonState, td:TokenData) =
-        //    //    let r = funcToRepeat(ts,td)
-        //    //    match r.State with
-        //    //    |   CharacterMatch.Indecisive   -> r
-        //    //    |   CharacterMatch.NoMatch      ->
-        //    //        if r.CharCount < minRep || r.CharCount > maxRep then
-        //    //            r
-        //    //        else
-        //    //            r.SetState (CharacterMatch.MatchReduce)
-        //    //    |   CharacterMatch.Match        -> r.SetState (r.State) []
-        //    //    |   CharacterMatch.MatchContinue-> r.SetState CharacterMatch.Indecisive
-        //    //    |   CharacterMatch.MatchReduce  -> concat r tail
-
         //    ThompsonState.Create(),
         //    match mno with
         //    |   Some(mn) ->  itemRangeParser funcToRepeat mn mx
@@ -642,6 +648,60 @@ let ``Parse One Or More in the middle - sunny day``() =
     Assert.AreEqual("A", streamReader.Get().Source)
 
 
+[<Test>]
+let ``Parse Range at the end - sunny day``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + Range(RGP("E", [Token.``c-printable``]), 2,3) |> CreatePushParser
+
+    let yaml = "ABEE"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEE", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let yaml = "ABEEE"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEEE", m)
+    Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+    let yaml = "ABEEEE"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (r,m) = processor streamReader rgxst
+    Assert.AreEqual(CharacterMatch.Match, r)
+    Assert.AreEqual(expected "ABEEE", m)
+    Assert.AreEqual("E", streamReader.Get().Source)
+
+    //let yaml = "ABC"
+    //let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    //let (r,m) = processor streamReader rgxst
+    //Assert.AreEqual(CharacterMatch.Match, r)
+    //Assert.AreEqual(expected "AB", m)
+    //Assert.AreEqual("C", streamReader.Get().Source)
+
+    //let yaml = "ABEC"
+    //let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    //let (r,m) = processor streamReader rgxst
+    //Assert.AreEqual(CharacterMatch.Match, r)
+    //Assert.AreEqual(expected "ABE", m)
+    //Assert.AreEqual("C", streamReader.Get().Source)
+
+    //let yaml = "ABEEC"
+    //let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    //let (r,m) = processor streamReader rgxst
+    //Assert.AreEqual(CharacterMatch.Match, r)
+    //Assert.AreEqual(expected "ABEE", m)
+    //Assert.AreEqual("C", streamReader.Get().Source)
+
+    //let yaml = "ABEE"
+    //let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    //let (r,m) = processor streamReader rgxst
+    //Assert.AreEqual(CharacterMatch.Match, r)
+    //Assert.AreEqual(expected "ABEE", m)
+    //Assert.AreEqual(Token.EOF, streamReader.Get().Token)
+
+
 ``Parse Plain Character - sunny day``()
 
 ``Parse Plain String - sunny day``()
@@ -661,3 +721,7 @@ let ``Parse One Or More in the middle - sunny day``() =
 ``Parse Zero Or More at the end - sunny day``()
 
 ``Parse One Or More in the middle - sunny day``()
+
+``Parse Range at the end - sunny day``()
+
+

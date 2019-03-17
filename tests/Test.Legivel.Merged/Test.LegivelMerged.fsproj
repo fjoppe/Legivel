@@ -154,6 +154,7 @@
     <Compile Include="..\Test.Legivel.RegexDSL\Test.Legivel.RegexDSL.fs">
       <Link>Test.Legivel.RegexDSL.fs</Link>
     </Compile>
+    <Compile Include="Test.Legivel.ThompsonParser.fs" />
     <Compile Include="..\Test.Legivel.SpookyHash\Test.Legivel.SpookyHash.fs">
       <Link>Test.Legivel.SpookyHash.fs</Link>
     </Compile>
