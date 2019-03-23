@@ -61,16 +61,23 @@ val Advance : string * string -> string
 //  Start Experimental - Thompson algorithm for Regex parsing
 //  ================================================================================================
 
-type CharacterMatch =
-    |   NoMatch         //  decided no match
-    |   Match           //  decided match
-
 [<NoComparison; NoEquality>]
-type RegexState 
+type TPParserState 
 
-val CreatePushParser :  RGXType -> RegexState
+val CreatePushParser :  RGXType -> TPParserState
 
-val MatchRegexState : RollingStream<TokenData> -> RegexState -> CharacterMatch * (string list)
+type GroupResult = {
+        Id      :   int
+        Match   :   string list
+    }
+
+type MatchResultTP = {
+        IsMatch     : bool
+        FullMatch   : string list
+        GroupsResults : GroupResult list
+    }
+
+val MatchRegexState : RollingStream<TokenData> -> TPParserState -> MatchResultTP
 
 
 //  ================================================================================================

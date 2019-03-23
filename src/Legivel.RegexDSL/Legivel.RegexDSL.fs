@@ -327,19 +327,31 @@ type GroupResult = {
         Match   :   string list
     }
     with
+        static member Create i m = { Id = i; Match = m}
         static member CreateFrom (go:SingleTrackingPathState) = { Id = go.Id; Match = go.Track}
         static member CreateEmpty (id) = { Id = id ; Match = []}
+
+[<NoComparison; NoEquality>]
+type TPParserState = {
+        NextState   :   RegexState
+        GroupResults:   GroupResult list
+        Groups      :   int
+    }
+    with
+        static member Create n g gc = { NextState = n; GroupResults = g; Groups = gc}
 
 [<NoComparison; NoEquality>]
 type ProcessResult = {
     IsMatch     : CharacterMatch
     NextState   : RegexState
     Reduce      : int
-    Groups      : GroupResult list
+    GroupsResults : GroupResult list
 }
+
     with
-        static member Create (m, n, r) = {IsMatch = m; NextState = n; Reduce = r; Groups = []}
-        static member AddGroup g o = {o with Groups = g :: o.Groups}
+        static member Create (m, n, r) = {IsMatch = m; NextState = n; Reduce = r; GroupsResults = []}
+        static member AddGroup g (o:ProcessResult) = {o with GroupsResults = g :: o.GroupsResults}
+        static member AddGroupOf pr (o:ProcessResult) = {o with GroupsResults = o.GroupsResults @  pr.GroupsResults }
 
 let rec processState (td:TokenData) (st:RegexState) =
 
@@ -359,10 +371,14 @@ let rec processState (td:TokenData) (st:RegexState) =
         let repeatThisState ns = ConcatRGS {s with MainState = ns}
         let r = processState td s.MainState
         match r.IsMatch with
-        |   CharacterMatch.Match when r.NextState.IsFinalValue
-                                    -> ProcessResult.Create (CharacterMatch.Match, s.NextState, r.Reduce)
-        |   CharacterMatch.Match    -> ProcessResult.Create (CharacterMatch.Match, repeatThisState r.NextState, 0)
-        |   CharacterMatch.NoMatch  -> ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+        |   CharacterMatch.Match when r.NextState.IsFinalValue -> 
+            ProcessResult.Create (CharacterMatch.Match, s.NextState, r.Reduce)
+            |> ProcessResult.AddGroupOf r
+        |   CharacterMatch.Match    -> 
+            ProcessResult.Create (CharacterMatch.Match, repeatThisState r.NextState, 0)
+            |> ProcessResult.AddGroupOf r
+        |   CharacterMatch.NoMatch  -> 
+            ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
     |   MultiRGS m ->
         let rr =
             m.Targets
@@ -536,55 +552,55 @@ let GroupParser (gc:int) (ro:RegexState) =
 
 
 let CreatePushParser (rgx:RGXType) =
-    let mutable groupCounter = 0
-
-    let rec getParser rgx : (RegexState) =
+    let rec getParser groupCounter rgx : (int * RegexState) =
         match rgx with
         |   Plain    pl -> 
             if pl.``fixed``.Length > 1 then
                 pl.OptimizeOnce()
-                getParser (Concat pl.optimized) 
+                getParser groupCounter (Concat pl.optimized)
             else
-                plainParser pl
-        |   OneInSet ois -> oneInSetParser ois
+                groupCounter, plainParser pl
+        |   OneInSet ois -> (groupCounter, oneInSetParser ois)
         |   Or       l ->
-            let orList = l |> List.map(fun i -> getParser i)
-            oredParser orList 
+            let gc,orList = l |> List.fold(fun (gc,acc) i -> getParser gc i ||> fun g v -> g, (v::acc)) (groupCounter,[])
+            gc, oredParser orList
         |   Concat   l ->
-            l 
-            |>  List.rev
-            |>  List.map(fun i -> getParser i)
-            |>  concatParser
+            let gc,ccList = l |> List.fold(fun (gc,acc) i -> getParser gc i ||> fun g v -> g, (v::acc)) (groupCounter,[])
+            gc, concatParser ccList
         |   Optional   t -> 
-            let orp = getParser t
-            optionalParser orp
-
+            let gc,orp = getParser groupCounter t
+            gc, optionalParser orp
         |   ZeroOrMoreNonGreedy t
         |   ZeroOrMore t -> 
-            let rp = getParser t
-            zeroOrMoreParser rp
+            let gc, rp = getParser groupCounter t
+            gc, zeroOrMoreParser rp
         |   OneOrMoreNonGreedy  t 
         |   OneOrMore  t -> 
-            let rp = getParser t
-            oneOrMoreParser rp
+            let gc, rp = getParser groupCounter t
+            gc, oneOrMoreParser rp
         |   IterRange(t,mx,mno) ->
-            let rp = getParser t
+            let gc, rp = getParser groupCounter t
             match mno with
-            |   Some(mn) ->  RangeParser rp mn mx
-            |   None     ->  RangeParser rp mx mx
+            |   Some(mn) ->  gc, RangeParser rp mn mx
+            |   None     ->  gc, RangeParser rp mx mx
         |   Group      t -> 
-            let rp = getParser t
-            let r = GroupParser groupCounter rp
-            groupCounter <- (groupCounter + 1)
-            r
+            let gcn = groupCounter + 1
+            let gc,rp = getParser gcn t
+            gc, GroupParser groupCounter rp
 
-    getParser rgx
+    getParser 0 rgx 
+    |> fun (gc,rgs) -> TPParserState.Create rgs [] gc
 
 
 let EndOfStream = TokenData.Create (Token.EOF) ""
 
+type MatchResultTP = {
+        IsMatch     : bool
+        FullMatch   : string list
+        GroupsResults : GroupResult list
+    }
 
-let MatchRegexState (streamReader:RollingStream<TokenData>) (rst:RegexState) =
+let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState) =
     let startPos = streamReader.Position
     let rec rgxProcessor (streamReader:RollingStream<TokenData>) (rst:RegexState) (matched) =
         let tk = streamReader.Get()
@@ -594,18 +610,30 @@ let MatchRegexState (streamReader:RollingStream<TokenData>) (rst:RegexState) =
             streamReader.Position <- streamReader.Position - rt.Reduce
             let reduceMatch = (tk.Source::matched) |> List.skip rt.Reduce
             if rt.NextState.IsFinalValue then
-                (CharacterMatch.Match, reduceMatch)
+                { IsMatch = true; FullMatch = reduceMatch; GroupsResults = rt.GroupsResults }
             else
                 rgxProcessor streamReader rt.NextState (tk.Source::matched)
         |   CharacterMatch.NoMatch when rt.Reduce = 0 -> 
             streamReader.Position <- startPos
-            (CharacterMatch.NoMatch, [])
+            { IsMatch = false; FullMatch = []; GroupsResults = []}
         |   CharacterMatch.NoMatch  -> 
             streamReader.Position <- streamReader.Position - rt.Reduce
             let reduceMatch = matched |> List.skip rt.Reduce
             rgxProcessor streamReader rt.NextState reduceMatch
 
-    rgxProcessor streamReader rst []
+    let r = rgxProcessor streamReader rgst.NextState []
+    let fullListOfGroups =
+        let allGroupIds = [0..rgst.Groups] |> Set.ofList
+        let resultGroupIds = r.GroupsResults |> List.map(fun m -> m.Id) |> Set.ofList
+        resultGroupIds 
+        |>  Set.difference allGroupIds
+        |>  Set.toList
+        |>  List.map(fun i -> GroupResult.Create i [])
+        |>  List.append r.GroupsResults
+    { r with GroupsResults = fullListOfGroups}
+
+
+
 
 //  ================================================================================================
 //  End Experimental - Thompson algorithm for Regex parsing

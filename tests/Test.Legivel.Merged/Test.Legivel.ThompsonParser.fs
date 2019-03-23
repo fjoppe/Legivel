@@ -22,8 +22,8 @@ let ``Parse Plain Character - sunny day``() =
     let yaml = "A"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true 
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -33,8 +33,8 @@ let ``Parse Plain String - sunny day``() =
 
     let yaml = "ABC"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
     streamReader.Get().Token|> shouldEqual Token.EOF
 
 
@@ -44,8 +44,8 @@ let ``Parse Plain String - rainy day``() =
 
     let yaml = "ABD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.NoMatch
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual false
     streamReader.Get().Source |> shouldEqual "A" 
 
 
@@ -55,8 +55,8 @@ let ``Parse Plain String concats - sunny day``() =
 
     let yaml = "ABCDEF"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -66,15 +66,15 @@ let ``Parse Plain String Ored - sunny day``() =
 
     let yaml = "ABDE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
     streamReader.Get().Source |> shouldEqual "E"
 
     let yaml = "ABCE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
+    let mr = MatchRegexState streamReader rgxst
 
-    r |> shouldEqual CharacterMatch.Match
+    mr.IsMatch |> shouldEqual true
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -84,15 +84,15 @@ let ``Parse RGO Character - sunny day``() =
 
     let yaml = "-"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
     streamReader.Get().Token |> shouldEqual Token.EOF
 
     let yaml = "A"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    ["A"] |> shouldEqual m
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    ["A"] |> shouldEqual mr.FullMatch
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -102,9 +102,9 @@ let ``Parse Plain String with optional end - nomatch option, with residu``() =
 
     let yaml = "ABCD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABC")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABC")
     streamReader.Get().Source |> shouldEqual "D"
 
 
@@ -113,9 +113,9 @@ let ``Parse Plain String with optional end - match option, with residu``() =
     let rgxst = RGP("ABC", [Token.``c-printable``])  + OPT(RGP("E", [Token.``c-printable``])) |> CreatePushParser
     let yaml = "ABCE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABCE")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCE")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -125,9 +125,9 @@ let ``Parse Plain String with optional middle - nomatch option``() =
 
     let yaml = "ABCDEF"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABCDEF")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCDEF")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -136,9 +136,9 @@ let ``Parse Plain String with optional middle - match option``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + OPT(RGP("CDF", [Token.``c-printable``])) + RGP("CDEF", [Token.``c-printable``])  |> CreatePushParser
     let yaml = "ABCDFCDEF"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABCDFCDEF")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCDFCDEF")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -148,9 +148,9 @@ let ``Parse Zero Or More in the middle - zero match``() =
 
     let yaml = "ABCD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABCD")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCD")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -159,9 +159,9 @@ let ``Parse Zero Or More in the middle - zero match with residu``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) + RGP("CD", [Token.``c-printable``]) |> CreatePushParser
     let yaml = "ABCDE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABCD")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCD")
     streamReader.Get().Source |> shouldEqual "E"
 
 
@@ -170,9 +170,9 @@ let ``Parse Zero Or More in the middle - one match``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) + RGP("CD", [Token.``c-printable``]) |> CreatePushParser
     let yaml = "ABECD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABECD")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABECD")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -182,9 +182,9 @@ let ``Parse Zero Or More in the middle - two match``() =
 
     let yaml = "ABEECD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEECD")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEECD")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -193,9 +193,9 @@ let ``Parse Zero Or More in the middle - three match``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) + RGP("CD", [Token.``c-printable``]) |> CreatePushParser
     let yaml = "ABEEECD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEEECD")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEEECD")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -205,9 +205,9 @@ let ``Parse Zero Or More at the end - nomatch``() =
 
     let yaml = "AB"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "AB")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "AB")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -216,9 +216,9 @@ let ``Parse Zero Or More at the end - nomatch with residu``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) |> CreatePushParser
     let yaml = "ABC"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "AB")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "AB")
     streamReader.Get().Source |> shouldEqual "C"
 
 
@@ -227,9 +227,9 @@ let ``Parse Zero Or More at the end - one match with residu``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) |> CreatePushParser
     let yaml = "ABEC"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABE")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABE")
     streamReader.Get().Source |> shouldEqual "C"
 
 
@@ -238,9 +238,9 @@ let ``Parse Zero Or More at the end - two match with residu``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) |> CreatePushParser
     let yaml = "ABEEC"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEE")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEE")
     streamReader.Get().Source |> shouldEqual "C"
 
 
@@ -249,9 +249,9 @@ let ``Parse Zero Or More at the end - two match``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + ZOM(RGP("E", [Token.``c-printable``])) |> CreatePushParser
     let yaml = "ABEE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEE")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEE")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -261,8 +261,8 @@ let ``Parse One Or More in the middle - rainy day``() =
 
     let yaml = "ABCD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.NoMatch
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual false
     streamReader.Get().Source |> shouldEqual "A"
 
 
@@ -272,9 +272,9 @@ let ``Parse One Or More in the middle - one match with residu``() =
 
     let yaml = "ABECDF"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABECD")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABECD")
     streamReader.Get().Source |> shouldEqual "F"
 
 
@@ -284,9 +284,9 @@ let ``Parse One Or More in the middle - two match``() =
 
     let yaml = "ABEECD"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEECD")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEECD")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -296,9 +296,9 @@ let ``Parse One Or More in the middle, with digraph - one match``() =
 
     let yaml = "ABEFED"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEFED")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEFED")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -307,8 +307,8 @@ let ``Parse One Or More in the middle, with digraph - nomatch``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + OOM(RGP("EF", [Token.``c-printable``])) + RGP("ED", [Token.``c-printable``]) |> CreatePushParser
     let yaml = "ABED"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.NoMatch
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual false
     streamReader.Get().Source |> shouldEqual "A"
 
 
@@ -318,9 +318,9 @@ let ``Parse Range at the end - match to minimum``() =
 
     let yaml = "ABEE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEE")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEE")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -329,9 +329,9 @@ let ``Parse Range at the end - match to maximum``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + Range(RGP("E", [Token.``c-printable``]), 2,3) |> CreatePushParser
     let yaml = "ABEEE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEEE")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEEE")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -340,9 +340,9 @@ let ``Parse Range at the end - match to maximum with residu``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + Range(RGP("E", [Token.``c-printable``]), 2,3) |> CreatePushParser
     let yaml = "ABEEEE"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEEE")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEEE")
     streamReader.Get().Source |> shouldEqual "E"
 
 
@@ -352,9 +352,9 @@ let ``Parse Range in the middle - match to minimum``() =
 
     let yaml = "ABEDEDEF"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEDEDEF")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEDEDEF")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -364,9 +364,9 @@ let ``Parse Range in the middle - match to middle``() =
 
     let yaml = "ABEDEDEDEF"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEDEDEDEF")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEDEDEDEF")
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 
@@ -376,8 +376,22 @@ let ``Parse Range in the middle - match to max``() =
 
     let yaml = "ABEDEDEDEDEF"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (r,m) = MatchRegexState streamReader rgxst
-    r |> shouldEqual CharacterMatch.Match
-    m |> shouldEqual (expected "ABEDEDEDEDEF")
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEDEDEDEDEF")
     streamReader.Get().Token |> shouldEqual Token.EOF
+
+[<Test>]
+let ``Parse Group in the middle - match in group``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + GRP(RGP("CD", [Token.``c-printable``])) + RGP("EF", [Token.``c-printable``]) |> CreatePushParser
+
+    let yaml = "ABCDEF"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCDEF")
+    mr.GroupsResults.Length |> shouldEqual 1
+    mr.GroupsResults.Head.Match |> shouldEqual (expected "CD")
+    streamReader.Get().Token |> shouldEqual Token.EOF
+    
 
