@@ -156,9 +156,9 @@ type ParseState = {
 
         member this.SetPositionDelta sl lc lcc =
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
-#if DEBUG
-            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
-#endif
+//#if DEBUG
+//            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
+//#endif
             { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + sl }
 
         member this.TrackPosition s =
@@ -540,16 +540,17 @@ let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 
 
 type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit)) =
-    let logger s ps = 
-//#if DEBUG
-//        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
-//        //sprintf "%d" (ps.Location.Line)
-//        |> loggingFunction
-//#else
-        ()
-//#endif
-
     let mutable logfunc = loggingFunction
+
+    let logger s ps = 
+#if DEBUG
+        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
+        //sprintf "%d" (ps.Location.Line)
+        |> logfunc
+#else
+        ()
+#endif
+
 
     member this.SetLogFunc f = logfunc <- f
 
@@ -571,19 +572,19 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         //|   FallibleOptionValue.NoResult -> logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
         //|   FallibleOptionValue.ErrorResult ->  logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
         //|   _   -> failwith "Illegal value for pso.Result"
+        //pso,pm
+#if DEBUG
+        match pso.Result with
+        |   FallibleOptionValue.Value -> 
+            let  (_,prs) = pso.Data
+            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> logfunc
+        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> logfunc 
+        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> logfunc
+        |   _   -> failwith "Illegal value for pso.Result"
         pso,pm
-//#if DEBUG
-//        match pso.Result with
-//        |   FallibleOptionValue.Value -> 
-//            let  (_,prs) = pso.Data
-//            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-//        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
-//        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-//        |   _   -> failwith "Illegal value for pso.Result"
-//        pso,pm
-//#else
-//        pso,pm
-//#endif
+#else
+        pso,pm
+#endif
 
 
     //  Utility functions
