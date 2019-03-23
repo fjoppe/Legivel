@@ -2,15 +2,15 @@
 
 #time
 
-#r @"bin/Debug/net45/FSharp.Core.dll"
-//#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
-#r @"bin/Debug/net45/Legivel.Parser.dll"
-#r @"bin/Debug/net45/NLog.dll"
+//#r @"bin/Debug/net45/FSharp.Core.dll"
+////#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
+//#r @"bin/Debug/net45/Legivel.Parser.dll"
+//#r @"bin/Debug/net45/NLog.dll"
 
 
-//#r @"bin/Release/net45/FSharp.Core.dll"
-//#r @"bin/Release/net45/Legivel.Parser.dll"
-//#r @"bin/Release/net45/NLog.dll"
+#r @"bin/Release/net45/FSharp.Core.dll"
+#r @"bin/Release/net45/Legivel.Parser.dll"
+#r @"bin/Release/net45/NLog.dll"
 
 open System
 open System.Globalization

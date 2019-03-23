@@ -57,6 +57,15 @@ val GRP : RGXType -> RGXType
 val Advance : string * string -> string
 
 
+
+type ParseResult = {
+    Groups  : (TokenData list) list;
+    Match   : (TokenData list)
+}
+
+type ParseOutput = bool * ParseResult
+
+
 //  ================================================================================================
 //  Start Experimental - Thompson algorithm for Regex parsing
 //  ================================================================================================
@@ -68,12 +77,12 @@ val CreatePushParser :  RGXType -> TPParserState
 
 type GroupResult = {
         Id      :   int
-        Match   :   string list
+        Match   :   TokenData list
     }
 
 type MatchResultTP = {
         IsMatch     : bool
-        FullMatch   : string list
+        FullMatch   : TokenData list
         GroupsResults : GroupResult list
     }
 
@@ -85,13 +94,6 @@ val MatchRegexState : RollingStream<TokenData> -> TPParserState -> MatchResultTP
 //  ================================================================================================
 
 
-
-type ParseResult = {
-    Groups  : (TokenData list) list;
-    Match   : (TokenData list)
-}
-
-type ParseOutput = bool * ParseResult
 
 /// Primary input assesment with Post-Parse condition. The condition is checked after each RGP token/char.
 val AssesInputPostParseCondition : (RollingStream<TokenData> * TokenData -> bool) -> RollingStream<TokenData> -> RGXType -> ParseOutput

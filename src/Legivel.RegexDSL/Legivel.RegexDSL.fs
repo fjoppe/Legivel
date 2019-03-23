@@ -9,6 +9,7 @@ open System
 open System.Globalization
 
 open Legivel.Tokenizer
+open System.Collections.Generic
 
 exception RegexException of string
 
@@ -233,6 +234,17 @@ let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
 
+type ParseResult = {
+    Groups  : (TokenData list) list;
+    Match   : (TokenData list)
+}
+with
+    static member Empty = {Groups = []; Match = []}
+    static member Create m g = {Groups = g; Match = m}
+
+
+type ParseOutput = bool * ParseResult
+
 
 
 //  ================================================================================================
@@ -258,7 +270,7 @@ SinglePathState = {
 and [<NoComparison; NoEquality>]
 SingleTrackingPathState = {
     Id              :   int
-    Track           :   string list
+    Track           :   TokenData list
     MainState       :   RegexState
     NextState       :   RegexState
 }
@@ -324,7 +336,7 @@ RegexState =
 
 type GroupResult = {
         Id      :   int
-        Match   :   string list
+        Match   :   TokenData list
     }
     with
         static member Create i m = { Id = i; Match = m}
@@ -453,12 +465,12 @@ let rec processState (td:TokenData) (st:RegexState) =
             else
                 ProcessResult.Create (CharacterMatch.NoMatch, Final, zost.CharCount+1)
     |   GroupRGS s ->
-        let repeatThisState ns = GroupRGS { s with MainState = ns; Track = td.Source::s.Track }
+        let repeatThisState ns = GroupRGS { s with MainState = ns; Track = td ::s.Track }
 
         let r = processState td s.MainState
         match r.IsMatch with
         |   CharacterMatch.Match when r.NextState.IsFinalValue -> 
-            let t = { s with Track = td.Source :: s.Track }
+            let t = { s with Track = td :: s.Track }
             ProcessResult.Create (CharacterMatch.Match, s.NextState, r.Reduce)
             |>   ProcessResult.AddGroup (GroupResult.CreateFrom t)
         |   CharacterMatch.Match    -> 
@@ -603,7 +615,7 @@ let EndOfStream = TokenData.Create (Token.EOF) ""
 
 type MatchResultTP = {
         IsMatch     : bool
-        FullMatch   : string list
+        FullMatch   : TokenData list
         GroupsResults : GroupResult list
     }
 
@@ -615,12 +627,12 @@ let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState)
         match rt.IsMatch with
         |   CharacterMatch.Match   -> 
             streamReader.Position <- streamReader.Position - rt.Reduce
-            let reduceMatch = (tk.Source::matched) |> List.skip rt.Reduce
+            let reduceMatch = (tk::matched) |> List.skip rt.Reduce
             if rt.NextState.IsFinalValue then
                 { IsMatch = true; FullMatch = reduceMatch; GroupsResults = rt.GroupsResults @ rgst.GroupResults}
             else
                 let nr = { rgst with GroupResults = rt.GroupsResults @ rgst.GroupResults; NextState = rt.NextState }
-                rgxProcessor streamReader nr (tk.Source::matched)
+                rgxProcessor streamReader nr (tk::matched)
         |   CharacterMatch.NoMatch when rt.Reduce = 0 -> 
             streamReader.Position <- startPos
             { IsMatch = false; FullMatch = []; GroupsResults = []}
@@ -641,6 +653,18 @@ let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState)
     { r with GroupsResults = fullListOfGroups}
 
 
+let memoizeThompsonParser = new Dictionary<RGXType, TPParserState>()
+
+let AssesInputThompsonParser (rs:RollingStream<TokenData>) (rg:RGXType) = 
+    let ts = 
+        if memoizeThompsonParser.ContainsKey(rg) then
+            memoizeThompsonParser.[rg]
+        else
+            let tsc = CreatePushParser rg
+            memoizeThompsonParser.Add(rg, tsc)
+            tsc
+    let r = MatchRegexState rs ts
+    (r.IsMatch, ParseResult.Create (r.FullMatch) (r.GroupsResults |> List.map(fun i -> i.Match)))
 
 
 //  ================================================================================================
@@ -655,16 +679,6 @@ let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState)
 
 
 
-type ParseResult = {
-    Groups  : (TokenData list) list;
-    Match   : (TokenData list)
-}
-with
-    static member Empty = {Groups = []; Match = []}
-    static member Create m g = {Groups = g; Match = m}
-
-
-type ParseOutput = bool * ParseResult
 
 let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenData -> bool) (rs:RollingStream<TokenData>) (rg:RGXType) =
     let rec parse rgx tkl gl : ParseOutput =
@@ -779,11 +793,13 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
     parse rg [] []
     |> fun (b,pr) -> b, { pr with Match = pr.Match |> List.rev}
 
-let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) = AssesInputPostParseCondition (fun _ -> true) rs rg
+let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
+    AssesInputThompsonParser rs rg
+    //AssesInputPostParseCondition (fun _ -> true) rs rg
 
 let TokenDataToString =
     function
-    |   (true, tkl) -> (tkl.Match |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString() |> Some
+    |   (true, tkl:ParseResult) -> (tkl.Match |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString() |> Some
     |   (false, _) -> None
 
 
