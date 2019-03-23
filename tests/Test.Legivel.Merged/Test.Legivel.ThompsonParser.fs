@@ -382,7 +382,7 @@ let ``Parse Range in the middle - match to max``() =
     streamReader.Get().Token |> shouldEqual Token.EOF
 
 [<Test>]
-let ``Parse Group in the middle - match in group``() =
+let ``Parse Group in Concat - match in group``() =
     let rgxst = RGP("AB", [Token.``c-printable``])  + GRP(RGP("CD", [Token.``c-printable``])) + RGP("EF", [Token.``c-printable``]) |> CreatePushParser
 
     let yaml = "ABCDEF"
@@ -394,4 +394,45 @@ let ``Parse Group in the middle - match in group``() =
     mr.GroupsResults.Head.Match |> shouldEqual (expected "CD")
     streamReader.Get().Token |> shouldEqual Token.EOF
     
+
+[<Test>]
+let ``Parse Group in Or - match in group``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + (RGP("AB", [Token.``c-printable``]) ||| GRP(RGP("CD", [Token.``c-printable``])) ||| RGP("HK", [Token.``c-printable``]) )+ RGP("EF", [Token.``c-printable``]) |> CreatePushParser
+
+    let yaml = "ABCDEF"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCDEF")
+    mr.GroupsResults.Length |> shouldEqual 1
+    mr.GroupsResults.Head.Match |> shouldEqual (expected "CD")
+    streamReader.Get().Token |> shouldEqual Token.EOF
+
+
+[<Test>]
+let ``Parse Group in Option - match in group``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + (OPT(GRP(RGP("CD", [Token.``c-printable``]))))+ RGP("EF", [Token.``c-printable``]) |> CreatePushParser
+
+    let yaml = "ABCDEF"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABCDEF")
+    mr.GroupsResults.Length |> shouldEqual 1
+    mr.GroupsResults.Head.Match |> shouldEqual (expected "CD")
+    streamReader.Get().Token |> shouldEqual Token.EOF
+
+
+[<Test>]
+let ``Parse Group in Option - nomatch in group``() =
+    let rgxst = RGP("AB", [Token.``c-printable``])  + (OPT(GRP(RGP("CD", [Token.``c-printable``]))))+ RGP("EF", [Token.``c-printable``]) |> CreatePushParser
+
+    let yaml = "ABEF"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual (expected "ABEF")
+    mr.GroupsResults.Length |> shouldEqual 1
+    mr.GroupsResults.Head.Match |> shouldEqual (expected "")
+    streamReader.Get().Token |> shouldEqual Token.EOF
 

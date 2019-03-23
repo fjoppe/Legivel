@@ -384,15 +384,17 @@ let rec processState (td:TokenData) (st:RegexState) =
             m.Targets
             |>  List.map(processState td)
             |>  List.filter(fun rt -> rt.IsMatch = CharacterMatch.Match)
-            |>  List.map(fun rt -> rt.NextState)
-        let isFinal = rr |> List.exists(fun s -> s.IsFinalValue)
-        if isFinal then
+            
+        let findFinal = rr |> List.tryFind(fun s -> s.NextState.IsFinalValue)
+        match findFinal with
+        |   Some r  ->
             ProcessResult.Create (CharacterMatch.Match, st.NextState, 0)
-        else
+            |> ProcessResult.AddGroupOf r
+        |   None    ->
             if rr.Length = 0 then 
                 ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
             else
-                ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = rr }, 0)
+                ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = rr |> List.map(fun r -> r.NextState) }, 0)
     |   OptionalRGS o ->
         let ost = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
 
@@ -403,11 +405,16 @@ let rec processState (td:TokenData) (st:RegexState) =
             OptionalRGS { ost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = ost.CharCount + 1}
 
         match (rm.IsMatch, ra.IsMatch) with
-        |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  
-                                                                -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, rm.Reduce)
-        |   (CharacterMatch.Match, _)                           -> ProcessResult.Create (CharacterMatch.Match, continueThisState rm.NextState, 0)
-        |   (CharacterMatch.NoMatch, CharacterMatch.Match)      -> ProcessResult.Create (CharacterMatch.Match, ra.NextState, 0)
-        |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    -> ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
+        |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue   ->
+            ProcessResult.Create (CharacterMatch.Match, ost.NextState, rm.Reduce)
+            |> ProcessResult.AddGroupOf rm
+        |   (CharacterMatch.Match, _)   ->
+            ProcessResult.Create (CharacterMatch.Match, continueThisState rm.NextState, 0)
+            |> ProcessResult.AddGroupOf rm
+        |   (CharacterMatch.NoMatch, CharacterMatch.Match)  ->
+            ProcessResult.Create (CharacterMatch.Match, ra.NextState, 0)
+        |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    ->
+            ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
     |   RepeatRGS zom ->
         let hasMax = zom.Max > zom.Min
         let zost = 
@@ -602,28 +609,29 @@ type MatchResultTP = {
 
 let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState) =
     let startPos = streamReader.Position
-    let rec rgxProcessor (streamReader:RollingStream<TokenData>) (rst:RegexState) (matched) =
+    let rec rgxProcessor (streamReader:RollingStream<TokenData>) (rgst:TPParserState) (matched) =
         let tk = streamReader.Get()
-        let rt = processState tk rst
+        let rt = processState tk rgst.NextState
         match rt.IsMatch with
         |   CharacterMatch.Match   -> 
             streamReader.Position <- streamReader.Position - rt.Reduce
             let reduceMatch = (tk.Source::matched) |> List.skip rt.Reduce
             if rt.NextState.IsFinalValue then
-                { IsMatch = true; FullMatch = reduceMatch; GroupsResults = rt.GroupsResults }
+                { IsMatch = true; FullMatch = reduceMatch; GroupsResults = rt.GroupsResults @ rgst.GroupResults}
             else
-                rgxProcessor streamReader rt.NextState (tk.Source::matched)
+                let nr = { rgst with GroupResults = rt.GroupsResults @ rgst.GroupResults; NextState = rt.NextState }
+                rgxProcessor streamReader nr (tk.Source::matched)
         |   CharacterMatch.NoMatch when rt.Reduce = 0 -> 
             streamReader.Position <- startPos
             { IsMatch = false; FullMatch = []; GroupsResults = []}
         |   CharacterMatch.NoMatch  -> 
             streamReader.Position <- streamReader.Position - rt.Reduce
             let reduceMatch = matched |> List.skip rt.Reduce
-            rgxProcessor streamReader rt.NextState reduceMatch
+            rgxProcessor streamReader {rgst with NextState = rt.NextState} reduceMatch
 
-    let r = rgxProcessor streamReader rgst.NextState []
+    let r = rgxProcessor streamReader rgst []
     let fullListOfGroups =
-        let allGroupIds = [0..rgst.Groups] |> Set.ofList
+        let allGroupIds = [0..(rgst.Groups - 1)] |> Set.ofList
         let resultGroupIds = r.GroupsResults |> List.map(fun m -> m.Id) |> Set.ofList
         resultGroupIds 
         |>  Set.difference allGroupIds
