@@ -105,20 +105,6 @@ let YamlParseWithErrors s =
 
 
 
-//let sd = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "logs/FailFast YamlParserTest 5.fsx.log.data"))
-
-//sd.Split([|"\n"|], StringSplitOptions.RemoveEmptyEntries)
-//|>  List.ofArray
-//|>  List.map(fun s -> Int32.Parse(s))
-//|>  List.groupBy id
-//|>  List.map(fun (i, ls) -> i, ls.Length)
-//|>  List.sortByDescending(fun (i, c) -> c,-i)
-//|> List.filter(fun (i,c) -> c=3)
-////|>  List.length
-
-//(8141 * 3) + 14904
-
-
 YamlParse "- Mark McGwire"
 
 

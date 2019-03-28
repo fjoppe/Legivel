@@ -178,7 +178,7 @@ type ParseState = {
             if this.Anchors.ContainsKey s then this.Anchors.[s] |> Some
             else None
 
-        [<DebuggerStepThrough>]
+        //[<DebuggerStepThrough>]
         member this.SkipIfMatch p = 
             match (HasMatches(this.Input.Data, p)) with
             |   (true, mt)  -> 

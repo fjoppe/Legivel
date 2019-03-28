@@ -255,11 +255,12 @@ type CharacterMatch =
     |   NoMatch         //  decided no match
     |   Match           //  decided match
 
-type ThompsonFunc = TokenData -> CharacterMatch
-[<NoComparison; NoEquality>]
-type SingleStepState = {
+
+type SingleStepFunc = TokenData option -> TokenData -> RegexState -> ProcessResult
+and [<NoComparison; NoEquality>]
+SingleStepState = {
     Info            :   string
-    Transiton       :   ThompsonFunc
+    Transiton       :   SingleStepFunc
     NextState       :   RegexState
 }
 and [<NoComparison; NoEquality>]
@@ -334,7 +335,7 @@ RegexState =
                 |   Final -> true
                 |   _     -> false
 
-type GroupResult = {
+and GroupResult = {
         Id      :   int
         Match   :   TokenData list
     }
@@ -343,17 +344,8 @@ type GroupResult = {
         static member CreateFrom (go:SingleTrackingPathState) = { Id = go.Id; Match = go.Track}
         static member CreateEmpty (id) = { Id = id ; Match = []}
 
-[<NoComparison; NoEquality>]
-type TPParserState = {
-        NextState   :   RegexState
-        GroupResults:   GroupResult list
-        Groups      :   int
-    }
-    with
-        static member Create n g gc = { NextState = n; GroupResults = g; Groups = gc}
-
-[<NoComparison; NoEquality>]
-type ProcessResult = {
+and [<NoComparison; NoEquality>]
+ProcessResult = {
     IsMatch     : CharacterMatch
     NextState   : RegexState
     Reduce      : int
@@ -365,23 +357,31 @@ type ProcessResult = {
         static member AddGroup g (o:ProcessResult) = {o with GroupsResults = g :: o.GroupsResults}
         static member AddGroupOf pr (o:ProcessResult) = {o with GroupsResults = o.GroupsResults @  pr.GroupsResults }
 
-let rec processState (td:TokenData) (st:RegexState) =
+
+[<NoComparison; NoEquality>]
+type TPParserState = {
+        NextState   :   RegexState
+        GroupResults:   GroupResult list
+        Groups      :   int
+    }
+    with
+        static member Create n g gc = { NextState = n; GroupResults = g; Groups = gc}
+
+
+let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
 
     let processAlternativeState (cm:CharacterMatch, st:RegexState) = 
         if cm = CharacterMatch.NoMatch ||  st.IsFinalValue then
             ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
         else
-            processState td st
+            processState pr td st
 
     match st with
     |   SingleRGS s -> 
-        s.Transiton td
-        |>  function
-            |   CharacterMatch.Match   -> ProcessResult.Create (CharacterMatch.Match,   st.NextState, 0)
-            |   CharacterMatch.NoMatch -> ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+        s.Transiton pr td st
     |   ConcatRGS s -> 
         let repeatThisState ns = ConcatRGS {s with MainState = ns}
-        let r = processState td s.MainState
+        let r = processState pr td s.MainState
         match r.IsMatch with
         |   CharacterMatch.Match when r.NextState.IsFinalValue -> 
             ProcessResult.Create (CharacterMatch.Match, s.NextState, r.Reduce)
@@ -394,13 +394,13 @@ let rec processState (td:TokenData) (st:RegexState) =
     |   MultiRGS m ->
         let rr =
             m.Targets
-            |>  List.map(processState td)
+            |>  List.map(processState pr td)
             |>  List.filter(fun rt -> rt.IsMatch = CharacterMatch.Match)
             
         rr |> List.tryFind(fun s -> s.NextState.IsFinalValue)
         |>  function
         |   Some r  ->
-            ProcessResult.Create (CharacterMatch.Match, st.NextState, 0)
+            ProcessResult.Create (CharacterMatch.Match, st.NextState, r.Reduce)
             |> ProcessResult.AddGroupOf r
         |   None    ->
             if rr.Length = 0 then 
@@ -409,24 +409,24 @@ let rec processState (td:TokenData) (st:RegexState) =
                 let nextStates = rr |> List.filter(fun s -> s.Reduce = 0)
                 if nextStates.Length = 0 then
                     let largestReduce = rr |> List.maxBy(fun s -> s.Reduce)
-                    ProcessResult.Create (CharacterMatch.Match, Final, largestReduce.Reduce)
+                    ProcessResult.Create (CharacterMatch.Match, largestReduce.NextState, largestReduce.Reduce)
                 else
                     ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = nextStates |> List.map(fun r -> r.NextState) }, 0)
     |   OptionalRGS o ->
         let ost = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
 
-        let rm = processState td ost.MainState
+        let rm = processState pr td ost.MainState
         let ra = processAlternativeState (ost.AlternateState.Value)
 
-        let continueThisState ns =
-            OptionalRGS { ost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = ost.CharCount + 1}
+        let continueThisState ns rd =
+            OptionalRGS { ost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = ost.CharCount + 1 - rd}
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue   ->
             ProcessResult.Create (CharacterMatch.Match, ost.NextState, rm.Reduce)
             |> ProcessResult.AddGroupOf rm
         |   (CharacterMatch.Match, _)   ->
-            ProcessResult.Create (CharacterMatch.Match, continueThisState rm.NextState, 0)
+            ProcessResult.Create (CharacterMatch.Match, continueThisState rm.NextState rm.Reduce, rm.Reduce)
             |> ProcessResult.AddGroupOf rm
         |   (CharacterMatch.NoMatch, CharacterMatch.Match)  ->
             ProcessResult.Create (CharacterMatch.Match, ra.NextState, ra.Reduce)
@@ -440,25 +440,27 @@ let rec processState (td:TokenData) (st:RegexState) =
                 AlternateState  = if zom.AlternateState.IsNone then Some (CharacterMatch.Match, zom.NextState) else zom.AlternateState
             }
 
-        let rm = processState td zost.MainState
+        let rm = processState pr td zost.MainState
         let ra = processAlternativeState (zost.AlternateState.Value)
 
         let iterFutureBelowMax zost = (not(hasMax) || zost.IterCount + 1 < zost.Max)
         let iterBelowMax zost = (not(hasMax) || zost.IterCount < zost.Max)
         let iterMinOrAfter zost = zost.IterCount >= zost.Min
 
-        let continueThisState ns =
-            RepeatRGS { zost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = zost.CharCount + 1 }
+        let continueThisState ns rd =
+            RepeatRGS { zost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = zost.CharCount + 1 - rd }
 
-        let repeatThisState z = RepeatRGS { z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1 }
+        let repeatThisState z rd = 
+            RepeatRGS { z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1 - rd}
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  -> 
             if iterFutureBelowMax zost && rm.Reduce = 0 then // do repeat
-                ProcessResult.Create (CharacterMatch.Match, repeatThisState zost, rm.Reduce)
+                ProcessResult.Create (CharacterMatch.Match, repeatThisState zost rm.Reduce, rm.Reduce)
             else
                ProcessResult.Create (CharacterMatch.Match, zost.NextState, rm.Reduce) 
-        |   (CharacterMatch.Match, _)                           -> ProcessResult.Create (CharacterMatch.Match, continueThisState rm.NextState, 0)
+        |   (CharacterMatch.Match, _) -> 
+            ProcessResult.Create (CharacterMatch.Match, continueThisState rm.NextState rm.Reduce, rm.Reduce)
         |   (CharacterMatch.NoMatch, CharacterMatch.Match)      -> 
             if (iterBelowMax zost && iterMinOrAfter zost) then
                 ProcessResult.Create (CharacterMatch.Match, ra.NextState, ra.Reduce)
@@ -472,7 +474,7 @@ let rec processState (td:TokenData) (st:RegexState) =
     |   GroupRGS s ->
         let repeatThisState ns = GroupRGS { s with MainState = ns; Track = td ::s.Track }
 
-        let r = processState td s.MainState
+        let r = processState pr td s.MainState
         match r.IsMatch with
         |   CharacterMatch.Match when r.NextState.IsFinalValue -> 
             let t = { s with Track = td :: s.Track |> List.skip(r.Reduce) }
@@ -487,27 +489,33 @@ let rec processState (td:TokenData) (st:RegexState) =
     |   Final   -> ProcessResult.Create (CharacterMatch.Match, Final, 0)
 
 
-let boolToMatch() = 
-    function
-    |   true ->  CharacterMatch.Match
-    |   false -> CharacterMatch.NoMatch
-
 let plainParser (pl:Plain) =
     let fn =
-        fun (td:TokenData) ->
-            pl.``fixed`` = td.Source 
-            |>  boolToMatch()
+        fun (pr:TokenData option) (td:TokenData) (st:RegexState)  ->
+            match  pl.``fixed`` with
+            |   "^" when pl.Token.Head = Token.NoToken ->
+                if (pr = None || pr.Value.Token = Token.NewLine) then
+                    ProcessResult.Create (CharacterMatch.Match,   st.NextState, 1)
+                else
+                    ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            |   _ when pl.``fixed`` = td.Source ->
+                ProcessResult.Create (CharacterMatch.Match,   st.NextState, 0)
+            |   _ ->
+                ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+
     SingleRGS { Transiton = fn; NextState = Final; Info = pl.``fixed``}
 
 let oneInSetParser (ois:OneInSet) =
     let fn =
-        fun (td:TokenData) ->
+        fun (pr:TokenData option) (td:TokenData) (st:RegexState) ->
             if uint32(td.Token) >= 0b0100_0000_0000_0000_0000_0000_0000_0000u then
                 ois.Token |> List.exists(fun e -> e=td.Token)
             else
                 let checkItWith = ois.TokenQuickCheck.Force()
                 (checkItWith &&& uint32(td.Token) > 0u)
-            |>  boolToMatch()
+            |>  function
+                |   true   -> ProcessResult.Create (CharacterMatch.Match,   st.NextState, 0)
+                |   false -> ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
     SingleRGS { Transiton = fn; NextState = Final; Info = sprintf "(%s)-(%s)" ois.mainset ois.subtractset}
 
 
@@ -627,8 +635,9 @@ type MatchResultTP = {
 let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState) =
     let startPos = streamReader.Position
     let rec rgxProcessor (streamReader:RollingStream<TokenData>) (rgst:TPParserState) (matched) =
+        let pr = streamReader.PeekPrevious()
         let tk = streamReader.Get()
-        let rt = processState tk rgst.NextState
+        let rt = processState pr tk rgst.NextState
         match rt.IsMatch with
         |   CharacterMatch.Match   -> 
             streamReader.Position <- streamReader.Position - rt.Reduce
@@ -655,7 +664,8 @@ let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState)
         |>  Set.toList
         |>  List.map(fun i -> GroupResult.Create i [])
         |>  List.append r.GroupsResults
-    { r with GroupsResults = fullListOfGroups}
+        |>  List.map(fun i -> { i with Match = i.Match |> List.rev })
+    { r with FullMatch = r.FullMatch |> List.rev; GroupsResults = fullListOfGroups}
 
 
 let memoizeThompsonParser = new Dictionary<RGXType, TPParserState>()
@@ -799,8 +809,12 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
     |> fun (b,pr) -> b, { pr with Match = pr.Match |> List.rev}
 
 let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
-    AssesInputThompsonParser rs rg
-    //AssesInputPostParseCondition (fun _ -> true) rs rg
+    try
+        AssesInputThompsonParser rs rg
+        //AssesInputPostParseCondition (fun _ -> true) rs rg
+    with
+    |  e -> raise e
+
 
 let TokenDataToString =
     function
