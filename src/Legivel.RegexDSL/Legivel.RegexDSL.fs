@@ -392,26 +392,27 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         |   CharacterMatch.NoMatch  -> 
             ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
     |   MultiRGS m ->
-        let rr =
-            m.Targets
-            |>  List.map(processState pr td)
-            |>  List.filter(fun rt -> rt.IsMatch = CharacterMatch.Match)
-            
-        rr |> List.tryFind(fun s -> s.NextState.IsFinalValue)
-        |>  function
-        |   Some r  ->
-            ProcessResult.Create (CharacterMatch.Match, st.NextState, r.Reduce)
-            |> ProcessResult.AddGroupOf r
-        |   None    ->
-            if rr.Length = 0 then 
-                ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
-            else
-                let nextStates = rr |> List.filter(fun s -> s.Reduce = 0)
+        let rec multiProcessor tg ntl =
+            match tg with
+            |   []  -> 
+                let nextStates = ntl |> List.filter(fun s -> s.Reduce = 0)
                 if nextStates.Length = 0 then
-                    let largestReduce = rr |> List.maxBy(fun s -> s.Reduce)
-                    ProcessResult.Create (CharacterMatch.Match, largestReduce.NextState, largestReduce.Reduce)
+                    if ntl.Length=0 then
+                        ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
+                    else
+                        let largestReduce = ntl |> List.maxBy(fun s -> s.Reduce)
+                        ProcessResult.Create (CharacterMatch.Match, largestReduce.NextState, largestReduce.Reduce)
                 else
                     ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = nextStates |> List.map(fun r -> r.NextState) }, 0)
+            |   h :: rest ->
+                let r = processState pr td h
+                match r.IsMatch with
+                |   CharacterMatch.Match when r.NextState.IsFinalValue->
+                    ProcessResult.Create (CharacterMatch.Match, st.NextState, r.Reduce)
+                    |> ProcessResult.AddGroupOf r
+                |   CharacterMatch.Match  -> multiProcessor rest (r::ntl)
+                |   CharacterMatch.NoMatch  -> multiProcessor rest ntl
+        multiProcessor m.Targets []    
     |   OptionalRGS o ->
         let ost = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
 
@@ -450,13 +451,13 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         let continueThisState ns rd =
             RepeatRGS { zost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = zost.CharCount + 1 - rd }
 
-        let repeatThisState z rd = 
-            RepeatRGS { z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1 - rd}
+        let repeatThisState z = 
+            RepeatRGS { z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1}
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  -> 
             if iterFutureBelowMax zost && rm.Reduce = 0 then // do repeat
-                ProcessResult.Create (CharacterMatch.Match, repeatThisState zost rm.Reduce, rm.Reduce)
+                ProcessResult.Create (CharacterMatch.Match, repeatThisState zost, rm.Reduce)
             else
                ProcessResult.Create (CharacterMatch.Match, zost.NextState, rm.Reduce) 
         |   (CharacterMatch.Match, _) -> 
@@ -809,11 +810,11 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
     |> fun (b,pr) -> b, { pr with Match = pr.Match |> List.rev}
 
 let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
-    try
+    //try
         AssesInputThompsonParser rs rg
         //AssesInputPostParseCondition (fun _ -> true) rs rg
-    with
-    |  e -> raise e
+    //with
+    //|  e -> raise e
 
 
 let TokenDataToString =

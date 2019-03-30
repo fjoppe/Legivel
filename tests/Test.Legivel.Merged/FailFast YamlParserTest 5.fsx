@@ -105,6 +105,15 @@ let YamlParseWithErrors s =
 
 
 
-YamlParse "- Mark McGwire"
+YamlParse "
+---
+hr:
+  - Mark McGwire
+  # Following node labeled SS
+  - &SS Sammy Sosa
+rbi:
+  - *SS # Subsequent occurrence
+  - Ken Griffey
+"
 
 
