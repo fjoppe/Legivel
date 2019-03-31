@@ -70,6 +70,7 @@ let ``Parse Plain String Ored - sunny day``() =
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     let mr = MatchRegexState streamReader rgxst
     mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData |> shouldEqual (expected "ABD")
     streamReader.Get().Source |> shouldEqual "E"
 
     let yaml = "ABCE"
@@ -482,7 +483,7 @@ let ``Parse Group in Option - end nomatch in group``() =
 
 
 //  Complex regex parse test - these caused issues during dev
-
+let ``c-byte-order-mark`` = RGP ("\ufeff", [Token.``byte-order-mark``])
 let ``c-printable`` = 
         RGO (
             "\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
@@ -517,28 +518,14 @@ let ``l-comment`` = ``s-separate-in-line`` + OPT(``c-nb-comment-text``) + ``b-co
 let ``s-l-comments`` = (``s-b-comment`` ||| ``start-of-line``) + ZOM(``l-comment``)
 let ``s-indent(n)`` ps = Repeat(RGP (``s-space``, [Token.``t-space``]), ps)
 let ``s-flow-line-prefix`` ps = (``s-indent(n)`` ps) + OPT(``s-separate-in-line``)
-
+let ``l-document-prefix`` = OPT(``c-byte-order-mark``) + ZOM(``l-comment``)
+let ``c-document-end`` =
+        let dot = RGP("\\.", [Token.``t-dot``])
+        dot + dot + dot
+let ``l-document-suffix`` = ``c-document-end`` + ``s-l-comments``
 
 [<Test>]
 let ``Parse Group and Once or More - should match``() =
-    //let ``c-printable`` = 
-    //        RGO (
-    //            "\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
-    //            "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
-    //                                                   //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
-    //            [
-    //            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-    //            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-    //            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-    //            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-    //            Token.``ns-dec-digit``; Token.``c-escape``
-    //            ])
-
-    //let ``s-space`` : string = "\u0020"
-    //let ``s-tab`` = "\u0009"  
-    //let ``nb-char``  = ``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) 
-    //let ``s-white`` = RGO(``s-space`` + ``s-tab``, [Token.``t-space``; Token.``t-tab``])
-    //let ``ns-char`` = ``nb-char`` - ``s-white``
     let icp = GRP(ZOM(RGP (``s-space``, [Token.``t-space``]))) + OOM(``ns-char``)
     let rgxst = icp |> CreatePushParser
 
@@ -559,41 +546,6 @@ let ``Parse Group and Once or More - should match``() =
 
 [<Test>]
 let ``Parse s-separate - should match``() =
-    //let ``start-of-line`` = RGP ("^", [Token.NoToken])
-    //let ``c-printable`` = 
-    //        RGO (
-    //            "\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
-    //            "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
-    //                                                   //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
-    //            [
-    //            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-    //            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-    //            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-    //            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-    //            Token.``ns-dec-digit``; Token.``c-escape``
-    //            ])
-
-    //let ``b-line-feed`` = RGP ("\u000a", [Token.NewLine])
-    //let ``b-carriage-return`` = RGP ("\u000d", [Token.NewLine])
-
-    //let ``b-break`` = 
-    //        (``b-carriage-return`` + ``b-line-feed``) |||  //  DOS, Windows
-    //        ``b-carriage-return``                          |||  //  MacOS upto 9.x
-    //        ``b-line-feed``                                     //  UNIX, MacOS X
-    //let ``b-non-content`` = ``b-break``
-    //let ``s-space`` : string = "\u0020"
-    //let ``s-tab`` = "\u0009"  
-    //let ``b-comment`` = ``b-non-content`` ||| RGP("\\z", [Token.EOF]) // EOF..
-    //let ``nb-char``  = ``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) 
-    //let ``s-white`` = RGO(``s-space`` + ``s-tab``, [Token.``t-space``; Token.``t-tab``])
-    //let ``s-separate-in-line`` = OOM(``s-white``) ||| ``start-of-line``
-    //let ``c-nb-comment-text`` = RGP("#", [Token.``t-hash``]) + ZOM(``nb-char``)
-    //let ``s-b-comment`` = OPT(``s-separate-in-line`` + OPT(``c-nb-comment-text``)) + ``b-comment`` 
-    //let ``l-comment`` = ``s-separate-in-line`` + OPT(``c-nb-comment-text``) + ``b-comment``
-    //let ``s-l-comments`` = (``s-b-comment`` ||| ``start-of-line``) + ZOM(``l-comment``)
-    //let ``s-indent(n)`` ps = Repeat(RGP (``s-space``, [Token.``t-space``]), ps)
-    //let ``s-flow-line-prefix`` ps = (``s-indent(n)`` ps) + OPT(``s-separate-in-line``)
-
     let rgx = (``s-l-comments`` + (``s-flow-line-prefix`` 0)) ||| ``s-separate-in-line``
     let rgxst = rgx |> CreatePushParser
 
@@ -619,19 +571,47 @@ let ``Parse s-l-comments - should match``() =
     mr.FullMatch |> stripTokenData  |> shouldEqual (expected "\n  # C\n")
 
 [<Test>]
-let ``Parse s-l-comments oldway - should match``() =
+let ``Parse l-document-prefix - should match``() =
+
+    let rgx = ``l-document-prefix``
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = "\n"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "\n")
+
+
+[<Test>]
+let ``Parse s-l-comments - should not match``() =
 
     let rgx = ``s-l-comments``
-    //let rgxst = rgx |> CreatePushParser
+    let rgxst = rgx |> CreatePushParser
 
-    let yaml = " \n  # C\n"
+    let yaml = "- M"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     streamReader.Position <- 1
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> shouldEqual []
+    //mr.FullMatch |> stripTokenData  |> shouldEqual (expected "\n  # C\n")
+
+
+[<Test>]
+let ``Parse s-l-comments oldway - should not match``() =
+
+    let rgx = ``s-l-comments``
+
+    let yaml = "- M"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     let (mr,pr) = AssesInputPostParseCondition (fun _ -> true)  streamReader rgx
     mr |> shouldEqual true
-    pr.Match 
-    |>  List.map(fun i -> i.Source)
-    |>  List.fold(fun (sb:StringBuilder) (i:string) -> sb.Append(i)) (new StringBuilder())
-    |>  fun sb -> sb.ToString()
-    |>  shouldEqual "\n  # C\n"
+    pr.Match |> shouldEqual []
+
+    //pr.Match 
+    //|>  List.map(fun i -> i.Source)
+    //|>  List.fold(fun (sb:StringBuilder) (i:string) -> sb.Append(i)) (new StringBuilder())
+    //|>  fun sb -> sb.ToString()
+    //|>  shouldEqual "\n"
 

@@ -10,6 +10,7 @@ open System.Globalization
 
 open Legivel.Tokenizer
 open System.Collections.Generic
+open System.ComponentModel
 
 exception RegexException of string
 
@@ -294,8 +295,17 @@ RepeatDoublePathState = {
     NextState       :   RegexState
 }
 and [<NoComparison; NoEquality>]
+IntermediateState = {
+        Reduce      : int
+        CharCount   : int
+    }
+    with
+        static member Create c r = { Reduce = r; CharCount = c}
+
+and [<NoComparison; NoEquality>]
 ParallelPathState = {
-    Targets         :   RegexState list
+    CharCount       :   int
+    Targets         :   (IntermediateState * RegexState) list
     NextState       :   RegexState
 }
 and [<NoComparison; NoEquality>]
@@ -392,27 +402,41 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         |   CharacterMatch.NoMatch  -> 
             ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
     |   MultiRGS m ->
-        let rec multiProcessor tg ntl =
+        let rec multiProcessor first (tg:(IntermediateState * RegexState) list) (ntl:(IntermediateState*ProcessResult) list) =
             match tg with
             |   []  -> 
-                let nextStates = ntl |> List.filter(fun s -> s.Reduce = 0)
+                let nextStates = ntl |> List.filter(fun (_,s) -> s.Reduce = 0)
                 if nextStates.Length = 0 then
                     if ntl.Length=0 then
                         ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
                     else
-                        let largestReduce = ntl |> List.maxBy(fun s -> s.Reduce)
+                        let largestReduce = 
+                            ntl
+                            |> List.map(fun (_,s) -> s)
+                            |> List.maxBy(fun s -> s.Reduce)
                         ProcessResult.Create (CharacterMatch.Match, largestReduce.NextState, largestReduce.Reduce)
                 else
-                    ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = nextStates |> List.map(fun r -> r.NextState) }, 0)
-            |   h :: rest ->
-                let r = processState pr td h
-                match r.IsMatch with
-                |   CharacterMatch.Match when r.NextState.IsFinalValue->
-                    ProcessResult.Create (CharacterMatch.Match, st.NextState, r.Reduce)
-                    |> ProcessResult.AddGroupOf r
-                |   CharacterMatch.Match  -> multiProcessor rest (r::ntl)
-                |   CharacterMatch.NoMatch  -> multiProcessor rest ntl
-        multiProcessor m.Targets []    
+                    ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = ntl |> List.rev |> List.map(fun (i,r) -> i, r.NextState) }, 0)
+            |   (hr,hs) :: rest ->
+                if hr.Reduce = 0 then 
+                    let r = processState pr td hs
+                    match r.IsMatch with
+                    |   CharacterMatch.Match when r.NextState.IsFinalValue && r.Reduce = 0 ->
+                        ProcessResult.Create (CharacterMatch.Match, st.NextState, r.Reduce)
+                        |> ProcessResult.AddGroupOf r
+                    |   CharacterMatch.Match when r.Reduce > 0 && first ->
+                        ProcessResult.Create (CharacterMatch.Match, m.NextState, r.Reduce)
+                        |> ProcessResult.AddGroupOf r
+                    |   CharacterMatch.Match   -> multiProcessor false rest ((IntermediateState.Create m.CharCount r.Reduce,r)::ntl)
+                    |   CharacterMatch.NoMatch -> multiProcessor first rest ntl
+                else
+                    if first then
+                        ProcessResult.Create (CharacterMatch.Match, m.NextState, m.CharCount - hr.CharCount - hr.Reduce)
+                        //|> ProcessResult.AddGroupOf hr.
+                    else
+                        let prr = ProcessResult.Create (CharacterMatch.Match, Final, hr.Reduce)
+                        multiProcessor false rest ((hr,prr)::ntl)
+        multiProcessor true m.Targets []    
     |   OptionalRGS o ->
         let ost = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
 
@@ -522,8 +546,9 @@ let oneInSetParser (ois:OneInSet) =
 
 let oredParser (rl:RegexState list) =
     MultiRGS {
-        Targets     = rl
+        Targets     = rl |> List.map(fun e -> IntermediateState.Create 0 0, e)
         NextState   = Final
+        CharCount   = 0
     }
 
 
