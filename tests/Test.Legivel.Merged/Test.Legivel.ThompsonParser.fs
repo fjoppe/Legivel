@@ -549,12 +549,27 @@ let ``Parse s-separate - should match``() =
     let rgx = (``s-l-comments`` + (``s-flow-line-prefix`` 0)) ||| ``s-separate-in-line``
     let rgxst = rgx |> CreatePushParser
 
-
     let yaml = "- value"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     let mr = MatchRegexState streamReader rgxst
     mr.IsMatch |> shouldEqual true
     mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
+
+[<Test>]
+let ``Parse s-separate oldway - should not match``() =
+    let rgx = (``s-l-comments`` + (``s-flow-line-prefix`` 0)) ||| ``s-separate-in-line``
+
+    let yaml = "- value"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (mr,pr) = AssesInputPostParseCondition (fun _ -> true)  streamReader rgx
+    mr |> shouldEqual true
+    pr.Match |> shouldEqual []
+
+    //pr.Match 
+    //|>  List.map(fun i -> i.Source)
+    //|>  List.fold(fun (sb:StringBuilder) (i:string) -> sb.Append(i)) (new StringBuilder())
+    //|>  fun sb -> sb.ToString()
+    //|>  shouldEqual "\n"
 
 
 [<Test>]
@@ -593,25 +608,8 @@ let ``Parse s-l-comments - should not match``() =
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     streamReader.Position <- 1
     let mr = MatchRegexState streamReader rgxst
-    mr.IsMatch |> shouldEqual true
+    mr.IsMatch |> shouldEqual false
     mr.FullMatch |> shouldEqual []
     //mr.FullMatch |> stripTokenData  |> shouldEqual (expected "\n  # C\n")
 
-
-[<Test>]
-let ``Parse s-l-comments oldway - should not match``() =
-
-    let rgx = ``s-l-comments``
-
-    let yaml = "- M"
-    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (mr,pr) = AssesInputPostParseCondition (fun _ -> true)  streamReader rgx
-    mr |> shouldEqual true
-    pr.Match |> shouldEqual []
-
-    //pr.Match 
-    //|>  List.map(fun i -> i.Source)
-    //|>  List.fold(fun (sb:StringBuilder) (i:string) -> sb.Append(i)) (new StringBuilder())
-    //|>  fun sb -> sb.ToString()
-    //|>  shouldEqual "\n"
 

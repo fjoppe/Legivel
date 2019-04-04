@@ -424,9 +424,12 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
                     |   CharacterMatch.Match when r.NextState.IsFinalValue && r.Reduce = 0 ->
                         ProcessResult.Create (CharacterMatch.Match, st.NextState, r.Reduce)
                         |> ProcessResult.AddGroupOf r
-                    |   CharacterMatch.Match when r.Reduce > 0 && first ->
+                    |   CharacterMatch.Match when r.NextState.IsFinalValue && r.Reduce > 0 && first ->
                         ProcessResult.Create (CharacterMatch.Match, m.NextState, r.Reduce)
                         |> ProcessResult.AddGroupOf r
+                    //|   CharacterMatch.Match when r.Reduce > 0 && first ->
+                    //    ProcessResult.Create (CharacterMatch.Match, r.NextState, r.Reduce)
+                    //    |> ProcessResult.AddGroupOf r
                     |   CharacterMatch.Match   -> multiProcessor false rest ((IntermediateState.Create m.CharCount r.Reduce,r)::ntl)
                     |   CharacterMatch.NoMatch -> multiProcessor first rest ntl
                 else
