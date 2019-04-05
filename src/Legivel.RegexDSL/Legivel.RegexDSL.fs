@@ -520,12 +520,16 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
 let plainParser (pl:Plain) =
     let fn =
         fun (pr:TokenData option) (td:TokenData) (st:RegexState)  ->
-            match  pl.``fixed`` with
-            |   "^" when pl.Token.Head = Token.NoToken ->
+            match  (pl.``fixed``, pl.Token) with
+            |   ("^",[Token.NoToken]) when pl.Token.Head = Token.NoToken ->
                 if (pr = None || pr.Value.Token = Token.NewLine) then
                     ProcessResult.Create (CharacterMatch.Match,   st.NextState, 1)
                 else
                     ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            |   (_, [Token.EOF]) when td.Token = Token.EOF ->
+                ProcessResult.Create (CharacterMatch.Match,   st.NextState, 1)
+            |   (_, []) -> 
+                ProcessResult.Create (CharacterMatch.Match,   st.NextState, 1)
             |   _ when pl.``fixed`` = td.Source ->
                 ProcessResult.Create (CharacterMatch.Match,   st.NextState, 0)
             |   _ ->
@@ -676,13 +680,13 @@ let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState)
             else
                 let nr = { rgst with GroupResults = rt.GroupsResults @ rgst.GroupResults; NextState = rt.NextState }
                 rgxProcessor streamReader nr reduceMatch 
-        |   CharacterMatch.NoMatch when rt.Reduce = 0 -> 
+        |   CharacterMatch.NoMatch (*when rt.Reduce = 0*) -> 
             streamReader.Position <- startPos
             { IsMatch = false; FullMatch = []; GroupsResults = []}
-        |   CharacterMatch.NoMatch  -> 
-            streamReader.Position <- streamReader.Position - rt.Reduce
-            let reduceMatch = matched |> List.skip rt.Reduce
-            rgxProcessor streamReader {rgst with NextState = rt.NextState} reduceMatch
+        //|   CharacterMatch.NoMatch  -> 
+        //    streamReader.Position <- streamReader.Position - rt.Reduce
+        //    let reduceMatch = (tk::matched) |> List.skip rt.Reduce
+        //    rgxProcessor streamReader {rgst with NextState = rt.NextState} reduceMatch
 
     let r = rgxProcessor streamReader rgst []
     let fullListOfGroups =
@@ -838,11 +842,11 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
     |> fun (b,pr) -> b, { pr with Match = pr.Match |> List.rev}
 
 let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) =
-    //try
+    try
         AssesInputThompsonParser rs rg
         //AssesInputPostParseCondition (fun _ -> true) rs rg
-    //with
-    //|  e -> raise e
+    with
+    |  e -> raise e
 
 
 let TokenDataToString =

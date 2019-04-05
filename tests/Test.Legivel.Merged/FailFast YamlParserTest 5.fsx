@@ -106,8 +106,21 @@ let YamlParseWithErrors s =
 
 
 YamlParse "
-- Mark McGwire
-- Sammy Sosa
-- Ken Griffey"
+---
+hr:
+  - Mark McGwire
+  # Following node labeled SS
+  - &SS Sammy Sosa
+rbi:
+  - *SS # Subsequent occurrence
+  - Ken Griffey
+"
+
+//"
+//--- >
+//  Mark McGwire's
+//  year was crippled
+//  by a knee injury."
+
 
 

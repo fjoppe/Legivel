@@ -523,6 +523,9 @@ let ``c-document-end`` =
         let dot = RGP("\\.", [Token.``t-dot``])
         dot + dot + dot
 let ``l-document-suffix`` = ``c-document-end`` + ``s-l-comments``
+let ``e-scalar`` = RGP (System.String.Empty, [])
+let ``e-node`` = ``e-scalar``
+
 
 [<Test>]
 let ``Parse Group and Once or More - should match``() =
@@ -610,6 +613,32 @@ let ``Parse s-l-comments - should not match``() =
     let mr = MatchRegexState streamReader rgxst
     mr.IsMatch |> shouldEqual false
     mr.FullMatch |> shouldEqual []
-    //mr.FullMatch |> stripTokenData  |> shouldEqual (expected "\n  # C\n")
+
+
+[<Test>]
+let ``Parse s-indent(2) - should match``() =
+    let rgx = ``s-indent(n)`` 2
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = "r"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual false
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
+
+
+[<Test>]
+let ``Parse e-node - should not match``() =
+
+    let rgx = ``e-node``
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = ""
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
+
+
 
 
