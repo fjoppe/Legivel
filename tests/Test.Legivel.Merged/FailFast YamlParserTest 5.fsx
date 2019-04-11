@@ -105,6 +105,12 @@ let YamlParseWithErrors s =
 
 
 
+//YamlParse "
+//--- >
+//  Mark McGwire's
+//  year was crippled
+//  by a knee injury."
+
 YamlParse "
 ---
 hr:
@@ -115,12 +121,5 @@ rbi:
   - *SS # Subsequent occurrence
   - Ken Griffey
 "
-
-//"
-//--- >
-//  Mark McGwire's
-//  year was crippled
-//  by a knee injury."
-
 
 

@@ -461,15 +461,23 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    ->
             ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
     |   RepeatRGS zom ->
-        let hasMax = zom.Max > zom.Min
+        let hasMax = zom.Max >= zom.Min
         let zost = 
             { zom with
                 MainState       = if zom.MainState.IsFinalValue then zom.InitialState else zom.MainState
                 AlternateState  = if zom.AlternateState.IsNone then Some (CharacterMatch.Match, zom.NextState) else zom.AlternateState
             }
 
-        let rm = processState pr td zost.MainState
-        let ra = processAlternativeState (zost.AlternateState.Value)
+        let rm = 
+            if zost.Max = 0 then
+                ProcessResult.Create (CharacterMatch.Match, Final, zost.CharCount+1)
+            else
+                processState pr td zost.MainState
+        let ra = 
+            if zost.Max = 0 then
+                ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            else
+                processAlternativeState (zost.AlternateState.Value)
 
         let iterFutureBelowMax zost = (not(hasMax) || zost.IterCount + 1 < zost.Max)
         let iterBelowMax zost = (not(hasMax) || zost.IterCount < zost.Max)
@@ -500,7 +508,7 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
             else
                 ProcessResult.Create (CharacterMatch.NoMatch, Final, zost.CharCount+1)
     |   GroupRGS s ->
-        let repeatThisState ns = GroupRGS { s with MainState = ns; Track = td ::s.Track }
+        let repeatThisState ns rd = GroupRGS { s with MainState = ns; Track = (td::s.Track) |> List.skip(rd) }
 
         let r = processState pr td s.MainState
         match r.IsMatch with
@@ -509,7 +517,7 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
             ProcessResult.Create (CharacterMatch.Match, s.NextState, r.Reduce)
             |>   ProcessResult.AddGroup (GroupResult.CreateFrom t)
         |   CharacterMatch.Match    -> 
-            ProcessResult.Create (CharacterMatch.Match, repeatThisState r.NextState, 0)
+            ProcessResult.Create (CharacterMatch.Match, repeatThisState r.NextState r.Reduce, r.Reduce)
         |   CharacterMatch.NoMatch  -> 
             ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
             |>  ProcessResult.AddGroup (GroupResult.CreateEmpty s.Id)

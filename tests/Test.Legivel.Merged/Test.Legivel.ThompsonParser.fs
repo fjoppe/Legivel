@@ -517,7 +517,10 @@ let ``s-b-comment`` = OPT(``s-separate-in-line`` + OPT(``c-nb-comment-text``)) +
 let ``l-comment`` = ``s-separate-in-line`` + OPT(``c-nb-comment-text``) + ``b-comment``
 let ``s-l-comments`` = (``s-b-comment`` ||| ``start-of-line``) + ZOM(``l-comment``)
 let ``s-indent(n)`` ps = Repeat(RGP (``s-space``, [Token.``t-space``]), ps)
+let ``s-indent(<n)`` ps = Range(RGP (``s-space``, [Token.``t-space``]), 0, (ps-1))
+let ``s-indent(<=n)`` ps = Range(RGP (``s-space``, [Token.``t-space``]), 0, ps)
 let ``s-flow-line-prefix`` ps = (``s-indent(n)`` ps) + OPT(``s-separate-in-line``)
+let ``s-separate-lines`` ps = (``s-l-comments`` + (``s-flow-line-prefix`` ps)) ||| ``s-separate-in-line``
 let ``l-document-prefix`` = OPT(``c-byte-order-mark``) + ZOM(``l-comment``)
 let ``c-document-end`` =
         let dot = RGP("\\.", [Token.``t-dot``])
@@ -526,6 +529,25 @@ let ``l-document-suffix`` = ``c-document-end`` + ``s-l-comments``
 let ``e-scalar`` = RGP (System.String.Empty, [])
 let ``e-node`` = ``e-scalar``
 
+let ``b-as-line-feed`` = ``b-break``
+let ``s-block-line-prefix`` ps = ``s-indent(n)`` ps
+let ``s-line-prefix block-in`` ps = ``s-block-line-prefix`` ps
+let ``l-empty`` ps = ((``s-line-prefix block-in`` ps) ||| (``s-indent(<n)`` ps)) + ``b-as-line-feed``
+let ``s-nb-folded-text`` ps = (``s-indent(n)`` ps) + ZOM(``nb-char``)
+let ``b-l-trimmed`` ps = ``b-non-content`` + OOM(``l-empty`` ps)
+let ``b-as-space`` = ``b-break``
+let ``b-l-folded`` ps = (``b-l-trimmed`` ps) ||| ``b-as-space``
+let ``l-nb-folded-lines`` ps = (``s-nb-folded-text`` ps) + ZOM((``b-l-folded`` ps) + ``s-nb-folded-text`` ps)
+let ``s-nb-spaced-text`` ps = (``s-indent(n)`` ps) + ``s-white`` + ZOM(``nb-char``)
+let ``b-l-spaced`` ps = ``b-as-line-feed`` + ZOM(``l-empty`` ps)
+let ``l-nb-spaced-lines`` ps = (``s-nb-spaced-text`` ps) + ZOM((``b-l-spaced``ps) + (``s-nb-spaced-text`` ps))
+let ``l-nb-same-lines`` ps = ZOM(``l-empty`` ps) + ((``l-nb-folded-lines`` ps) ||| (``l-nb-spaced-lines`` ps))
+let ``l-nb-diff-lines`` ps = (``l-nb-same-lines`` ps) + ZOM(``b-as-line-feed`` + (``l-nb-same-lines`` ps))
+let ``b-chomped-last`` ps = ``b-as-line-feed`` ||| RGP("\\z", [Token.EOF])
+let ``l-trail-comments`` ps = (``s-indent(<n)`` ps) + ``c-nb-comment-text`` + ``b-comment`` + ZOM(``l-comment``)
+let ``l-strip-empty`` ps = ZOM((``s-indent(<=n)`` ps) + ``b-non-content``) + OPT(``l-trail-comments`` ps)
+let ``l-chomped-empty`` ps = ``l-strip-empty`` ps
+let ``l-folded-content`` ps = GRP(OPT((``l-nb-diff-lines`` ps) + (``b-chomped-last`` ps))) + (``l-chomped-empty`` ps)
 
 [<Test>]
 let ``Parse Group and Once or More - should match``() =
@@ -557,22 +579,6 @@ let ``Parse s-separate - should match``() =
     let mr = MatchRegexState streamReader rgxst
     mr.IsMatch |> shouldEqual true
     mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
-
-[<Test>]
-let ``Parse s-separate oldway - should not match``() =
-    let rgx = (``s-l-comments`` + (``s-flow-line-prefix`` 0)) ||| ``s-separate-in-line``
-
-    let yaml = "- value"
-    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
-    let (mr,pr) = AssesInputPostParseCondition (fun _ -> true)  streamReader rgx
-    mr |> shouldEqual true
-    pr.Match |> shouldEqual []
-
-    //pr.Match 
-    //|>  List.map(fun i -> i.Source)
-    //|>  List.fold(fun (sb:StringBuilder) (i:string) -> sb.Append(i)) (new StringBuilder())
-    //|>  fun sb -> sb.ToString()
-    //|>  shouldEqual "\n"
 
 
 [<Test>]
@@ -616,7 +622,7 @@ let ``Parse s-l-comments - should not match``() =
 
 
 [<Test>]
-let ``Parse s-indent(2) - should match``() =
+let ``Parse s-indent(2) - should not match``() =
     let rgx = ``s-indent(n)`` 2
     let rgxst = rgx |> CreatePushParser
 
@@ -628,7 +634,31 @@ let ``Parse s-indent(2) - should match``() =
 
 
 [<Test>]
-let ``Parse e-node - should not match``() =
+let ``Parse s-indent(0) - should match``() =
+    let rgx = ``s-indent(n)`` 0
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = "- r"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
+
+
+[<Test>]
+let ``Parse s-separate-lines - should match``() =
+    let rgx = ``s-indent(n)`` 0
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = "hr:"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
+
+
+[<Test>]
+let ``Parse e-node - should match``() =
 
     let rgx = ``e-node``
     let rgxst = rgx |> CreatePushParser
@@ -640,5 +670,39 @@ let ``Parse e-node - should not match``() =
     mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
 
 
+[<Test>]
+let ``Parse l-folded-content - should match``() =
+
+    let rgx = ``l-folded-content`` 1
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = "  Mark McGwire's
+  year was crippled
+  by a knee injury."
+  //  let yaml = "  Ma
+  //ya
+  //ba"
+
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected (yaml.Replace("\r", "")))
 
 
+[<Test>]
+let ``Parse l-folded-content oldway - should be an example``() =
+    let rgx = ``l-folded-content`` 1
+
+    let yaml = "  Mark McGwire's
+  year was crippled
+  by a knee injury."
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let (mr,pr) = AssesInputPostParseCondition (fun _ -> true)  streamReader rgx
+    mr |> shouldEqual true
+    //pr.Match |> shouldEqual []
+
+    pr.Match 
+    |>  List.map(fun i -> i.Source)
+    |>  List.fold(fun (sb:StringBuilder) (i:string) -> sb.Append(i)) (new StringBuilder())
+    |>  fun sb -> sb.ToString()
+    |>  shouldEqual (yaml.Replace("\r", ""))
