@@ -549,6 +549,30 @@ let ``l-strip-empty`` ps = ZOM((``s-indent(<=n)`` ps) + ``b-non-content``) + OPT
 let ``l-chomped-empty`` ps = ``l-strip-empty`` ps
 let ``l-folded-content`` ps = GRP(OPT((``l-nb-diff-lines`` ps) + (``b-chomped-last`` ps))) + (``l-chomped-empty`` ps)
 
+
+let ``c-indicator`` = 
+    RGO  (
+        "\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
+        [ 
+        Token.``t-hyphen``; Token.``t-questionmark``; Token.``t-colon``
+        Token.``t-comma``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
+        Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
+        Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+        Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
+        Token.``t-percent``; Token.``t-commat``;Token.``t-tick``
+        ])
+
+let ``c-sequence-entry`` = RGP ("-", [Token.``t-hyphen``])
+let ``c-mapping-key`` = RGP ("\\?", [Token.``t-questionmark``])
+let ``c-mapping-value`` = RGP (":", [Token.``t-colon``])
+let ``ns-plain-safe-block-key`` ps = ``ns-char``
+let ``c-comment`` = RGP ("#", [Token.``t-hash``])
+let ``ns-plain-char`` ps = (``ns-char`` + ``c-comment``) ||| ((``ns-plain-safe-block-key`` ps) - (RGO (":#", [Token.``t-colon``; Token.``t-hash``]))) ||| (``c-mapping-value`` + (``ns-plain-safe-block-key`` ps))
+let ``nb-ns-plain-in-line`` ps = ZOM(ZOM(``s-white``) + (``ns-plain-char`` ps))
+let ``ns-plain-first`` ps = (``ns-char`` - ``c-indicator``) ||| (``c-mapping-key`` ||| ``c-mapping-value`` ||| ``c-sequence-entry``) + (``ns-plain-safe-block-key`` ps)
+let ``ns-plain-one-line`` ps = (``ns-plain-first`` ps) + (``nb-ns-plain-in-line`` ps)
+
+
 [<Test>]
 let ``Parse Group and Once or More - should match``() =
     let icp = GRP(ZOM(RGP (``s-space``, [Token.``t-space``]))) + OOM(``ns-char``)
@@ -622,6 +646,27 @@ let ``Parse s-l-comments - should not match``() =
 
 
 [<Test>]
+let ``Parse s-l-comments oldway - should not match``() =
+    let rgx = ``s-l-comments``
+
+    let yaml = "- M"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    streamReader.Position <- 1
+    let (mr,pr) = AssesInputPostParseCondition (fun _ -> true)  streamReader rgx
+    mr |> shouldEqual false
+    pr.Match |> shouldEqual []
+
+    //pr.Match 
+    //|>  List.map(fun i -> i.Source)
+    //|>  List.fold(fun (sb:StringBuilder) (i:string) -> sb.Append(i)) (new StringBuilder())
+    //|>  fun sb -> sb.ToString()
+    //|>  shouldEqual (yaml.Replace("\r", ""))
+
+
+
+
+
+[<Test>]
 let ``Parse s-indent(2) - should not match``() =
     let rgx = ``s-indent(n)`` 2
     let rgxst = rgx |> CreatePushParser
@@ -647,14 +692,30 @@ let ``Parse s-indent(0) - should match``() =
 
 [<Test>]
 let ``Parse s-separate-lines - should match``() =
-    let rgx = ``s-indent(n)`` 0
+    let rgx = ``s-separate-lines`` 1
     let rgxst = rgx |> CreatePushParser
 
-    let yaml = "hr:"
+    let yaml = ":    # Comment
+        # lines
+  value"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    streamReader.Position <- 1
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "    # Comment\n        # lines\n  ")
+
+
+
+[<Test>]
+let ``Parse ns-plain - should match``() =
+    let rgx = ``ns-plain-one-line`` 2
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = "Mark McGwire's"
     let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
     let mr = MatchRegexState streamReader rgxst
     mr.IsMatch |> shouldEqual true
-    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "")
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "Mark McGwire's")
 
 
 [<Test>]

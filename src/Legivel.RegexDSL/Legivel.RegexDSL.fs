@@ -296,11 +296,13 @@ RepeatDoublePathState = {
 }
 and [<NoComparison; NoEquality>]
 IntermediateState = {
-        Reduce      : int
-        CharCount   : int
+        CharCount           : int
+        ReduceFromCharCount : int
+        IsFinal             : bool
     }
     with
-        static member Create c r = { Reduce = r; CharCount = c}
+        [<DebuggerStepThrough>]
+        static member Create c r b = { ReduceFromCharCount = r; CharCount = c; IsFinal = b}
 
 and [<NoComparison; NoEquality>]
 ParallelPathState = {
@@ -405,39 +407,29 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         let rec multiProcessor first (tg:(IntermediateState * RegexState) list) (ntl:(IntermediateState*ProcessResult) list) =
             match tg with
             |   []  -> 
-                let nextStates = ntl |> List.filter(fun (_,s) -> s.Reduce = 0)
-                if nextStates.Length = 0 then
-                    if ntl.Length=0 then
-                        ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
-                    else
-                        let largestReduce = 
-                            ntl
-                            |> List.map(fun (_,s) -> s)
-                            |> List.maxBy(fun s -> s.Reduce)
-                        ProcessResult.Create (CharacterMatch.Match, largestReduce.NextState, largestReduce.Reduce)
+                if ntl.Length=0 then
+                    ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
                 else
-                    ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with Targets = ntl |> List.rev |> List.map(fun (i,r) -> i, r.NextState) }, 0)
+                    //let chosenRedux = ntl |> List.map(fun (li,_) -> li.ReduceFromCharCount ) |> List.min
+                    let chosenRedux = ntl |> List.map(fun (li,_) -> li.ReduceFromCharCount ) |> List.last
+                    ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with CharCount = m.CharCount+1-chosenRedux; Targets = ntl |> List.rev |> List.map(fun (i,r) -> i, r.NextState) }, chosenRedux)
             |   (hr,hs) :: rest ->
-                if hr.Reduce = 0 then 
+                if not(hr.IsFinal) then 
                     let r = processState pr td hs
                     match r.IsMatch with
-                    |   CharacterMatch.Match when r.NextState.IsFinalValue && r.Reduce = 0 ->
-                        ProcessResult.Create (CharacterMatch.Match, st.NextState, r.Reduce)
-                        |> ProcessResult.AddGroupOf r
-                    |   CharacterMatch.Match when r.NextState.IsFinalValue && r.Reduce > 0 && first ->
+                    |   CharacterMatch.Match when r.NextState.IsFinalValue && first (*&& r.Reduce = 0*) ->
                         ProcessResult.Create (CharacterMatch.Match, m.NextState, r.Reduce)
                         |> ProcessResult.AddGroupOf r
-                    //|   CharacterMatch.Match when r.Reduce > 0 && first ->
-                    //    ProcessResult.Create (CharacterMatch.Match, r.NextState, r.Reduce)
+                    //|   CharacterMatch.Match when r.NextState.IsFinalValue && r.Reduce > 0 && first ->
+                    //    ProcessResult.Create (CharacterMatch.Match, m.NextState, r.Reduce)
                     //    |> ProcessResult.AddGroupOf r
-                    |   CharacterMatch.Match   -> multiProcessor false rest ((IntermediateState.Create m.CharCount r.Reduce,r)::ntl)
+                    |   CharacterMatch.Match   -> multiProcessor false rest ((IntermediateState.Create m.CharCount r.Reduce r.NextState.IsFinalValue,r)::ntl)
                     |   CharacterMatch.NoMatch -> multiProcessor first rest ntl
                 else
                     if first then
-                        ProcessResult.Create (CharacterMatch.Match, m.NextState, m.CharCount - hr.CharCount - hr.Reduce)
-                        //|> ProcessResult.AddGroupOf hr.
+                        ProcessResult.Create (CharacterMatch.Match, m.NextState, m.CharCount - hr.CharCount + hr.ReduceFromCharCount)
                     else
-                        let prr = ProcessResult.Create (CharacterMatch.Match, Final, hr.Reduce)
+                        let prr = ProcessResult.Create (CharacterMatch.Match, Final, hr.ReduceFromCharCount)
                         multiProcessor false rest ((hr,prr)::ntl)
         multiProcessor true m.Targets []    
     |   OptionalRGS o ->
@@ -491,7 +483,7 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  -> 
-            if iterFutureBelowMax zost && rm.Reduce = 0 then // do repeat
+            if iterFutureBelowMax zost && zost.CharCount + 1 > rm.Reduce then // do repeat
                 ProcessResult.Create (CharacterMatch.Match, repeatThisState zost, rm.Reduce)
             else
                ProcessResult.Create (CharacterMatch.Match, zost.NextState, rm.Reduce) 
@@ -561,7 +553,7 @@ let oneInSetParser (ois:OneInSet) =
 
 let oredParser (rl:RegexState list) =
     MultiRGS {
-        Targets     = rl |> List.map(fun e -> IntermediateState.Create 0 0, e)
+        Targets     = rl |> List.map(fun e -> IntermediateState.Create 0 0 false, e)
         NextState   = Final
         CharCount   = 0
     }
