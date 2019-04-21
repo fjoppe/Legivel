@@ -410,19 +410,15 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
                 if ntl.Length=0 then
                     ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
                 else
-                    //let chosenRedux = ntl |> List.map(fun (li,_) -> li.ReduceFromCharCount ) |> List.min
                     let chosenRedux = ntl |> List.map(fun (li,_) -> li.ReduceFromCharCount ) |> List.last
                     ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with CharCount = m.CharCount+1-chosenRedux; Targets = ntl |> List.rev |> List.map(fun (i,r) -> i, r.NextState) }, chosenRedux)
             |   (hr,hs) :: rest ->
                 if not(hr.IsFinal) then 
                     let r = processState pr td hs
                     match r.IsMatch with
-                    |   CharacterMatch.Match when r.NextState.IsFinalValue && first (*&& r.Reduce = 0*) ->
+                    |   CharacterMatch.Match when r.NextState.IsFinalValue && first ->
                         ProcessResult.Create (CharacterMatch.Match, m.NextState, r.Reduce)
                         |> ProcessResult.AddGroupOf r
-                    //|   CharacterMatch.Match when r.NextState.IsFinalValue && r.Reduce > 0 && first ->
-                    //    ProcessResult.Create (CharacterMatch.Match, m.NextState, r.Reduce)
-                    //    |> ProcessResult.AddGroupOf r
                     |   CharacterMatch.Match   -> multiProcessor false rest ((IntermediateState.Create m.CharCount r.Reduce r.NextState.IsFinalValue,r)::ntl)
                     |   CharacterMatch.NoMatch -> multiProcessor first rest ntl
                 else
@@ -433,13 +429,15 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
                         multiProcessor false rest ((hr,prr)::ntl)
         multiProcessor true m.Targets []    
     |   OptionalRGS o ->
-        let ost = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
+        let getStateWithAlt() = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
+        let ost = getStateWithAlt()     // split, so we can step over in debugger
 
         let rm = processState pr td ost.MainState
         let ra = processAlternativeState (ost.AlternateState.Value)
 
         let continueThisState ns rd =
-            OptionalRGS { ost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = ost.CharCount + 1 - rd}
+            let altSt = if ra.Reduce > 0 then Some (CharacterMatch.NoMatch, Final) else Some(ra.IsMatch, ra.NextState)
+            OptionalRGS { ost with MainState = ns; AlternateState = altSt; CharCount = ost.CharCount + 1 - rd}
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue   ->
@@ -454,11 +452,13 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
             ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
     |   RepeatRGS zom ->
         let hasMax = zom.Max >= zom.Min
-        let zost = 
+        
+        let getStateWithAlt() =
             { zom with
                 MainState       = if zom.MainState.IsFinalValue then zom.InitialState else zom.MainState
                 AlternateState  = if zom.AlternateState.IsNone then Some (CharacterMatch.Match, zom.NextState) else zom.AlternateState
             }
+        let zost = getStateWithAlt() // split, so we can step over in debugger
 
         let rm = 
             if zost.Max = 0 then
@@ -476,7 +476,8 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         let iterMinOrAfter zost = zost.IterCount >= zost.Min
 
         let continueThisState ns rd =
-            RepeatRGS { zost with MainState = ns; AlternateState = Some(ra.IsMatch, ra.NextState); CharCount = zost.CharCount + 1 - rd }
+            let altSt = if ra.Reduce > 0 then Some (CharacterMatch.NoMatch, Final) else Some(ra.IsMatch, ra.NextState)
+            RepeatRGS { zost with MainState = ns; AlternateState = altSt; CharCount = zost.CharCount + 1 - rd }
 
         let repeatThisState z = 
             RepeatRGS { z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1}
@@ -680,13 +681,9 @@ let MatchRegexState (streamReader:RollingStream<TokenData>) (rgst:TPParserState)
             else
                 let nr = { rgst with GroupResults = rt.GroupsResults @ rgst.GroupResults; NextState = rt.NextState }
                 rgxProcessor streamReader nr reduceMatch 
-        |   CharacterMatch.NoMatch (*when rt.Reduce = 0*) -> 
+        |   CharacterMatch.NoMatch -> 
             streamReader.Position <- startPos
             { IsMatch = false; FullMatch = []; GroupsResults = []}
-        //|   CharacterMatch.NoMatch  -> 
-        //    streamReader.Position <- streamReader.Position - rt.Reduce
-        //    let reduceMatch = (tk::matched) |> List.skip rt.Reduce
-        //    rgxProcessor streamReader {rgst with NextState = rt.NextState} reduceMatch
 
     let r = rgxProcessor streamReader rgst []
     let fullListOfGroups =

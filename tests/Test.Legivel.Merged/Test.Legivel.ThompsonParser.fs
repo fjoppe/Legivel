@@ -497,6 +497,16 @@ let ``c-printable`` =
             Token.``ns-dec-digit``; Token.``c-escape``
             ])
 
+let ``nb-json`` = 
+        RGO ("\u0009\u0020-\uffff",
+            [
+            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
+            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
+            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
+            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
+            Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
+            ])
+
 let ``s-space`` : string = "\u0020"
 let ``s-tab`` = "\u0009"  
 let ``nb-char``  = ``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) 
@@ -532,16 +542,20 @@ let ``e-node`` = ``e-scalar``
 let ``b-as-line-feed`` = ``b-break``
 let ``s-block-line-prefix`` ps = ``s-indent(n)`` ps
 let ``s-line-prefix block-in`` ps = ``s-block-line-prefix`` ps
-let ``l-empty`` ps = ((``s-line-prefix block-in`` ps) ||| (``s-indent(<n)`` ps)) + ``b-as-line-feed``
+let ``s-line-prefix flow-in`` ps = ``s-flow-line-prefix`` ps
+let ``l-empty block-in`` ps = ((``s-line-prefix block-in`` ps) ||| (``s-indent(<n)`` ps)) + ``b-as-line-feed``
+let ``l-empty flow-in`` ps = ((``s-line-prefix flow-in`` ps) ||| (``s-indent(<n)`` ps)) + ``b-as-line-feed``
 let ``s-nb-folded-text`` ps = (``s-indent(n)`` ps) + ZOM(``nb-char``)
-let ``b-l-trimmed`` ps = ``b-non-content`` + OOM(``l-empty`` ps)
+let ``b-l-trimmed block-in`` ps = ``b-non-content`` + OOM(``l-empty block-in`` ps)
+let ``b-l-trimmed flow-in`` ps = ``b-non-content`` + OOM(``l-empty flow-in`` ps)
 let ``b-as-space`` = ``b-break``
-let ``b-l-folded`` ps = (``b-l-trimmed`` ps) ||| ``b-as-space``
-let ``l-nb-folded-lines`` ps = (``s-nb-folded-text`` ps) + ZOM((``b-l-folded`` ps) + ``s-nb-folded-text`` ps)
+let ``b-l-folded block-in`` ps = (``b-l-trimmed block-in`` ps) ||| ``b-as-space``
+let ``b-l-folded flow-in`` ps = (``b-l-trimmed flow-in`` ps) ||| ``b-as-space``
+let ``l-nb-folded-lines`` ps = (``s-nb-folded-text`` ps) + ZOM((``b-l-folded block-in`` ps) + ``s-nb-folded-text`` ps)
 let ``s-nb-spaced-text`` ps = (``s-indent(n)`` ps) + ``s-white`` + ZOM(``nb-char``)
-let ``b-l-spaced`` ps = ``b-as-line-feed`` + ZOM(``l-empty`` ps)
+let ``b-l-spaced`` ps = ``b-as-line-feed`` + ZOM(``l-empty block-in`` ps)
 let ``l-nb-spaced-lines`` ps = (``s-nb-spaced-text`` ps) + ZOM((``b-l-spaced``ps) + (``s-nb-spaced-text`` ps))
-let ``l-nb-same-lines`` ps = ZOM(``l-empty`` ps) + ((``l-nb-folded-lines`` ps) ||| (``l-nb-spaced-lines`` ps))
+let ``l-nb-same-lines`` ps = ZOM(``l-empty block-in`` ps) + ((``l-nb-folded-lines`` ps) ||| (``l-nb-spaced-lines`` ps))
 let ``l-nb-diff-lines`` ps = (``l-nb-same-lines`` ps) + ZOM(``b-as-line-feed`` + (``l-nb-same-lines`` ps))
 let ``b-chomped-last`` ps = ``b-as-line-feed`` ||| RGP("\\z", [Token.EOF])
 let ``l-trail-comments`` ps = (``s-indent(<n)`` ps) + ``c-nb-comment-text`` + ``b-comment`` + ZOM(``l-comment``)
@@ -572,6 +586,18 @@ let ``nb-ns-plain-in-line`` ps = ZOM(ZOM(``s-white``) + (``ns-plain-char`` ps))
 let ``ns-plain-first`` ps = (``ns-char`` - ``c-indicator``) ||| (``c-mapping-key`` ||| ``c-mapping-value`` ||| ``c-sequence-entry``) + (``ns-plain-safe-block-key`` ps)
 let ``ns-plain-one-line`` ps = (``ns-plain-first`` ps) + (``nb-ns-plain-in-line`` ps)
 
+let ``c-single-quote`` = RGP ("\'", [Token.``t-single-quote``])
+let ``c-quoted-quote`` = ``c-single-quote`` + ``c-single-quote``
+let ``ns-single-char`` = // ``nb-single-char`` - ``s-white``
+    ``c-quoted-quote`` ||| (``nb-json`` - ``c-single-quote`` - ``s-white``)
+let ``nb-ns-single-in-line`` = ZOM(ZOM(``s-white``) + ``ns-single-char``)
+let ``s-flow-folded`` ps =
+        OPT(``s-separate-in-line``) + (``b-l-folded flow-in`` ps) + (``s-flow-line-prefix`` ps)
+
+let ``s-single-next-line`` ps = 
+        (ZOM((``s-flow-folded`` ps) + ``ns-single-char`` + ``nb-ns-single-in-line``) + (``s-flow-folded`` ps)) |||
+        (OOM((``s-flow-folded`` ps) + ``ns-single-char`` + ``nb-ns-single-in-line``) + ZOM(``s-white``))
+let ``nb-single-multi-line`` ps = ``nb-ns-single-in-line`` + ((``s-single-next-line`` ps) ||| ZOM(``s-white``))
 
 [<Test>]
 let ``Parse Group and Once or More - should match``() =
@@ -716,6 +742,17 @@ let ``Parse ns-plain - should match``() =
     let mr = MatchRegexState streamReader rgxst
     mr.IsMatch |> shouldEqual true
     mr.FullMatch |> stripTokenData  |> shouldEqual (expected "Mark McGwire's")
+
+[<Test>]
+let ``Parse nb-single-multi-line - should match``() =
+    let rgx = ``c-single-quote`` + GRP(``nb-single-multi-line`` 1) + ``c-single-quote``
+    let rgxst = rgx |> CreatePushParser
+
+    let yaml = "'text'"
+    let streamReader = RollingStream<_>.Create (tokenProcessor yaml) EndOfStream
+    let mr = MatchRegexState streamReader rgxst
+    mr.IsMatch |> shouldEqual true
+    mr.FullMatch |> stripTokenData  |> shouldEqual (expected "'text'")
 
 
 [<Test>]

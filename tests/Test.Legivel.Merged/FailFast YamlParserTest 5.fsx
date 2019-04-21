@@ -94,10 +94,10 @@ let YamlParseWithErrors s =
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//  Example 2.1
+//  Example 5.8
 
 YamlParse "
-- Mark McGwire
-- Sammy Sosa
-- Ken Griffey"
+single: 'text'
+double: \"text\"
+"
 
