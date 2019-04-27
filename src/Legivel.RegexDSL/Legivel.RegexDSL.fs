@@ -11,6 +11,7 @@ open System.Globalization
 open Legivel.Tokenizer
 open System.Collections.Generic
 open System.ComponentModel
+open System.Data
 
 exception RegexException of string
 
@@ -253,8 +254,8 @@ type ParseOutput = bool * ParseResult
 //  ================================================================================================
 
 type CharacterMatch =
-    |   NoMatch         //  decided no match
-    |   Match           //  decided match
+    |   NoMatch     = 0    //  decided no match
+    |   Match       = 1    //  decided match
 
 
 type SingleStepFunc = TokenData option -> TokenData -> RegexState -> ProcessResult
@@ -310,42 +311,54 @@ ParallelPathState = {
     Targets         :   (IntermediateState * RegexState) list
     NextState       :   RegexState
 }
+and RegexValue =
+    |   SingleRGS   = 0
+    |   ConcatRGS   = 1
+    |   OptionalRGS = 2
+    |   RepeatRGS   = 3
+    |   MultiRGS    = 4
+    |   GroupRGS    = 5
+    |   Final       = 6
 and [<NoComparison; NoEquality>]
-RegexState =
-    |   SingleRGS   of  SingleStepState
-    |   ConcatRGS   of  SinglePathState
-    |   OptionalRGS of  DoublePathState
-    |   RepeatRGS   of  RepeatDoublePathState
-    |   MultiRGS    of  ParallelPathState
-    |   GroupRGS    of  SingleTrackingPathState
-    |   Final
+RegexState = {
+    StateType : RegexValue
+    StateData : obj
+    //|   SingleRGS   of  SingleStepState
+    //|   ConcatRGS   of  SinglePathState
+    //|   OptionalRGS of  DoublePathState
+    //|   RepeatRGS   of  RepeatDoublePathState
+    //|   MultiRGS    of  ParallelPathState
+    //|   GroupRGS    of  SingleTrackingPathState
+    //|   Final
+    }
     with
         member this.NextState 
             with get() = 
-                match this with
-                |   SingleRGS   s -> s.NextState
-                |   ConcatRGS   s -> s.NextState
-                |   MultiRGS    s -> s.NextState
-                |   OptionalRGS s -> s.NextState
-                |   RepeatRGS   s -> s.NextState
-                |   GroupRGS    s -> s.NextState
-                |   Final -> Final
+                match this.StateType with
+                |   RegexValue.SingleRGS   -> unbox<SingleStepState>(this.StateData).NextState
+                |   RegexValue.ConcatRGS   -> unbox<SinglePathState>(this.StateData).NextState
+                |   RegexValue.MultiRGS    -> unbox<ParallelPathState>(this.StateData).NextState
+                |   RegexValue.OptionalRGS -> unbox<DoublePathState>(this.StateData).NextState
+                |   RegexValue.RepeatRGS   -> unbox<RepeatDoublePathState>(this.StateData).NextState
+                |   RegexValue.GroupRGS    -> unbox<SingleTrackingPathState>(this.StateData).NextState
+                |   RegexValue.Final       -> this
+                |   _ -> failwith "Illegal value for this.StateType"
 
         member this.SetNextState ns =
-                match this with
-                |   SingleRGS   s -> SingleRGS {s  with NextState = ns}
-                |   ConcatRGS   s -> ConcatRGS {s  with NextState = ns}
-                |   MultiRGS    s -> MultiRGS  {s  with NextState = ns}
-                |   OptionalRGS s -> OptionalRGS {s  with NextState = ns}
-                |   RepeatRGS   s -> RepeatRGS {s  with NextState = ns}
-                |   GroupRGS    s -> GroupRGS {s  with NextState = ns}
-                |   Final -> Final
+                match this.StateType with
+                |   RegexValue.SingleRGS   -> { this with StateData = { unbox<SingleStepState>(this.StateData) with NextState = ns}}
+                |   RegexValue.ConcatRGS   -> { this with StateData = { unbox<SinglePathState>(this.StateData) with NextState = ns}}
+                |   RegexValue.MultiRGS    -> { this with StateData = { unbox<ParallelPathState>(this.StateData) with NextState = ns}}
+                |   RegexValue.OptionalRGS -> { this with StateData = { unbox<DoublePathState>(this.StateData) with NextState = ns}}
+                |   RegexValue.RepeatRGS   -> { this with StateData = { unbox<RepeatDoublePathState>(this.StateData) with NextState = ns}}
+                |   RegexValue.GroupRGS    -> { this with StateData = { unbox<SingleTrackingPathState>(this.StateData) with NextState = ns}}
+                |   RegexValue.Final       -> this
+                |   _ -> failwith "Illegal value for this.StateType"
 
         member this.IsFinalValue
-            with get() = 
-                match this with
-                |   Final -> true
-                |   _     -> false
+            with get() = this.StateType = RegexValue.Final
+
+        static member Final() = { StateType = RegexValue.Final; StateData = box(None)}
 
 and GroupResult = {
         Id      :   int
@@ -384,17 +397,22 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
 
     let processAlternativeState (cm:CharacterMatch, st:RegexState) = 
         if cm = CharacterMatch.NoMatch ||  st.IsFinalValue then
-            ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), 0)
         else
             processState pr td st
 
-    match st with
-    |   SingleRGS s -> 
+    match st.StateType with
+    |   RegexValue.SingleRGS -> 
+        let s = unbox<SingleStepState>(st.StateData)
         s.Transiton pr td st
-    |   ConcatRGS s -> 
-        let repeatThisState ns = ConcatRGS {s with MainState = ns}
+    |   RegexValue.ConcatRGS -> 
+        let s = unbox<SinglePathState>(st.StateData)
+        let repeatThisState ns = {st with StateData = box({s with MainState = ns})}
         let r = processState pr td s.MainState
         match r.IsMatch with
+        //|   CharacterMatch.Match when r.Reduce = 1 && not(r.NextState.IsFinalValue) -> 
+        //    processState pr td ({st with StateData = box({s with MainState = r.NextState})})
+        //    |> ProcessResult.AddGroupOf r
         |   CharacterMatch.Match when r.NextState.IsFinalValue -> 
             ProcessResult.Create (CharacterMatch.Match, s.NextState, r.Reduce)
             |> ProcessResult.AddGroupOf r
@@ -402,16 +420,17 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
             ProcessResult.Create (CharacterMatch.Match, repeatThisState r.NextState, r.Reduce)
             |> ProcessResult.AddGroupOf r
         |   CharacterMatch.NoMatch  -> 
-            ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
-    |   MultiRGS m ->
+            ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), 0)
+    |   RegexValue.MultiRGS ->
+        let m = unbox<ParallelPathState>(st.StateData)
         let rec multiProcessor first (tg:(IntermediateState * RegexState) list) (ntl:(IntermediateState*ProcessResult) list) =
             match tg with
             |   []  -> 
                 if ntl.Length=0 then
-                    ProcessResult.Create (CharacterMatch.NoMatch, Final,0)
+                    ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(),0)
                 else
                     let chosenRedux = ntl |> List.map(fun (li,_) -> li.ReduceFromCharCount ) |> List.last
-                    ProcessResult.Create (CharacterMatch.Match, MultiRGS { m with CharCount = m.CharCount+1-chosenRedux; Targets = ntl |> List.rev |> List.map(fun (i,r) -> i, r.NextState) }, chosenRedux)
+                    ProcessResult.Create (CharacterMatch.Match, { st with StateData = box ({ m with CharCount = m.CharCount+1-chosenRedux; Targets = ntl |> List.rev |> List.map(fun (i,r) -> i, r.NextState) })}, chosenRedux)
             |   (hr,hs) :: rest ->
                 if not(hr.IsFinal) then 
                     let r = processState pr td hs
@@ -425,10 +444,11 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
                     if first then
                         ProcessResult.Create (CharacterMatch.Match, m.NextState, m.CharCount - hr.CharCount + hr.ReduceFromCharCount)
                     else
-                        let prr = ProcessResult.Create (CharacterMatch.Match, Final, hr.ReduceFromCharCount)
+                        let prr = ProcessResult.Create (CharacterMatch.Match, RegexState.Final(), hr.ReduceFromCharCount)
                         multiProcessor false rest ((hr,prr)::ntl)
         multiProcessor true m.Targets []    
-    |   OptionalRGS o ->
+    |   RegexValue.OptionalRGS ->
+        let o = unbox<DoublePathState>(st.StateData)
         let getStateWithAlt() = { o with AlternateState = if o.AlternateState.IsNone then Some (CharacterMatch.Match, o.NextState) else o.AlternateState}
         let ost = getStateWithAlt()     // split, so we can step over in debugger
 
@@ -436,8 +456,8 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         let ra = processAlternativeState (ost.AlternateState.Value)
 
         let continueThisState ns rd =
-            let altSt = if ra.Reduce > 0 then Some (CharacterMatch.NoMatch, Final) else Some(ra.IsMatch, ra.NextState)
-            OptionalRGS { ost with MainState = ns; AlternateState = altSt; CharCount = ost.CharCount + 1 - rd}
+            let altSt = if ra.Reduce > 0 then Some (CharacterMatch.NoMatch, RegexState.Final()) else Some(ra.IsMatch, ra.NextState)
+            { st with StateData = box({ ost with MainState = ns; AlternateState = altSt; CharCount = ost.CharCount + 1 - rd})}
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue   ->
@@ -450,7 +470,8 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
             ProcessResult.Create (CharacterMatch.Match, ra.NextState, ra.Reduce)
         |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    ->
             ProcessResult.Create (CharacterMatch.Match, ost.NextState, ost.CharCount+1)
-    |   RepeatRGS zom ->
+    |   RegexValue.RepeatRGS ->
+        let zom = unbox<RepeatDoublePathState>(st.StateData)
         let hasMax = zom.Max >= zom.Min
         
         let getStateWithAlt() =
@@ -462,12 +483,12 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
 
         let rm = 
             if zost.Max = 0 then
-                ProcessResult.Create (CharacterMatch.Match, Final, zost.CharCount+1)
+                ProcessResult.Create (CharacterMatch.Match, RegexState.Final(), zost.CharCount+1)
             else
                 processState pr td zost.MainState
         let ra = 
             if zost.Max = 0 then
-                ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+                ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), 0)
             else
                 processAlternativeState (zost.AlternateState.Value)
 
@@ -476,11 +497,11 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         let iterMinOrAfter zost = zost.IterCount >= zost.Min
 
         let continueThisState ns rd =
-            let altSt = if ra.Reduce > 0 then Some (CharacterMatch.NoMatch, Final) else Some(ra.IsMatch, ra.NextState)
-            RepeatRGS { zost with MainState = ns; AlternateState = altSt; CharCount = zost.CharCount + 1 - rd }
+            let altSt = if ra.Reduce > 0 then Some (CharacterMatch.NoMatch, RegexState.Final()) else Some(ra.IsMatch, ra.NextState)
+            { st with StateData = box ({ zost with MainState = ns; AlternateState = altSt; CharCount = zost.CharCount + 1 - rd })}
 
         let repeatThisState z = 
-            RepeatRGS { z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1}
+            { st with StateData = box ({ z with MainState = z.InitialState; AlternateState = None; CharCount = 0; IterCount = z.IterCount + 1})}
 
         match (rm.IsMatch, ra.IsMatch) with
         |   (CharacterMatch.Match, _)  when rm.NextState.IsFinalValue  -> 
@@ -494,14 +515,16 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
             if (iterBelowMax zost && iterMinOrAfter zost) then
                 ProcessResult.Create (CharacterMatch.Match, ra.NextState, ra.Reduce)
             else
-                ProcessResult.Create (CharacterMatch.NoMatch, Final, zost.CharCount+1)
+                ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), zost.CharCount+1)
         |   (CharacterMatch.NoMatch, CharacterMatch.NoMatch)    -> 
             if (iterBelowMax zost && iterMinOrAfter zost) then
                 ProcessResult.Create (CharacterMatch.Match, zost.NextState, zost.CharCount+1)
             else
-                ProcessResult.Create (CharacterMatch.NoMatch, Final, zost.CharCount+1)
-    |   GroupRGS s ->
-        let repeatThisState ns rd = GroupRGS { s with MainState = ns; Track = (td::s.Track) |> List.skip(rd) }
+                ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), zost.CharCount+1)
+    |   RegexValue.GroupRGS ->
+        let s = unbox<SingleTrackingPathState>(st.StateData)
+        let repeatThisState ns rd = 
+            { st with StateData = box ({ s with MainState = ns; Track = (td::s.Track) |> List.skip(rd) })}
 
         let r = processState pr td s.MainState
         match r.IsMatch with
@@ -512,10 +535,11 @@ let rec processState (pr:TokenData option) (td:TokenData) (st:RegexState)  =
         |   CharacterMatch.Match    -> 
             ProcessResult.Create (CharacterMatch.Match, repeatThisState r.NextState r.Reduce, r.Reduce)
         |   CharacterMatch.NoMatch  -> 
-            ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+            ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), 0)
             |>  ProcessResult.AddGroup (GroupResult.CreateEmpty s.Id)
 
-    |   Final   -> ProcessResult.Create (CharacterMatch.Match, Final, 0)
+    |   RegexValue.Final   -> ProcessResult.Create (CharacterMatch.Match, RegexState.Final(), 0)
+    |   _ -> failwith "Illegal value for this.StateType"
 
 
 let plainParser (pl:Plain) =
@@ -526,7 +550,7 @@ let plainParser (pl:Plain) =
                 if (pr = None || pr.Value.Token = Token.NewLine) then
                     ProcessResult.Create (CharacterMatch.Match,   st.NextState, 1)
                 else
-                    ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+                    ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), 0)
             |   (_, [Token.EOF]) when td.Token = Token.EOF ->
                 ProcessResult.Create (CharacterMatch.Match,   st.NextState, 1)
             |   (_, []) -> 
@@ -534,9 +558,12 @@ let plainParser (pl:Plain) =
             |   _ when pl.``fixed`` = td.Source ->
                 ProcessResult.Create (CharacterMatch.Match,   st.NextState, 0)
             |   _ ->
-                ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
+                ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), 0)
 
-    SingleRGS { Transiton = fn; NextState = Final; Info = pl.``fixed``}
+    {
+        StateType = RegexValue.SingleRGS
+        StateData = { Transiton = fn; NextState = RegexState.Final(); Info = pl.``fixed``} |> box
+    }
 
 let oneInSetParser (ois:OneInSet) =
     let fn =
@@ -548,16 +575,25 @@ let oneInSetParser (ois:OneInSet) =
                 (checkItWith &&& uint32(td.Token) > 0u)
             |>  function
                 |   true   -> ProcessResult.Create (CharacterMatch.Match,   st.NextState, 0)
-                |   false -> ProcessResult.Create (CharacterMatch.NoMatch, Final, 0)
-    SingleRGS { Transiton = fn; NextState = Final; Info = sprintf "(%s)-(%s)" ois.mainset ois.subtractset}
+                |   false -> ProcessResult.Create (CharacterMatch.NoMatch, RegexState.Final(), 0)
+    {
+        StateType = RegexValue.SingleRGS
+        StateData = { Transiton = fn; NextState = RegexState.Final(); Info = sprintf "(%s)-(%s)" ois.mainset ois.subtractset} |> box
+    }
+    
 
 
 let oredParser (rl:RegexState list) =
-    MultiRGS {
-        Targets     = rl |> List.map(fun e -> IntermediateState.Create 0 0 false, e)
-        NextState   = Final
-        CharCount   = 0
+    {
+        StateType = RegexValue.MultiRGS 
+        StateData = {
+            Targets     = rl |> List.map(fun e -> IntermediateState.Create 0 0 false, e)
+            NextState   = RegexState.Final()
+            CharCount   = 0
+        }
+        |> box
     }
+
 
 
 let concatParser (rl:RegexState list) = 
@@ -568,53 +604,78 @@ let concatParser (rl:RegexState list) =
     let ccc =
         rl
         |>  List.rev
-        |>  knit Final
-    ConcatRGS { MainState =ccc; NextState = Final}
+        |>  knit (RegexState.Final())
+    {
+        StateType = RegexValue.ConcatRGS
+        StateData = { MainState =ccc; NextState = RegexState.Final()} |> box
+    }
 
 let optionalParser (ro:RegexState) =
-    OptionalRGS {MainState = ro; AlternateState = None; NextState = Final; CharCount = 0}
+    {
+        StateType = RegexValue.OptionalRGS 
+        StateData = {MainState = ro; AlternateState = None; NextState = RegexState.Final(); CharCount = 0} |> box
+    }
+    
 
 let zeroOrMoreParser (ro:RegexState) = 
-    RepeatRGS 
+    {
+        StateType = RegexValue.RepeatRGS 
+        StateData = 
         {
             Min = 0
             Max = -1
             MainState = ro
             InitialState = ro
             AlternateState = None
-            NextState = Final
+            NextState = RegexState.Final()
             CharCount = 0
             IterCount = 0
         }
+        |> box
+    }
+
 
 let oneOrMoreParser (ro:RegexState) = 
-    RepeatRGS 
+    {
+        StateType = RegexValue.RepeatRGS 
+        StateData = 
         {
             Min = 1
             Max = -1
             MainState = ro
             InitialState = ro
             AlternateState = None
-            NextState = Final
+            NextState = RegexState.Final()
             CharCount = 0
             IterCount = 0
         }
+        |> box
+    }
+
 
 let RangeParser (ro:RegexState) mn mx = 
-    RepeatRGS 
+    {
+        StateType = RegexValue.RepeatRGS 
+        StateData = 
         {
             Min = mn
             Max = mx
             MainState = ro
             InitialState = ro
             AlternateState = None
-            NextState = Final
+            NextState = RegexState.Final()
             CharCount = 0
             IterCount = 0
         }
+        |> box
+    }
+
 
 let GroupParser (gc:int) (ro:RegexState) =
-    GroupRGS {Id = gc; Track  = []; MainState=ro; NextState = Final }
+    {
+        StateType = RegexValue.GroupRGS 
+        StateData = box({Id = gc; Track  = []; MainState=ro; NextState = RegexState.Final() })
+    }
 
 
 let CreatePushParser (rgx:RGXType) =

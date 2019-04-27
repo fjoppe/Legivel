@@ -2,15 +2,15 @@
 
 #time
 
-#r @"bin/Debug/net45/FSharp.Core.dll"
-//#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
-#r @"bin/Debug/net45/Legivel.Parser.dll"
-#r @"bin/Debug/net45/NLog.dll"
+//#r @"bin/Debug/net45/FSharp.Core.dll"
+////#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
+//#r @"bin/Debug/net45/Legivel.Parser.dll"
+//#r @"bin/Debug/net45/NLog.dll"
 
 
-//#r @"bin/Release/net45/FSharp.Core.dll"
-//#r @"bin/Release/net45/Legivel.Parser.dll"
-//#r @"bin/Release/net45/NLog.dll"
+#r @"bin/Release/net45/FSharp.Core.dll"
+#r @"bin/Release/net45/Legivel.Parser.dll"
+#r @"bin/Release/net45/NLog.dll"
 
 open System
 open System.Globalization
@@ -62,8 +62,8 @@ let PrintNode crr =
 let YamlParse s =
     try
         let repr = (engine.``l-yaml-stream`` s)
-        let crr = repr.Head 
-        PrintNode crr
+        //let crr = repr.Head 
+        //PrintNode crr
         ()
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
@@ -91,13 +91,7 @@ let YamlParseWithErrors s =
     with
     | e -> printfn "%A" e; raise e
 
-//let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
+let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
-
-//  Example 5.8
-
-YamlParse "
-single: 'text'
-double: \"text\"
-"
+YamlParse s
 
