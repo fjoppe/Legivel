@@ -1,4 +1,4 @@
-#### 0.3.0 - April 27 2019
+#### 0.3.0 - May 4 2019
 *   Added netstandard2.0 support
 *   Various performance improvements
 *   Got all unit-tests working for all target-platforms
