@@ -1,7 +1,7 @@
-#### 0.3.0 - Januari 25 2019
+#### 0.3.0 - April 27 2019
 *   Added netstandard2.0 support
 *   Various performance improvements
-*   Got all unit-tests workhng for all target-platforms
+*   Got all unit-tests working for all target-platforms
 *   Upgraded to FAKE5, with latest Project Scaffold
 *   Changed from Paket.Pack to DotNet.Pack
 

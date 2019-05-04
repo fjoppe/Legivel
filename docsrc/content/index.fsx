@@ -4,6 +4,9 @@
 #I __SOURCE_DIRECTORY__
 #I "../../bin/Legivel.Mapper/netstandard2.0"
 
+fsi.ShowDeclarationValues <- false
+fsi.ShowProperties <- false
+fsi.ShowIEnumerable <- false
 
 (**
 Legivel

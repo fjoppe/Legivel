@@ -367,7 +367,7 @@ Target.create "Docs" (fun _ ->
                 Source = content
                 OutputDirectory = output + "\" \"--fsieval"
                 LayoutRoots = layoutRoots
-                ProjectParameters  = ("root", root)::info               
+                ProjectParameters  = ("root", root)::info     
                 Template = docTemplate } )
 )
 

@@ -65,7 +65,6 @@
     </Compile>
     <None Include="Legivel.nuspec" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\Legivel.Parser.Merged\Legivel.Parser.fsproj">
       <Name>Legivel.Parser</Name>
