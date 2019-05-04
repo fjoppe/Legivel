@@ -4,7 +4,7 @@ open Legivel.Common
 open System.Diagnostics
 
 module internal ParserMonads =
-    [<Struct;NoEquality; NoComparison>]
+    [<NoEquality; NoComparison>]
     type EitherResult<'a,'b> = {
         Context : 'a
         Result'  : FallibleOption<'b>*ParseMessage
