@@ -13,6 +13,8 @@ type Yaml12Parser =
         /// Constructor for plain simple yaml parsing
         new : GlobalTagSchema -> Yaml12Parser
 
+        member SetLogFunc : (string -> unit) -> unit
+
         /// Main entry point for yaml parsing
         /// http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
         member ``l-yaml-stream`` : string -> Representation list

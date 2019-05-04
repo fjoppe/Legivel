@@ -56,14 +56,21 @@ val GRP : RGXType -> RGXType
 /// Returns rest-string, where match 'm' is removed from source 's'
 val Advance : string * string -> string
 
+type ParseResult = {
+    Groups  : (TokenData list) list;
+    Match   : (TokenData list)
+}
+
+type ParseOutput = bool * ParseResult
+
 /// Primary input assesment with Post-Parse condition. The condition is checked after each RGP token/char.
-val AssesInputPostParseCondition : (RollingStream<TokenData> * TokenData -> bool) -> RollingStream<TokenData> -> RGXType -> bool * TokenData list
+val AssesInputPostParseCondition : (RollingStream<TokenData> * TokenData -> bool) -> RollingStream<TokenData> -> RGXType -> ParseOutput
 
 /// Primary input assesment, rough input match (at token-level), if match, return the input that matched
-val AssesInput : RollingStream<TokenData> -> RGXType -> bool * TokenData list
+val AssesInput : RollingStream<TokenData> -> RGXType -> ParseOutput
 
 /// Matched tokens to matched string
-val TokenDataToString : bool * TokenData list -> string option
+val TokenDataToString : ParseOutput -> string option
 
 /// MatchResult of a regex match
 type MatchResult = {

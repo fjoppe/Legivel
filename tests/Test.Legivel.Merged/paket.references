@@ -1,8 +1,8 @@
 FSharp.Core
 Fsharp.Data
 FSharp.Charting
-group Test
+Microsoft.NET.Test.Sdk
 NUnit
+NUnit3TestAdapter
 NLog.FSharp
-FSharp.Data
 File:FsUnitTyped.fs

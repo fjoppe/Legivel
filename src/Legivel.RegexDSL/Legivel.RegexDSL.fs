@@ -55,7 +55,9 @@ and OneInSet =
         not      : bool
         mainset  : string
         subtractset : string
+        OneInSet : Lazy<string>
         Token'     : Lazy<Token list>
+        TokenQuickCheck : Lazy<uint32>
     }
     static member subtractable = [
             Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
@@ -64,6 +66,12 @@ and OneInSet =
             Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
             Token.``c-escape``; 
             ]
+
+    static member OptimizeSet (ms:string) (ss:string) =
+        let sar = ss.ToCharArray()
+        ms.ToCharArray()
+        |>  Array.filter(fun c -> not (Array.exists(fun ce -> ce = c) sar))
+        |>  fun ca -> new string(ca)
 
     override this.ToString() =
         let subtract = this.subtractset <> ""
@@ -76,19 +84,29 @@ and OneInSet =
 
     static member (-) (r1:OneInSet, r2:OneInSet) =
         let subtr = lazy(r2.Token'.Force() |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.mainset; not = r1.not; Token' = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))}
+        let tokens = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))
+        let ms = r1.mainset
+        let ss =  r1.subtractset + r2.mainset
+        {mainset = ms; subtractset = ss; OneInSet = lazy(OneInSet.OptimizeSet ms ss); not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
 
     static member (-) (r1:OneInSet, r2:Plain) =
         let subtr = lazy(r2.Token |> List.filter(fun e -> OneInSet.subtractable |> List.exists(fun s -> e=s)))
-        {mainset = r1.mainset; subtractset = r1.subtractset + r2.``fixed``; not = r1.not; Token' = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))}
+        let tokens = lazy(r1.Token'.Force() |> List.filter(fun tf -> subtr.Force() |> List.exists(fun te -> te = tf) |> not))
+        let ms = r1.mainset
+        let ss = r1.subtractset + r2.``fixed``
+        {mainset = ms; subtractset = ss; OneInSet = lazy(OneInSet.OptimizeSet ms ss); not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
 
     static member (+) (r1:OneInSet, r2:OneInSet) =
-        {mainset = r1.mainset + r2.mainset; subtractset = r1.subtractset + r2.subtractset; not = r1.not; Token' = lazy(r1.Token'.Force() @ r2.Token'.Force()) }
+        let tokens = lazy(r1.Token'.Force() @ r2.Token'.Force()) 
+        let ms = r1.mainset + r2.mainset
+        let ss = r1.subtractset + r2.subtractset
+        {mainset = ms; subtractset = ss; OneInSet = lazy(OneInSet.OptimizeSet ms ss); not = r1.not; Token' = tokens; TokenQuickCheck = lazy(tokens.Force() |> List.fold(fun s i -> s ||| uint32(i)) 0u) }
 
     static member (+) (_:OneInSet, _:Plain) =
         failwith "Unsupported RGX addition"
 
-    static member Create r tl = {mainset= r; subtractset = ""; not = false; Token' = lazy(tl)}
+    static member Create r tl = 
+        {mainset= r; subtractset = ""; OneInSet = lazy(OneInSet.OptimizeSet r ""); not = false; Token' = lazy(tl); TokenQuickCheck = lazy(tl |> List.fold(fun s i -> s ||| uint32(i)) 0u)}
 
 
     member this.Token with get () = this.Token'.Force()
@@ -110,27 +128,31 @@ and RGXType =
     |   Optional   of RGXType
     |   Group      of RGXType
 
-    override this.ToString() = 
-        match this with
-        |   Plain    r -> r.ToString()
-        |   OneInSet r -> r.ToString()
-        |   Or       l ->
-                let l = l |> List.rev
-                let body = l.Tail |> List.fold(fun s e -> sprintf "(?:%s)|%O" s e) (sprintf "%O" l.Head)
-                sprintf "(?:%s)" body
-        |   Concat   l ->
-                let l = l |> List.rev
-                l.Tail |> List.fold(fun s e -> sprintf "(?:%s)%O" s e) (sprintf "%O" l.Head)
-        |   IterRange(t,mx,mno) ->
-                match mno with
-                |   Some(mn) ->  sprintf "(?:%O){%d,%d}" t mn mx
-                |   None     ->  sprintf "(?:%O){%d}" t mx
-        |   ZeroOrMore t -> sprintf "(?:%O)*" t
-        |   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
-        |   OneOrMore  t -> sprintf "(?:%O)+" t
-        |   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
-        |   Optional   t -> sprintf "(?:%O)?" t
-        |   Group      t -> sprintf "(%O)" t
+    member this.ToStringOnce() = 
+        let str =
+            match this with
+            |   Plain    r -> r.ToString()
+            |   OneInSet r -> r.ToString()
+            |   Or       l ->
+                    let l = l |> List.rev
+                    let body = l.Tail |> List.fold(fun s e -> sprintf "(?:%s)|%O" s e) (sprintf "%O" l.Head)
+                    sprintf "(?:%s)" body
+            |   Concat   l ->
+                    let l = l |> List.rev
+                    l.Tail |> List.fold(fun s e -> sprintf "(?:%s)%O" s e) (sprintf "%O" l.Head)
+            |   IterRange(t,mx,mno) ->
+                    match mno with
+                    |   Some(mn) ->  sprintf "(?:%O){%d,%d}" t mn mx
+                    |   None     ->  sprintf "(?:%O){%d}" t mx
+            |   ZeroOrMore t -> sprintf "(?:%O)*" t
+            |   ZeroOrMoreNonGreedy t -> sprintf "(?:%O)*?" t
+            |   OneOrMore  t -> sprintf "(?:%O)+" t
+            |   OneOrMoreNonGreedy  t -> sprintf "(?:%O)+?" t
+            |   Optional   t -> sprintf "(?:%O)?" t
+            |   Group      t -> sprintf "(%O)" t
+        str
+
+    override this.ToString() = this.ToStringOnce()
 
     static member private DoConcat (r1:RGXType, r2:RGXType) = 
         match (r1,r2) with
@@ -138,9 +160,12 @@ and RGXType =
         |   _   -> Concat([r2; r1])
 
     static member (|||) (r1:RGXType, r2:RGXType) =
-        match r1 with
-        | Or     l ->   Or(r2 :: l)
-        | _       ->    Or([r2; r1])
+        match (r1,r2) with
+        |   (OneInSet o1, OneInSet o2)   -> OneInSet(o1 + o2)
+        |   _ ->
+            match r1 with
+            | Or     l ->   Or(r2 :: l)
+            | _       ->    Or([r2; r1])
 
     static member (-) (r1:RGXType, r2:RGXType) =
         match (r1,r2) with
@@ -207,26 +232,37 @@ let GRP p = Group(p)
 let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
+type ParseResult = {
+    Groups  : (TokenData list) list;
+    Match   : (TokenData list)
+}
+with
+    static member Empty = {Groups = []; Match = []}
+    static member Create m g = {Groups = g; Match = m}
+
+
+type ParseOutput = bool * ParseResult
+
 let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenData -> bool) (rs:RollingStream<TokenData>) (rg:RGXType) =
-    let rec parse rgx tkl =
-        let conditionalParse rgx tk =
+    let rec parse rgx tkl gl : ParseOutput =
+        let conditionalParse rgx tk gl : ParseOutput =
             let p = rs.Position
-            let r = parse rgx tk 
+            let r = parse rgx tk gl
             if not(fst(r)) then rs.Position <- p
             r
 
-        let mkResult t tkl =
+        let mkResult t tkl gl =
             function 
-            | true ->  (true, t :: tkl) 
-            | false -> (false, tkl)
+            | true ->  (true,  ParseResult.Create (t :: tkl) gl) 
+            | false -> (false, ParseResult.Create tkl gl)
 
-        let rec repeatWhileMatching t acc =
-            let pr = conditionalParse t tkl
-            let added : 'a list = snd pr
-            if (fst pr) && added.Length > 0 then 
+        let rec repeatWhileMatching t acc gl =
+            let pr = conditionalParse t tkl gl
+            let added = (snd pr).Match
+            if (fst pr) && added <> [] then 
                 let nwa = (added @ acc)
-                repeatWhileMatching t nwa
-            else acc 
+                repeatWhileMatching t nwa gl
+            else ParseResult.Create acc gl
 
         let checkParseCondition() =
             let noToken = TokenData.Create Token.NoToken ""
@@ -235,77 +271,96 @@ let AssesInputPostParseCondition (condition: RollingStream<TokenData> * TokenDat
                 |   Some x  -> condition (rs, x)
                 |   None    -> condition (rs, noToken)
 
-        if rs.EOF then (false, [])
+        if rs.EOF then 
+            (false, ParseResult.Empty)
         else
             match rgx with
             |   OneInSet ois    -> 
                 if checkParseCondition() then
-                    rs.Get() |> fun i -> ois.Token |> List.exists(fun e -> e=i.Token) |> mkResult i tkl
+                    rs.Get() 
+                    |> fun i -> 
+                        if uint32(i.Token) >= 0b0100_0000_0000_0000_0000_0000_0000_0000u then
+                            ois.Token |> List.exists(fun e -> e=i.Token)
+                        else
+                            let checkItWith = ois.TokenQuickCheck.Force()
+                            if (checkItWith &&& uint32(i.Token) > 0u) then
+                                //let p = ois.OneInSet.Force()
+                                //let r = p.Contains(i.Source)    // not ready yet to check one in set char-by-char
+                                true
+                            else
+                                false
+                        |> mkResult i tkl gl
                 else
-                    (false, [])
+                    (false, ParseResult.Empty)
             |   Plain pl        -> 
                 if checkParseCondition() then
                     match (pl.``fixed``, pl.Token) with
                     |   ("^",[Token.NoToken]) ->
                         let pk = rs.PeekPrevious()
-                        (pk = None || pk.Value.Token = Token.NewLine), []
+                        (pk = None || pk.Value.Token = Token.NewLine), ParseResult.Empty
                     |   (_, [Token.EOF]) ->
                         let isEof = rs.Peek().Token = Token.EOF
-                        (isEof, [])
-                    |   (_, []) -> true, []
+                        (isEof, ParseResult.Empty)
+                    |   (_, []) -> true, ParseResult.Empty
                     | _ ->
                         if pl.``fixed``.Length > 1 then
                             pl.OptimizeOnce()
-                            parse (Concat pl.optimized) tkl
+                            parse (Concat pl.optimized) tkl gl
                         else
-                            rs.Get() |> fun i -> pl.``fixed`` = i.Source |> mkResult i tkl
+                            rs.Get() |> fun i -> pl.``fixed`` = i.Source |> mkResult i tkl gl
                 else
-                    (false, [])
+                    (false, ParseResult.Empty)
             |   Or rl           -> 
                 let rec pickFirst l =
                     match l with
                     |   h::tl -> 
-                        let rs = conditionalParse h tkl
-                        if fst(rs) then (true, snd rs @ tkl)
+                        let rs = conditionalParse h tkl gl
+                        if fst(rs) then (true, ParseResult.Create ((snd rs).Match @ tkl) gl)
                         else pickFirst tl
-                    |   [] -> (false, tkl)
+                    |   [] -> (false, ParseResult.Empty)
                 rl |> List.rev |> pickFirst
             |   Concat rl       -> 
-                let rec pickAll acc l =
+                let rec pickAll acc gi l  =
                     match l with
                     |   h::tl -> 
-                        let rs = parse h tkl
-                        if fst(rs) then pickAll (snd rs @ acc) tl
-                        else (false, tkl)
-                    |   [] -> (true, acc)
-                rl |> List.rev |> pickAll []
+                        let suc, rs = parse h tkl gi
+                        if suc then pickAll (rs.Match @ acc) (rs.Groups) tl 
+                        else (false, ParseResult.Create tkl gi)
+                    |   [] -> (true, ParseResult.Create acc gi)
+                rl |> List.rev |> pickAll [] gl
             |   IterRange (irx,mxo,mno) -> 
                 let dec a = if a>=0 then (a-1) else a
                 let rec repeatRange min max rx acc =
                     if max>0 then
-                        let pr = conditionalParse rx tkl
-                        let nwacc = (snd pr @ acc)
+                        let pr = conditionalParse rx tkl gl
+                        let nwacc = ((snd pr).Match @ acc)
                         if (fst pr) && nwacc.Length > acc.Length && max>0 then repeatRange (dec min) (dec max) rx nwacc
-                        else (min<=0),acc
+                        else (min<=0), ParseResult.Create acc gl
                     else
-                        true, acc
+                        true, ParseResult.Create acc gl
                 match mno with
                 |   Some minVal -> repeatRange minVal mxo irx []
                 |   None        -> repeatRange mxo mxo irx []
-            |   ZeroOrMore t        -> true, repeatWhileMatching t tkl
-            |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl
-            |   OneOrMore t         ->  repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
-            |   OneOrMoreNonGreedy t -> repeatWhileMatching t tkl |> fun l -> (l.Length>=1), l
-            |   Optional t          -> true, conditionalParse t tkl |> snd
-            |   Group t             -> parse t tkl
-    parse rg []
-    |> fun (b,t) -> b, t |> List.rev
+            |   ZeroOrMore t         -> true, repeatWhileMatching t tkl gl 
+            |   ZeroOrMoreNonGreedy t -> true, repeatWhileMatching t tkl gl
+            |   OneOrMore t          ->  repeatWhileMatching t tkl gl |> fun l -> (l.Match.Length>=1), l
+            |   OneOrMoreNonGreedy t -> repeatWhileMatching t tkl gl |> fun l -> (l.Match.Length>=1), l
+            |   Optional t           -> true, conditionalParse t tkl gl |> snd
+            |   Group t              -> 
+                let s, res = parse t tkl gl
+                if s then
+                    s, { res with Groups = (res.Match |> List.rev)  :: res.Groups }
+                else
+                    s, res
+
+    parse rg [] []
+    |> fun (b,pr) -> b, { pr with Match = pr.Match |> List.rev}
 
 let AssesInput (rs:RollingStream<TokenData>) (rg:RGXType) = AssesInputPostParseCondition (fun _ -> true) rs rg
 
 let TokenDataToString =
     function
-    |   (true, tkl) -> (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString() |> Some
+    |   (true, tkl) -> (tkl.Match |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString() |> Some
     |   (false, _) -> None
 
 
@@ -348,9 +403,15 @@ let IsMatchStr(s, p) =
 /// If matched, returns (true, <match-string>, <rest-string>), otherwise (false, "",s)
 [<DebuggerStepThrough>]
 let HasMatches(s,p) = 
-    AssesInput s p 
-    |>  fun (b, tkl) -> b, (tkl |> List.map(fun td -> td.Source) |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())).ToString()
-
+    let s, str =  AssesInput s p
+    if not s then
+        (false, String.Empty)
+    else
+        str
+        |>  fun i -> i.Match
+        |> List.map(fun td -> td.Source)
+        |> List.fold(fun (str:StringBuilder) i -> str.Append(i)) (StringBuilder())
+        |> fun sb -> s, sb.ToString()
 
 [<DebuggerStepThrough>]
 let (|Regex|_|) pattern input =

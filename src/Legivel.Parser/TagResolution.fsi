@@ -61,7 +61,7 @@ module SchemaUtils =
 
 
 /// Non specific tags, "!", "?" and unresolved
-module internal NonSpecific =
+module NonSpecific =
     val NonSpecificTagQT : TagKind
     val NonSpecificTagQM : TagKind
     val UnresolvedTag    : TagKind

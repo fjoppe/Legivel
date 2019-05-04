@@ -1,3 +1,10 @@
+#### 0.3.0 - May 4 2019
+*   Added netstandard2.0 support
+*   Various performance improvements
+*   Got all unit-tests working for all target-platforms
+*   Upgraded to FAKE5, with latest Project Scaffold
+*   Changed from Paket.Pack to DotNet.Pack
+
 #### 0.2.2 - November 25 2018
 *   Legivel.Parser: Performance impovements - Further tweaking
 *   Feature: Processing options (Yaml.Mapper), cross check yaml with model (records)

@@ -4,7 +4,7 @@ open Legivel.Common
 open System.Diagnostics
 
 module internal ParserMonads =
-    [<Struct>]
+    [<Struct;NoEquality; NoComparison>]
     type EitherResult<'a,'b> = {
         Context : 'a
         Result'  : FallibleOption<'b>*ParseMessage
@@ -20,7 +20,7 @@ module internal ParserMonads =
         member this.Messages with get() = (snd this.Result')
 
 
-    //[<DebuggerStepThrough>]
+    [<DebuggerStepThrough>]
     type EitherBuilder<'a,'c,'d>(context: 'c, messages : ParseMessage, resetNoRes:'c->unit, advance:'c->'c, contAfterErr: 'c-> bool) =
         member this.Yield (_ : 'd) : EitherResult<_,_> = EitherResult<_,_>.Create context (FallibleOption.NoResult(), messages)
 

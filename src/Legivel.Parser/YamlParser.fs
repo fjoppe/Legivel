@@ -25,6 +25,7 @@ type Context =
     | ``Flow-in``   = 3
     | ``Block-key`` = 4
     | ``Flow-key``  = 5
+    |   NoContext   = 6
 
 type Chomping = 
     | ``Strip`` = 0
@@ -76,24 +77,6 @@ type RollingTokenizer = private {
         member this.EOF = this.Data.EOF
         member this.Peek()  = this.Data.Peek()
         static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); ContextPosition = 0}
-
-
-type ScalarMemoizeKey = {
-    SreamPositionStart : int
-    FunctionNumber     : int
-}
-with
-    static member Create p f = { SreamPositionStart = p; FunctionNumber = f }
-
-
-type ScalarMemoizeValue = {
-    SreamPositionEnd : int
-    Value            : FallibleOption<Node>
-    PositionDelta    : DocumentLocation
-    Length           : int
-}
-with
-    static member Create p s d l = { SreamPositionEnd = p; Value = s; PositionDelta=d; Length=l }
 
 
 [<NoEquality; NoComparison>]
@@ -151,6 +134,9 @@ type ParseState = {
 
         ///// Memoize scalar values by position and regex.
         //Caching : Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>
+#if DEBUG
+        LoggingFunction : (string->unit)
+#endif
     }
     with
         static member AddErrorMessageDel (ps:ParseState) sl = 
@@ -158,15 +144,21 @@ type ParseState = {
             |> List.iter(fun s -> ps.AddErrorMessage s |> ignore)
             ps
 
-        static member PositionDelta s =
-            let patt = "\u000d\u000a|\u000d|\u000a" // see rule [28] ``b-break``
-            let lines = Regex.Split(s, patt) |> List.ofArray
-            let lc = (lines.Length-1)  //  counts \n in a string
-            let lcc = (lines |> List.last).Length // local column count
-            lc, lcc
+        static member PositionDelta (s:string) =
+            let inc i = i + 1
+            let rec processline (inp: char array) pos lc lcc =
+                if pos >= Array.length inp then lc, lcc
+                else
+                    if inp.[pos] = '\n' then processline inp (inc pos) (inc lc) 0
+                    else
+                        processline inp (inc pos) lc (inc lcc)
+            processline (s.ToCharArray()) 0 0 0
 
         member this.SetPositionDelta sl lc lcc =
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
+#if DEBUG
+            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
+#endif
             { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + sl }
 
         member this.TrackPosition s =
@@ -224,6 +216,19 @@ type ParseState = {
 
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
+
+#if DEBUG
+        static member Create pm inputStr lf = {
+                Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
+                Anchors = Map.empty; Messages=pm; Directives=[]; 
+                TagShorthands = [TagShorthand.DefaultSecondaryTagHandler];
+                LocalTagSchema = None; NodePath = [];
+                TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
+                Restrictions = ParseRestrictions.Create(); TrackLength = 0
+                IndentLevels = []
+                ; LoggingFunction = lf
+            }
+#else
         static member Create pm inputStr = {
                 Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
                 Anchors = Map.empty; Messages=pm; Directives=[]; 
@@ -234,7 +239,7 @@ type ParseState = {
                 IndentLevels = []
                 ; (*Caching = Dictionary()*)
             }
-
+#endif
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module ParseState = 
@@ -371,6 +376,7 @@ module ParseState =
                         let errs = 
                             ps.Messages.Error 
                             |>  Seq.filter(fun m -> m.Action = MessageAction.Continue && m.Location <> ps.Location)
+                            |>  List.ofSeq
                         ps.Messages.Error.Clear()
                         ps.Messages.Error.AddRange(errs)
                         (node,ps)
@@ -414,13 +420,89 @@ type ParseFuncSignature<'a> = (ParseState -> ParseFuncResult<'a>)
 
 type FlowFoldPrevType = Empty | TextLine
 
+let memoizeRGXType = new Dictionary<RGXType, string>()
+let stringify (pattern:RGXType) =
+    if memoizeRGXType.ContainsKey(pattern) then
+        memoizeRGXType.[pattern]
+    else
+        let tosr = RGSF(pattern)
+        memoizeRGXType.Add(pattern, tosr)
+        tosr
+
+type ParsedItem = {
+    StartPosition : int
+    EndPosition   : int
+    Type      : NodeKind
+    Context   : Context
+    Result    : ParseFuncResult<Node>
+}
+
+
+[<NoComparison>]
+type ParsedCache = private {
+    Cached : Dictionary<int*Context*NodeKind, ParsedItem>
+}
+with
+    static member Create() = { Cached = new Dictionary<int*Context*NodeKind, ParsedItem>() }
+    member this.Clear() = this.Cached.Clear()
+    member this.GetOrParse(p, t, c, (ps:ParseState), parseFunc: ParseState -> ParseFuncResult<Node>) =
+        let parseAndCache() =
+            let sp = ps.Input.Position
+            let (r,m) = parseFunc ps
+            match r.Result with
+            |   FallibleOptionValue.Value ->
+                let chd =
+                    {
+                        StartPosition = sp
+                        EndPosition = (snd r.Data).Input.Position
+                        Type = t
+                        Context = c
+                        Result = (r,m)
+                    }
+                // calling "parseFunc" can change the dictionary, and we may override it here
+                if this.Cached.ContainsKey(sp,c,t) then this.Cached.Remove((sp,c,t)) |> ignore
+                this.Cached.Add((sp,c,t), chd)
+            //|   FallibleOptionValue.NoResult ->
+            //    let chd =
+            //        {
+            //            StartPosition = sp
+            //            EndPosition = sp
+            //            Type = t
+            //            Context = c
+            //            Result = (r,m)
+            //        }
+            //    // calling "parseFunc" can change the dictionary, and we may override it here
+            //    if this.Cached.ContainsKey(sp,c,t) then this.Cached.Remove((sp,c,t)) |> ignore
+            //    this.Cached.Add((sp,c,t), chd)
+            |   _ -> ()
+            (r,m)
+
+        if this.Cached.ContainsKey(p,c,t) then
+            let d = this.Cached.[(p, c,t)]
+            if d.Type = t then
+                ps.Input.Position <- d.EndPosition
+                d.Result
+            else
+                if (fst d.Result).Result = FallibleOptionValue.NoResult then
+                    parseAndCache()
+                else 
+                    FallibleOption.NoResult(), ps.Messages
+        else
+           parseAndCache()
+
+    member this.GetOrParse(p, t, (ps:ParseState), parseFunc: ParseState -> ParseFuncResult<Node>) =
+        this.GetOrParse(p,t,Context.NoContext, ps, parseFunc)
+
+
+let parsingCache = ParsedCache.Create()
+
 
 [<DebuggerStepThrough>]
 let (|Regex3|_|) (pattern:RGXType) (ps:ParseState) =
     AssesInput (ps.Input.Data) pattern
     |>  TokenDataToString
     |>  Option.bind(fun inps -> 
-        let m = Regex.Match(inps, RGSF(pattern), RegexOptions.Multiline)
+        let m = Regex.Match(inps, (stringify pattern), RegexOptions.Multiline)
         if m.Success then 
             let lst = [ for g in m.Groups -> g.Value ]
             let fullMatch = lst |> List.head
@@ -437,7 +519,7 @@ let (|Regex4|_|) (pattern:RGXType, condition:(RollingStream<TokenData> * TokenDa
     AssesInputPostParseCondition condition (ps.Input.Data) pattern
     |>  TokenDataToString
     |>  Option.bind(fun inps -> 
-        let m = Regex.Match(inps, RGSF(pattern), RegexOptions.Multiline)
+        let m = Regex.Match(inps, (stringify pattern), RegexOptions.Multiline)
         if m.Success then 
             let lst = [ for g in m.Groups -> g.Value ]
             let fullMatch = lst |> List.head
@@ -457,15 +539,19 @@ type CreateErrorMessage() =
 let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 
 
-type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->unit) =
+type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit)) =
     let logger s ps = 
-#if DEBUG
-        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
-        //sprintf "%d" (ps.Location.Line)
-        |> loggingFunction
-#else
+//#if DEBUG
+//        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
+//        //sprintf "%d" (ps.Location.Line)
+//        |> loggingFunction
+//#else
         ()
-#endif
+//#endif
+
+    let mutable logfunc = loggingFunction
+
+    member this.SetLogFunc f = logfunc <- f
 
     member private this.ParserMessages = ParseMessage.Create()
 
@@ -473,24 +559,31 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         with get() = globalTagSchema 
 
         /// Memoize scalar values by position and regex.
-    member private this.Caching = Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>()
+    //member private this.Caching = Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>()
 
+    new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, (fun _ -> ()))
 
-    new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, fun _ -> ())
-
-    member private this.LogReturn str ps (pso:FallibleOption<_>, pm:ParseMessage) = 
-#if DEBUG
-        match pso.Result with
-        |   FallibleOptionValue.Value -> 
-            let  (_,prs) = pso.Data
-            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
-        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-        |   _   -> failwith "Illegal value for pso.Result"
+    member private this.LogReturn str (ps:ParseState) (pso:FallibleOption<_>, pm:ParseMessage) = 
+        //match pso.Result with
+        //|   FallibleOptionValue.Value -> 
+        //    let  (_,prs) = pso.Data
+        //    logfunc (sprintf "%d -> %d" (ps.Location.Line) (prs.Location.Line))
+        //|   FallibleOptionValue.NoResult -> logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
+        //|   FallibleOptionValue.ErrorResult ->  logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
+        //|   _   -> failwith "Illegal value for pso.Result"
         pso,pm
-#else
-        pso,pm
-#endif
+//#if DEBUG
+//        match pso.Result with
+//        |   FallibleOptionValue.Value -> 
+//            let  (_,prs) = pso.Data
+//            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+//        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
+//        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+//        |   _   -> failwith "Illegal value for pso.Result"
+//        pso,pm
+//#else
+//        pso,pm
+//#endif
 
 
     //  Utility functions
@@ -545,7 +638,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         ps.Input.Position <- p
         match tkl with
         |   (true, tl) -> 
-            let th = tl |> List.takeWhile(fun e -> e.Token = Token.``t-space``)
+            let th = tl.Match |> List.takeWhile(fun e -> e.Token = Token.``t-space``)
             th.Length - ps.n
         |   (false, _) -> -1
 
@@ -703,44 +796,6 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |   Verbatim name   -> ResolveLocalTag name
         |   TagKind.Empty   -> FallibleOption.Value(node,ps), ps.Messages
 
-#if DEBUG
-    member this.KeyToString (key:ScalarMemoizeKey) =
-        sprintf "<%d,%d>" (key.FunctionNumber) (key.SreamPositionStart)
-#endif
-
-    member this.CacheNode key (postParseState:ParseState) posDelta len (potetialNode:FallibleOption<Node * ParseState>, pm:ParseMessage) : FallibleOption<Node * ParseState> * ParseMessage=
-        let pos = postParseState.Input.Position
-        let cv = 
-            match potetialNode.Result with
-            |   FallibleOptionValue.Value -> 
-                let (n,_) = potetialNode.Data
-
-#if DEBUG
-                logger (sprintf "> cached: %s end: %d >> %s" (this.KeyToString key) pos (n.ToPrettyString())) postParseState
-#endif
-                ScalarMemoizeValue.Create pos (FallibleOption.Value n) posDelta len
-            |   FallibleOptionValue.NoResult   -> ScalarMemoizeValue.Create pos (FallibleOption.NoResult()) posDelta len
-            |   FallibleOptionValue.ErrorResult -> ScalarMemoizeValue.Create pos (FallibleOption.ErrorResult()) posDelta len
-            |   _   -> failwith "Illegal value for potetialNode"
-        this.Caching.Add(key, cv)
-        potetialNode, pm
-
-    member this.UncacheNode key (preParseState:ParseState) =
-        let pm = preParseState.Messages
-        let cv = this.Caching.[key]
-        preParseState.Input.Position <- cv.SreamPositionEnd
-        match cv.Value.Result with
-        |   FallibleOptionValue.Value -> 
-            let n = cv.Value.Data
-
-#if DEBUG
-            logger (sprintf "> uncached: %s end: %d >> %s" (this.KeyToString key) (cv.SreamPositionEnd) (n.ToPrettyString())) preParseState
-#endif
-            let postCacheState = preParseState.SetPositionDelta (cv.Length) (cv.PositionDelta.Line) (cv.PositionDelta.Column)
-            FallibleOption.Value(n,postCacheState), pm
-        |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm
-        |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
-        |   _ -> failwith "Illegal value for cv"
 
     member this.PostProcessAndValidateNode (fn : FallibleOption<Node * ParseState>, pm:ParseMessage) : FallibleOption<Node * ParseState>*ParseMessage = 
         match fn.Result with
@@ -758,250 +813,187 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
           
     //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
-    member this.``c-printable`` = 
-        RGO (
-            "\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
-            "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
-                                                   //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
-            [
-            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-            Token.``ns-dec-digit``; Token.``c-escape``
-            ])
+    member this.``c-printable`` = HardValues.``c-printable``
 
     //  [2] http://www.yaml.org/spec/1.2/spec.html#nb-json
-    member ths.``nb-json`` = 
-        RGO ("\u0009\u0020-\uffff",
-            [
-            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-            Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
-            ])
+    member ths.``nb-json`` = HardValues.``nb-json``
 
     //  [3] http://www.yaml.org/spec/1.2/spec.html#c-byte-order-mark
-    member this.``c-byte-order-mark`` = RGP ("\ufeff", [Token.``byte-order-mark``])
+    member this.``c-byte-order-mark`` = HardValues.``c-byte-order-mark``
 
     //  [4] http://www.yaml.org/spec/1.2/spec.html#c-sequence-entry
-    member this.``c-sequence-entry`` = RGP ("-", [Token.``t-hyphen``])
+    member this.``c-sequence-entry`` = HardValues.``c-sequence-entry``
 
     //  [5] http://www.yaml.org/spec/1.2/spec.html#c-mapping-key
-    member this.``c-mapping-key`` = RGP ("\\?", [Token.``t-questionmark``])
+    member this.``c-mapping-key`` = HardValues.``c-mapping-key``
 
     //  [6] http://www.yaml.org/spec/1.2/spec.html#c-mapping-value
-    member this.``c-mapping-value`` = RGP (":", [Token.``t-colon``])
+    member this.``c-mapping-value`` = HardValues.``c-mapping-value``
 
     //  [7] http://www.yaml.org/spec/1.2/spec.html#c-collect-entry
-    member this.``c-collect-entry`` = RGP(",", [Token.``t-comma``])
+    member this.``c-collect-entry`` = HardValues.``c-collect-entry``
 
     //  [8] http://www.yaml.org/spec/1.2/spec.html#c-sequence-start
-    member this.``c-sequence-start`` = RGP("\[", [Token.``t-square-bracket-start``])
+    member this.``c-sequence-start`` = HardValues.``c-sequence-start``
 
     //  [9] http://www.yaml.org/spec/1.2/spec.html#c-sequence-end
-    member this.``c-sequence-end`` = RGP("\]", [Token.``t-square-bracket-end``])
+    member this.``c-sequence-end`` = HardValues.``c-sequence-end``
 
     //  [10]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-start
-    member this.``c-mapping-start`` = RGP ("\{",[Token.``t-curly-bracket-start``])
+    member this.``c-mapping-start`` = HardValues.``c-mapping-start``
 
     //  [11]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-end
-    member this.``c-mapping-end`` = RGP("\}", [Token.``t-curly-bracket-end``])
+    member this.``c-mapping-end`` = HardValues.``c-mapping-end``
 
     //  [12]    http://www.yaml.org/spec/1.2/spec.html#c-comment
-    member this.``c-comment`` = RGP ("#", [Token.``t-hash``])
+    member this.``c-comment`` = HardValues.``c-comment``
 
     //  [13]    http://www.yaml.org/spec/1.2/spec.html#c-anchor
-    member this.``c-anchor`` = "&"
+    member this.``c-anchor`` = HardValues.``c-anchor``
 
     //  [14]    http://www.yaml.org/spec/1.2/spec.html#c-alias
-    member this.``c-alias`` = "*"
+    member this.``c-alias`` = HardValues.``c-alias``
 
     //  [15]    http://www.yaml.org/spec/1.2/spec.html#c-tag
-    member this.``c-tag`` = "!"
+    member this.``c-tag`` = HardValues.``c-tag``
 
     //  [16]    http://www.yaml.org/spec/1.2/spec.html#c-literal
-    member this.``c-literal`` = "|"
+    member this.``c-literal`` = HardValues.``c-literal``
 
     //  [17]    http://www.yaml.org/spec/1.2/spec.html#c-folded
-    member this.``c-folded`` = RGP(">", [Token.``t-gt``])
+    member this.``c-folded`` = HardValues.``c-folded``
 
     //  [18]    http://www.yaml.org/spec/1.2/spec.html#c-single-quote
-    member this.``c-single-quote`` = RGP ("\'", [Token.``t-single-quote``])
+    member this.``c-single-quote`` = HardValues.``c-single-quote``
 
     //  [19]    http://www.yaml.org/spec/1.2/spec.html#c-double-quote
-    member this.``c-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+    member this.``c-double-quote`` = HardValues.``c-double-quote``
 
     //  [20]    http://www.yaml.org/spec/1.2/spec.html#c-directive
-    member this.``c-directive`` = "%"
+    member this.``c-directive`` = HardValues.``c-directive``
 
     //  [21]    http://www.yaml.org/spec/1.2/spec.html#c-reserved
-    member this.``c-reserved`` = RGO ("\u0040\u0060", [Token.``t-commat``;Token.``t-tick``])
+    member this.``c-reserved`` = HardValues.``c-reserved``
 
     //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
-    member this.``c-indicator`` = 
-        RGO  (
-            "\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
-            [ 
-            Token.``t-hyphen``; Token.``t-questionmark``; Token.``t-colon``
-            Token.``t-comma``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
-            Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
-            Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
-            Token.``t-percent``; Token.``t-commat``;Token.``t-tick``
-            ])
-
+    member this.``c-indicator`` = HardValues.``c-indicator``
 
     //  [23]    http://www.yaml.org/spec/1.2/spec.html#c-flow-indicator
-    member this.``c-flow-indicator`` = 
-        RGO  (@",\[\]\{\}", 
-            [
-                Token.``t-comma``
-                Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
-                Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``
-            ])
+    member this.``c-flow-indicator`` = HardValues.``c-flow-indicator``
 
     //  [24]    http://www.yaml.org/spec/1.2/spec.html#b-line-feed
-    member this.``b-line-feed`` = RGP ("\u000a", [Token.NewLine])
+    member this.``b-line-feed`` = HardValues.``b-line-feed``
 
     //  [25]    http://www.yaml.org/spec/1.2/spec.html#b-carriage-return
-    member this.``b-carriage-return`` = RGP ("\u000d", [Token.NewLine])
+    member this.``b-carriage-return`` = HardValues.``b-carriage-return``
 
     //  [i26]   http://www.yaml.org/spec/1.2/spec.html#b-char
-    member this.``b-char`` = this.``b-line-feed`` ||| this.``b-carriage-return``
+    member this.``b-char`` = HardValues.``b-char``
 
     //  [27]    http://www.yaml.org/spec/1.2/spec.html#nb-char
-    member this.``nb-char``  = this.``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) // this.``b-char``
+    member this.``nb-char``  = HardValues.``nb-char``
 
     //  [28]    http://www.yaml.org/spec/1.2/spec.html#b-break
-    member this.``b-break`` = 
-            (this.``b-carriage-return`` + this.``b-line-feed``) |||  //  DOS, Windows
-            this.``b-carriage-return``                          |||  //  MacOS upto 9.x
-            this.``b-line-feed``                                     //  UNIX, MacOS X
+    member this.``b-break`` = HardValues.``b-break``
 
     //  [29]    http://www.yaml.org/spec/1.2/spec.html#b-as-line-feed
-    member this.``b-as-line-feed`` = this.``b-break``
+    member this.``b-as-line-feed`` = HardValues.``b-as-line-feed``
 
     //  [30]    http://www.yaml.org/spec/1.2/spec.html#b-non-content
-    member this.``b-non-content`` = this.``b-break``
+    member this.``b-non-content`` = HardValues.``b-non-content``
 
     //  [31]    http://www.yaml.org/spec/1.2/spec.html#s-space
-    member this.``s-space`` : string = "\u0020"  // space
+    member this.``s-space`` : string = HardValues.``s-space``
 
     //  [32]    http://www.yaml.org/spec/1.2/spec.html#s-tab
-    member this.``s-tab`` = "\u0009"    // tab
+    member this.``s-tab`` = HardValues.``s-tab``
 
     //  [33]    http://www.yaml.org/spec/1.2/spec.html#s-white
-    member this.``s-white`` = RGO(this.``s-space`` + this.``s-tab``, [Token.``t-space``; Token.``t-tab``])
+    member this.``s-white`` = HardValues.``s-white``
 
     //  [34]    http://www.yaml.org/spec/1.2/spec.html#ns-char
-    member this.``ns-char`` = this.``nb-char`` - this.``s-white``
+    member this.``ns-char`` = HardValues.``ns-char``
 
     //  [35]    http://www.yaml.org/spec/1.2/spec.html#ns-dec-digit
-    member this.``ns-dec-digit`` = RGO ("\u0030-\u0039", [Token.``ns-dec-digit``])      //  0-9
+    member this.``ns-dec-digit`` = HardValues.``ns-dec-digit``
 
     //  [36]    http://www.yaml.org/spec/1.2/spec.html#ns-hex-digit
-    member this.``ns-hex-digit`` =
-        this.``ns-dec-digit`` +
-        RGO ("\u0041-\u0046", [Token.``c-printable``])  +  //  A-F
-        RGO ("\u0061-\u0066", [Token.``c-printable``])     //  a-f
+    member this.``ns-hex-digit`` = HardValues.``ns-hex-digit``
 
     //  [37]    http://www.yaml.org/spec/1.2/spec.html#ns-ascii-letter
-    member this.``ns-ascii-letter`` = 
-        RGO ("\u0041-\u005A", [Token.``c-printable``]) +   //  A-Z
-        RGO ("\u0061-\u007A", [Token.``c-printable``])     //  a-z
+    member this.``ns-ascii-letter`` = HardValues.``ns-ascii-letter``
 
     //  [38]    http://www.yaml.org/spec/1.2/spec.html#ns-word-char
-    member this.``ns-word-char`` =
-        this.``ns-dec-digit`` + (RGO (@"\-", [Token.``t-hyphen``])) + this.``ns-ascii-letter``
+    member this.``ns-word-char`` = HardValues.``ns-word-char``
 
     //  [39]    http://www.yaml.org/spec/1.2/spec.html#ns-uri-char
-    member this.``ns-uri-char`` = 
-        RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        RGO (
-            @"#;/?:@&=+$,_.!~*\'\(\)\[\]", 
-            [
-            Token.``t-hash``; Token.``t-forward-slash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
-            Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
-            Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
-            Token.``c-printable``
-        ]) + this.``ns-word-char``
+    member this.``ns-uri-char`` = HardValues.``ns-uri-char``
 
     //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
-    member this.``ns-tag-char`` = 
-        RGP (@"%", [Token.``t-percent``]) + this.``ns-hex-digit`` + this.``ns-hex-digit``  |||
-        (RGO (
-            @"#;/?:@&=+$_.~*\'\(\)", 
-            [
-            Token.``t-hash``; Token.``t-forward-slash``;Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
-            Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
-            Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
-            Token.``c-printable``;
-        ]) - this.``c-flow-indicator``) + this.``ns-word-char``
+    member this.``ns-tag-char`` = HardValues.``ns-tag-char``
 
     //  [41]    http://www.yaml.org/spec/1.2/spec.html#c-escape
-    member this.``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
+    member this.``c-escape`` = HardValues.``c-escape``
 
     //  [42]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-null
-    member this.``ns-esc-null`` = RGP ("0", [Token.``ns-dec-digit``])
+    member this.``ns-esc-null`` = HardValues.``ns-esc-null``
 
     //  [43]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-bell
-    member this.``ns-esc-bell`` = RGP ("a", [Token.``c-printable``])
+    member this.``ns-esc-bell`` = HardValues.``ns-esc-bell``
 
     //  [44]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backspace
-    member this.``ns-esc-backspace`` = RGP( "b", [Token.``c-printable``])
+    member this.``ns-esc-backspace`` = HardValues.``ns-esc-backspace``
 
     //  [45]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-horizontal-tab
-    member this.``ns-esc-horizontal-tab`` = RGP ("t", [Token.``c-printable``])
+    member this.``ns-esc-horizontal-tab`` = HardValues.``ns-esc-horizontal-tab``
 
     //  [46]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-feed
-    member this.``ns-esc-line-feed`` = RGP ("n", [Token.``c-printable``])
+    member this.``ns-esc-line-feed`` = HardValues.``ns-esc-line-feed``
 
     //  [47]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-vertical-tab
-    member this.``ns-esc-vertical-tab`` = RGP ("v", [Token.``c-printable``])
+    member this.``ns-esc-vertical-tab`` = HardValues.``ns-esc-vertical-tab``
 
     //  [48]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-form-feed
-    member this.``ns-esc-form-feed`` = RGP ("f", [Token.``c-printable``])
+    member this.``ns-esc-form-feed`` = HardValues.``ns-esc-form-feed``
 
     //  [49]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-carriage-return
-    member this.``ns-esc-carriage-return`` = RGP ("r", [Token.``c-printable``])
+    member this.``ns-esc-carriage-return`` = HardValues.``ns-esc-carriage-return``
 
     //  [50]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-escape
-    member this.``ns-esc-escape`` = RGP ("e", [Token.``c-printable``])
+    member this.``ns-esc-escape`` = HardValues.``ns-esc-escape``
 
     //  [51]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-space
-    member this.``ns-esc-space`` = RGP ("\u0020", [Token.``t-space``])
+    member this.``ns-esc-space`` = HardValues.``ns-esc-space``
 
     //  [52]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-double-quote
-    member this.``ns-esc-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+    member this.``ns-esc-double-quote`` = HardValues.``ns-esc-double-quote``
 
     //  [53]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-slash
-    member this.``ns-esc-slash`` = RGP ("/", [Token.``c-printable``])
+    member this.``ns-esc-slash`` = HardValues.``ns-esc-slash``
 
     //  [54]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backslash
-    member this.``ns-esc-backslash`` = RGP ("\\\\", [Token.``c-escape``])
+    member this.``ns-esc-backslash`` = HardValues.``ns-esc-backslash``
 
     //  [55]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-next-line
-    member this.``ns-esc-next-line`` = RGP ("N", [Token.``c-printable``])
+    member this.``ns-esc-next-line`` = HardValues.``ns-esc-next-line``
 
     //  [56]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-non-breaking-space
-    member this.``ns-esc-non-breaking-space`` = RGP ("_", [Token.``c-printable``])
+    member this.``ns-esc-non-breaking-space`` = HardValues.``ns-esc-non-breaking-space``
 
     //  [57]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-separator
-    member this.``ns-esc-line-separator`` = RGP ("L", [Token.``c-printable``])
+    member this.``ns-esc-line-separator`` = HardValues.``ns-esc-line-separator``
 
     //  [58]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-paragraph-separator
-    member this.``ns-esc-paragraph-separator`` = RGP ("P", [Token.``c-printable``])
+    member this.``ns-esc-paragraph-separator`` = HardValues.``ns-esc-paragraph-separator``
 
     //  [59]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-8-bit
-    member this.``ns-esc-8-bit`` = (RGP ("x", [Token.``c-printable``])) + Repeat(this.``ns-hex-digit``,2)
+    member this.``ns-esc-8-bit`` = HardValues.``ns-esc-8-bit``
 
     //  [60]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-16-bit
-    member this.``ns-esc-16-bit`` = RGP ("u", [Token.``c-printable``]) + Repeat(this.``ns-hex-digit``,4)
+    member this.``ns-esc-16-bit`` = HardValues.``ns-esc-16-bit``
 
     //  [61]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-32-bit
-    member this.``ns-esc-32-bit`` = RGP ("U", [Token.``c-printable``]) + Repeat(this.``ns-hex-digit``,8) // currently not supported
+    member this.``ns-esc-32-bit`` = HardValues.``ns-esc-32-bit``
 
     //  [62]    http://www.yaml.org/spec/1.2/spec.html#c-ns-esc-char
     member this.``c-ns-esc-char`` = 
@@ -1037,7 +1029,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``s-indent(<=n)`` ps = Range(RGP (this.``s-space``, [Token.``t-space``]), 0, ps.n)  (* Where m ≤ n *)
 
     //  [66]    http://www.yaml.org/spec/1.2/spec.html#s-separate-in-line
-    member this.``s-separate-in-line`` = OOM(this.``s-white``) ||| ``start-of-line``
+    member this.``s-separate-in-line`` = HardValues.``s-separate-in-line``
 
     //  [67]    http://www.yaml.org/spec/1.2/spec.html#s-line-prefix(n,c)
     member this.``s-line-prefix`` ps =
@@ -1062,7 +1054,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``b-l-trimmed`` ps = this.``b-non-content`` + OOM(this.``l-empty`` ps)
 
     //  [72]    http://www.yaml.org/spec/1.2/spec.html#b-as-space
-    member this.``b-as-space`` = this.``b-break``
+    member this.``b-as-space`` = HardValues.``b-as-space``
 
     //  [73]    http://www.yaml.org/spec/1.2/spec.html#b-l-folded(n,c)
     member this.``b-l-folded`` ps = (this.``b-l-trimmed`` ps) ||| this.``b-as-space``
@@ -1072,19 +1064,19 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         OPT(this.``s-separate-in-line``) + (this.``b-l-folded`` (ps.SetStyleContext Context.``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
 
     //  [75]    http://www.yaml.org/spec/1.2/spec.html#c-nb-comment-text
-    member this.``c-nb-comment-text`` = RGP("#", [Token.``t-hash``]) + ZOM(this.``nb-char``)
+    member this.``c-nb-comment-text`` = HardValues.``c-nb-comment-text``
 
     //  [76]    http://www.yaml.org/spec/1.2/spec.html#b-comment
-    member this.``b-comment`` = this.``b-non-content`` ||| RGP("\\z", [Token.EOF]) // EOF..
+    member this.``b-comment`` = HardValues.``b-comment``
 
     //  [77]    http://www.yaml.org/spec/1.2/spec.html#s-b-comment
-    member this.``s-b-comment`` = OPT(this.``s-separate-in-line`` + OPT(this.``c-nb-comment-text``)) + this.``b-comment`` 
+    member this.``s-b-comment`` = HardValues.``s-b-comment``
 
     //  [78]    http://www.yaml.org/spec/1.2/spec.html#l-comment
-    member this.``l-comment`` = this.``s-separate-in-line`` + OPT(this.``c-nb-comment-text``) + this.``b-comment``
+    member this.``l-comment`` = HardValues.``l-comment``
 
     //  [79]    http://www.yaml.org/spec/1.2/spec.html#s-l-comments
-    member this.``s-l-comments`` = (this.``s-b-comment`` ||| ``start-of-line``) + ZOM(this.``l-comment``)
+    member this.``s-l-comments`` = HardValues.``s-l-comments``
 
     //  [80]    http://www.yaml.org/spec/1.2/spec.html#s-separate(n,c)
     member this.``s-separate`` ps = 
@@ -1152,45 +1144,43 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
 
     //  [83]    http://www.yaml.org/spec/1.2/spec.html#ns-reserved-directive
-    member this.``ns-reserved-directive`` = 
-        this.``ns-directive-name`` + ZOMNG(this.``s-separate-in-line`` + this.``ns-directive-parameter``)
+    member this.``ns-reserved-directive`` = HardValues.``ns-reserved-directive``
 
     //  [84]    http://www.yaml.org/spec/1.2/spec.html#ns-directive-name
-    member this.``ns-directive-name`` = OOM(this.``ns-char``)
+    member this.``ns-directive-name`` = HardValues.``ns-directive-name``
 
     //  [85]    http://www.yaml.org/spec/1.2/spec.html#ns-directive-parameter
-    member this.``ns-directive-parameter`` = OOM(this.``ns-char``)
+    member this.``ns-directive-parameter`` = HardValues.``ns-directive-parameter``
 
     //  [86]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-directive
-    member this.``ns-yaml-directive`` = RGP("YAML", [Token.``c-printable``]) + this.``s-separate-in-line`` + GRP(this.``ns-yaml-version``)
+    member this.``ns-yaml-directive`` = HardValues.``ns-yaml-directive``
 
     //  [87]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-version
-    member this.``ns-yaml-version`` = OOM(this.``ns-dec-digit``) + RGP("\\.", [Token.``c-printable``]) + OOM(this.``ns-dec-digit``)
+    member this.``ns-yaml-version`` = HardValues.``ns-yaml-version``
 
     //  [88]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-directive
-    member this.``ns-tag-directive`` = 
-        RGP ("TAG", [Token.``c-printable``]) + this.``s-separate-in-line`` + GRP(this.``c-tag-handle``) + this.``s-separate-in-line`` + GRP(this.``ns-tag-prefix``)
+    member this.``ns-tag-directive`` = HardValues.``ns-tag-directive``
 
     //  [89]    http://www.yaml.org/spec/1.2/spec.html#c-tag-handle
-    member this.``c-tag-handle`` = this.``c-named-tag-handle`` ||| this.``c-secondary-tag-handle`` ||| this.``c-primary-tag-handle``
+    member this.``c-tag-handle`` = HardValues.``c-tag-handle``
 
     //  [90]    http://www.yaml.org/spec/1.2/spec.html#c-primary-tag-handle
-    member this.``c-primary-tag-handle`` = RGP ("!", [Token.``t-quotationmark``])
+    member this.``c-primary-tag-handle`` = HardValues.``c-primary-tag-handle``
 
     //  [91]    http://www.yaml.org/spec/1.2/spec.html#c-secondary-tag-handle
-    member this.``c-secondary-tag-handle`` = RGP ("!!", [Token.``t-quotationmark``])
+    member this.``c-secondary-tag-handle`` = HardValues.``c-secondary-tag-handle``
 
     //  [92]    http://www.yaml.org/spec/1.2/spec.html#c-named-tag-handle
-    member this.``c-named-tag-handle`` = RGP ("!", [Token.``t-quotationmark``]) + OOM(this.``ns-word-char``) + RGP ("!", [Token.``t-quotationmark``]) 
+    member this.``c-named-tag-handle`` = HardValues.``c-named-tag-handle``
 
     //  [93]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-prefix
-    member this.``ns-tag-prefix`` = this.``c-ns-local-tag-prefix`` ||| this.``ns-global-tag-prefix``
+    member this.``ns-tag-prefix`` = HardValues.``ns-tag-prefix``
 
     //  [94]    http://www.yaml.org/spec/1.2/spec.html#c-ns-local-tag-prefix
-    member this.``c-ns-local-tag-prefix`` = RGP ("!", [Token.``t-quotationmark``]) + ZOM(this.``ns-uri-char``)
+    member this.``c-ns-local-tag-prefix`` = HardValues.``c-ns-local-tag-prefix``
 
     //  [95]    http://www.yaml.org/spec/1.2/spec.html#ns-global-tag-prefix
-    member this.``ns-global-tag-prefix`` = this.``ns-tag-char`` + ZOM(this.``ns-uri-char``)
+    member this.``ns-global-tag-prefix`` = HardValues.``ns-global-tag-prefix``
 
     //  [96]    http://www.yaml.org/spec/1.2/spec.html#c-ns-properties(n,c)
     member this.``c-ns-properties`` ps : FallibleOption<ParseState * (TagKind*DocumentLocation) * (string*DocumentLocation)>*ParseMessage =
@@ -1277,25 +1267,25 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
             
 
     //  [97]    http://www.yaml.org/spec/1.2/spec.html#c-ns-tag-property
-    member this.``c-ns-tag-property`` = this.``c-verbatim-tag`` ||| this.``c-ns-shorthand-tag`` ||| this.``c-non-specific-tag``
+    member this.``c-ns-tag-property`` = HardValues.``c-ns-tag-property``
 
     //  [98]    http://www.yaml.org/spec/1.2/spec.html#c-verbatim-tag
-    member this.``c-verbatim-tag`` = RGP ("!", [Token.``t-quotationmark``]) + RGP ("<", [Token.``c-printable``]) + OOM(this.``ns-uri-char``) + RGP (">", [Token.``t-gt``]) 
+    member this.``c-verbatim-tag`` = HardValues.``c-verbatim-tag``
 
     //  [99]    http://www.yaml.org/spec/1.2/spec.html#c-ns-shorthand-tag
-    member this.``c-ns-shorthand-tag`` = this.``c-tag-handle`` + OOM(this.``ns-tag-char``)
+    member this.``c-ns-shorthand-tag`` = HardValues.``c-ns-shorthand-tag``
 
     //  [100]   http://www.yaml.org/spec/1.2/spec.html#c-non-specific-tag
-    member this.``c-non-specific-tag`` = RGP ("!", [Token.``t-quotationmark``])
+    member this.``c-non-specific-tag`` = HardValues.``c-non-specific-tag``
 
     //  [101]   http://www.yaml.org/spec/1.2/spec.html#c-ns-anchor-property
-    member this.``c-ns-anchor-property`` = RGP ("&", [Token.``t-ampersand``]) + this.``ns-anchor-name``
+    member this.``c-ns-anchor-property`` = HardValues.``c-ns-anchor-property``
 
     //  [102]   http://www.yaml.org/spec/1.2/spec.html#ns-anchor-char
-    member this.``ns-anchor-char`` =  this.``ns-char`` - this.``c-flow-indicator``
+    member this.``ns-anchor-char`` =  HardValues.``ns-anchor-char``
 
     //  [103]   http://www.yaml.org/spec/1.2/spec.html#ns-anchor-name
-    member this.``ns-anchor-name`` = OOM(this.``ns-anchor-char``)
+    member this.``ns-anchor-name`` = HardValues.``ns-anchor-name``
 
     //  [104]   http://www.yaml.org/spec/1.2/spec.html#c-ns-alias-node
     member this.``c-ns-alias-node`` ps : ParseFuncResult<_> =
@@ -1312,68 +1302,71 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |> this.LogReturn "c-ns-alias-node" ps
 
     //  [105]   http://www.yaml.org/spec/1.2/spec.html#e-scalar
-    member this.``e-scalar`` = RGP (String.Empty, [])     // we'll see if this works..
+    member this.``e-scalar`` = HardValues.``e-scalar``
 
     //  [106]   http://www.yaml.org/spec/1.2/spec.html#e-node
-    member this.``e-node`` = this.``e-scalar``
+    member this.``e-node`` = HardValues.``e-node``
 
     //  [107]   http://www.yaml.org/spec/1.2/spec.html#nb-double-char
-    member this.``nb-double-char`` = this.``c-ns-esc-char`` ||| (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]))
+    member this.``nb-double-char`` = HardValues.``nb-double-char``
 
     //  [108]   http://www.yaml.org/spec/1.2/spec.html#ns-double-char
-    member this.``ns-double-char`` = this.``c-ns-esc-char`` |||  (this.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]) - this.``s-white``)
+    member this.``ns-double-char`` = HardValues.``ns-double-char``
 
     //  [109]   http://www.yaml.org/spec/1.2/spec.html#c-double-quoted(n,c)
     member this.``c-double-quoted`` ps : ParseFuncResult<_> = 
         logger "c-double-quoted" ps
         //  TODO: maybe SandR the full content, before processing it (see this.``double quote flowfold lines``)
-        let convertDQuoteEscapedSingleLine (str:string) = 
-            let SandR =
-                // prevent any collision with other escaped chars
-                str.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries) 
-                |>  List.ofArray
-                |>  List.map(DecodeEncodedUnicodeCharacters)
-                |>  List.map(DecodeEncodedHexCharacters)
-                |>  List.map(DecodeEncodedEscapedCharacters)
-                |>  List.map(fun s -> s.Replace("\x0d\x0a", "\n"))
-                |>  List.map(fun s -> s.Replace("\\\"", "\""))
-            String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
+        let processFunc ps =
+            let convertDQuoteEscapedSingleLine (str:string) = 
+                let SandR =
+                    // prevent any collision with other escaped chars
+                    str.Split([|"\\\\"|], StringSplitOptions.RemoveEmptyEntries) 
+                    |>  List.ofArray
+                    |>  List.map(DecodeEncodedUnicodeCharacters)
+                    |>  List.map(DecodeEncodedHexCharacters)
+                    |>  List.map(DecodeEncodedEscapedCharacters)
+                    |>  List.map(fun s -> s.Replace("\x0d\x0a", "\n"))
+                    |>  List.map(fun s -> s.Replace("\\\"", "\""))
+                String.Join("\\", SandR)    // "\\" in dquote is escaped, and here it is directly converted to "\"
 
-        let processSingleLine prs content =
-            content 
-            |> convertDQuoteEscapedSingleLine
-            |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
-            |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.PostProcessAndValidateNode
+            let processSingleLine prs content =
+                content 
+                |> convertDQuoteEscapedSingleLine
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                |> this.PostProcessAndValidateNode
 
-        let processMultiLine prs content =
-            content 
-            |> this.``split by linefeed``
-            |> this.``double quote flowfold lines`` ps
-            |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
-            |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.PostProcessAndValidateNode
+            let processMultiLine prs content =
+                content 
+                |> this.``split by linefeed``
+                |> this.``double quote flowfold lines`` ps
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                |> this.PostProcessAndValidateNode
 
-        let patt = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps) + this.``c-double-quote``
-        let ``illegal-chars`` = this.``c-double-quote`` + OOM((this.``nb-json`` - this.``c-double-quote``) ||| this.``s-double-break`` ps) + this.``c-double-quote``
-        let ``illegal-patt`` = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps)
+            let patt = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps) + this.``c-double-quote``
+            let ``illegal-chars`` = this.``c-double-quote`` + OOM((this.``nb-json`` - this.``c-double-quote``) ||| this.``s-double-break`` ps) + this.``c-double-quote``
+            let ``illegal-patt`` = this.``c-double-quote`` + GRP(this.``nb-double-text`` ps)
 
-        match ps with
-        |   Regex3(patt)    (mt,prs) ->
-            let content = mt.ge1
-            match ps.c with
-            |  Context.``Flow-out`` |  Context.``Flow-in`` ->   //  multiline
-                let lines = content |> this.``split by linefeed`` |> List.length
-                if lines = 1 then
+            match ps with
+            |   Regex3(patt)    (mt,prs) ->
+                let content = mt.ge1
+                match ps.c with
+                |  Context.``Flow-out`` |  Context.``Flow-in`` ->   //  multiline
+                    let lines = content |> this.``split by linefeed`` |> List.length
+                    if lines = 1 then
+                        processSingleLine prs content
+                    else
+                        processMultiLine prs content
+                |   Context.``Block-key`` | Context.``Flow-key`` -> //  single line
                     processSingleLine prs content
-                else
-                    processMultiLine prs content
-            |   Context.``Block-key`` | Context.``Flow-key`` -> //  single line
-                processSingleLine prs content
-            | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
-        |   Regex3(``illegal-chars``) _ -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrDquoteIllegalChars (lazy "Literal string contains illegal characters.")
-        |   Regex3(``illegal-patt``) _  -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingDquote (lazy "Missing \" in string literal.")
-        |   _ -> FallibleOption.NoResult(), ps.Messages
+                | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
+            |   Regex3(``illegal-chars``) _ -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrDquoteIllegalChars (lazy "Literal string contains illegal characters.")
+            |   Regex3(``illegal-patt``) _  -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingDquote (lazy "Missing \" in string literal.")
+            |   _ -> FallibleOption.NoResult(), ps.Messages
+
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Scalar, ps.c, ps, processFunc)
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-double-quoted" ps        
 
@@ -1387,7 +1380,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [111]   http://www.yaml.org/spec/1.2/spec.html#nb-double-one-line
-    member this.``nb-double-one-line`` = ZOM(this.``nb-double-char``)
+    member this.``nb-double-one-line`` = HardValues.``nb-double-one-line``
 
     //  [112]   http://www.yaml.org/spec/1.2/spec.html#s-double-escaped(n)
     member this.``s-double-escaped`` (ps:ParseState) = ZOM(this.``s-white``) + this.``c-escape`` + this.``b-non-content`` + ZOM(this.``l-empty`` (ps.SetStyleContext Context.``Flow-in``)) + (this.``s-flow-line-prefix`` ps)
@@ -1396,7 +1389,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``s-double-break`` ps = (this.``s-double-escaped`` ps) ||| (this.``s-flow-folded`` ps)
 
     //  [114]   http://www.yaml.org/spec/1.2/spec.html#nb-ns-double-in-line
-    member this.``nb-ns-double-in-line`` = ZOM(ZOM(this.``s-white``) + this.``ns-double-char``)
+    member this.``nb-ns-double-in-line`` = HardValues.``nb-ns-double-in-line``
 
     //  [115]   http://www.yaml.org/spec/1.2/spec.html#s-double-next-line(n)
     member this.``s-double-next-line`` ps =  //  note, spec is recursive, below is an attempt to rewrite recursive regex 
@@ -1407,55 +1400,64 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``nb-double-multi-line`` ps = this.``nb-ns-double-in-line`` + ((this.``s-double-next-line`` ps) ||| ZOM(this.``s-white``))
 
     //  [117]    http://www.yaml.org/spec/1.2/spec.html#c-quoted-quote
-    member this.``c-quoted-quote`` = this.``c-single-quote`` + this.``c-single-quote``
+    member this.``c-quoted-quote`` = HardValues.``c-quoted-quote``
 
     //  [118]   http://www.yaml.org/spec/1.2/spec.html#nb-single-char
-    member this.``nb-single-char`` = this.``c-quoted-quote`` ||| (this.``nb-json`` - this.``c-single-quote``)
+    member this.``nb-single-char`` = HardValues.``nb-single-char``
 
     //  [119]   http://www.yaml.org/spec/1.2/spec.html#ns-single-char
-    member this.``ns-single-char`` = // this.``nb-single-char`` - this.``s-white``
-        this.``c-quoted-quote`` ||| (this.``nb-json`` - this.``c-single-quote`` - this.``s-white``)
+    member this.``ns-single-char`` = HardValues.``ns-single-char``
 
     //  [120]   http://www.yaml.org/spec/1.2/spec.html#c-single-quoted(n,c)
     member this.``c-single-quoted`` ps : ParseFuncResult<_> = 
         logger "c-single-quoted" ps
-        let convertSQuoteEscapedSingleLine (str:string) = str.Replace("''", "'")
 
-        let processSingleLine prs content =
-            content 
-            |> convertSQuoteEscapedSingleLine
-            |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
-            |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.PostProcessAndValidateNode
+        let processFunc ps =
+            let convertSQuoteEscapedSingleLine (str:string) = str.Replace("''", "'")
 
-        let processMultiLine prs content =
-            content 
-            |> this.``split by linefeed``
-            |> this.``single quote flowfold lines`` ps
-            |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
-            |> this.ResolveTag prs NonSpecificQT (prs.Location)
-            |> this.PostProcessAndValidateNode
+            let processSingleLine prs content =
+                content 
+                |> convertSQuoteEscapedSingleLine
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                |> this.PostProcessAndValidateNode
 
-        let patt = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) + this.``c-single-quote``
-        let ``illegal-patt`` = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) 
+            let processMultiLine prs content =
+                content 
+                |> this.``split by linefeed``
+                |> this.``single quote flowfold lines`` ps
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                |> this.PostProcessAndValidateNode
+            
+            let memFunc ps = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) + this.``c-single-quote``
+            let callMemoized = this.Memoize memFunc
+            let patt = 
+                match ps.c with
+                |   Context.``Flow-out`` |   Context.``Flow-in``  -> callMemoized (1201, ps.n, ps.c) ps
+                |   Context.``Block-key``|   Context.``Flow-key`` -> callMemoized (1201, 0, ps.c) ps
+                | _  ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
-        match ps with
-        |   Regex3(patt)    (mt,prs) ->
-            let content = mt.ge1
-            match ps.c with
-            |  Context.``Flow-out`` |  Context.``Flow-in`` ->   //  multiline
-                let lines = content |> this.``split by linefeed`` |> List.length
-                if lines = 1 then
+            let ``illegal-patt`` = this.``c-single-quote`` + GRP(this.``nb-single-text`` ps) 
+
+            match ps with
+            |   Regex3(patt)    (mt,prs) ->
+                let content = mt.ge1
+                match ps.c with
+                |  Context.``Flow-out`` |  Context.``Flow-in`` ->   //  multiline
+                    let lines = content |> this.``split by linefeed`` |> List.length
+                    if lines = 1 then
+                        processSingleLine prs content
+                    else
+                        processMultiLine prs content
+                |   Context.``Block-key`` | Context.``Flow-key`` -> //  single line
                     processSingleLine prs content
-                else
-                    processMultiLine prs content
-            |   Context.``Block-key`` | Context.``Flow-key`` -> //  single line
-                processSingleLine prs content
-            | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
-        |   Regex3(``illegal-patt``) _ ->
-            MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingSquote (lazy "Missing \' in string literal.")
-            |>  ps.AddErrorMessage
-        |   _ -> FallibleOption.NoResult(), ps.Messages
+                | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
+            |   Regex3(``illegal-patt``) _ ->
+                MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrMissingSquote (lazy "Missing \' in string literal.")
+                |>  ps.AddErrorMessage
+            |   _ -> FallibleOption.NoResult(), ps.Messages
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Scalar, ps.c, ps, processFunc)
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-single-quoted" ps        
 
@@ -1470,10 +1472,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         | _             ->  failwith "The context 'block-out' and 'block-in' are not supported at this point"
 
     //  [122]   http://www.yaml.org/spec/1.2/spec.html#nb-single-one-line    
-    member this.``nb-single-one-line`` = ZOM(this.``nb-single-char``)
+    member this.``nb-single-one-line`` = HardValues.``nb-single-one-line``
 
     //  [123]   http://www.yaml.org/spec/1.2/spec.html#nb-ns-single-in-line
-    member this.``nb-ns-single-in-line`` = ZOM(ZOM(this.``s-white``) + this.``ns-single-char``)
+    member this.``nb-ns-single-in-line`` = HardValues.``nb-ns-single-in-line``
 
     //  [124]   http://www.yaml.org/spec/1.2/spec.html#s-single-next-line(n)
     member this.``s-single-next-line`` ps = //  note, spec is recursive, below is an attempt to rewrite recursive regex 
@@ -1501,10 +1503,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         callMemoized (127, ps.n, ps.c) ps
 
     //  [128]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe-out
-    member this.``ns-plain-safe-out`` = this.``ns-char``
+    member this.``ns-plain-safe-out`` = HardValues.``ns-plain-safe-out``
 
     //  [129]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-safe-in
-    member this.``ns-plain-safe-in`` = this.``ns-char`` - this.``c-flow-indicator``
+    member this.``ns-plain-safe-in`` = HardValues.``ns-plain-safe-in``
 
     //  [130]   http://www.yaml.org/spec/1.2/spec.html#ns-plain-char(c)
     member this.``ns-plain-char`` ps = (this.``ns-char`` + this.``c-comment``) ||| ((this.``ns-plain-safe`` ps) - (RGO (":#", [Token.``t-colon``; Token.``t-hash``]))) ||| (this.``c-mapping-value`` + (this.``ns-plain-safe`` ps))
@@ -1547,31 +1549,33 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [137]   http://www.yaml.org/spec/1.2/spec.html#c-flow-sequence(n,c)
     member this.``c-flow-sequence`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-flow-sequence" ps
-        ps |> ParseState.``Match and Advance`` (this.``c-sequence-start`` + OPT(this.``s-separate`` ps)) (fun prs ->
-            let prs = prs.SetStyleContext(this.``in-flow`` prs)
+        let processFunc ps = 
+            ps |> ParseState.``Match and Advance`` (this.``c-sequence-start`` + OPT(this.``s-separate`` ps)) (fun prs ->
+                let prs = prs.SetStyleContext(this.``in-flow`` prs)
 
-            let noResult prs =
-                prs |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> 
-                    CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psx) [] 
-                    |> this.ResolveTag psx NonSpecificQM (prs.Location)
-                    |> this.PostProcessAndValidateNode
+                let noResult prs =
+                    prs |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> 
+                        CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psx) [] 
+                        |> this.ResolveTag psx NonSpecificQM (prs.Location)
+                        |> this.PostProcessAndValidateNode
+                        )
+
+                let (nssflowseqentries,pm) = (this.``ns-s-flow-seq-entries`` prs)
+                match  nssflowseqentries.Result with
+                |   FallibleOptionValue.Value  ->
+                    let (c, prs2) = nssflowseqentries.Data
+                    prs2 
+                    |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> FallibleOption.Value (c, psx), pm)
+                    |> FallibleOption.ifnoresult(fun () -> 
+                        MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect sequence syntax, are you missing a comma, or ]?")
+                        |>  prs2.AddErrorMessage
                     )
+                |   FallibleOptionValue.NoResult -> prs |> noResult
+                |   FallibleOptionValue.ErrorResult -> prs |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
+                | _ -> failwith "Illegal value for nssflowseqentries"
 
-            let (nssflowseqentries,pm) = (this.``ns-s-flow-seq-entries`` prs)
-            match  nssflowseqentries.Result with
-            |   FallibleOptionValue.Value  ->
-                let (c, prs2) = nssflowseqentries.Data
-                prs2 
-                |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> FallibleOption.Value (c, psx), pm)
-                |> FallibleOption.ifnoresult(fun () -> 
-                    MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect sequence syntax, are you missing a comma, or ]?")
-                    |>  prs2.AddErrorMessage
-                )
-            |   FallibleOptionValue.NoResult -> prs |> noResult
-            |   FallibleOptionValue.ErrorResult -> prs |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
-            | _ -> failwith "Illegal value for nssflowseqentries"
-
-        )
+            )
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Sequence, ps, processFunc)
         |> ParseState.TrackParseLocation ps
         |> ParseState.ResetEnv ps
         |> this.LogReturn "c-flow-sequence" ps        
@@ -1625,26 +1629,28 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [140]   http://www.yaml.org/spec/1.2/spec.html#c-flow-mapping(n,c)
     member this.``c-flow-mapping`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-flow-mapping" ps
-        ps |> ParseState.``Match and Advance`` (this.``c-mapping-start`` + OPT(this.``s-separate`` ps)) (fun prs ->
-            let prs = prs.SetStyleContext(this.``in-flow`` prs)
-            let (mres,pm) = this.``ns-s-flow-map-entries`` prs
+        let processFunc ps =
+            ps |> ParseState.``Match and Advance`` (this.``c-mapping-start`` + OPT(this.``s-separate`` ps)) (fun prs ->
+                let prs = prs.SetStyleContext(this.``in-flow`` prs)
+                let (mres,pm) = this.``ns-s-flow-map-entries`` prs
 
-            let noResult prs = prs |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQM (prs2.Location))
+                let noResult prs = prs |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQM (prs2.Location))
 
-            match mres.Result with
-            |   FallibleOptionValue.Value  -> 
-                let (c, prs2) = mres.Data
-                prs2 
-                |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> FallibleOption.Value(c, prs2), prs2.Messages)
-                |> FallibleOption.ifnoresult(fun () ->
-                    MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect mapping syntax, are you missing a comma, or }?")
-                    |>  prs2.AddErrorMessage
-                )
-            |   FallibleOptionValue.NoResult     -> prs |> noResult 
-            |   FallibleOptionValue.ErrorResult  -> prs |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
-            | _ -> failwith "Illegal value for mres"
+                match mres.Result with
+                |   FallibleOptionValue.Value  -> 
+                    let (c, prs2) = mres.Data
+                    prs2 
+                    |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> FallibleOption.Value(c, prs2), prs2.Messages)
+                    |> FallibleOption.ifnoresult(fun () ->
+                        MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrMissingMappingSymbol (lazy "Incorrect mapping syntax, are you missing a comma, or }?")
+                        |>  prs2.AddErrorMessage
+                    )
+                |   FallibleOptionValue.NoResult     -> prs |> noResult 
+                |   FallibleOptionValue.ErrorResult  -> prs |> noResult |> FallibleOption.ifnoresult(fun () -> FallibleOption.ErrorResult(), pm)
+                | _ -> failwith "Illegal value for mres"
                
-        )
+            )
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Mapping, ps, processFunc)
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-flow-mapping" ps       
@@ -1652,6 +1658,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [141]   http://www.yaml.org/spec/1.2/spec.html#ns-s-flow-map-entries(n,c)
     member this.``ns-s-flow-map-entries`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-s-flow-map-entries" ps
+
         let rec ``ns-s-flow-map-entries`` (psp:ParseState) (lst:(Node*Node) list) : ParseFuncResult<_> =
             let noResult rs psr =
                 if lst.Length = 0 then rs   // empty sequence
@@ -1967,48 +1974,38 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                     let next = rs.Peek()
                     [Token.NewLine; Token.``t-tab``; Token.``t-space``]
                     |>  List.exists(fun e -> e = next.Token)
-
-        let ck = ScalarMemoizeKey.Create (ps.Input.Position) 156
-
-        if this.Caching.ContainsKey(ck) then
-            logger "> ns-plain uncache" ps
-            this.UncacheNode ck ps
-        else
-            match preErr.Result with
-            |   FallibleOptionValue.NoResult ->
-                match (ps.c, ps) with
-                |   Context.``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
-                |   Context.``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
+        match preErr.Result with
+        |   FallibleOptionValue.NoResult ->
+            match (ps.c, ps) with
+            |   Context.``Flow-out``, Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs) 
+            |   Context.``Flow-in``,  Regex4(this.``ns-plain`` ps, postParseCondition) (mt, prs)  -> 
 #if DEBUG
-                    logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+                logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
 #endif
-                    let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
-                    mt.FullMatch
-                    |> this.``split by linefeed``
-                    |> this.``plain flow fold lines`` prs
-                    |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
-                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.PostProcessAndValidateNode
-                    |> this.CacheNode ck prs dl (mt.FullMatch.Length)
-                |   Context.``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
-                |   Context.``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
+                let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
+                mt.FullMatch
+                |> this.``split by linefeed``
+                |> this.``plain flow fold lines`` prs
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQM (prs.Location)
+                |> this.PostProcessAndValidateNode
+            |   Context.``Block-key``, Regex3(this.``ns-plain`` ps) (mt, prs) 
+            |   Context.``Flow-key``,  Regex3(this.``ns-plain`` ps) (mt, prs)  -> 
 #if DEBUG
-                    logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
+                logger (sprintf "> ns-plain value: %s" mt.FullMatch) prs
 #endif
-                    let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
-                    mt.FullMatch
-                    |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
-                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
-                    |> this.PostProcessAndValidateNode
-                    |> this.CacheNode ck prs dl (mt.FullMatch.Length)
-                |   _, Regex3(``illegal-ns-plain`` ps) (_,prs) -> 
-                    MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrPlainScalarRestrictedIndicator (lazy "Reserved indicators can't start a plain scalar.")
-                    |> prs.AddErrorMessage
-                    |> this.CacheNode ck prs (DocumentLocation.Empty) 0
-                |   Context.``Block-out``, _
-                |   Context.``Block-in``, _ -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
-                |   _ -> FallibleOption.NoResult(), pm
-            | x -> preErr, pm
+                let dl = ParseState.PositionDelta mt.FullMatch ||> DocumentLocation.Create
+                mt.FullMatch
+                |> CreateScalarNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs)
+                |> this.ResolveTag prs NonSpecificQM (prs.Location)
+                |> this.PostProcessAndValidateNode
+            |   _, Regex3(``illegal-ns-plain`` ps) (_,prs) -> 
+                MessageAtLine.CreateContinue (ps.Location) MessageCode.ErrPlainScalarRestrictedIndicator (lazy "Reserved indicators can't start a plain scalar.")
+                |> prs.AddErrorMessage
+            |   Context.``Block-out``, _
+            |   Context.``Block-in``, _ -> failwith "The context 'block-out' and 'block-in' are not supported at this point"
+            |   _ -> FallibleOption.NoResult(), pm
+        | _ -> preErr, pm
         |> ParseState.ResetEnv ps 
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-yaml-content" ps
@@ -2042,18 +2039,20 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [159]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-yaml-node(n,c)
     member this.``ns-flow-yaml-node`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-yaml-node" ps
-        let ``ns-flow-yaml-content`` psp =
-            psp 
-            |> ParseState.``Match and Advance`` (this.``s-separate`` psp) (this.``ns-flow-yaml-content``)
-            |> FallibleOption.ifnoresult (fun () -> FallibleOption.Value (PlainEmptyNode (getParseInfo ps psp), psp), psp.Messages)    //  ``e-scalar`` None
+        let processFunc ps =
+            let ``ns-flow-yaml-content`` psp =
+                psp 
+                |> ParseState.``Match and Advance`` (this.``s-separate`` psp) (this.``ns-flow-yaml-content``)
+                |> FallibleOption.ifnoresult (fun () -> FallibleOption.Value (PlainEmptyNode (getParseInfo ps psp), psp), psp.Messages)    //  ``e-scalar`` None
 
-        ps.OneOf {
-            either (this.``c-ns-alias-node``)
-            either (this.``ns-flow-yaml-content``)
-            either (this.``content with properties`` ``ns-flow-yaml-content``)
-            ifneither (FallibleOption.NoResult())
-        }
-        |> ParseState.PreserveErrors ps
+            ps.OneOf {
+                either (this.``c-ns-alias-node``)
+                either (this.``ns-flow-yaml-content``)
+                either (this.``content with properties`` ``ns-flow-yaml-content``)
+                ifneither (FallibleOption.NoResult())
+            }
+            |> ParseState.PreserveErrors ps
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Scalar, ps.c, ps, processFunc)
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn  "ns-flow-yaml-node" ps
 
@@ -2136,10 +2135,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |> this.LogReturn "c-b-block-header" ps
 
     //  [163]   http://www.yaml.org/spec/1.2/spec.html#c-indentation-indicator(m)
-    member this.``c-indentation-indicator`` = OPT(this.``ns-dec-digit``)
+    member this.``c-indentation-indicator`` = HardValues.``c-indentation-indicator``
 
     //  [164]   http://www.yaml.org/spec/1.2/spec.html#c-chomping-indicator(t)
-    member this.``c-chomping-indicator`` = OPT(RGP("\\+", [Token.``t-plus``]) ||| this.``c-sequence-entry``)
+    member this.``c-chomping-indicator`` = HardValues.``c-chomping-indicator``
 
     //  [165]   http://www.yaml.org/spec/1.2/spec.html#b-chomped-last(t)
     member this.``b-chomped-last`` ps =
@@ -2214,69 +2213,60 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                         |   Regex(tooManySpaces) _ -> ps.AddErrorMessage <| MessageAtLine.CreateContinue (pst.Location) MessageCode.ErrTooManySpacesLiteral (lazy "A leading all-space line must not have too many spaces.")
                         |   _ -> trimMain sin sout
             trimHead slist []
-
-
-        let ck = ScalarMemoizeKey.Create (ps.Input.Position) 170
-
-        if this.Caching.ContainsKey(ck) then
-            logger "> c-l+literal uncache" ps
-            this.UncacheNode ck ps
-        else
-            ps |> ParseState.``Match and Advance`` (RGP ("\\|", [Token.``t-pipe``])) (fun prs ->
-                let ``literal-content`` (ps:ParseState) =
-                    let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
-                    let p = this.``l-literal-content`` ps
-                    match ps.Input.Data  with
-                    |   Regex2(p)  m -> FallibleOption.Value(m.ge1, ps |> ParseState.TrackPosition m.FullMatch), ps.Messages
-                    |   _ -> FallibleOption.NoResult(), ps.Messages
-                (this.``c-b-block-header`` prs)
-                |> FallibleOption.bind(fun (pm, prs2) ->
-                    match pm with
-                    |   Some(m) -> FallibleOption.Value m, prs2.Messages
-                    |   None    ->
-                        let (literalcontent, pm2) = (``literal-content`` prs2) 
-                        match literalcontent.Result with
-                        |   FallibleOptionValue.Value ->  
-                            let (ms, _) = literalcontent.Data
+        ps |> ParseState.``Match and Advance`` (RGP ("\\|", [Token.``t-pipe``])) (fun prs ->
+            let ``literal-content`` (ps:ParseState) =
+                let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
+                let p = this.``l-literal-content`` ps
+                match ps.Input.Data  with
+                |   Regex2(p)  m -> FallibleOption.Value(m.ge1, ps |> ParseState.TrackPosition m.FullMatch), ps.Messages
+                |   _ -> FallibleOption.NoResult(), ps.Messages
+            (this.``c-b-block-header`` prs)
+            |> FallibleOption.bind(fun (pm, prs2) ->
+                match pm with
+                |   Some(m) -> FallibleOption.Value m, prs2.Messages
+                |   None    ->
+                    let (literalcontent, pm2) = (``literal-content`` prs2) 
+                    match literalcontent.Result with
+                    |   FallibleOptionValue.Value ->  
+                        let (ms, _) = literalcontent.Data
+                        let split = ms |> this.``split by linefeed`` 
+                        let aut = split |> this.``auto detect indent in block`` prs2.n
+                        if aut < 0 then failwith "Autodetected indentation is less than zero"
+                        prs2.Input.Reset()
+                        FallibleOption.Value aut, pm2
+                    |   _  -> prs2.AddErrorMessage <| MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '|'")
+                |> FallibleOption.bind(fun m ->
+                    (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
+                    |> FallibleOption.bind(fun (ms, ps2) ->  
+                        if ms = "" then
+                            let (detectLessIndented, pm) = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
+                            match detectLessIndented.Result with
+                            |   FallibleOptionValue.Value ->  ps2.AddErrorMessage <| MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "The text is less indented than the indicated level.")
+                            |   _ -> ps2.AddErrorMessage <| MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrBadFormatLiteral (lazy "The literal has bad syntax.")
+                        else
+                            let dl = ParseState.PositionDelta ms ||> DocumentLocation.Create
                             let split = ms |> this.``split by linefeed`` 
-                            let aut = split |> this.``auto detect indent in block`` prs2.n
-                            if aut < 0 then failwith "Autodetected indentation is less than zero"
-                            prs2.Input.Reset()
-                            FallibleOption.Value aut, pm2
-                        |   _  -> prs2.AddErrorMessage <| MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '|'")
-                    |> FallibleOption.bind(fun m ->
-                        (``literal-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
-                        |> FallibleOption.bind(fun (ms, ps2) ->  
-                            if ms = "" then
-                                let (detectLessIndented, pm) = (``literal-content`` (prs2 |> ParseState.SetIndent 1 |> ParseState.SetSubIndent 0))
-                                match detectLessIndented.Result with
-                                |   FallibleOptionValue.Value ->  ps2.AddErrorMessage <| MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "The text is less indented than the indicated level.")
-                                |   _ -> ps2.AddErrorMessage <| MessageAtLine.CreateContinue (ps2.Location) MessageCode.ErrBadFormatLiteral (lazy "The literal has bad syntax.")
-                            else
-                                let dl = ParseState.PositionDelta ms ||> DocumentLocation.Create
-                                let split = ms |> this.``split by linefeed`` 
-                                let mapScalar (s, prs) =  
-                                    CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
-                                    |> this.ResolveTag prs NonSpecificQT (prs.Location)
-                                split 
-                                |> trimIndent ps2
-                                |> FallibleOption.map(fun prs -> 
-                                    let s = 
-                                        prs
-                                        |> this.``chomp lines`` ps2 
-                                        |> this.``join lines``
-    #if DEBUG
-                                    logger (sprintf "c-l+literal value: %s" s) ps2
-    #endif
-                                    (s, ps2 |> ParseState.Advance)
-                                    )
-                                |> FallibleOption.bind mapScalar
-                                |> this.PostProcessAndValidateNode
-                                |> this.CacheNode ck prs dl (ms.Length)
-                        )
+                            let mapScalar (s, prs) =  
+                                CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
+                                |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                            split 
+                            |> trimIndent ps2
+                            |> FallibleOption.map(fun prs -> 
+                                let s = 
+                                    prs
+                                    |> this.``chomp lines`` ps2 
+                                    |> this.``join lines``
+#if DEBUG
+                                logger (sprintf "c-l+literal value: %s" s) ps2
+#endif
+                                (s, ps2 |> ParseState.Advance)
+                                )
+                            |> FallibleOption.bind mapScalar
+                            |> this.PostProcessAndValidateNode
                     )
                 )
             )
+        )
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+literal" ps
 
@@ -2339,58 +2329,50 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                             else
                                foldEverything rest (h :: outLines) false
             foldEverything strlst [] false |> List.map(unIndent)
+        ps |> ParseState.``Match and Advance`` (this.``c-folded``) (fun prs ->
+            let ``folded-content`` (ps:ParseState) =
+                let ps = if ps.n < 1 then ps.SetIndent 1 else ps
+                let patt = this.``l-folded-content`` (ps.FullIndented)
+                match ps with
+                |   Regex3(patt)  (m,p) -> FallibleOption.Value(m.ge1, p |> ParseState.TrackPosition m.FullMatch), ps.Messages
+                |   _ -> FallibleOption.NoResult(), ps.Messages
 
-        let ck = ScalarMemoizeKey.Create (ps.Input.Position) 174
+            (this.``c-b-block-header`` prs)
+            |> FallibleOption.bind(fun (pm, prs2) -> 
+                match pm with
+                |   Some(m) -> FallibleOption.Value m, prs2.Messages
+                |   None    ->
+                    let (foldedcontent, pm2) = (``folded-content`` prs2) 
+                    match foldedcontent.Result with
+                    |   FallibleOptionValue.Value ->  
+                        let (ms, _) = foldedcontent.Data
+                        let split = ms |> this.``split by linefeed`` 
+                        let aut = split |> this.``auto detect indent in block`` prs2.n
+                        if aut < 0 then failwith "Autodetected indentation is less than zero"
+                        prs2.Input.Reset()
+                        FallibleOption.Value aut, pm2
+                    |   _  -> prs2.AddErrorMessage <| MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '>'")
+                |> FallibleOption.bind(fun m ->
+                    let mapScalar (s, prs) =  
+                        CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
+                        |> this.ResolveTag prs NonSpecificQT (prs.Location)
+                    (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
+                    |> FallibleOption.bind(fun (ms, ps2) -> 
+                        let dl = ParseState.PositionDelta ms ||> DocumentLocation.Create
 
-        if this.Caching.ContainsKey(ck) then
-            logger "> c-l+folded uncache" ps
-            this.UncacheNode ck ps
-        else
-            ps |> ParseState.``Match and Advance`` (this.``c-folded``) (fun prs ->
-                let ``folded-content`` (ps:ParseState) =
-                    let ps = if ps.n < 1 then ps.SetIndent 1 else ps
-                    let patt = this.``l-folded-content`` (ps.FullIndented)
-                    match ps with
-                    |   Regex3(patt)  (m,p) -> FallibleOption.Value(m.ge1, p |> ParseState.TrackPosition m.FullMatch), ps.Messages
-                    |   _ -> FallibleOption.NoResult(), ps.Messages
-
-                (this.``c-b-block-header`` prs)
-                |> FallibleOption.bind(fun (pm, prs2) -> 
-                    match pm with
-                    |   Some(m) -> FallibleOption.Value m, prs2.Messages
-                    |   None    ->
-                        let (foldedcontent, pm2) = (``folded-content`` prs2) 
-                        match foldedcontent.Result with
-                        |   FallibleOptionValue.Value ->  
-                            let (ms, _) = foldedcontent.Data
-                            let split = ms |> this.``split by linefeed`` 
-                            let aut = split |> this.``auto detect indent in block`` prs2.n
-                            if aut < 0 then failwith "Autodetected indentation is less than zero"
-                            prs2.Input.Reset()
-                            FallibleOption.Value aut, pm2
-                        |   _  -> prs2.AddErrorMessage <| MessageAtLine.CreateContinue (prs2.Location) MessageCode.ErrTooLessIndentedLiteral (lazy "Could not detect indentation of literal block scalar after '>'")
-                    |> FallibleOption.bind(fun m ->
-                        let mapScalar (s, prs) =  
-                            CreateScalarNode (NonSpecific.NonSpecificTagQT) (getParseInfo ps prs) (s)
-                            |> this.ResolveTag prs NonSpecificQT (prs.Location)
-                        (``folded-content`` (prs2 |> ParseState.SetIndent (prs2.n+m) |> ParseState.SetSubIndent 0))
-                        |> FallibleOption.bind(fun (ms, ps2) -> 
-                            let dl = ParseState.PositionDelta ms ||> DocumentLocation.Create
-
-                            let s = 
-                                ms 
-                                |> this.``split by linefeed`` 
-                                |> ``block fold lines`` ps2
-                                |> this.``chomp lines`` ps2 
-                                |> this.``join lines``
-                            (FallibleOption.Value(s, ps2 |> ParseState.Advance), prs.Messages)
-                            |> FallibleOption.bind mapScalar
-                            |> this.PostProcessAndValidateNode
-                            |> this.CacheNode ck prs dl (ms.Length)
-                        )
+                        let s = 
+                            ms 
+                            |> this.``split by linefeed`` 
+                            |> ``block fold lines`` ps2
+                            |> this.``chomp lines`` ps2 
+                            |> this.``join lines``
+                        (FallibleOption.Value(s, ps2 |> ParseState.Advance), prs.Messages)
+                        |> FallibleOption.bind mapScalar
+                        |> this.PostProcessAndValidateNode
                     )
                 )
-             )
+            )
+        )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "c-l+folded" ps 
@@ -2428,36 +2410,39 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [183]   http://www.yaml.org/spec/1.2/spec.html#l+block-sequence(n)
     member this.``l+block-sequence`` (ps:ParseState) = 
         logger "l+block-sequence" ps
-        let m = this.``auto detect indent in line`` ps
-        if m < 1 then 
-            if ps.Input.Peek().Token = Token.``t-quotationmark`` then
-                ps.AddErrorMessage <| CreateErrorMessage.TabIndentError ps
+        let processFunc ps =
+            let m = this.``auto detect indent in line`` ps
+            if m < 1 then 
+                if ps.Input.Peek().Token = Token.``t-quotationmark`` then
+                    ps.AddErrorMessage <| CreateErrorMessage.TabIndentError ps
+                else
+                    FallibleOption.NoResult(), ps.Messages
             else
-                FallibleOption.NoResult(), ps.Messages
-        else
-            let rec ``l+block-sequence`` (psp:ParseState) (acc: Node list) =
-                let contentOrNone rs psr = 
-                    if (ParseState.HasNoTerminatingError psr) then
-                        if (acc.Length = 0) then rs
-                        else 
-                            CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
-                            |> this.ResolveTag psp NonSpecificQM (psp.Location)
-                            |> this.PostProcessAndValidateNode
-                    else
-                        //let prsc = psr |> ParseState.ProcessErrors
-                        FallibleOption.ErrorResult(), psr.Messages
+                let rec ``l+block-sequence`` (psp:ParseState) (acc: Node list) =
+                    let contentOrNone rs psr = 
+                        if (ParseState.HasNoTerminatingError psr) then
+                            if (acc.Length = 0) then rs
+                            else 
+                                CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
+                                |> this.ResolveTag psp NonSpecificQM (psp.Location)
+                                |> this.PostProcessAndValidateNode
+                        else
+                            //let prsc = psr |> ParseState.ProcessErrors
+                            FallibleOption.ErrorResult(), psr.Messages
 
-                let pspf = psp.FullIndented
-                let (clblockseqentry, pm) = pspf |> ParseState.``Match and Advance`` (this.``s-indent(n)`` pspf) (this.``c-l-block-seq-entry``)
-                match clblockseqentry.Result with
-                |   FallibleOptionValue.Value -> 
-                    let (c, prs2) = clblockseqentry.Data
-                    ``l+block-sequence`` prs2 (c :: acc)
-                |   FallibleOptionValue.NoResult       -> psp |> contentOrNone (FallibleOption.NoResult(), pm)
-                |   FallibleOptionValue.ErrorResult    -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
-                | _ -> failwith "Illegal value for clblockseqentry"
-            let ps = ps.SetSubIndent m
-            ``l+block-sequence`` ps []
+                    let pspf = psp.FullIndented
+                    let (clblockseqentry, pm) = pspf |> ParseState.``Match and Advance`` (this.``s-indent(n)`` pspf) (this.``c-l-block-seq-entry``)
+                    match clblockseqentry.Result with
+                    |   FallibleOptionValue.Value -> 
+                        let (c, prs2) = clblockseqentry.Data
+                        ``l+block-sequence`` prs2 (c :: acc)
+                    |   FallibleOptionValue.NoResult       -> psp |> contentOrNone (FallibleOption.NoResult(), pm)
+                    |   FallibleOptionValue.ErrorResult    -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
+                    | _ -> failwith "Illegal value for clblockseqentry"
+                let ps = ps.SetSubIndent m
+                ``l+block-sequence`` ps []
+        
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Sequence, ps, processFunc)
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l+block-sequence" ps
@@ -2562,35 +2547,38 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [187]   http://www.yaml.org/spec/1.2/spec.html#l+block-mapping(n)
     member this.``l+block-mapping`` ps =
         logger "l+block-mapping" ps
-        let m = this.``auto detect indent in line`` ps
-        if m < 1 then 
-            if ps.Input.Peek().Token = Token.``t-tab`` then
-                ps.AddErrorMessage <| CreateErrorMessage.TabIndentError ps
-            else
-                FallibleOption.NoResult(), ps.Messages
-        else
-            let rec ``l+block-mapping`` (psp:ParseState) (acc:(Node*Node) list) = 
-                let contentOrNone rs psr = 
-                    if (ParseState.HasNoTerminatingError psr) then
-                        if (acc.Length = 0) then rs
-                        else 
-                            CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
-                            |> this.ResolveTag psr NonSpecificQM (psr.Location)
-                            |> this.PostProcessAndValidateNode
-                    else
-                        //let prsc = psr |> ParseState.ProcessErrors
-                        FallibleOption.ErrorResult(), psr.Messages
 
-                let (nslblockmapentry, pm) = (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
-                match nslblockmapentry.Result with
-                |   FallibleOptionValue.Value  -> 
-                    let ((ck, cv), prs) = nslblockmapentry.Data
-                    ``l+block-mapping`` prs ((ck,cv) :: acc)
-                |   FallibleOptionValue.NoResult    -> psp |> contentOrNone (FallibleOption.NoResult(), pm) 
-                |   FallibleOptionValue.ErrorResult -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
-                | _ -> failwith "Illegal value for nslblockmapentry"
-            let ps = ps.SetSubIndent m
-            ``l+block-mapping`` ps []
+        let processFunc ps =
+            let m = this.``auto detect indent in line`` ps
+            if m < 1 then 
+                if ps.Input.Peek().Token = Token.``t-tab`` then
+                    ps.AddErrorMessage <| CreateErrorMessage.TabIndentError ps
+                else
+                    FallibleOption.NoResult(), ps.Messages
+            else
+                let rec ``l+block-mapping`` (psp:ParseState) (acc:(Node*Node) list) = 
+                    let contentOrNone rs psr = 
+                        if (ParseState.HasNoTerminatingError psr) then
+                            if (acc.Length = 0) then rs
+                            else 
+                                CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
+                                |> this.ResolveTag psr NonSpecificQM (psr.Location)
+                                |> this.PostProcessAndValidateNode
+                        else
+                            //let prsc = psr |> ParseState.ProcessErrors
+                            FallibleOption.ErrorResult(), psr.Messages
+
+                    let (nslblockmapentry, pm) = (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp.FullIndented) (this.``ns-l-block-map-entry``)
+                    match nslblockmapentry.Result with
+                    |   FallibleOptionValue.Value  -> 
+                        let ((ck, cv), prs) = nslblockmapentry.Data
+                        ``l+block-mapping`` prs ((ck,cv) :: acc)
+                    |   FallibleOptionValue.NoResult    -> psp |> contentOrNone (FallibleOption.NoResult(), pm) 
+                    |   FallibleOptionValue.ErrorResult -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
+                    | _ -> failwith "Illegal value for nslblockmapentry"
+                let ps = ps.SetSubIndent m
+                ``l+block-mapping`` ps []
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Mapping, ps, processFunc)
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "l+block-mapping" ps
@@ -2795,29 +2783,31 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [199]   http://www.yaml.org/spec/1.2/spec.html#s-l+block-scalar(n,c)
     member this.``s-l+block-scalar`` (ps:ParseState) : ParseFuncResult<_> =
         logger "s-l+block-scalar" ps
-        let psp1 = ps.SetIndent (ps.n + 1)
-        let ``literal or folded`` (psp:ParseState) =
-            let psp1 = psp.SetIndent (psp.n + 1)
+        let processFunc (ps:ParseState) =
+            let psp1 = ps.SetIndent (ps.n + 1)
+            let ``literal or folded`` (psp:ParseState) =
+                let psp1 = psp.SetIndent (psp.n + 1)
+                psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
+                    (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
+                        {
+                            either   (this.``c-l+literal``)
+                            either   (this.``c-l+folded``)
+                            ifneither (FallibleOption.NoResult())
+                        }
+                        |> ParseState.PreserveErrors ps
+                )
             psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
                 (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
                     {
+                        either(this.``content with properties`` ``literal or folded``)
                         either   (this.``c-l+literal``)
                         either   (this.``c-l+folded``)
                         ifneither (FallibleOption.NoResult())
                     }
                     |> ParseState.PreserveErrors ps
-            )
-        psp1 |> ParseState.``Match and Advance`` (this.``s-separate`` psp1) (fun prs ->
-            (prs |> ParseState.SetIndent (prs.n-1) |> ParseState.OneOf)
-                {
-                    either(this.``content with properties`` ``literal or folded``)
-                    either   (this.``c-l+literal``)
-                    either   (this.``c-l+folded``)
-                    ifneither (FallibleOption.NoResult())
-                }
-                |> ParseState.PreserveErrors ps
 
-        )
+            )
+        parsingCache.GetOrParse(ps.Input.Position, NodeKind.Scalar, ps.c, ps, processFunc)
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
         |> this.LogReturn "s-l+block-scalar" ps
@@ -2857,13 +2847,13 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
         |   _ ->    failwith "Unsupported document style."
 
     //  [202]   http://www.yaml.org/spec/1.2/spec.html#l-document-prefix
-    member this.``l-document-prefix`` = OPT(this.``c-byte-order-mark``) + ZOM(this.``l-comment``)
+    member this.``l-document-prefix`` = HardValues.``l-document-prefix``
 
     //  [203]   http://www.yaml.org/spec/1.2/spec.html#c-directives-end
-    member this.``c-directives-end`` = this.``c-sequence-entry`` + this.``c-sequence-entry`` + this.``c-sequence-entry`` // RGP ("---", [Token.``c-directives-end``])
+    member this.``c-directives-end`` = HardValues.``c-directives-end``
 
     //  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
-    member this.``c-document-end`` = 
+    member this.``c-document-end`` =
         let dot = RGP("\\.", [Token.``t-dot``])
         //RGP ("\\.\\.\\.", [Token.``c-document-end``])
         dot + dot + dot
@@ -2872,9 +2862,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     member this.``l-document-suffix`` = this.``c-document-end`` + this.``s-l-comments``
 
     //  [206]   http://www.yaml.org/spec/1.2/spec.html#c-forbidden
-    member this.``c-forbidden`` =
+    member this.``c-forbidden`` = 
         (``start-of-line`` ||| this.``b-break``) +
-        ( this.``c-directives-end`` ||| this.``c-document-end``) +
+        (this.``c-directives-end`` ||| this.``c-document-end``) +
         (this.``b-char`` ||| this.``s-white`` ||| ``end-of-file``)
 
     //  [207]   http://www.yaml.org/spec/1.2/spec.html#l-bare-document
@@ -2939,7 +2929,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
     //  [210]   http://www.yaml.org/spec/1.2/spec.html#l-any-document
     member this.``l-any-document`` (ps:ParseState) : ParseFuncResult<_> =
         logger "l-any-document" ps
-        this.Caching.Clear()
+        parsingCache.Clear()
         (ps (*|> ParseState.ResetDocumentParseState*) |> ParseState.OneOf) {
             either(this.``l-directive-document``)
             either(this.``l-explicit-document``)
@@ -2952,7 +2942,11 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
 
     //  [211]   http://www.yaml.org/spec/1.2/spec.html#l-yaml-stream
     member this.``l-yaml-stream`` (input:string) : Representation list= 
-        let ps = ParseState.Create (this.ParserMessages) input 
+#if DEBUG
+        let ps = ParseState.Create (this.ParserMessages) input logfunc
+#else
+        let ps = ParseState.Create (this.ParserMessages) input
+#endif
         logger "l-yaml-stream" ps
 
         let IsEndOfStream psp =
@@ -2965,13 +2959,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:string->uni
                 false
             else
                 true
-
-
         ps |> 
         ParseState.``Match and Advance`` (ZOM(this.``l-document-prefix``)) (fun psr ->
             let addToList acc (r,ps) = (ps, r :: acc)
 
             let rec successorDoc (ps:ParseState, representations) =
+                
                 //  quitNode is a Sentinel value, which is realized via its tag
                 let quitNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#QUITNODE#" (this.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))
                 let noResultNode = Node.ScalarNode(NodeData<string>.Create (TagKind.NonSpecific (LocalTag.Create "#NORESULTNODE#" (this.GlobalTagSchema.LocalTags))) ("#ILLEGALVALUE#") (getParseInfo ps ps))

@@ -37,10 +37,10 @@ module YamlMapped =
 
 
     let Schema = 
-    { YamlExtended.Schema with
-        GlobalTags = providedScalarTags @ providedSeqTags @ providedMappingTags
-        TagResolution = tagResolutionYamlExtended providedMappingTags providedSeqTags providedScalarTags
-    }
+        { YamlExtended.Schema with
+            GlobalTags = providedScalarTags @ providedSeqTags @ providedMappingTags
+            TagResolution = tagResolutionYamlExtended providedMappingTags providedSeqTags providedScalarTags
+        }
 
 
 /// All yaml-scalar to native mappings

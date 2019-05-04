@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <id>Legivel</id>
+        <version>$version$</version>
+        <description>Legivel is a Yaml1.2 to Native processor, which emits Fsharp types.</description>
+        <authors>Frank Joppe</authors>
+    </metadata>
+    <files>
+        <file src="bin\Release\**\Legivel.Parser.dll" target="lib" />
+        <file src="bin\Release\**\Legivel.Mapper.dll" target="lib" />
+    </files>
+</package>
+
