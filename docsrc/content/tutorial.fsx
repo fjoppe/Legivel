@@ -1,3 +1,4 @@
+open System.Collections.Generic
 (*** hide ***)
 // This block of code is omitted in the generated HTML documentation. Use 
 // it to define helpers that you do not want to show in the documentation.
@@ -7,6 +8,7 @@
 #r "Legivel.Mapper.dll"
 open Legivel.Serialization
 open System
+open System.Collections.Generic
 
 (**
 Legivel Tutorial
@@ -205,3 +207,18 @@ Deserialize<Map<ProductType,Contents>> yaml
 Which results in:
 *)
 (*** include-it: mapexample ***)
+(**
+# Map IDictionary<K,V>
+
+Yaml mapping nodes can be mapped to an [IDictionary<'TKey,'TValue>](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.idictionary-2), 
+with the constraint that the target type has a parameterless constructor. 
+
+*)
+(*** define-output: idictexample ***)
+Deserialize<Dictionary<ProductType,Contents>> yaml
+
+(**
+Which results in:
+*)
+(*** include-it: idictexample ***)
+

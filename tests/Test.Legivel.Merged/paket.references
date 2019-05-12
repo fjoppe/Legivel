@@ -5,4 +5,5 @@ Microsoft.NET.Test.Sdk
 NUnit
 NUnit3TestAdapter
 NLog.FSharp
+Open.Collections framework: >= netcoreapp2.0
 File:FsUnitTyped.fs

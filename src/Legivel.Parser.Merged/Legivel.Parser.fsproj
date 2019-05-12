@@ -36,10 +36,17 @@
     </DefineConstants>
     <WarningLevel>5</WarningLevel>
     <OtherFlags>--warnon:1182</OtherFlags>
-    <DocumentationFile>.\bin\Release\Legivel.Parser.XML</DocumentationFile>
+    <!-- <DocumentationFile>.\bin\Release\Legivel.Parser.XML</DocumentationFile> -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)|$(TargetFramework)' == 'Release|AnyCPU|net45' ">
+    <DocumentationFile>.\bin\Release\net45\Legivel.Parser.XML</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)|$(TargetFramework)' == 'Release|AnyCPU|netstandard2.0' ">
+    <DocumentationFile>.\bin\Release\netstandard2.0\Legivel.Parser.XML</DocumentationFile>
+  </PropertyGroup>
+
   <!-- <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" /> -->
   <!-- <Choose>
     <When Condition="'$(VisualStudioVersion)' == '11.0'">

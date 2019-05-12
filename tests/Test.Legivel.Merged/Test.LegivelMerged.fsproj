@@ -100,6 +100,16 @@
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
+    <Reference Include="Open.Collections">
+      <HintPath>..\..\packages\Open.Collections\lib\netstandard2.0\Open.Collections.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <Reference Include="Open.Disposable">
+      <HintPath>..\..\packages\Open.Disposable\lib\netstandard2.0\Open.Disposable.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit3TestAdapter" framework="netcoreapp2.0" version="3.12.0" />
   </ItemGroup>
@@ -167,6 +177,7 @@
       <Link>TestTokenizer.fs</Link>
     </Compile>
     <None Include="FailFast YamlParserTest 5.fsx" />
+    <None Include="Failfast Mapping.fsx" />
     <None Include="QuotationTest.fsx" />
     <!-- <Compile Include="Main.fs"/> -->
   </ItemGroup>
