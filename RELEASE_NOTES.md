@@ -1,3 +1,7 @@
+#### 0.3.1 - May 12 2019
+*   Added support for Mapper target IDictionary<TK, TV>
+*   Data values are inserted into IDictionary<TK, TV>, in the same order of appearance, as in the yaml source
+
 #### 0.3.0 - May 4 2019
 *   Added netstandard2.0 support
 *   Various performance improvements

@@ -312,6 +312,7 @@ type ListMappingInfo = {
 
 
 type MapMappingInfo = {
+        IsFsharpMap : bool
         MapType     : Type
         KeyType     : YTMRef
         ValueType   : YTMRef
@@ -323,25 +324,49 @@ type MapMappingInfo = {
             if mappers.HasType t then
                 FallibleOption.Value (mappers.GetRef t, mappers), msgList
             else
-                let IsMap (t:Type) = AreTypesEqual typeof<FSharp.Collections.Map<int, int>> t
-                if IsMap t then
-                    let (r,nm) = mappers.RegisterType t
+                let (|IsMap|_|) (t:Type) = if (AreTypesEqual typeof<FSharp.Collections.Map<int, int>> t) then Some t else None
+                let (|IsValidIDictionary|_|) (t:Type) =
+                    let idict =
+                        t.GetInterfaces()
+                        |>  List.ofArray
+                        |>  List.filter(fun s -> s.FullName.StartsWith("System.Collections.Generic.IDictionary`2") && s.GetGenericArguments().Length = 2)
+                    if (idict.Length = 1) then Some t else None // any type inheriting this interface twice or more is also not supported
+
+                match t with
+                |   IsMap   mt ->
+                    let (r,nm) = mappers.RegisterType mt
                     faillableSequence  msgList {
-                        let! (keyType, nm) = nm.TryFindMapper msgList t.GenericTypeArguments.[0]
-                        let! (valType, nm) = nm.TryFindMapper msgList t.GenericTypeArguments.[1]
+                        let! (keyType, nm) = nm.TryFindMapper msgList mt.GenericTypeArguments.[0]
+                        let! (valType, nm) = nm.TryFindMapper msgList mt.GenericTypeArguments.[1]
                         return (keyType,valType), nm
                     }
                     |>  FallibleOption.map(fun ((kt,vt), nmps) -> 
-                        let d = {MapType = t; KeyType = kt; ValueType = vt; ProcessingOptions = po} :> IYamlToNativeMapping
+                        let d = {MapType = mt; IsFsharpMap = true; KeyType = kt; ValueType = vt; ProcessingOptions = po} :> IYamlToNativeMapping
                         r, nmps.RegisterMapper r d)
-                else
-                    FallibleOption.NoResult(), msgList
+                |   IsValidIDictionary mt ->
+                    if mt.GetConstructor([||])=null then
+                        AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Type in target deserialization type, has no parameterless constructor '%s'" (mt.FullName)))
+                    else
+                        let (r,nm) = mappers.RegisterType mt
+                        faillableSequence  msgList {
+                            let! (keyType, nm) = nm.TryFindMapper msgList mt.GenericTypeArguments.[0]
+                            let! (valType, nm) = nm.TryFindMapper msgList mt.GenericTypeArguments.[1]
+                            return (keyType,valType), nm
+                        }
+                        |>  FallibleOption.map(fun ((kt,vt), nmps) -> 
+                            let d = {MapType = mt; IsFsharpMap = false; KeyType = kt; ValueType = vt; ProcessingOptions = po} :> IYamlToNativeMapping
+                            r, nmps.RegisterMapper r d)
+                |    _ -> FallibleOption.NoResult(), msgList
 
         member private this.EmptyMap 
             with get() =
-                let mm = [ for i in Assembly.GetAssembly(this.MapType).ExportedTypes do yield i]|> List.find(fun m -> m.Name.Contains("MapModule"))
-                let mt = mm.GetMethod("Empty")
-                mt.MakeGenericMethod(this.MapType.GetGenericArguments()).Invoke(null, [||])
+                if this.IsFsharpMap then
+                    let mm = [ for i in Assembly.GetAssembly(this.MapType).ExportedTypes do yield i]|> List.find(fun m -> m.Name.Contains("MapModule"))
+                    let mt = mm.GetMethod("Empty")
+                    mt.MakeGenericMethod(this.MapType.GetGenericArguments()).Invoke(null, [||])
+                else
+                    let ctor = this.MapType.GetConstructor([||])
+                    ctor.Invoke([||])
 
         interface IYamlToNativeMapping with
 
@@ -350,7 +375,7 @@ type MapMappingInfo = {
                 getMapNode msgList n
                 |>  FallibleOption.forCollection(fun (dt,pm) ->
                     dt.Data
-                    |>  List.rev
+                    // |>  List.rev
                     |>  List.map(fun (k,v) ->
                         faillableSequence pm {
                             let! km = mappers.map pm (this.KeyType) k
@@ -360,15 +385,23 @@ type MapMappingInfo = {
                     )
                 )
                 |>  FallibleOption.errorsOrValues msgList (fun possibleData ->
-                    possibleData
-                    |>  List.map(fun (pd,_) -> pd.Data)
-                    |>  List.fold(fun (s:obj) (k,v) -> 
-                            this.MapType.GetMethod("Add").Invoke(s, [|k;v|])
-                        ) this.EmptyMap
-                    |>  box
-                    |>  FallibleOption.Value
-                    |>  fun e -> (e,msgList)
+                    if this.IsFsharpMap then
+                        possibleData
+                        |>  List.map(fun (pd,_) -> pd.Data)
+                        |>  List.fold(fun (s:obj) (k,v) -> this.MapType.GetMethod("Add").Invoke(s, [|k;v|])) this.EmptyMap
+                        |>  box
+                        |>  FallibleOption.Value
+                        |>  fun e -> (e,msgList)
+                    else
+                        let dict = this.EmptyMap
+                        possibleData
+                        |>  List.map(fun (pd,_) -> pd.Data)
+                        |>  List.iter(fun (k,v) -> this.MapType.GetMethod("Add").Invoke(dict, [|k;v|]) |> ignore)
+                        box dict
+                        |>  FallibleOption.Value
+                        |>  fun e -> (e,msgList)
                 )
+                    
 
             /// Returns the default value of the target type
             member this.Default
