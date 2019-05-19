@@ -252,6 +252,33 @@ FSharp context. You could add or inject some application specific mapping, to su
 <p>For any customization - when you want to use <code>Legivel.Mapper</code> - you can start looking into the modules
 <code>Legivel.Customization.Mapping</code> and <code>Legivel.Customization.Utilities</code>.</p>
 
+<div class="tip" id="fs1">type GlobalTagSchema =<br />&#160;&#160;{GlobalTags: obj;<br />&#160;&#160;&#160;TagResolution: obj;<br />&#160;&#160;&#160;UnresolvedResolution: obj;<br />&#160;&#160;&#160;LocalTags: obj;}</div>
+<div class="tip" id="fs2">GlobalTagSchema.GlobalTags: obj</div>
+<div class="tip" id="fs3">type &#39;T list = List&lt;&#39;T&gt;</div>
+<div class="tip" id="fs4">GlobalTagSchema.TagResolution: obj</div>
+<div class="tip" id="fs5">GlobalTagSchema.UnresolvedResolution: obj</div>
+<div class="tip" id="fs6">GlobalTagSchema.LocalTags: obj</div>
+<div class="tip" id="fs7">type GlobalTag =<br />&#160;&#160;{Uri&#39;: string;<br />&#160;&#160;&#160;Kind&#39;: obj;<br />&#160;&#160;&#160;Regex&#39;: string;<br />&#160;&#160;&#160;canonFn: string -&gt; string option;<br />&#160;&#160;&#160;TagFunctions&#39;: obj;}</div>
+<div class="tip" id="fs8">GlobalTag.Uri&#39;: string</div>
+<div class="tip" id="fs9">Multiple items<br />val string : value:&#39;T -&gt; string<br /><br />--------------------<br />type string = System.String</div>
+<div class="tip" id="fs10">GlobalTag.Kind&#39;: obj</div>
+<div class="tip" id="fs11">GlobalTag.Regex&#39;: string</div>
+<div class="tip" id="fs12">GlobalTag.canonFn: string -&gt; string option</div>
+<div class="tip" id="fs13">type &#39;T option = Option&lt;&#39;T&gt;</div>
+<div class="tip" id="fs14">GlobalTag.TagFunctions&#39;: obj</div>
+<div class="tip" id="fs15">type TagFunctions =<br />&#160;&#160;{AreEqual: obj -&gt; obj -&gt; bool;<br />&#160;&#160;&#160;GetHash: obj -&gt; obj;<br />&#160;&#160;&#160;PostProcessAndValidateNode: obj -&gt; obj;<br />&#160;&#160;&#160;IsMatch: obj -&gt; GlobalTag -&gt; bool;}</div>
+<div class="tip" id="fs16">TagFunctions.AreEqual: obj -&gt; obj -&gt; bool</div>
+<div class="tip" id="fs17">type bool = System.Boolean</div>
+<div class="tip" id="fs18">TagFunctions.GetHash: obj -&gt; obj</div>
+<div class="tip" id="fs19">Multiple items<br />active recognizer Lazy: Lazy&lt;&#39;T&gt; -&gt; &#39;T<br /><br />--------------------<br />type Lazy&lt;&#39;T&gt; = System.Lazy&lt;&#39;T&gt;</div>
+<div class="tip" id="fs20">TagFunctions.PostProcessAndValidateNode: obj -&gt; obj</div>
+<div class="tip" id="fs21">TagFunctions.IsMatch: obj -&gt; GlobalTag -&gt; bool</div>
+<div class="tip" id="fs22">type TagResolutionFunc = obj -&gt; GlobalTag option</div>
+<div class="tip" id="fs23">type TagResolutionInfo =<br />&#160;&#160;{NonSpecificTag: string;<br />&#160;&#160;&#160;Path: obj;<br />&#160;&#160;&#160;Content: obj;}</div>
+<div class="tip" id="fs24">TagResolutionInfo.NonSpecificTag: string</div>
+<div class="tip" id="fs25">TagResolutionInfo.Path: obj</div>
+<div class="tip" id="fs26">TagResolutionInfo.Content: obj</div>
+
         </div>
         <div class="span3">
           <img src="/Legivel/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />  
