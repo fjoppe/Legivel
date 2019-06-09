@@ -4,7 +4,7 @@
 
 #time
 
-#r @"bin/Debug/net45/FSharp.Core.dll"
+// #r @"bin/Debug/net45/FSharp.Core.dll"
 #r @"bin/Debug/net45/Legivel.Parser.dll"
 #r @"bin/Debug/net45/NLog.dll"
 
