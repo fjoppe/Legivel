@@ -43,6 +43,11 @@ type SingleCharMatch =
                 else
                     (sm.QuickCheck &&& uint32(t.Token) > 0u)
             |   _ -> failwith "Not a single char match"
+        member this.IsEmptyMatch 
+            with get() =
+                match this with
+                |   EmptyMatch -> true
+                |   _ -> false
 
 type StateId        = System.UInt32                
 let PointerToStateFinal = 0u
@@ -108,7 +113,7 @@ let getSingle rgx =
     |   _ -> failwith "Not a single char match"
 
 
-let refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
+let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
     //  holds all plain (exact char matches) for which there are multiple occurences in ``sil``
     let stnl = 
         sil 
@@ -147,11 +152,31 @@ let refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
                     snl |>  List.find(fun e -> e.Id = id)
                 let filterIds = target |> List.map(fst)
                 let nextIds = target |> List.map(snd)
-                let bundle = MultiPath(MultiPath.Create (getNewId()) nextIds)
-                let snlNew = 
-                    SinglePath({ primary with NextState = bundle.Id }) :: bundle :: (snl |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x = e.Id) |> not))
-                let silNew =
-                    primary.Id :: (sil |> List.filter(fun e -> filterIds |> List.exists(fun x -> x = e)|> not))
+                let silNew, snlNew = 
+                    let (siln, snln) = refactorCommonPlains nextIds snl
+                    let silNew = primary.Id :: (sil |> List.filter(fun e -> filterIds |> List.exists(fun x -> x = e)|> not))
+                    if siln.Length = 1 then
+                        silNew, SinglePath({ primary with NextState = siln.Head }) :: (snln |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x = e.Id) |> not))
+                    else 
+
+                        /// how to deal with empty matches?
+                        /// it is possible that a character does not match, while all chars before matched into a final state.
+                        /// ie in a multipath, a correct char continues parsing, while an incorrect char exits in final state.
+                        /// this also may happen for multiple chars.
+
+                        let isAllEmpty = 
+                            siln 
+                            |> List.forall(fun e -> 
+                                let nd = snl |> List.find(fun sn -> sn.Id = e)
+                                match nd with
+                                |   SinglePath sp when sp.State.MatchTo.IsEmptyMatch -> true
+                                |   _ -> false
+                            )
+                        if isAllEmpty then
+                            
+                        else
+                            let bundle = MultiPath(MultiPath.Create (getNewId()) siln)
+                            silNew, SinglePath({ primary with NextState = bundle.Id }) :: bundle :: (snln |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x = e.Id) |> not))
                 refactorPlains silNew snlNew tail
         refactorPlains sil snl stnl
 
@@ -215,8 +240,14 @@ let rgxToNFA rgx =
             ) ([],[])
             ||> refactorCommonPlains
             |>  fun l -> 
-                let id = getNewId()
-                id, MultiPath(MultiPath.Create id (fst l))  :: (snd l)
+                let idlst = fst l
+                let snlst = snd l
+                if idlst.Length = 1 then
+                    let id = idlst.Head
+                    id, snlst
+                else
+                    let id = getNewId()
+                    id, MultiPath(MultiPath.Create id (fst l))  :: (snd l)
             |>  fun (id,sl) -> NFAMachine.Create id sl
 
         |   _ -> failwith "Not Implemented Yet"
@@ -323,7 +354,7 @@ let ``Simple Or with nested concat - match string``() =
 
 
 
-let ``Simple Or with overlapping concat - match string``() =
+let ``Simple Or with simple overlapping concat - match string``() =
     let nfa = rgxToNFA <|  (RGP("AB", [Token.``nb-json``]) ||| RGP("AC", [Token.``nb-json``]))
     let r = parseIt nfa "AB"
     r |> ParseResult.IsMatch   |> shouldEqual true
@@ -341,6 +372,57 @@ let ``Simple Or with overlapping concat - match string``() =
     r |> ParseResult.IsMatch   |> shouldEqual false
     r |> ParseResult.FullMatch |> shouldEqual []
 
+
+let ``Simple Or with nested overlapping concat - match string``() =
+    let nfa = rgxToNFA <|  
+        (
+            RGP("AAB",  [Token.``nb-json``]) 
+        ||| RGP("AACA", [Token.``nb-json``]) 
+        ||| RGP("AACB", [Token.``nb-json``]) 
+        ||| RGP("AAB",  [Token.``nb-json``]) 
+        ||| RGP("BA",   [Token.``nb-json``])
+        ||| RGP("BC",   [Token.``nb-json``])
+        ||| RGP("CD",   [Token.``nb-json``])
+        )
+    let r = parseIt nfa "AAB"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AAB"
+
+    let r = parseIt nfa "AACA"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AACA"
+
+    let r = parseIt nfa "AACB"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AACB"
+
+    let r = parseIt nfa "BA"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "BA"
+
+    let r = parseIt nfa "BC"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "BC"
+
+    let r = parseIt nfa "CD"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "CD"
+
+    let r = parseIt nfa "AACD"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "AAD"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "AD"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "D"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
 
 
 [<Test>]
@@ -366,11 +448,8 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
 ``Simple Concat - match string``()
 ``Simple Or - match string``()
 ``Simple Or with nested concat - match string``()
-
-
-``Simple Or with overlapping concat - match string``()
-
-
+``Simple Or with simple overlapping concat - match string``()
+``Simple Or with nested overlapping concat - match string``()
 
 ``Conflicting Plain/OneOf within Or with simple concat - match string``()
 
