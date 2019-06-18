@@ -36,14 +36,15 @@ type SingleCharMatch =
     with
         member this.Match (t:TokenData) =
             match this with
-            |   ExactMatch    c  ->  t.Source.[0] = c
+            |   ExactMatch    c  ->  if t.Source.Length > 0 then t.Source.[0] = c else false
             |   OneInSetMatch sm ->
                 if uint32(t.Token) >= 0b0100_0000_0000_0000_0000_0000_0000_0000u then
                     sm.ListCheck |> List.exists(fun e -> e=uint32(t.Token))
                 else
                     (sm.QuickCheck &&& uint32(t.Token) > 0u)
-            |   _ -> failwith "Not a single char match"
-        member this.IsEmptyMatch 
+            |   EmptyMatch -> true
+
+        member this.IsEmptyMatchValue 
             with get() =
                 match this with
                 |   EmptyMatch -> true
@@ -169,13 +170,29 @@ let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
                             |> List.forall(fun e -> 
                                 let nd = snl |> List.find(fun sn -> sn.Id = e)
                                 match nd with
-                                |   SinglePath sp when sp.State.MatchTo.IsEmptyMatch -> true
+                                |   SinglePath sp when sp.State.MatchTo.IsEmptyMatchValue -> true
                                 |   _ -> false
                             )
                         if isAllEmpty then
-                            
+                            let link = snl.Head
+                            silNew, SinglePath({ primary with NextState = link.Id }) :: link :: (snln |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x = e.Id) |> not))
                         else
-                            let bundle = MultiPath(MultiPath.Create (getNewId()) siln)
+                            let silnSorted =
+                                siln
+                                |>  List.map(fun id -> snln |> List.find(fun st -> st.Id = id))
+                                |>  List.sortWith(fun c1 c2 ->
+                                    match (c1, c2) with
+                                    |   (SinglePath sp, MultiPath mp) when sp.State.MatchTo.IsEmptyMatchValue -> 1
+                                    |   (SinglePath sp, MultiPath mp) -> -1
+                                    |   (MultiPath  mp, SinglePath sp) when sp.State.MatchTo.IsEmptyMatchValue -> -1
+                                    |   (MultiPath  mp, SinglePath sp) -> 1
+                                    |   (SinglePath s1, SinglePath s2) when s1.State.MatchTo.IsEmptyMatchValue && not(s2.State.MatchTo.IsEmptyMatchValue) -> 1
+                                    |   (SinglePath s1, SinglePath s2) when not(s1.State.MatchTo.IsEmptyMatchValue) && s2.State.MatchTo.IsEmptyMatchValue -> -1
+                                    |   _ -> 0
+                                )
+                                |>  List.map(fun i -> i.Id)
+                                
+                            let bundle = MultiPath(MultiPath.Create (getNewId()) silnSorted)
                             silNew, SinglePath({ primary with NextState = bundle.Id }) :: bundle :: (snln |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x = e.Id) |> not))
                 refactorPlains silNew snlNew tail
         refactorPlains sil snl stnl
@@ -263,7 +280,7 @@ let parseIt (nfa:NFAMachine) yaml =
     let stMap = nfa.States |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.Id, i)) Map.empty<StateId, StateNode>
     let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
 
-    let rec processStr cs acc =
+    let rec processStr cs acc rollback =
         let NoMatch = { IsMatch = false ; FullMatch = [] }
         if cs = PointerToStateFinal then
             { IsMatch = true; FullMatch = acc |> List.rev }
@@ -273,11 +290,11 @@ let parseIt (nfa:NFAMachine) yaml =
             |   SinglePath p ->
                 let nxt = p.NextState
                 match p.State.MatchTo with
-                |   EmptyMatch -> processStr nxt acc
+                |   EmptyMatch -> processStr nxt acc rollback
                 |   _ ->
                     let chk = stream.Get()
                     if (p.State.MatchTo.Match chk) then
-                        processStr nxt (chk.Source.[0] :: acc)
+                        processStr nxt (chk.Source.[0] :: acc) rollback
                     else 
                         NoMatch
             |   MultiPath p ->
@@ -290,9 +307,13 @@ let parseIt (nfa:NFAMachine) yaml =
                     |   Some v -> 
                         let (SinglePath st) = stMap.[v]
                         let nxt = st.NextState
-                        processStr nxt (chk.Source.[0] :: acc)
+
+                        if not(st.State.MatchTo.IsEmptyMatchValue) then
+                            processStr nxt (chk.Source.[0] :: acc) rollback
+                        else
+                            processStr nxt acc (rollback+1)
                     |   None -> NoMatch 
-    processStr nfa.Start []
+    processStr nfa.Start [] 0
 
 let clts (cl:char list) = System.String.Concat(cl)
 
@@ -379,7 +400,7 @@ let ``Simple Or with nested overlapping concat - match string``() =
             RGP("AAB",  [Token.``nb-json``]) 
         ||| RGP("AACA", [Token.``nb-json``]) 
         ||| RGP("AACB", [Token.``nb-json``]) 
-        ||| RGP("AAB",  [Token.``nb-json``]) 
+        ||| RGP("AABA", [Token.``nb-json``]) 
         ||| RGP("BA",   [Token.``nb-json``])
         ||| RGP("BC",   [Token.``nb-json``])
         ||| RGP("CD",   [Token.``nb-json``])
@@ -395,6 +416,14 @@ let ``Simple Or with nested overlapping concat - match string``() =
     let r = parseIt nfa "AACB"
     r |> ParseResult.IsMatch   |> shouldEqual true
     r |> ParseResult.FullMatch |> clts |> shouldEqual "AACB"
+
+    let r = parseIt nfa "AABA"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AABA"
+
+    let r = parseIt nfa "AABD"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AAB"
 
     let r = parseIt nfa "BA"
     r |> ParseResult.IsMatch   |> shouldEqual true
