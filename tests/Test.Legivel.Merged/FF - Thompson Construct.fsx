@@ -32,7 +32,6 @@ type OneOfChar = {
 type SingleCharMatch =
     |   ExactMatch      of ExactChar
     |   OneInSetMatch   of OneOfChar
-    |   EmptyMatch
     with
         member this.Match (t:TokenData) =
             match this with
@@ -42,13 +41,7 @@ type SingleCharMatch =
                     sm.ListCheck |> List.exists(fun e -> e=uint32(t.Token))
                 else
                     (sm.QuickCheck &&& uint32(t.Token) > 0u)
-            |   EmptyMatch -> true
 
-        member this.IsEmptyMatchValue 
-            with get() =
-                match this with
-                |   EmptyMatch -> true
-                |   _ -> false
 
 type StateId        = System.UInt32                
 let PointerToStateFinal = 0u
@@ -67,22 +60,41 @@ type SinglePath = {
     with
         static member Create id mt nx = { Id = id; State = mt; NextState = nx }
         member this.LinkTo i = { this with NextState = i}
+
 type MultiPath = {
         Id         : StateId
         States     : StateId list
     }
     with
         static member Create id mt = { Id = id; States = mt }
+
+type EmptyPath = {
+        Id         : StateId
+        NextState  : StateId 
+    }
+    with
+        static member Create id mt nx = { Id = id; State = mt; NextState = nx }
+        member this.LinkTo i = { this with NextState = i}
+
+
 type StateNode =
     |   SinglePath of SinglePath
     |   MultiPath  of MultiPath
+    |   EmptyPath  of EmptyPath
     with
         member this.Id 
             with get() =
                 match this with
                 |   SinglePath d -> d.Id
                 |   MultiPath  d -> d.Id
+                |   EmptyPath  d -> d.Id
 
+        member this.IsEmptyPathValue 
+            with get() =
+                match this with
+                |   EmptyPath _ -> true
+                |   _ -> false
+            
 
 type NFAMachine = {
         Start  : StateId
@@ -121,8 +133,8 @@ let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
         |>  List.map(fun id -> snl |>  List.find(fun e -> e.Id = id))
         |>  List.map(
             function
-            |   MultiPath  _  -> None
             |   SinglePath sp -> Some sp
+            |   _  -> None
         )
         |>  List.filter(fun e -> e<>None)
         |>  List.map(fun e -> e.Value)  // only singlepath values
@@ -169,9 +181,7 @@ let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
                             siln 
                             |> List.forall(fun e -> 
                                 let nd = snl |> List.find(fun sn -> sn.Id = e)
-                                match nd with
-                                |   SinglePath sp when sp.State.MatchTo.IsEmptyMatchValue -> true
-                                |   _ -> false
+                                nd.IsEmptyPathValue
                             )
                         if isAllEmpty then
                             let link = snl.Head
@@ -182,12 +192,12 @@ let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
                                 |>  List.map(fun id -> snln |> List.find(fun st -> st.Id = id))
                                 |>  List.sortWith(fun c1 c2 ->
                                     match (c1, c2) with
-                                    |   (SinglePath sp, MultiPath mp) when sp.State.MatchTo.IsEmptyMatchValue -> 1
-                                    |   (SinglePath sp, MultiPath mp) -> -1
-                                    |   (MultiPath  mp, SinglePath sp) when sp.State.MatchTo.IsEmptyMatchValue -> -1
-                                    |   (MultiPath  mp, SinglePath sp) -> 1
-                                    |   (SinglePath s1, SinglePath s2) when s1.State.MatchTo.IsEmptyMatchValue && not(s2.State.MatchTo.IsEmptyMatchValue) -> 1
-                                    |   (SinglePath s1, SinglePath s2) when not(s1.State.MatchTo.IsEmptyMatchValue) && s2.State.MatchTo.IsEmptyMatchValue -> -1
+                                    |   (EmptyPath _,  MultiPath _) -> 1
+                                    |   (SinglePath _, MultiPath _) -> -1
+                                    |   (MultiPath  _, EmptyPath _) -> -1
+                                    |   (MultiPath _, SinglePath _) -> 1
+                                    |   (EmptyPath _, SinglePath _) -> 1
+                                    |   (SinglePath _, EmptyPath _) -> -1
                                     |   _ -> 0
                                 )
                                 |>  List.map(fun i -> i.Id)
@@ -197,6 +207,22 @@ let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
                 refactorPlains silNew snlNew tail
         refactorPlains sil snl stnl
 
+let getAllTailNodes startId (snl:StateNode list) =
+    let nm = snl |> List.map(fun n -> n.Id, n) |> Map.ofList
+    let passedNodes = Set.empty<StateId>
+    
+    let rec traverse prev current (found, toRemove) (passedNodes:Set<StateId>) =
+        if  current = 0u || passedNodes.Contains (current) then (prev :: found, toRemove)
+        else
+            let node = nm.[current]
+            match node with
+            |   SinglePath sp -> traverse (sp.Id) (sp.NextState) (found, toRemove) (passedNodes.Add (sp.Id))
+            |   MultiPath  mp -> 
+                mp.States 
+                |> List.fold(fun (fnd, tr) stid -> traverse (mp.Id) stid (fnd, tr) (passedNodes.Add mp.Id)) (found, toRemove)
+            |   EmptyPath  ep -> (prev :: found),(current::toRemove)
+    
+    traverse 0u startId ([], []) passedNodes
 
 let rgxToNFA rgx =
     let rec processConversion rgx : NFAMachine =
@@ -206,7 +232,7 @@ let rgxToNFA rgx =
             |   OneInSet _ -> getSingle rg ||> NFAMachine.Create
             |   _ -> processConversion rg
             
-        let emptyState() = SinglePath.Create (getNewId()) { MatchTo = EmptyMatch } 0u
+        let emptyState() = EmptyPath({ Id = getNewId(); NextState = 0u })
 
         match rgx with
         |   Plain  pl ->
@@ -216,40 +242,42 @@ let rgxToNFA rgx =
             else
                 failwith "Uncontained plain - not implemented yet"
         |   Concat l -> 
-            let linkState = SinglePath(emptyState())
+            let linkState = emptyState()
             l
             |>  List.map(convert)
             |>  List.map(fun nfa -> nfa.Start, nfa.States)
             |>  List.fold(fun (nextId:StateId, accList:StateNode list) (entryStartId:StateId, entryStateList:StateNode list) ->
-                    let linkedStateList = 
-                        entryStateList
+                    let (fnd,rmv) = getAllTailNodes entryStartId entryStateList
+                    let rewiredNodes = 
+                        entryStateList 
+                        |>  List.filter(fun n -> List.contains(n.Id) fnd)
                         |>  List.map(
                             function
-                            |   SinglePath sp -> 
-                                if sp.NextState = PointerToStateFinal then 
-                                    SinglePath { sp with NextState = nextId }
-                                else
-                                    SinglePath sp
-
-                            |   MultiPath  mp ->
-                                failwith "Uncontained plain - not implemented yet"
+                            |   SinglePath sp -> SinglePath { sp with NextState = nextId }
+                            |   _ -> failwith "Not implemented - this should never occur"
                         )
+
+                    let linkedStateList = 
+                        let removeList = fnd @ rmv
+                        entryStateList 
+                        |>  List.filter(fun n -> not(List.contains(n.Id) removeList))
+                        |>  List.append rewiredNodes
+
                     let stlst = linkedStateList @ accList
                     (entryStartId, stlst)
                     ) (linkState.Id, [linkState])
-            |>  snd
-            |>  fun l -> NFAMachine.Create (l.Head.Id) l
+            ||>  NFAMachine.Create
         |   Or     l -> 
             l
             |>  List.map(convert)
             |>  List.fold(fun (sil, snl) nfa ->
-                    let (mpl, spl) = 
+                    let mpl = 
                         nfa.States
-                        |>  List.fold(fun (mps,sps) -> 
+                        |>  List.fold(fun mps -> 
                             function
-                            |   MultiPath  mp -> (mp :: mps), sps
-                            |   SinglePath sp -> mps, (sp.Id :: sps)
-                        ) ([],[])
+                            |   MultiPath  mp -> (mp :: mps)
+                            |   _             -> mps
+                        ) []
                     let mpl2spl =
                         mpl 
                         |>  List.map(fun mp -> mp.Id)
@@ -289,30 +317,31 @@ let parseIt (nfa:NFAMachine) yaml =
             match st with
             |   SinglePath p ->
                 let nxt = p.NextState
-                match p.State.MatchTo with
-                |   EmptyMatch -> processStr nxt acc rollback
-                |   _ ->
-                    let chk = stream.Get()
-                    if (p.State.MatchTo.Match chk) then
-                        processStr nxt (chk.Source.[0] :: acc) rollback
-                    else 
-                        NoMatch
+                let chk = stream.Get()
+                if (p.State.MatchTo.Match chk) then
+                    processStr nxt (chk.Source.[0] :: acc) rollback
+                else 
+                    NoMatch
             |   MultiPath p ->
                 let chk = stream.Get()
                 p.States
                 |>  List.tryFind(fun t -> 
-                    let (SinglePath st) = stMap.[t]
-                    st.State.MatchTo.Match chk)
+                    match stMap.[t] with
+                    |   SinglePath st -> st.State.MatchTo.Match chk
+                    |   EmptyPath  _  -> true
+                    |   _ -> failwith "Not implemented yet"
+                    )
                 |>  function
                     |   Some v -> 
-                        let (SinglePath st) = stMap.[v]
-                        let nxt = st.NextState
-
-                        if not(st.State.MatchTo.IsEmptyMatchValue) then
-                            processStr nxt (chk.Source.[0] :: acc) rollback
-                        else
-                            processStr nxt acc (rollback+1)
+                        match stMap.[v] with
+                        |   EmptyPath  st -> processStr (st.NextState) acc (rollback+1) 
+                        |   SinglePath st -> processStr (st.NextState) (chk.Source.[0] :: acc) rollback
+                        |   MultiPath  _  -> failwith "Not implemented yet"
                     |   None -> NoMatch 
+            |   EmptyPath p -> processStr p.NextState acc rollback
+                
+
+
     processStr nfa.Start [] 0
 
 let clts (cl:char list) = System.String.Concat(cl)
@@ -370,6 +399,45 @@ let ``Simple Or with nested concat - match string``() =
     r |> ParseResult.FullMatch |> shouldEqual []
 
     let r = parseIt nfa "C"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+[<Test>]
+let ``Simple Or with concat before - match string``() =
+    let nfa = rgxToNFA <|  RGP("A", [Token.``nb-json``]) + (RGP("C", [Token.``nb-json``]) ||| RGP("B", [Token.``nb-json``]))
+    let r = parseIt nfa "AC"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AC"
+
+    let r = parseIt nfa "AB"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AB"
+    
+    let r = parseIt nfa "B"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "AD"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+
+[<Test>]
+let ``Simple Or with concat after - match string``() =
+    let nfa = rgxToNFA <|  (RGP("A", [Token.``nb-json``]) ||| RGP("B", [Token.``nb-json``])) + RGP("GH", [Token.``nb-json``])  
+    let r = parseIt nfa "AGH"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "AGH"
+
+    let r = parseIt nfa "BGH"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "BGH"
+    
+    let r = parseIt nfa "C"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "BA"
     r |> ParseResult.IsMatch   |> shouldEqual false
     r |> ParseResult.FullMatch |> shouldEqual []
 
@@ -479,6 +547,8 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
 ``Simple Or with nested concat - match string``()
 ``Simple Or with simple overlapping concat - match string``()
 ``Simple Or with nested overlapping concat - match string``()
+``Simple Or with concat before - match string``()
+``Simple Or with concat after - match string``()
 
 ``Conflicting Plain/OneOf within Or with simple concat - match string``()
 
