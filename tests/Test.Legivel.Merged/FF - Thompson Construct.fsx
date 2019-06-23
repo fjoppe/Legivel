@@ -220,8 +220,12 @@ let getAllTailNodes startId (snl:StateNode list) =
             |   MultiPath  mp -> 
                 mp.States 
                 |> List.fold(fun (fnd, tr) stid -> traverse (mp.Id) stid (fnd, tr) (passedNodes.Add mp.Id)) (found, toRemove)
-            |   EmptyPath  ep -> (prev :: found),(current::toRemove)
-    
+            |   EmptyPath  ep -> 
+                match nm.[prev] with
+                |   SinglePath _ -> (prev :: found),(current::toRemove)
+                |   MultiPath  _ -> found,toRemove
+                |   _ -> failwith "Not implemented - this should never happen"
+
     traverse 0u startId ([], []) passedNodes
 
 let rgxToNFA rgx =
@@ -251,10 +255,10 @@ let rgxToNFA rgx =
                     let rewiredNodes = 
                         entryStateList 
                         |>  List.filter(fun n -> List.contains(n.Id) fnd)
-                        |>  List.map(
-                            function
+                        |>  List.map(fun  e ->
+                            match e with
                             |   SinglePath sp -> SinglePath { sp with NextState = nextId }
-                            |   _ -> failwith "Not implemented - this should never occur"
+                            |   _ -> failwith "Not implemented - this should never happen"
                         )
 
                     let linkedStateList = 
@@ -442,6 +446,36 @@ let ``Simple Or with concat after - match string``() =
     r |> ParseResult.FullMatch |> shouldEqual []
 
 
+[<Test>]
+let ``Complex Or with various nested concats - match string``() =
+    let nfa = 
+        rgxToNFA <| 
+        RGP("XY", [Token.``nb-json``]) + 
+        (RGP("A", [Token.``nb-json``]) ||| RGP("B", [Token.``nb-json``])) + 
+        RGP("GH", [Token.``nb-json``]) + 
+        (RGP("ABD", [Token.``nb-json``]) ||| RGP("ABDAC", [Token.``nb-json``]))
+
+    let r = parseIt nfa "XYAGHABD"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "XYAGHABD"
+
+    let r = parseIt nfa "XYBGHABD"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "XYBGHABD"
+    
+    let r = parseIt nfa "XYBGHABDAC"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "XYBGHABDAC"
+
+    let r = parseIt nfa "XYC"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "XYCABE"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+
 
 let ``Simple Or with simple overlapping concat - match string``() =
     let nfa = rgxToNFA <|  (RGP("AB", [Token.``nb-json``]) ||| RGP("AC", [Token.``nb-json``]))
@@ -549,6 +583,7 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
 ``Simple Or with nested overlapping concat - match string``()
 ``Simple Or with concat before - match string``()
 ``Simple Or with concat after - match string``()
+``Complex Or with various nested concats - match string``()
 
 ``Conflicting Plain/OneOf within Or with simple concat - match string``()
 
