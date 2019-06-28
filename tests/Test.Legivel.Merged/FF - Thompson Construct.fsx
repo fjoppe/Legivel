@@ -104,12 +104,10 @@ type NFAMachine = {
         static member Create i s = { States = s; Start = i}
 
 
-
-let getNewId =
-    let mutable currentId = 0u
-    fun() -> 
-        currentId <- (currentId + 1u)
-        currentId
+let mutable currentId = 0u
+let getNewId() =
+    currentId <- (currentId + 1u)
+    currentId
 
 
 let getSingle rgx =
@@ -126,7 +124,7 @@ let getSingle rgx =
     |   _ -> failwith "Not a single char match"
 
 
-let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
+let rec refactorCommonPlains (sil:StateId list, snl:StateNode list) =
     //  holds all plain (exact char matches) for which there are multiple occurences in ``sil``
     let stnl = 
         sil 
@@ -166,17 +164,11 @@ let rec refactorCommonPlains (sil:StateId list) (snl:StateNode list) =
                 let filterIds = target |> List.map(fst)
                 let nextIds = target |> List.map(snd)
                 let silNew, snlNew = 
-                    let (siln, snln) = refactorCommonPlains nextIds snl
+                    let (siln, snln) = refactorCommonPlains (nextIds, snl)
                     let silNew = primary.Id :: (sil |> List.filter(fun e -> filterIds |> List.exists(fun x -> x = e)|> not))
                     if siln.Length = 1 then
                         silNew, SinglePath({ primary with NextState = siln.Head }) :: (snln |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x = e.Id) |> not))
                     else 
-
-                        /// how to deal with empty matches?
-                        /// it is possible that a character does not match, while all chars before matched into a final state.
-                        /// ie in a multipath, a correct char continues parsing, while an incorrect char exits in final state.
-                        /// this also may happen for multiple chars.
-
                         let isAllEmpty = 
                             siln 
                             |> List.forall(fun e -> 
@@ -229,6 +221,7 @@ let getAllTailNodes startId (snl:StateNode list) =
     traverse 0u startId ([], []) passedNodes
 
 let rgxToNFA rgx =
+    currentId <- 0u
     let rec processConversion rgx : NFAMachine =
         let convert rg : NFAMachine =
             match rg with
@@ -242,7 +235,7 @@ let rgxToNFA rgx =
         |   Plain  pl ->
             if pl.``fixed``.Length > 1 then
                 pl.OptimizeOnce()
-                processConversion (Concat (pl.optimized (*|> List.rev*)))
+                processConversion (Concat (pl.optimized))
             else
                 failwith "Uncontained plain - not implemented yet"
         |   Concat l -> 
@@ -277,26 +270,20 @@ let rgxToNFA rgx =
             |>  List.fold(fun (sil, snl) nfa ->
                     let mpl = 
                         nfa.States
-                        |>  List.fold(fun mps -> 
-                            function
-                            |   MultiPath  mp -> (mp :: mps)
-                            |   _             -> mps
-                        ) []
-                    let mpl2spl =
-                        mpl 
-                        |>  List.map(fun mp -> mp.Id)
-                    ((nfa.Start :: sil) @ mpl2spl), (snl @ nfa.States)
+                        |>  List.find(fun e -> e.Id = nfa.Start)
+                        |>  function
+                            |   MultiPath  mp -> mp.States
+                            |   _             -> []
+                    ((nfa.Start :: sil) @ mpl), (snl @ nfa.States)
             ) ([],[])
-            ||> refactorCommonPlains
-            |>  fun l -> 
-                let idlst = fst l
-                let snlst = snd l
+            |> refactorCommonPlains
+            |>  fun (idlst, snlst) -> 
                 if idlst.Length = 1 then
                     let id = idlst.Head
                     id, snlst
                 else
                     let id = getNewId()
-                    id, MultiPath(MultiPath.Create id (fst l))  :: (snd l)
+                    id, MultiPath(MultiPath.Create id (idlst)) :: snlst
             |>  fun (id,sl) -> NFAMachine.Create id sl
 
         |   _ -> failwith "Not Implemented Yet"
@@ -307,6 +294,47 @@ type ParseResult = {
     IsMatch     : bool
     FullMatch   : char list
 }
+
+
+type LevelType = 
+    |   Concat = 0
+    |   Multi   = 1
+
+
+let PrintIt (nfa:NFAMachine) =
+    let stMap = nfa.States |> List.map(fun e -> e.Id,e) |> Map.ofList
+
+
+    let rec printLine (hist : LevelType list) (current: StateId) =
+        hist
+        |>  List.rev
+        |>  List.iter(fun i ->
+            match i with
+            |   LevelType.Concat    -> printf "         "
+            |   LevelType.Multi     -> printf "|    "
+        )
+
+        let rec printLineRest (hist : LevelType list) (current: StateId) =
+            if current = 0u then
+                printf "-*\n"
+            else
+                match stMap.[current] with
+                |   EmptyPath  ep   ->  
+                    printf "~"
+                    printLineRest (LevelType.Concat :: hist) ep.NextState
+                |   SinglePath sp   -> 
+                    match sp.State.MatchTo with
+                    |   ExactMatch c    -> printf "-(%2d:\"%c\")" sp.Id c
+                    |   OneInSetMatch o -> printf "-(%2d:[@])" sp.Id
+                    printLineRest (LevelType.Concat :: hist) sp.NextState
+                |   MultiPath mp    ->
+                    let h::t = mp.States
+                    printf "|(%2d)" mp.Id
+                    printLineRest (LevelType.Multi :: hist) h
+                    t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e)
+        printLineRest hist current
+    printLine [] nfa.Start
+
 
 let parseIt (nfa:NFAMachine) yaml =
     let stMap = nfa.States |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.Id, i)) Map.empty<StateId, StateNode>
@@ -476,6 +504,36 @@ let ``Complex Or with various nested concats - match string``() =
     r |> ParseResult.FullMatch |> shouldEqual []
 
 
+[<Test>]
+let ``Complex Or with deep nested concats - match string``() =
+    let nfa = 
+        rgxToNFA <| 
+        RGP("XY", [Token.``nb-json``]) + 
+        (RGP("AB", [Token.``nb-json``]) ||| (RGP("BA", [Token.``nb-json``]) + 
+            (RGP("CX", [Token.``nb-json``]) ||| RGP("DX", [Token.``nb-json``])))) + 
+            RGP("GH", [Token.``nb-json``]) + 
+            (RGP("ABD", [Token.``nb-json``]) ||| RGP("ABDAC", [Token.``nb-json``]))
+
+    let r = parseIt nfa "XYABGHABD"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "XYABGHABD"
+
+    let r = parseIt nfa "XYBACXGHABDAC"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "XYBACXGHABDAC"
+    
+    let r = parseIt nfa "XYBADXGHABD"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "XYBADXGHABD"
+
+    let r = parseIt nfa "XYC"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "XYBADY"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
 
 let ``Simple Or with simple overlapping concat - match string``() =
     let nfa = rgxToNFA <|  (RGP("AB", [Token.``nb-json``]) ||| RGP("AC", [Token.``nb-json``]))
@@ -576,6 +634,19 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
     r |> ParseResult.FullMatch |> shouldEqual []
 
 
+let nfa = 
+    rgxToNFA <| 
+    RGP("XY", [Token.``nb-json``]) + 
+    (RGP("AB", [Token.``nb-json``]) ||| 
+        (RGP("BA", [Token.``nb-json``]) + (RGP("CX", [Token.``nb-json``]) ||| RGP("DX", [Token.``nb-json``])))
+    ) + 
+        RGP("GH", [Token.``nb-json``]) + 
+        (RGP("ABD", [Token.``nb-json``]) ||| RGP("ABDAC", [Token.``nb-json``]))
+
+
+PrintIt nfa
+
+
 ``Simple Concat - match string``()
 ``Simple Or - match string``()
 ``Simple Or with nested concat - match string``()
@@ -584,6 +655,8 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
 ``Simple Or with concat before - match string``()
 ``Simple Or with concat after - match string``()
 ``Complex Or with various nested concats - match string``()
+``Complex Or with deep nested concats - match string``()
+
 
 ``Conflicting Plain/OneOf within Or with simple concat - match string``()
 
