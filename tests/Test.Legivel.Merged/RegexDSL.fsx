@@ -183,7 +183,7 @@ and RGXType =
 
     static member (+) (r1:RGXType, r2:RGXType) =
         match (r1,r2) with
-        |   (Plain p1   , Plain p2)      -> Plain(p1 + p2)
+        |   (Plain p1   , Plain p2)      -> RGXType.DoConcat(r1, r2) // Plain(p1 + p2)
         |   (OneInSet o1, OneInSet o2)   -> OneInSet(o1 + o2)
         |   _   ->  RGXType.DoConcat(r1, r2)
 
