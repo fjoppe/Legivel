@@ -201,16 +201,6 @@ let rec refactorCommonPlains (sil:StateId list, snl:StateNode list) =
                             let silnSorted =
                                 siln
                                 |>  List.map(fun id -> snln |> List.find(fun st -> st.Id = id))
-                                //|>  List.sortWith(fun c1 c2 ->
-                                //    match (c1, c2) with
-                                //    |   (EmptyPath _,  MultiPath _) -> 1
-                                //    |   (SinglePath _, MultiPath _) -> -1
-                                //    |   (MultiPath  _, EmptyPath _) -> -1
-                                //    |   (MultiPath _, SinglePath _) -> 1
-                                //    |   (EmptyPath _, SinglePath _) -> 1
-                                //    |   (SinglePath _, EmptyPath _) -> -1
-                                //    |   _ -> 0
-                                //)
                                 |>  SortStateNodes
                                 |>  List.map(fun i -> i.Id)
                                 
@@ -230,9 +220,92 @@ let nonGenericTokens =
     |>   Set.ofList
 
 
+let removeTokenFromOneInSet cht (nodes:StateNode list) =
+    nodes
+    |>  List.map(fun n ->
+        match n with
+        |   SinglePath sp -> 
+            let (OneInSetMatch ois) = sp.State.MatchTo
+            let newLC = ois.ListCheck |> List.filter(fun t -> t <> cht)
+            if newLC.Length > 0 then
+                let newQC = qcOneInSet newLC
+                SinglePath({ sp with State = {MatchTo = OneInSetMatch({ QuickCheck = newQC; ListCheck = newLC})}})
+            else 
+                EmptyPath({Id = 0u; NextState = 0u})
+        |   _ -> failwith "Not implemented - this should never happen"
+    )
+    |>  List.filter(fun e -> not(e.IsEmptyPathValue))
 
 
-let refacorCharacterSets (sil:StateId list, snl:StateNode list) =
+
+let refactorConflictingCharacterSets (sil:StateId list, snl:StateNode list) =
+    let stMap = snl |> List.map(fun e -> e.Id, e) |> Map.ofList
+
+    let sp = 
+        sil 
+        |>  List.map(fun id -> stMap.[id])
+        |>  List.map(
+            function
+            |   SinglePath sp -> Some sp
+            |   _  -> None
+        )
+        |>  List.filter(fun e -> e<>None)
+        |>  List.map(fun e -> e.Value)  // only singlepath values
+
+    let stnl =
+        sp
+        |>  List.filter(fun e -> 
+            match e.State.MatchTo with
+            |   OneInSetMatch _ -> true
+            |   _ -> false
+            )
+        |>  List.map(fun e -> 
+            let (OneInSetMatch sm) = e.State.MatchTo
+            sm.ListCheck
+            |>  List.map(fun t -> t, sm.QuickCheck, e.Id, e.NextState)
+        )
+        |>  List.collect(id)
+        |>  List.map(fun (t, qc, id, nx) -> {| Token = t; QuickCheck = qc; Id = id; Next = nx |})
+        |>  List.filter(fun e -> nonGenericTokens |> Set.contains e.Token)
+        |>  List.groupBy(fun e -> e.Token)
+        |>  List.filter(fun (t, ls) -> List.length ls > 1)
+    if List.length stnl = 0 then
+        (sil, snl)
+    else
+        //  Combine duplicate tokens
+        let rec refactorCharacterSets sil (snl:StateNode list) (stnl:(uint32*({| Token : uint32; QuickCheck : uint32; Id : StateId; Next : StateId |} list)) list) =
+            let stMap = snl |> List.map(fun e -> e.Id, e) |> Map.ofList
+            match stnl with
+            |   []  -> (sil, snl)
+            |   (cht, lst) :: tail ->
+                let toRemove, allNextIds =
+                    lst
+                    |>  List.map(fun e -> e.Id, e.Next)
+                    |>  List.unzip
+
+                let allRefactoredOneInSet = 
+                    let oisids = lst |> List.map(fun e -> e.Id)
+                    let (nodes:StateNode list) = oisids |> List.map(fun i -> stMap.[i])
+                    removeTokenFromOneInSet cht nodes
+
+                let snln =
+                    snl 
+                    |>  List.filter(fun e -> toRemove |> List.exists(fun x -> x = e.Id) |> not)
+                    |>  List.append allRefactoredOneInSet
+
+                let bundle = MultiPath(MultiPath.Create (getNewId()) allNextIds)
+                let sp = SinglePath (SinglePath.Create (getNewId()) ({ MatchTo = OneInSetMatch({ ListCheck = [cht]; QuickCheck = cht})}) (bundle.Id))
+
+                let silNew = 
+                    sil 
+                    |>  List.filter(fun i -> toRemove |> List.contains(i) |> not)
+                    |>  List.append (allRefactoredOneInSet |> List.map(fun i -> i.Id))
+                let snlNew = sp :: bundle :: snln
+                refactorCharacterSets (sp.Id :: silNew) snlNew tail
+        refactorCharacterSets sil snl stnl
+
+
+let refacorConflictingPlainWithCharacterSets (sil:StateId list, snl:StateNode list) =
     let stMap = snl |> List.map(fun e -> e.Id, e) |> Map.ofList
 
     let sp = 
@@ -263,18 +336,6 @@ let refacorCharacterSets (sil:StateId list, snl:StateNode list) =
         |>  List.filter(fun e -> nonGenericTokens |> Set.contains e.Token)
         |>  List.groupBy(fun e -> e.Token)
 
-    ////  Combine duplicate tokens
-    //let rec refactorCharacterSets sil snl stnl =
-    //    match stnl with
-    //    |   []  -> (sil, snl)
-    //    |   hd :: tail ->
-    //        let target = 
-    //            hd |> snd |> List.map(fun (t, qc, id, nx) -> (id,nx))
-    //        let (SinglePath primary) = 
-    //            let id = fst hd
-    //            snl |>  List.find(fun e -> e.Id = id)
-    //refactorCharacterSets sil snl (stnl |> List.filter(fun (t, ls) -> List.length ls > 1))
-
     // try to combine with exactchar
     let ec = 
         let targetTokens = stnl |> List.map(fst)
@@ -296,6 +357,7 @@ let refacorCharacterSets (sil:StateId list, snl:StateNode list) =
         (sil, snl)
     else
         let rec refactorPlainsWithCharSets sil (snl:StateNode list) (stnl:(uint32*({| Token : uint32; QuickCheck : uint32; Id : StateId; Next : StateId |} list)*({| Token : uint32; ExactChar : ExactChar; Id :StateId; Next : StateId|} list)) list) =
+            let stMap = snl |> List.map(fun e -> e.Id, e) |> Map.ofList
             match stnl with
             |   []  -> (sil, snl)
             |   (cht, clst, elst)  :: tail -> 
@@ -307,21 +369,11 @@ let refacorCharacterSets (sil:StateId list, snl:StateNode list) =
                     |>  List.distinct
                     |>  List.unzip
 
-                let allRefactoredOneInSet =
+                let allRefactoredOneInSet = 
                     let oisids = clst |> List.map(fun e -> e.Id)
                     let (nodes:StateNode list) = oisids |> List.map(fun i -> stMap.[i])
-                    let newNodes =
-                        nodes
-                        |>  List.map(fun n ->
-                            match n with
-                            |   SinglePath sp -> 
-                                let (OneInSetMatch ois) = sp.State.MatchTo
-                                let newLC = ois.ListCheck |> List.filter(fun t -> t <> cht)
-                                let newQC = qcOneInSet newLC
-                                SinglePath({ sp with State = {MatchTo = OneInSetMatch({ QuickCheck = newQC; ListCheck = newLC})}})
-                            |   _ -> failwith "Not implemented - this should never happen"
-                        )
-                    newNodes
+                    removeTokenFromOneInSet cht nodes
+
                 let snln =
                     snl 
                     |>  List.filter(fun e -> toRemove |> List.exists(fun x -> x = e.Id) |> not)
@@ -329,13 +381,12 @@ let refacorCharacterSets (sil:StateId list, snl:StateNode list) =
 
                 let bundle = MultiPath(MultiPath.Create (getNewId()) allNextIds)
 
-                //  aan silNew moeten nog de nieuwe aangemaakte nodes worden toegevoegd
                 let silNew = 
                     sil 
                     |>  List.filter(fun i -> toRemove |> List.contains(i) |> not)
                     |>  List.append ( primary.Id :: (allRefactoredOneInSet |> List.map(fun i -> i.Id)))
-                silNew, SinglePath({ primary with NextState = bundle.Id }) :: bundle :: snln
-
+                let snlNew = SinglePath({ primary with NextState = bundle.Id }) :: bundle :: snln
+                refactorPlainsWithCharSets silNew snlNew tail
         refactorPlainsWithCharSets sil snl ec
 
 
@@ -416,7 +467,8 @@ let rgxToNFA rgx =
                             |   _             -> []
                     ((nfa.Start :: sil) @ mpl), (snl @ nfa.States)
             ) ([],[])
-            |>  refacorCharacterSets
+            |>  refactorConflictingCharacterSets
+            |>  refacorConflictingPlainWithCharacterSets
             |>  refactorCommonPlains
             |>  fun (idlst, snlst) -> 
                 if idlst.Length = 1 then
@@ -757,7 +809,11 @@ let ``Simple Or with nested overlapping concat - match string``() =
 
 [<Test>]
 let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
-    let nfa = rgxToNFA <|  ((RGP("\n", [Token.NewLine]) + RGP("A", [Token.``c-printable``])) ||| (RGO("B\n", [Token.``c-printable``;Token.NewLine]) + RGP("X", [Token.``c-printable``])))
+    let nfa = rgxToNFA <|  (
+        (RGP("\n", [Token.NewLine]) + RGP("A", [Token.``c-printable``])) ||| 
+        (RGO("B\n", [Token.``c-printable``;Token.NewLine]) + RGP("X", [Token.``c-printable``]))
+    )
+
     let r = parseIt nfa "\nA"
     r |> ParseResult.IsMatch   |> shouldEqual true
     r |> ParseResult.FullMatch |> clts |> shouldEqual "\nA"
@@ -774,6 +830,110 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
     r |> ParseResult.IsMatch   |> shouldEqual false
     r |> ParseResult.FullMatch |> shouldEqual []
 
+    let r = parseIt nfa "\nB"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "BA"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+
+[<Test>]
+let ``Conflicting Plain/OneOf within Or with canabalizing refactoring - match string``() =
+    let nfa = 
+        rgxToNFA <| (
+            (RGP("\n", [Token.NewLine]) + RGP("A", [Token.``c-printable``])) ||| 
+            (RGO("\t\n", [Token.``t-tab``;Token.NewLine]) + RGP("X", [Token.``c-printable``])) |||
+            (RGP("\t", [Token.``t-tab``]) + RGP("Y", [Token.``c-printable``]))
+        )
+
+    let r = parseIt nfa "\nA"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\nA"
+
+    let r = parseIt nfa "\tX"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\tX"
+
+    let r = parseIt nfa "\nX"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\nX"
+
+
+    let r = parseIt nfa "\tY"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\tY"
+
+
+    let r = parseIt nfa "?"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "\nY"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "\nY"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "BA"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+
+
+[<Test>]
+let ``Conflicting double OneOf within Or - match string``() =
+    let nfa = 
+        rgxToNFA <| (
+            (RGP("\n", [Token.NewLine]) + RGP("A", [Token.``c-printable``])) ||| 
+            (RGO("\t\n", [Token.``t-tab``;Token.NewLine]) + RGP("X", [Token.``c-printable``])) |||
+            (RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``]) + RGP("Y", [Token.``c-printable``])) 
+        )
+
+    let r = parseIt nfa "\nA"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\nA"
+
+    let r = parseIt nfa "\tX"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\tX"
+
+    let r = parseIt nfa "\nX"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\nX"
+
+
+    let r = parseIt nfa "\tY"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "\tY"
+
+    let r = parseIt nfa "-Y"
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.FullMatch |> clts |> shouldEqual "-Y"
+
+    let r = parseIt nfa "?"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "\nY"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "\nY"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "-X"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
+    let r = parseIt nfa "BA"
+    r |> ParseResult.IsMatch   |> shouldEqual false
+    r |> ParseResult.FullMatch |> shouldEqual []
+
 
 
 ``Simple Concat - match string``()
@@ -786,12 +946,8 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
 ``Complex Or with various nested concats - match string``()
 ``Complex Or with deep nested concats - match string``()
 ``Conflicting Plain/OneOf within Or with simple concat - match string``()
+``Conflicting Plain/OneOf within Or with canabalizing refactoring - match string``()
+``Conflicting double OneOf within Or - match string``()
 
-
-let nfa = 
-    rgxToNFA <|  ((RGP("\n", [Token.NewLine]) + RGP("A", [Token.``nb-json``])) ||| (RGO("B\n", [Token.``nb-json``;Token.NewLine]) + RGP("X", [Token.``nb-json``])))
-
-
-PrintIt nfa
 
 
