@@ -1,0 +1,7 @@
+FSharp.Core
+Fsharp.Data
+FSharp.Charting
+NUnit
+NUnit3TestAdapter
+NLog.FSharp
+File:FsUnitTyped.fs
