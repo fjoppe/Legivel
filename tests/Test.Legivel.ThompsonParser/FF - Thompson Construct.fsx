@@ -18,13 +18,11 @@ open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
 
 
-//let nfa = 
-//    rgxToNFA <| 
-//        OPT(RGP("AAC", [Token.``c-printable``])) + 
-//            RGP("AAB", [Token.``c-printable``]) 
-
 let nfa = 
-    rgxToNFA <| OPT(RGP("X", [Token.``c-printable``])) + RGP("A", [Token.``c-printable``]) 
+    rgxToNFA <| 
+        OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
+            RGO("\t[0-9]", [Token.``c-printable``; Token.``ns-dec-digit``]) + RGP("B", [Token.``c-printable``]) 
+
 
 PrintIt nfa
 

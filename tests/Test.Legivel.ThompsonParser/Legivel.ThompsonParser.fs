@@ -77,6 +77,13 @@ and StatePointer =
             match this with
             | SinglePathPointer i -> i
             | MultiPathPointer  i -> failwith "MultiPathPointer has no SinglePathPointer"
+    member this.IsSinglePath
+        with get() =
+            match this with
+            | SinglePathPointer i -> true
+            | MultiPathPointer  i -> false
+
+            
 
 type RepeatId = | RepeatId of System.UInt32
     with
@@ -297,12 +304,27 @@ let getSinglePathValues sil =
     |>  List.filter(fun e -> e<>None)
     |>  List.map(fun e -> e.Value)  
 
+let getExactMatchValues sil =
+    sil
+    |>  getSinglePathValues
+    |>  List.filter(fun e -> 
+        match e.State with
+        |   ExactMatch _ -> true
+        |   _ -> false
+        )
+    |>  List.map(fun e -> 
+        let (ExactMatch ch) = e.State
+        {| Char = ch; IdSp = e.SinglePathPointer; Next = e.NextState |}
+    )   //  only exactmatch values 
+
+
+
+let wsUpdate (n:StateNode) (ws:Map<StateId, StateNode>) = ws.Remove(n.Id).Add(n.Id, n)
+
 
 let appendStateIdToAllFinalPathNodes2 (entryStartId:StatePointer) (entryStateList:StateNode list) (concatPtr:StatePointer) =
     let workingSet = entryStateList |> List.map(fun n -> n.Id, n) |> Map.ofList
     let passedNodes = Set.empty<StateId>
-    
-    let wsUpdate (n:StateNode) (ws:Map<StateId, StateNode>) = ws.Remove(n.Id).Add(n.Id, n)
     
     let rec traverse (prev:StatePointer) (current:StatePointer) (workingSet:Map<StateId, StateNode>) (passedNodes:Set<StateId>) (concatPtr:StatePointer) =
         if  current.Id = 0u || passedNodes.Contains (current.Id) then workingSet 
@@ -391,7 +413,6 @@ let rec refactorCommonPlains (sil:SinglePathPointer list, snl:StateNode list) =
                                 siln
                                 |>  List.map(fun sp -> snlnMap.[sp.Id])
                                 |>  SortStateNodes
-                                
                                 
                             let bundle = MultiPath(MultiPath.Create (getNewId()) (silnSorted|>List.map(fun sn -> sn.SinglePathPointer)))
                             silNew, (primary.SetNextState bundle.StatePointer) :: bundle :: (snln |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x.Id = e.Id) |> not))
@@ -564,6 +585,59 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list, snl:St
         refactorPlainsWithCharSets sil snl ec
 
 
+type RefactorResult =
+    |   Refactored of StatePointer
+    |   Unrefactored of StatePointer * StatePointer
+
+let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
+    let stMap = nodes |> List.map(fun e -> e.Id, e) |> Map.ofList
+
+    let rec refactorPlains (iterPtr : StatePointer) (nextPtr : StatePointer) (exitPtr:StatePointer) (stMap:Map<StateId, StateNode>) =
+        let sps =
+            [stMap.[iterPtr.Id]; stMap.[nextPtr.Id]]
+            |>  getExactMatchValues
+        if(sps.Length<2) then
+            Unrefactored(iterPtr, nextPtr), stMap
+        else
+            let [EMIter; EMNxt] = sps
+            match (EMIter.Char = EMNxt.Char) with
+            |   false ->   Unrefactored(iterPtr, nextPtr), stMap
+            |   true  ->
+                let (refactored,stMapNew) = refactorPlains (EMIter.Next) (EMNxt.Next) exitPtr stMap
+                match refactored with
+                |   Refactored single    ->  //  was refactored
+                    let ndIter = stMapNew.[EMIter.IdSp.Id].SetNextState single
+                    Refactored(ndIter.StatePointer), stMapNew.Remove(EMNxt.IdSp.Id) |> wsUpdate ndIter
+                |   Unrefactored (da,db)     ->  //  was not refactored
+                    let newExit = stMapNew.[exitPtr.Id].SetNextState db
+                    let bundle = MultiPath(MultiPath.Create (getNewId()) [da.SinglePathPointerValue;newExit.SinglePathPointer])
+                    let ndIter = stMapNew.[EMIter.IdSp.Id].SetNextState bundle.StatePointer
+                    Refactored(ndIter.StatePointer), stMapNew.Add(bundle.Id, bundle) |> wsUpdate ndIter |> wsUpdate newExit
+
+
+    let refactor (ri:RepeatIterate) =
+        match stMap.[ri.NextState.Id] with
+        |   RepeatExit re ->
+            if not(ri.IterateState.IsSinglePath && re.NextState.IsSinglePath) then
+                (start, nodes, repeaters)
+            else
+                let (refac,stNew) = refactorPlains (ri.IterateState.StatePointer) (re.NextState.StatePointer) (re.StatePointer) stMap
+                match refac with
+                |   Refactored single    ->  //  was refactored
+                    let p = RepeatIterate { ri with IterateState = single.StatePointer; NextState = single.StatePointer }
+                    let nodes = stNew |> wsUpdate p |> Map.toList |> List.map(snd)
+                    (start, nodes, repeaters)
+                |   Unrefactored (da,db)     ->  //  was not refactored
+                    (start, nodes, repeaters)
+        | _ -> (start, nodes, repeaters)
+
+    match stMap.[start.Id] with
+    |   RepeatStart d -> 
+        let (RepeatIterate ri) = stMap.[d.NextState.Id]
+        refactor ri
+    |   _ -> (start, nodes, repeaters)
+
+
 let removeUnused (nfa:NFAMachine) =
     let stMap = nfa.States |> List.map(fun e -> e.Id, e) |> Map.ofList
 
@@ -623,6 +697,7 @@ let rgxToNFA rgx =
             |>  List.fold(fun (concatPtr:StatePointer, nodes:StateNode list, r) (entryStartId:StatePointer) ->
                     let newNodes = appendStateIdToAllFinalPathNodes2 entryStartId nodes concatPtr
                     (entryStartId, newNodes, repeats)
+                    |>  refacorRepeater
                     ) (linkState.StatePointer, linkState::nodes, repeats)
             |>  NFAMachine.Create
         |   Or     l -> 
@@ -674,7 +749,8 @@ type ParseResult = {
 type LevelType = 
     |   Concat = 0
     |   Multi   = 1
-    |   Repeat = 2
+    |   RepeatIter = 4
+    |   RepeatExit = 2
     |   LoopStart = 3
 
 
@@ -690,8 +766,9 @@ let PrintIt (nfa:NFAMachine) =
             match i with
             |   LevelType.Concat    -> printf "         "
             |   LevelType.Multi     -> printf "|    "
-            |   LevelType.Repeat    -> printf " |X>>--"
-            |   LevelType.LoopStart  -> printf "               "
+            |   LevelType.RepeatExit-> printf " |X>>--"
+            |   LevelType.RepeatIter-> printf " |I    "
+            |   LevelType.LoopStart -> printf "               "
         )
 
         let rec printLineRest (hist : LevelType list) (current: StatePointer) (passedNodes:Set<StateId>) =
@@ -719,8 +796,8 @@ let PrintIt (nfa:NFAMachine) =
                 |   RepeatIterate ri ->
                     if not(passedNodes.Contains ri.Id) then
                         printf "-|I(%2d)" ri.Id
-                        printLineRest (LevelType.Repeat :: hist) ri.IterateState (passedNodes.Add ri.Id)
-                        printLine (LevelType.Repeat :: hist) ri.NextState.StatePointer (passedNodes.Add ri.Id)
+                        printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id)
+                        printLine (LevelType.RepeatExit :: hist) ri.NextState.StatePointer (passedNodes.Add ri.Id)
                     else
                         printf "-Next(%2d)\n" ri.Id
                 |   RepeatExit re ->
@@ -759,6 +836,7 @@ let parseIt (nfa:NFAMachine) yaml =
                     match stMap.[t.Id] with
                     |   SinglePath st -> st.State.Match chk
                     |   EmptyPath  _  -> true
+                    |   RepeatExit _  -> true
                     |   _ -> failwith "Not implemented yet"
                     )
                 |>  function
@@ -767,6 +845,9 @@ let parseIt (nfa:NFAMachine) yaml =
                         |   EmptyPath  st -> processStr (st.NextState) acc (rollback+1) runningLoops
                         |   SinglePath st -> processStr (st.NextState) (chk.Source.[0] :: acc) rollback runningLoops
                         |   MultiPath  _  -> failwith "Not implemented yet"
+                        |   RepeatExit re -> 
+                            stream.Position <- stream.Position - 1
+                            processStr re.NextState acc rollback runningLoops
                     |   None -> NoMatch 
             |   EmptyPath p -> processStr p.NextState acc rollback runningLoops
             |   RepeatStart r ->
