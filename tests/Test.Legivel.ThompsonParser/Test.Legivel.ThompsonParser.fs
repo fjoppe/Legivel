@@ -28,7 +28,7 @@ let ``Simple Concat - match string``() =
     let nfa = rgxToNFA <| RGP("A", [Token.``c-printable``]) + RGP("A", [Token.``c-printable``]) + RGP("B", [Token.``c-printable``])
 
     assertFullMatch nfa "AAB"
-    assertFullMatch nfa "aab"
+    assertNoMatch nfa "aab"
 
 
 [<Test>]
@@ -251,8 +251,59 @@ let ``Complex optional with conflicting oneinset enter-and-exit paths - match st
     let nfa = 
         rgxToNFA <| 
             OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
-                RGO("\t[0-9]", [Token.``c-printable``; Token.``ns-dec-digit``]) + RGP("B", [Token.``c-printable``]) 
+                RGO("\t[0-9]", [Token.``t-tab``; Token.``ns-dec-digit``]) + RGP("B", [Token.``c-printable``]) 
 
     assertFullMatch nfa "\tA\tB"
+    assertFullMatch nfa "\nA\tB"
+
+    assertFullMatch nfa "\tA0B"
+    assertFullMatch nfa "\tA9B"
+    assertFullMatch nfa "\nA0B"
+    assertFullMatch nfa "\nA9B"
+
+    assertFullMatch nfa "\tB"
+    assertFullMatch nfa "0B"
+    assertFullMatch nfa "9B"
+
+    assertPartialMatch nfa "\tBcc" "\tB"
 
     assertNoMatch nfa "\tC"
+    assertNoMatch nfa "\tA\nA0B"
+
+[<Test>]
+let ``Complex optional with conflicting oneinset enter-and-exit paths, splitting in MultiPaths - match string``() =
+    let nfa = 
+        rgxToNFA <| 
+            OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + (RGP("A", [Token.``c-printable``]) ||| RGP("B", [Token.``c-printable``]))) + 
+                RGO("\t[0-9]", [Token.``t-tab``; Token.``ns-dec-digit``]) + (RGP("C", [Token.``c-printable``]) ||| RGP("D", [Token.``c-printable``])) 
+
+    assertFullMatch nfa "\tA\tC"
+    assertFullMatch nfa "\tB\tC"
+    assertFullMatch nfa "\nA\tC"
+    assertFullMatch nfa "\nB\tC"
+
+    assertFullMatch nfa "\tA0C"
+    assertFullMatch nfa "\tB1C"
+    assertFullMatch nfa "\nA2C"
+    assertFullMatch nfa "\nB3C"
+
+    assertFullMatch nfa "\tA\tD"
+    assertFullMatch nfa "\tB\tD"
+    assertFullMatch nfa "\nA\tD"
+    assertFullMatch nfa "\nB\tD"
+
+    assertFullMatch nfa "\tA0D"
+    assertFullMatch nfa "\tB1D"
+    assertFullMatch nfa "\nA2D"
+    assertFullMatch nfa "\nB3D"
+
+    assertFullMatch nfa "\tC"
+    assertFullMatch nfa "0C"
+    assertFullMatch nfa "1D"
+    assertFullMatch nfa "2C"
+    assertFullMatch nfa "3D"
+
+    assertPartialMatch nfa "\nB3Czzzz" "\nB3C"
+
+    assertNoMatch nfa "\tA\tB0C"
+
