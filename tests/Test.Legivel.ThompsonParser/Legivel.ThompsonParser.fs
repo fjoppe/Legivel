@@ -669,7 +669,7 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list, snl:St
 
 type RefactorResult =
     |   Refactored of StatePointer
-    |   Unrefactored of StatePointer * StatePointer
+    |   Unrefactored 
 
 let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
     //  Repeat is used for option, zero-or-more, once-or-more and repeat-between-min-and-max.
@@ -694,7 +694,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
         let refactorOneInSetMerges mlst =
             getOneInSetOverlap mlst
             |>  function
-            |   []      -> Unrefactored(iterPtr, nextPtr), stMap
+            |   []      -> Unrefactored, stMap
             |   oislst -> 
                 let EMIter = NextStp iterPtr 
                 let EMNxt  = NextStp nextPtr
@@ -716,7 +716,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     let sp = SinglePath (SinglePath.Create idn (OneInSetMatch({ QuickCheck = quickCheck; ListCheck = allTokens})) single.StatePointer)
                     let stNew = allIdt |> List.fold(fun (s:Map<StateId, StateNode>) i -> s.Remove i) stMapNew
                     Refactored(sp.StatePointer), stNew.Add(sp.Id,sp)
-                |   Unrefactored (da,db)     ->  //  was not refactored
+                |   Unrefactored    ->  //  was not refactored
                     //  Here is the start of a refactoring chain.
                     //  Three state-types must exist after the refactoring of this point:
                     //  1 - OneInSet matches that enters into the iteration path of the repeat
@@ -816,7 +816,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
             getPlainMerges mlst
             |>  List.filter(fun (_, nd) -> nd.Length > 1)  // only candidate if they can be merged
             |>  function
-            |   []      -> Unrefactored(iterPtr, nextPtr), stMap
+            |   []      -> Unrefactored, stMap
             |   (_, lst) :: _ -> // expect max one entry 
                 let EMIter = lst |> List.find(fun e -> e.IdSp.Id = iterPtr.Id) 
                 let EMNxt  = lst |> List.find(fun e -> e.IdSp.Id = nextPtr.Id)
@@ -827,7 +827,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     //  The current Plains can be merged into one state. The next simply points to "single"
                     let ndIter = stMapNew.[EMIter.IdSp.Id].SetNextState single
                     Refactored(ndIter.StatePointer), stMapNew.Remove(EMNxt.IdSp.Id) |> wsUpdate ndIter
-                |   Unrefactored (da,db)     ->  //  was not refactored
+                |   Unrefactored     ->  //  was not refactored
                     //  This is the start of a refactoring chain, the decision point whether the iter-path or 
                     //  exit-path will be chosen. The current plains are merged into one. The next points
                     //  to a Multipath in which the decision is made to iter or exit. The match makes the decision.
@@ -851,9 +851,22 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     //                   |B2   -> F -> Next()
                     //                   |Exit -> C -> 2
 
+                    let t1 = stMapNew.[EMIter.IdSp.Id]
+                    let t2 = stMapNew.[EMNxt.IdSp.Id]
 
-                    let newExit = stMapNew.[exitPtr.Id].SetNextState db
-                    let bundle = MultiPath(MultiPath.Create (getNewId()) [da.SinglePathPointerValue;newExit.SinglePathPointer])
+                    let t1Next = t1.NextStatePtr
+                    let t2Next = t2.NextStatePtr
+
+                    let newExit = stMapNew.[exitPtr.Id].SetNextState t2Next.StatePointer
+
+                    let bundle = 
+                        match stMapNew.[t1Next.Id] with
+                        |   MultiPath mp ->
+                            let states = List.append mp.States [newExit.SinglePathPointer]
+                            MultiPath(MultiPath.Create (getNewId()) states)
+                        |   _ ->
+                            MultiPath(MultiPath.Create (getNewId()) [t1Next.SinglePathPointerValue;newExit.SinglePathPointer])
+
                     let ndIter = stMapNew.[EMIter.IdSp.Id].SetNextState bundle.StatePointer
                     Refactored(ndIter.StatePointer), stMapNew.Add(bundle.Id, bundle) |> wsUpdate ndIter |> wsUpdate newExit
             |   _ -> failwith "Not Implemented yet"
@@ -878,7 +891,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     let p = RepeatIterate { ri with IterateState = single.StatePointer; NextState = single.StatePointer }
                     let nodes = stNew |> wsUpdate p |> Map.toList |> List.map(snd)
                     (start, nodes, repeaters)
-                |   Unrefactored (da,db)     ->  //  was not refactored
+                |   Unrefactored     ->  //  was not refactored
                     (start, nodes, repeaters)
         | _ -> (start, nodes, repeaters)
 

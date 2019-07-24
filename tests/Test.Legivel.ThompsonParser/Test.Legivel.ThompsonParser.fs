@@ -247,6 +247,27 @@ let ``Complex optional with conflicting plain enter-and-exit paths - match strin
     assertNoMatch nfa "AACAD"
 
 [<Test>]
+let ``Complex optional with conflicting plain enter-and-exit paths to MultiPath - match string``() =
+    let nfa = 
+        rgxToNFA <| 
+            OPT(RGP("AA", [Token.``c-printable``]) + (RGP("B", [Token.``c-printable``]) ||| RGP("C", [Token.``c-printable``]))) + 
+               (RGP("AA", [Token.``c-printable``]) + (RGP("D", [Token.``c-printable``]) ||| RGP("E", [Token.``c-printable``])))
+    
+    assertFullMatch nfa "AABAAD"
+    assertFullMatch nfa "AACAAD"
+    assertFullMatch nfa "AABAAE"
+    assertFullMatch nfa "AACAAE"
+
+    assertFullMatch nfa "AAD"
+    assertFullMatch nfa "AAE"
+
+    assertNoMatch nfa "AABAABAAD"
+    assertNoMatch nfa "AAF"
+    assertNoMatch nfa "AAB"
+    assertNoMatch nfa "AABAA"
+
+
+[<Test>]
 let ``Complex optional with conflicting oneinset enter-and-exit paths - match string``() =
     let nfa = 
         rgxToNFA <| 
@@ -269,6 +290,7 @@ let ``Complex optional with conflicting oneinset enter-and-exit paths - match st
 
     assertNoMatch nfa "\tC"
     assertNoMatch nfa "\tA\nA0B"
+
 
 [<Test>]
 let ``Complex optional with conflicting oneinset enter-and-exit paths, splitting in MultiPaths - match string``() =
@@ -307,3 +329,10 @@ let ``Complex optional with conflicting oneinset enter-and-exit paths, splitting
 
     assertNoMatch nfa "\tA\tB0C"
 
+
+//[<Test>]
+//let ``Complex optional with conflicting oneinset/plain enter-and-exit paths - match string``() =
+//    let nfa = 
+//        rgxToNFA <| 
+//            OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + (RGP("A", [Token.``c-printable``]) ||| RGP("B", [Token.``c-printable``]))) + 
+//                RGO("\t[0-9]", [Token.``t-tab``; Token.``ns-dec-digit``]) + (RGP("C", [Token.``c-printable``]) ||| RGP("D", [Token.``c-printable``])) 
