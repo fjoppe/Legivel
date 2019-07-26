@@ -24,7 +24,7 @@ let assertNoMatch nfa str =
     r |> ParseResult.FullMatch |> shouldEqual []
  
 [<Test>]
-let ``Simple Concat - match string``() =
+let ``Simple Concat``() =
     let nfa = rgxToNFA <| RGP("A", [Token.``c-printable``]) + RGP("A", [Token.``c-printable``]) + RGP("B", [Token.``c-printable``])
 
     assertFullMatch nfa "AAB"
@@ -32,7 +32,7 @@ let ``Simple Concat - match string``() =
 
 
 [<Test>]
-let ``Simple Or - match string``() =
+let ``Simple Or``() =
     let nfa = rgxToNFA <|  (RGP("A", [Token.``c-printable``]) ||| RGP("B", [Token.``c-printable``]))
 
     assertFullMatch nfa "A"
@@ -42,7 +42,7 @@ let ``Simple Or - match string``() =
 
 
 [<Test>]
-let ``Simple Or with nested concat - match string``() =
+let ``Simple Or with nested concat``() =
     let nfa = rgxToNFA <|  (RGP("AC", [Token.``c-printable``]) ||| RGP("BC", [Token.``c-printable``]))
 
     assertFullMatch nfa "AC"
@@ -53,7 +53,7 @@ let ``Simple Or with nested concat - match string``() =
     assertNoMatch nfa "C"
 
 [<Test>]
-let ``Simple Or with concat before - match string``() =
+let ``Simple Or with concat before``() =
     let nfa = rgxToNFA <|  RGP("A", [Token.``c-printable``]) + (RGP("C", [Token.``c-printable``]) ||| RGP("B", [Token.``c-printable``]))
 
     assertFullMatch nfa "AC"
@@ -64,7 +64,7 @@ let ``Simple Or with concat before - match string``() =
 
 
 [<Test>]
-let ``Simple Or with concat after - match string``() =
+let ``Simple Or with concat after``() =
     let nfa = rgxToNFA <|  (RGP("A", [Token.``c-printable``]) ||| RGP("B", [Token.``c-printable``])) + RGP("GH", [Token.``c-printable``])  
 
     assertFullMatch nfa "AGH"
@@ -75,7 +75,7 @@ let ``Simple Or with concat after - match string``() =
 
 
 [<Test>]
-let ``Complex Or with various nested concats - match string``() =
+let ``Complex Or with various nested concats``() =
     let nfa = 
         rgxToNFA <| 
         RGP("XY", [Token.``c-printable``]) + 
@@ -92,7 +92,7 @@ let ``Complex Or with various nested concats - match string``() =
 
 
 [<Test>]
-let ``Complex Or with deep nested concats - match string``() =
+let ``Complex Or with deep nested concats``() =
     let nfa = 
         rgxToNFA <| 
         RGP("XY", [Token.``c-printable``]) + 
@@ -109,7 +109,7 @@ let ``Complex Or with deep nested concats - match string``() =
     assertNoMatch nfa "XYBADY"
 
 
-let ``Simple Or with simple overlapping concat - match string``() =
+let ``Simple Or with simple overlapping concat``() =
     let nfa = rgxToNFA <|  (RGP("AB", [Token.``c-printable``]) ||| RGP("AC", [Token.``c-printable``]))
 
     assertFullMatch nfa "AB"
@@ -119,7 +119,7 @@ let ``Simple Or with simple overlapping concat - match string``() =
     assertNoMatch nfa "B"
 
 
-let ``Simple Or with nested overlapping concat - match string``() =
+let ``Simple Or with nested overlapping concat``() =
     let nfa = rgxToNFA <|  
         (
             RGP("AAB",  [Token.``c-printable``]) 
@@ -148,7 +148,7 @@ let ``Simple Or with nested overlapping concat - match string``() =
 
 
 [<Test>]
-let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
+let ``Conflicting Plain/OneOf within Or with simple concat``() =
     let nfa = rgxToNFA <|  (
         (RGP("\n", [Token.NewLine]) + RGP("A", [Token.``c-printable``])) ||| 
         (RGO("B\n", [Token.``c-printable``;Token.NewLine]) + RGP("X", [Token.``c-printable``]))
@@ -164,7 +164,7 @@ let ``Conflicting Plain/OneOf within Or with simple concat - match string``() =
 
 
 [<Test>]
-let ``Conflicting Plain/OneOf within Or with canabalizing refactoring - match string``() =
+let ``Conflicting Plain/OneOf within Or with canabalizing refactoring``() =
     let nfa = 
         rgxToNFA <| (
             (RGP("\n", [Token.NewLine]) + RGP("A", [Token.``c-printable``])) ||| 
@@ -184,7 +184,7 @@ let ``Conflicting Plain/OneOf within Or with canabalizing refactoring - match st
 
 
 [<Test>]
-let ``Conflicting double OneOf within Or - match string``() =
+let ``Conflicting double OneOf within Or``() =
     let nfa = 
         rgxToNFA <| (
             (RGP("\n", [Token.NewLine]) + RGP("A", [Token.``c-printable``])) ||| 
@@ -206,7 +206,7 @@ let ``Conflicting double OneOf within Or - match string``() =
 
 
 [<Test>]
-let ``Simple optional at the end - match string``() =
+let ``Simple optional at the end``() =
     let nfa = 
         rgxToNFA <| RGP("A", [Token.``c-printable``]) + OPT(RGP("X", [Token.``c-printable``]))
     
@@ -219,7 +219,7 @@ let ``Simple optional at the end - match string``() =
 
 
 [<Test>]
-let ``Simple optional at the beginnig - match string``() =
+let ``Simple optional at the beginnig``() =
     let nfa = 
         rgxToNFA <| OPT(RGP("X", [Token.``c-printable``])) + RGP("A", [Token.``c-printable``]) 
     
@@ -233,7 +233,7 @@ let ``Simple optional at the beginnig - match string``() =
 
 
 [<Test>]
-let ``Complex optional with conflicting plain enter-and-exit paths - match string``() =
+let ``Complex optional with conflicting plain enter-and-exit paths``() =
     let nfa = 
         rgxToNFA <| 
             OPT(RGP("AAC", [Token.``c-printable``])) + 
@@ -247,7 +247,7 @@ let ``Complex optional with conflicting plain enter-and-exit paths - match strin
     assertNoMatch nfa "AACAD"
 
 [<Test>]
-let ``Complex optional with conflicting plain enter-and-exit paths to MultiPath - match string``() =
+let ``Complex optional with conflicting plain enter-and-exit paths to MultiPath``() =
     let nfa = 
         rgxToNFA <| 
             OPT(RGP("AA", [Token.``c-printable``]) + (RGP("B", [Token.``c-printable``]) ||| RGP("C", [Token.``c-printable``]))) + 
@@ -268,7 +268,7 @@ let ``Complex optional with conflicting plain enter-and-exit paths to MultiPath 
 
 
 [<Test>]
-let ``Complex optional with conflicting oneinset enter-and-exit paths - match string``() =
+let ``Complex optional with conflicting oneinset enter-and-exit paths``() =
     let nfa = 
         rgxToNFA <| 
             OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
@@ -293,7 +293,7 @@ let ``Complex optional with conflicting oneinset enter-and-exit paths - match st
 
 
 [<Test>]
-let ``Complex optional with conflicting oneinset enter-and-exit paths, splitting in MultiPaths - match string``() =
+let ``Complex optional with conflicting oneinset enter-and-exit paths, splitting in MultiPaths``() =
     let nfa = 
         rgxToNFA <| 
             OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + (RGP("A", [Token.``c-printable``]) ||| RGP("B", [Token.``c-printable``]))) + 
@@ -331,8 +331,84 @@ let ``Complex optional with conflicting oneinset enter-and-exit paths, splitting
 
 
 //[<Test>]
-//let ``Complex optional with conflicting oneinset/plain enter-and-exit paths - match string``() =
+//let ``Complex optional with conflicting oneinset/plain enter-and-exit paths with plain in exit-path``() =
 //    let nfa = 
 //        rgxToNFA <| 
-//            OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + (RGP("A", [Token.``c-printable``]) ||| RGP("B", [Token.``c-printable``]))) + 
-//                RGO("\t[0-9]", [Token.``t-tab``; Token.``ns-dec-digit``]) + (RGP("C", [Token.``c-printable``]) ||| RGP("D", [Token.``c-printable``])) 
+//            OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
+//                (RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) 
+
+//    assertFullMatch nfa "\tA\tD"
+//    assertFullMatch nfa "\nA\tD"
+//    assertFullMatch nfa "\tD"
+
+//    assertPartialMatch nfa "\tA\tD123" "\tA\tD"
+
+//    assertNoMatch nfa "\tA\tA\tD"
+//    assertNoMatch nfa "\nA\tA\tD"
+//    assertNoMatch nfa "\tA\nA\tD"
+
+//[<Test>]
+//let ``Complex optional with conflicting oneinset/plain enter-and-exit paths with plain in iter-path``() =
+//    let nfa = 
+//        rgxToNFA <| 
+//            OPT(RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) + 
+//               (RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) 
+
+//    assertFullMatch nfa "\tD\tA"
+//    assertFullMatch nfa "\tD\nA"
+//    assertFullMatch nfa "\tA"
+//    assertFullMatch nfa "\nA"
+
+//    assertPartialMatch nfa "\tD\tA123" "\tD\tA"
+
+//    assertNoMatch nfa "\tD\tD\tA"
+//    assertNoMatch nfa "\tD\tD\nA"
+//    assertNoMatch nfa "\nD"
+//    assertNoMatch nfa "\nD\tA"
+
+[<Test>]
+let ``Simple zero or more test``() =
+    let nfa = 
+        rgxToNFA <| 
+                ZOM(RGP("CD", [Token.``c-printable``])) + RGP("CE", [Token.``c-printable``]) 
+
+    assertFullMatch nfa "CE"
+    assertFullMatch nfa "CDCE"
+    assertFullMatch nfa "CDCDCE"
+
+    assertNoMatch  nfa "CD"
+
+
+[<Test>]
+let ``Zero or more with non-distinctive iter/exit repeat-paths``() =
+    let nfa = 
+        rgxToNFA <| 
+                ZOM(RGP("A", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``]) 
+
+    assertFullMatch nfa "AB"
+    assertFullMatch nfa "AAB"
+    assertFullMatch nfa "AAAB"
+
+
+[<Test>]
+let ``Simple one or more test``() =
+    let nfa = 
+        rgxToNFA <| 
+                OOM(RGP("CD", [Token.``c-printable``])) + RGP("CE", [Token.``c-printable``]) 
+
+    assertFullMatch nfa "CDCE"
+    assertFullMatch nfa "CDCDCE"
+
+    assertNoMatch nfa "CE"
+
+
+[<Test>]
+let ``One or more with non-distinctive iter/exit repeat-paths``() =
+    let nfa = 
+        rgxToNFA <| 
+                OOM(RGP("A", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``]) 
+
+    assertFullMatch nfa "AAB"
+    assertFullMatch nfa "AAAB"
+    assertFullMatch nfa "AAAAB"
+

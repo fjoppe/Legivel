@@ -125,28 +125,16 @@ type RepeatStart = {
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
 
 
-type RepeatExit = {
-        Id          : StateId
-        RepeatId    : RepeatId
-        NextState   : StatePointer 
-    }
-    with
-        static member Create id ri nx = { Id = id; RepeatId = ri; NextState = nx }
-        member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
-        member this.SinglePathPointer = SinglePathPointer.Create this.Id
-
-
-type RepeatIterate = {
+type RepeatIterateOrExit = {
         Id          : StateId
         RepeatId    : RepeatId
         IterateState: StatePointer
-        NextState   : StatePointer
+        NextState   : StatePointer 
     }
     with
-        static member Create id it ri nx = { Id = id; RepeatId = ri; IterateState = it; NextState = nx }
+        static member Create id it ri nx = { Id = id; IterateState = it; RepeatId = ri; NextState = nx }
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
-
 
 
 type RepeatState = {
@@ -158,8 +146,8 @@ type RepeatState = {
     with
         static member Create i n x = {RepeatId = i; Iteration = 0; Min = n; Max = x}
         member this.Iterate() = { this with Iteration = this.Iteration + 1}
-        member this.CanExit() = this.Iteration >= this.Min
-        member this.MustExit() = this.Iteration >= this.Max
+        member this.CanExit() = this.Iteration >= this.Min && (this.Max <= 0 || this.Iteration < this.Max)
+        member this.MustExit() = this.Max > 0 && this.Iteration >= this.Max
 
 
 type EmptyPath = {
@@ -167,7 +155,7 @@ type EmptyPath = {
         NextState  : StatePointer 
     }
     with
-        static member Create id mt nx = { Id = id; State = mt; NextState = nx }
+        static member Create id nx = { Id = id; NextState = nx }
         member this.LinkTo i = { this with NextState = i}
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
@@ -178,8 +166,7 @@ type StateNode =
     |   MultiPath  of MultiPath
     |   EmptyPath  of EmptyPath
     |   RepeatStart of RepeatStart
-    |   RepeatExit of RepeatExit
-    |   RepeatIterate of RepeatIterate
+    |   RepeatIterOrExit of RepeatIterateOrExit
     with
         member this.Id 
             with get() =
@@ -188,8 +175,7 @@ type StateNode =
                 |   MultiPath  d -> d.Id
                 |   EmptyPath  d -> d.Id
                 |   RepeatStart d -> d.Id
-                |   RepeatExit  d -> d.Id
-                |   RepeatIterate d -> d.Id
+                |   RepeatIterOrExit  d -> d.Id
 
         member this.IsEmptyPathValue 
             with get() =
@@ -203,8 +189,7 @@ type StateNode =
                 |   SinglePath d -> d.NextState.Id
                 |   EmptyPath  d -> d.NextState.Id
                 |   RepeatStart d -> d.NextState.Id
-                |   RepeatExit  d -> d.NextState.Id
-                |   RepeatIterate d -> d.NextState.Id
+                |   RepeatIterOrExit  d -> d.NextState.Id
                 |   MultiPath  _ -> failwith "Multipath has no single nextstate"
 
         member this.NextStatePtr 
@@ -213,16 +198,14 @@ type StateNode =
                 |   SinglePath d -> d.NextState
                 |   EmptyPath  d -> d.NextState
                 |   RepeatStart d -> d.NextState.StatePointer
-                |   RepeatExit  d -> d.NextState
-                |   RepeatIterate d -> d.NextState
+                |   RepeatIterOrExit  d -> d.NextState
                 |   MultiPath  _ -> failwith "Multipath has no single nextstate"
 
         member this.SetNextState i =
                 match this with
                 |   SinglePath d -> SinglePath { d with NextState = i }
                 |   EmptyPath  d -> EmptyPath { d with NextState = i }
-                |   RepeatExit  d -> RepeatExit  { d with NextState = i }
-                |   RepeatIterate d -> RepeatIterate { d with NextState = i }
+                |   RepeatIterOrExit  d -> RepeatIterOrExit  { d with NextState = i }
                 |   _ -> failwith "Illegal to set nextstate"
 
         member this.SetNextState i =
@@ -237,8 +220,7 @@ type StateNode =
                 |   MultiPath  d -> d.StatePointer
                 |   EmptyPath  d -> d.StatePointer
                 |   RepeatStart d -> d.StatePointer
-                |   RepeatExit  d -> d.StatePointer
-                |   RepeatIterate d -> d.StatePointer
+                |   RepeatIterOrExit  d -> d.StatePointer
 
         member this.SinglePathPointer
             with get() =
@@ -246,8 +228,7 @@ type StateNode =
                 |   SinglePath d -> d.SinglePathPointer
                 |   EmptyPath  d -> d.SinglePathPointer
                 |   RepeatStart d -> d.SinglePathPointer
-                |   RepeatExit  d -> d.SinglePathPointer
-                |   RepeatIterate d -> d.SinglePathPointer
+                |   RepeatIterOrExit  d -> d.SinglePathPointer
                 |   MultiPath  d -> failwith "Multipath has no SinglePathPointer"
 
 let PointerToStateFinal = SinglePathPointer (SinglePathPointer.Create 0u) 
@@ -313,6 +294,7 @@ let getSinglePathValues sil =
     )
     |>  List.filter(fun e -> e<>None)
     |>  List.map(fun e -> e.Value)  
+
 
 let getExactMatchValues sil =
     sil
@@ -386,7 +368,6 @@ let getOneInSetOverlap (lst:NormalizedForRefactoring list) =
         |   _ -> s
     ) []
     |>  List.groupBy(fun e -> e.Token)
-    //|>  List.filter(fun (_, nd) -> nd.Length > 1)  // only candidate if they can be merged
 
 
 let getCrossTypeOverlap (lst:NormalizedForRefactoring list) =
@@ -406,7 +387,7 @@ let getCrossTypeOverlap (lst:NormalizedForRefactoring list) =
             ) ([],[])
         (t,ecl, osl) :: s
     ) []
-    |>  List.map(fun o -> CrossTypeOverlap o)
+
 
 
 let wsUpdate (n:StateNode) (ws:Map<StateId, StateNode>) = ws.Remove(n.Id).Add(n.Id, n)
@@ -424,19 +405,19 @@ let appendStateIdToAllFinalPathNodes2 (entryStartId:StatePointer) (entryStateLis
             |   MultiPath  d -> 
                 d.States 
                 |> List.fold(fun ws stid -> traverse d.StatePointer (stid.StatePointer) ws (passedNodes.Add d.Id) concatPtr) workingSet
-            |   EmptyPath  d -> 
+            |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
                 match workingSet.[prev.Id] with
                 |   SinglePath sp -> 
                     let p = SinglePath({ sp with NextState = concatPtr})
                     wsUpdate p workingSet
                 |   MultiPath  _ -> workingSet
-                |   RepeatExit   re  -> 
-                    let p = RepeatExit({ re with NextState = concatPtr})
+                |   RepeatIterOrExit   re  -> 
+                    let p = RepeatIterOrExit({ re with NextState = concatPtr})
                     wsUpdate p workingSet
                 |   _ -> failwith "Not implemented yet"
-            |   RepeatExit    d -> traverse d.StatePointer (d.NextState) workingSet (passedNodes.Add (d.Id)) concatPtr
+            |   EmptyPath     d -> traverse d.StatePointer (d.NextState) workingSet (passedNodes.Add (d.Id)) concatPtr
+            |   RepeatIterOrExit    d -> traverse d.StatePointer (d.NextState) workingSet (passedNodes.Add (d.Id)) concatPtr
             |   RepeatStart   d -> traverse d.StatePointer (d.NextState.StatePointer) workingSet (passedNodes.Add (d.Id)) concatPtr
-            |   RepeatIterate d -> traverse d.StatePointer (d.NextState) workingSet (passedNodes.Add (d.Id)) concatPtr
             |   SinglePath d ->
                 if d.NextState.Id = 0u then
                     let p = SinglePath({ d with NextState = concatPtr})
@@ -675,7 +656,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
     //  Repeat is used for option, zero-or-more, once-or-more and repeat-between-min-and-max.
     //  Repeat has two outgoing paths: iteration, and exit.
     //  When iter and exit paths have something in common, it is difficult to determine
-    //  in which parh the parser is following. To solve this, the commonalties are "joined" together in both paths
+    //  in which path the parser is supposed to be. To solve this, the commonalties are "joined" together in both paths
     //  and where the paths split, the choice is made to continue the iter-path, or follow the exit path.
     //
     //  The exit-paths must have a "Repeat-Exit" state, which during parsing, checks the "min" and "max" constraint 
@@ -690,9 +671,135 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
             |>  List.map(fun e -> stMap.[e.Id])
             |>  normalizeForRefactoring
 
+        //let refactorPlainvsOneInSetOverlap mlst =
+        //    getCrossTypeOverlap mlst
+        //    |>  List.filter(fun (_, ncl, nol) -> ncl.Length + nol.Length > 1)
+        //    |>  function
+        //    |   []      -> Unrefactored, stMap
+        //    |   [oislst] -> 
+        //        let EMIter = NextStp iterPtr 
+        //        let EMNxt  = NextStp nextPtr
 
-        let refactorOneInSetMerges mlst =
+        //        let (refactored,stMapNew) = refactorRepeaterRec (EMIter) (EMNxt) exitPtr stMap
+        //        match refactored with
+        //        |   Refactored single    ->  //  was refactored
+        //            //  Already in a refactoring chain.
+        //            //  The decision whether the current state chooses the iter- or exit-path of the repeat comes later.
+        //            //  Here is assumed that part has been dealt with, later in the chain.
+        //            //  Here we can join all the options into one MultiPath.
+        //            //  Because the next of both iter- and next-paths point to "single", this could be
+        //            //  created by storing current iter- and next-step in the multipath, without cleaning up the
+        //            //  overlap. However cleanup may benefit us later (don't know yet), and it is what these funcs are
+        //            //  all about. The overlap between an ExactChar and OneInSet token, is moved completely to the ExactChar
+        //            //  and the OneInSet is cleared of this token.
+        //            let idn = getNewId() 
+        //            let (allTokens, allExactChar, allOneInSet) = oislst
+
+        //            let ec = allExactChar.Head
+        //            let ois = allOneInSet.Head
+        //            let oisSt = stMapNew.[ois.IdSp.Id]
+        //            let oisCl = removeTokenFromOneInSet [allTokens] [oisSt] |> List.head
+
+        //            let bundle = MultiPath(MultiPath.Create (getNewId()) [ec.IdSp.SinglePathPointerValue; oisCl.SinglePathPointer])
+
+        //            let stmr = 
+        //                stMapNew
+        //                |>  Map.add bundle.Id bundle
+        //                |>  wsUpdate oisCl
+        //            Refactored(bundle.StatePointer), stmr
+
+        //        |   Unrefactored    ->  //  was not refactored
+        //            //  Here is the start of a refactoring chain.
+        //            //  Three state-types are relevant after the refactoring of this point:
+        //            //  1 - ExactChar which took over the OneInSet token, which keeps the path it is in (iter/next)
+        //            //  2 - OneInSet which lost the overlapping Token, 
+        //            //  3 - A new created MultiPath, which lets choice between type 1 or 2
+        //            //
+        //            //  So this:
+        //            //  iter -> A    -> D -> Next()
+        //            //  exit -> [AC] -> G -> 2
+        //            //
+        //            //  Becomes this:
+        //            //  iter -> A -> |D -> Next()
+        //            //               |G -> 2
+        //            //
+        //            //  exit -> |[C] ->  G -> 2
+        //            //          |A   -> |G -> 2
+        //            //                  |D -> Next()
+        //            //
+        //            //  With Repeat-Exit added:
+        //            //  iter: -> A -> |D   -> Next()
+        //            //                |Exit -> G -> 2
+        //            //
+        //            //  exit -> |[C]  ->  Exit -> G -> 2
+        //            //          |A    -> |D    -> Next()
+        //            //                   |Exit -> G -> 2
+        //            //                   
+        //            //
+        //            //  Which may be simplified to:
+        //            //  t1,t2    -> |B  -> D    -> Next()
+        //            //              |C  -> Exit -> G
+        //            //  t3          |A  -> |D -> Next()
+        //            //                     |Exit -> G   (note order is important, "D" must be checked first)
+        //            //  
+        //            //  if "D" is a MultiPath node with choices (D1,D2), then the Exit must be added 
+        //            //  in a copied MultiPath node at the end, in order-of-parsing:
+        //            //  (iter,exit) ->  |B  -> |D1 -> Next()            (original D-MultiPath)
+        //            //                         |D2 -> F -> Next()       (** B -> Exit -> G is an invalid path!)
+        //            //                  |C  -> Exit -> G
+        //            //                  |A  -> |D1 -> Next()            (copy-and-modified D-MultiPath)
+        //            //                         |D2 -> F -> Next()
+        //            //                         |Exit -> G   (note order is important, "D" must be checked first)
+        //            //
+        //            // ** B -> Exit -> G is an invalid path, as not shared in the iter/exit paths. We keep the original MultiPath
+        //            //   as NextState of "B", because if we did allow it (like the MP nextstate of "A"), then we would allow misparsings.
+        //            //   In an iter-range, "Exit" could allow another iteration, which would let "..BG.." be a valid parse-success! Which is incorrect.
+        //            //  It may appear in the simplified version, as if iter-path and exit-path can be chosen freely when parsing. 
+        //            //  However, a parse-success must end in a final-state, which may only be found in the exit-path, after this point.
+        //            //  There is also no danger of too many iterations, as repeat-iter and repeat-exit both must check 
+        //            //  repeat constraints. So unintentional iterations or exits cannot result in a parse-succes.
+
+        //            let allOverlappingTokens = 
+        //                oislst 
+        //                |>  List.filter(fun (_, nd) -> nd.Length > 1)  // only candidate if they can be merged
+        //                |>  List.map(fst)
+
+        //            let cleanedStates = removeTokenFromOneInSet allOverlappingTokens [stMap.[iterPtr.Id]; stMap.[nextPtr.Id]]
+        //            let t1 = cleanedStates |> List.find(fun i -> i.Id = iterPtr.Id)
+        //            let t2 = cleanedStates |> List.find(fun i -> i.Id = nextPtr.Id)
+
+        //            let t1Next = t1.NextStatePtr
+        //            let t2Next = t2.NextStatePtr
+
+        //            let newExit = stMapNew.[exitPtr.Id].SetNextState t2Next
+        //            let t3Bundle = 
+        //                match stMapNew.[t1Next.Id] with
+        //                |   MultiPath mp ->
+        //                    let states = List.append mp.States [newExit.SinglePathPointer]
+        //                    MultiPath(MultiPath.Create (getNewId()) states)
+        //                |   _ ->
+        //                    MultiPath(MultiPath.Create (getNewId()) [t1Next.SinglePathPointerValue;newExit.SinglePathPointer])
+
+        //            let t3 = 
+        //                let newQC = qcOneInSet allOverlappingTokens
+        //                SinglePath({Id = getNewId(); State = (OneInSetMatch({ QuickCheck = newQC; ListCheck = allOverlappingTokens})); NextState = t3Bundle.StatePointer})
+
+        //            let bundle =
+        //                MultiPath(MultiPath.Create (getNewId()) [t1.SinglePathPointer; t2.SinglePathPointer; t3.SinglePathPointer])
+        //            let stMapRet =
+        //                stMapNew
+        //                |>  Map.add t3Bundle.Id t3Bundle
+        //                |>  Map.add t3.Id t3
+        //                |>  Map.add bundle.Id bundle
+        //                |>  wsUpdate t1
+        //                |>  wsUpdate t2
+        //                |> wsUpdate newExit
+        //            Refactored(bundle.StatePointer), stMapRet 
+        //    |   _ -> failwith "More than one overlapping at this point should never happen"
+
+        let refactorOneInSetOverlap mlst =
             getOneInSetOverlap mlst
+            |>  List.filter(fun (_, nd) -> nd.Length > 1)
             |>  function
             |   []      -> Unrefactored, stMap
             |   oislst -> 
@@ -733,37 +840,37 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     //  t2: exit -> [AC] -> G -> 2
                     //
                     //  Becomes this (note that the t3's (=type 3) are equal):
-                    //  t1: iter -> |B ->  D -> Next()
-                    //  t3:         |A -> |D -> Next()
-                    //                    |G -> 2
+                    //  t1: iter -> |[B] ->  D -> Next()
+                    //  t3:         |[A] -> |D -> Next()
+                    //                      |G -> 2
                     //
-                    //  t2: exit -> |C ->  G -> 2
-                    //  t3:         |A -> |G -> 2
-                    //                    |D -> Next()
+                    //  t2: exit -> |[C] ->  G -> 2
+                    //  t3:         |[A] -> |G -> 2
+                    //                      |D -> Next()
                     //
                     //  With Repeat-Exit added:
-                    //  t1: iter -> |B ->  D    -> Next()
-                    //  t3:         |A -> |D    -> Next()
-                    //                    |Exit -> G -> 2
+                    //  t1: iter -> |[B] ->  D    -> Next()
+                    //  t3:         |[A] -> |D    -> Next()
+                    //                      |Exit -> G -> 2
                     //
-                    //  t2: exit -> |C ->  Exit -> G -> 2
-                    //  t3:         |A -> |Exit -> G -> 2
-                    //                    |D    -> Next()
+                    //  t2: exit -> |[C] ->  Exit -> G -> 2
+                    //  t3:         |[A] -> |Exit -> G -> 2
+                    //                      |D    -> Next()
                     //
                     //  Which may be simplified to:
-                    //  t1,t2    -> |B  -> D    -> Next()
-                    //              |C  -> Exit -> G
-                    //  t3          |A  -> |D -> Next()
-                    //                     |Exit -> G   (note order is important, "D" must be checked first)
+                    //  t1,t2    -> |[B]  -> D    -> Next()
+                    //              |[C]  -> Exit -> G
+                    //  t3          |[A]  -> |D -> Next()
+                    //                       |Exit -> G   (note order is important, "D" must be checked first)
                     //  
                     //  if "D" is a MultiPath node with choices (D1,D2), then the Exit must be added 
                     //  in a copied MultiPath node at the end, in order-of-parsing:
-                    //  (iter,exit) ->  |B  -> |D1 -> Next()            (original D-MultiPath)
-                    //                         |D2 -> F -> Next()       (** B -> Exit -> G is an invalid path!)
-                    //                  |C  -> Exit -> G
-                    //                  |A  -> |D1 -> Next()            (copy-and-modified D-MultiPath)
-                    //                         |D2 -> F -> Next()
-                    //                         |Exit -> G   (note order is important, "D" must be checked first)
+                    //  (iter,exit) ->  |[B]  -> |D1 -> Next()            (original D-MultiPath)
+                    //                           |D2 -> F -> Next()       (** B -> Exit -> G is an invalid path!)
+                    //                  |[C]  -> Exit -> G
+                    //                  |[A]  -> |D1 -> Next()            (copy-and-modified D-MultiPath)
+                    //                           |D2 -> F -> Next()
+                    //                           |Exit -> G   (note order is important, "D" must be checked first)
                     //
                     // ** B -> Exit -> G is an invalid path, as not shared in the iter/exit paths. We keep the original MultiPath
                     //   as NextState of "B", because if we did allow it (like the MP nextstate of "A"), then we would allow misparsings.
@@ -835,21 +942,17 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     //  t2 = type 2 = exit path
                     //
                     //  So starting with this:
-                    //  t1: -> A -> B -> Next()
-                    //  t2: -> A -> C -> 2
+                    //  t1: -> |I -> A -> B -> Next()
+                    //  t2: -> |X -> A -> C -> 2
                     //
                     //  Becomes this:
-                    //  (t1,t2): -> A -> |B -> Next()
-                    //                   |C -> 2
-                    //
-                    //  With Repeat-Exit added:
-                    //  (t1,t2): -> A -> |B    -> Next()
-                    //                   |Exit -> C -> 2
+                    //  (t1,t2): -> A -> |I -> B -> Next()
+                    //                   |X -> C -> 2
                     //  
-                    //  If "B" is a MultiPath with choices (B1,B2) then the Exit path may be added
-                    //  (t1,t2): -> A -> |B1   -> Next()
-                    //                   |B2   -> F -> Next()
-                    //                   |Exit -> C -> 2
+                    //  If "B" is a MultiPath with choices (B1,B2) then nothing extra needs to be done
+                    //  (t1,t2): -> A -> |I -> |B1   -> Next()
+                    //                         |B2   -> F -> Next()
+                    //                   |X -> C -> 2
 
                     let t1 = stMapNew.[EMIter.IdSp.Id]
                     let t2 = stMapNew.[EMNxt.IdSp.Id]
@@ -857,38 +960,36 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     let t1Next = t1.NextStatePtr
                     let t2Next = t2.NextStatePtr
 
-                    let newExit = stMapNew.[exitPtr.Id].SetNextState t2Next.StatePointer
+                    let (RepeatIterOrExit stExit) = stMapNew.[exitPtr.Id]
+                    let newExit = RepeatIterOrExit { stExit with IterateState = t1Next.StatePointer;  NextState = t2Next.StatePointer }
 
-                    let bundle = 
-                        match stMapNew.[t1Next.Id] with
-                        |   MultiPath mp ->
-                            let states = List.append mp.States [newExit.SinglePathPointer]
-                            MultiPath(MultiPath.Create (getNewId()) states)
-                        |   _ ->
-                            MultiPath(MultiPath.Create (getNewId()) [t1Next.SinglePathPointerValue;newExit.SinglePathPointer])
+                    let stm =
+                        stMapNew
+                        |>  Map.remove t2.Id
+                        |>  wsUpdate newExit
+                        |>  wsUpdate (t1.SetNextState newExit.StatePointer)
 
-                    let ndIter = stMapNew.[EMIter.IdSp.Id].SetNextState bundle.StatePointer
-                    Refactored(ndIter.StatePointer), stMapNew.Add(bundle.Id, bundle) |> wsUpdate ndIter |> wsUpdate newExit
+                    Refactored(t1.StatePointer), stm
             |   _ -> failwith "Not Implemented yet"
 
         
         refactorPlainMerges lst
         |>  function
-            |   (Unrefactored _, _) -> refactorOneInSetMerges lst
+            |   (Unrefactored _, _) -> refactorOneInSetOverlap lst
             |   x -> x
 
 
 
-    let refactor (ri:RepeatIterate) =
-        match stMap.[ri.NextState.Id] with
-        |   RepeatExit re ->
-            if not(ri.IterateState.IsSinglePath && re.NextState.IsSinglePath) then
+    let refactor (ep:EmptyPath) =
+        match stMap.[ep.NextState.Id] with
+        |   RepeatIterOrExit re ->
+            if not(re.IterateState.IsSinglePath && re.NextState.IsSinglePath) then
                 (start, nodes, repeaters)
             else
-                let (refac,stNew) = refactorRepeaterRec (ri.IterateState.StatePointer) (re.NextState.StatePointer) (re.StatePointer) stMap
+                let (refac,stNew) = refactorRepeaterRec (re.IterateState.StatePointer) (re.NextState.StatePointer) (re.StatePointer) stMap
                 match refac with
                 |   Refactored single    ->  //  was refactored
-                    let p = RepeatIterate { ri with IterateState = single.StatePointer; NextState = single.StatePointer }
+                    let p = EmptyPath { ep with NextState = single.StatePointer }
                     let nodes = stNew |> wsUpdate p |> Map.toList |> List.map(snd)
                     (start, nodes, repeaters)
                 |   Unrefactored     ->  //  was not refactored
@@ -897,8 +998,8 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
 
     match stMap.[start.Id] with
     |   RepeatStart d -> 
-        let (RepeatIterate ri) = stMap.[d.NextState.Id]
-        refactor ri
+        let (EmptyPath ep) = stMap.[d.NextState.Id]
+        refactor ep
     |   _ -> (start, nodes, repeaters)
 
 
@@ -917,10 +1018,9 @@ let removeUnused (nfa:NFAMachine) =
                 |> List.fold(fun u stid -> traverse stid.StatePointer newPassed u) (mp.Id::used)
             |   EmptyPath  ep -> traverse (ep.NextState) (passedNodes.Add (ep.Id)) (ep.Id::used)
             |   RepeatStart rs -> traverse (rs.NextState.StatePointer) (passedNodes.Add (rs.Id)) (rs.Id::used)
-            |   RepeatIterate ri -> 
-                traverse (ri.IterateState) (passedNodes.Add (ri.Id)) (ri.Id::used) 
-                |>  traverse (ri.NextState) (passedNodes.Add (ri.Id))
-            |   RepeatExit   re  -> traverse (re.NextState) (passedNodes.Add (re.Id)) (re.Id::used) 
+            |   RepeatIterOrExit   re  -> 
+                let ri =traverse (re.IterateState) (passedNodes.Add (re.Id)) (re.Id::used) 
+                traverse (re.NextState) (passedNodes.Add (re.Id)) (re.Id::ri) 
     let usedLst =
         traverse nfa.Start Set.empty []
         |>  List.distinct
@@ -940,6 +1040,19 @@ let rgxToNFA rgx =
             |   _ -> processConversion rg
             
         let emptyState() = EmptyPath({ Id = getNewId(); NextState = PointerToStateFinal})
+
+        let createRepeat o min max =
+            let linkState = emptyState()
+            let repPath = convert o
+            let repState = RepeatState.Create (getNewRepeatId()) min max
+            let repExit = RepeatIterOrExit <| RepeatIterateOrExit.Create (getNewId())  repPath.Start repState.RepeatId linkState.StatePointer
+            let repeatLoopStart = EmptyPath <| EmptyPath.Create (getNewId()) repExit.StatePointer
+            
+            let repeatedStates = appendStateIdToAllFinalPathNodes2 repPath.Start repPath.States repeatLoopStart.StatePointer
+
+            let repStart = RepeatStart <| RepeatStart.Create (getNewId()) repState.RepeatId repeatLoopStart.SinglePathPointer
+            NFAMachine.Create (repStart.StatePointer, repStart :: repExit :: repeatLoopStart :: linkState :: repeatedStates, repState :: repPath.Repeats)
+
 
         match rgx with
         |   Plain  pl ->
@@ -987,18 +1100,9 @@ let rgxToNFA rgx =
                     let id = getNewId()
                     (MultiPathPointer.Create id).StatePointer, MultiPath(MultiPath.Create id (idlst)) :: snlst, []
             |>  NFAMachine.Create
-        |   Optional    o ->
-            let linkState = emptyState()
-            let repPath = convert o
-            let repState = RepeatState.Create (getNewRepeatId()) 0 1
-            let repExit = RepeatExit({Id = getNewId(); RepeatId = repState.RepeatId; NextState = linkState.StatePointer})
-            let repItr = RepeatIterate({Id = getNewId(); RepeatId = repState.RepeatId; IterateState = repPath.Start; NextState = repExit.StatePointer})
-            
-            let repeatedStates = appendStateIdToAllFinalPathNodes2 repPath.Start repPath.States repItr.StatePointer
-
-            let repStart = RepeatStart({ Id = getNewId(); RepeatId = repState.RepeatId; NextState = repItr.SinglePathPointer})
-            NFAMachine.Create (repStart.StatePointer, repStart :: repItr :: repExit :: linkState :: repeatedStates, repState :: repPath.Repeats)
-
+        |   Optional    o   -> createRepeat o 0 1
+        |   ZeroOrMore  zom -> createRepeat zom 0 0
+        |   OneOrMore   oom -> createRepeat oom 1 0
         |   _ -> failwith "Not Implemented Yet"
     processConversion rgx
     |>  removeUnused
@@ -1016,6 +1120,7 @@ type LevelType =
     |   RepeatIter = 4
     |   RepeatExit = 2
     |   LoopStart = 3
+    |   Empty     = 5
 
 
 let PrintIt (nfa:NFAMachine) =
@@ -1030,6 +1135,7 @@ let PrintIt (nfa:NFAMachine) =
             |>  List.iter(fun i ->
                 match i with
                 |   LevelType.Concat    -> printf "         "
+                |   LevelType.Empty     -> printf "     "
                 |   LevelType.Multi     -> printf "|    "
                 |   LevelType.RepeatExit-> printf " |X>>--"
                 |   LevelType.RepeatIter-> printf " |I    "
@@ -1041,39 +1147,38 @@ let PrintIt (nfa:NFAMachine) =
             if current.Id = 0u then
                 printf "-*\n"
             else
-                match stMap.[current.Id] with
-                |   EmptyPath  ep   ->  
-                    printf "~"
-                    printLineRest (LevelType.Concat :: hist) ep.NextState (passedNodes.Add ep.Id)
-                |   SinglePath sp   -> 
-                    match sp.State with
-                    |   ExactMatch c    -> printf "-(%2d:\"%s\")" sp.Id (Regex.Escape(c.Char.ToString()))
-                    |   OneInSetMatch o -> printf "-(%2d:[@])" sp.Id
-                    printLineRest (LevelType.Concat :: hist) sp.NextState (passedNodes.Add sp.Id)
-                |   MultiPath mp    ->
-                    let h::t = mp.States
-                    printf "|(%2d)" mp.Id
-                    printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id)
-                    t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer passedNodes)
-                |   RepeatStart rs ->
-                    let rt = rsMap.[rs.RepeatId]
-                    printf "->>(%2d:<%2d,%2d>)" rs.Id rt.Min rt.Max
-                    printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id)
-                |   RepeatIterate ri ->
-                    if not(passedNodes.Contains ri.Id) then
+                if not(passedNodes.Contains current.Id) then
+                    match stMap.[current.Id] with
+                    |   EmptyPath  ep   ->  
+                        printf "~(%2d)" ep.Id
+                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id)
+                    |   SinglePath sp   -> 
+                        match sp.State with
+                        |   ExactMatch c    -> printf "-(%2d:\"%s\")" sp.Id (Regex.Escape(c.Char.ToString()))
+                        |   OneInSetMatch o -> printf "-(%2d:[@])" sp.Id
+                        printLineRest (LevelType.Concat :: hist) sp.NextState (passedNodes.Add sp.Id)
+                    |   MultiPath mp    ->
+                        let h::t = mp.States
+                        printf "|(%2d)" mp.Id
+                        printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id)
+                        t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer (passedNodes.Add mp.Id))
+                    |   RepeatStart rs ->
+                        let rt = rsMap.[rs.RepeatId]
+                        printf "->>(%2d:<%2d,%2d>)" rs.Id rt.Min rt.Max
+                        printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id)
+                    |   RepeatIterOrExit ri ->
                         printf "-|I(%2d)" ri.Id
                         printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id)
 
                         if ri.IterateState.Id <> ri.NextState.Id then
-                            printLine (LevelType.RepeatExit :: hist) ri.NextState.StatePointer (passedNodes.Add ri.Id)
+                            printPrefix hist
+                            printf "-|X(%2d)" ri.Id
+                            printLineRest (LevelType.RepeatExit :: hist) ri.NextState (passedNodes.Add ri.Id)
                         else
-                            printPrefix (LevelType.RepeatExit :: hist)
-                            printf "|(%2d) :::^^^\n" ri.NextState.Id
-                    else
-                        printf "-Next(%2d)\n" ri.Id
-                |   RepeatExit re ->
-                    printf "-Exit(%2d)" re.Id
-                    printLineRest (LevelType.Concat :: hist) re.NextState (passedNodes.Add re.Id)
+                            printPrefix hist
+                            printf "|X(%2d) :::^^^\n" ri.NextState.Id
+                else
+                    printf "-Loop(%2d)\n" current.Id
 
         printLineRest hist current passedNodes
     printLine [] nfa.Start passedNodes
@@ -1107,7 +1212,7 @@ let parseIt (nfa:NFAMachine) yaml =
                     match stMap.[t.Id] with
                     |   SinglePath st -> st.State.Match chk
                     |   EmptyPath  _  -> true
-                    |   RepeatExit _  -> true
+                    |   RepeatIterOrExit _  -> true
                     |   _ -> failwith "Not implemented yet"
                     )
                 |>  function
@@ -1116,7 +1221,7 @@ let parseIt (nfa:NFAMachine) yaml =
                         |   EmptyPath  st -> processStr (st.NextState) acc (rollback+1) runningLoops
                         |   SinglePath st -> processStr (st.NextState) (chk.Source.[0] :: acc) rollback runningLoops
                         |   MultiPath  _  -> failwith "Not implemented yet"
-                        |   RepeatExit re -> 
+                        |   RepeatIterOrExit re -> 
                             stream.Position <- stream.Position - 1
                             processStr re.NextState acc rollback runningLoops
                     |   None -> NoMatch 
@@ -1128,23 +1233,21 @@ let parseIt (nfa:NFAMachine) yaml =
                     else
                         runningLoops.Add(r.RepeatId, stRepeat.[r.RepeatId])
                 processStr r.NextState.StatePointer acc rollback rlnew
-            |   RepeatIterate r ->
+            |   RepeatIterOrExit r ->
                 let rs = runningLoops.[r.RepeatId]
                 if rs.MustExit() then
                     processStr r.NextState acc rollback runningLoops
                 else
                     let rlNew = runningLoops.Remove(r.RepeatId).Add(r.RepeatId, rs.Iterate())
                     let tryIterate = processStr r.IterateState acc rollback rlNew
-                    if r.IterateState<>r.NextState && not(tryIterate.IsMatch) then
-                        stream.Position <- stream.Position - 1  // rollback should be exactly 1, all simlarities in both paths should be refactored away
-                        processStr r.NextState acc rollback rlNew
-                    else
+                    if tryIterate.IsMatch then
                         tryIterate
-            |   RepeatExit r ->
-                if runningLoops.[r.RepeatId].CanExit() then
-                    processStr r.NextState acc rollback (runningLoops.Remove(r.RepeatId))
-                else
-                    NoMatch
+                    else
+                        if rs.CanExit() && r.IterateState<>r.NextState then
+                            stream.Position <- stream.Position - 1  // rollback should be exactly 1, path-refactoring must prevent this to be more.
+                            processStr r.NextState acc rollback (rlNew.Remove rs.RepeatId) // end loop by removing it from running loops
+                        else
+                            NoMatch
 
     processStr nfa.Start [] 0 runningLoops
 
