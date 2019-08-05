@@ -330,41 +330,41 @@ let ``Complex optional with conflicting oneinset enter-and-exit paths, splitting
     assertNoMatch nfa "\tA\tB0C"
 
 
-//[<Test>]
-//let ``Complex optional with conflicting oneinset/plain enter-and-exit paths with plain in exit-path``() =
-//    let nfa = 
-//        rgxToNFA <| 
-//            OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
-//                (RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) 
+[<Test>]
+let ``Complex optional with conflicting oneinset/plain enter-and-exit paths with plain in exit-path``() =
+    let nfa = 
+        rgxToNFA <| 
+            OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
+                (RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) 
 
-//    assertFullMatch nfa "\tA\tD"
-//    assertFullMatch nfa "\nA\tD"
-//    assertFullMatch nfa "\tD"
+    assertFullMatch nfa "\tA\tD"
+    assertFullMatch nfa "\nA\tD"
+    assertFullMatch nfa "\tD"
 
-//    assertPartialMatch nfa "\tA\tD123" "\tA\tD"
+    assertPartialMatch nfa "\tA\tD123" "\tA\tD"
 
-//    assertNoMatch nfa "\tA\tA\tD"
-//    assertNoMatch nfa "\nA\tA\tD"
-//    assertNoMatch nfa "\tA\nA\tD"
+    assertNoMatch nfa "\tA\tA\tD"
+    assertNoMatch nfa "\nA\tA\tD"
+    assertNoMatch nfa "\tA\nA\tD"
 
-//[<Test>]
-//let ``Complex optional with conflicting oneinset/plain enter-and-exit paths with plain in iter-path``() =
-//    let nfa = 
-//        rgxToNFA <| 
-//            OPT(RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) + 
-//               (RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) 
+[<Test>]
+let ``Complex optional with conflicting oneinset/plain enter-and-exit paths with plain in iter-path``() =
+    let nfa = 
+        rgxToNFA <| 
+            OPT(RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) + 
+               (RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) 
 
-//    assertFullMatch nfa "\tD\tA"
-//    assertFullMatch nfa "\tD\nA"
-//    assertFullMatch nfa "\tA"
-//    assertFullMatch nfa "\nA"
+    assertFullMatch nfa "\tD\tA"
+    assertFullMatch nfa "\tD\nA"
+    assertFullMatch nfa "\tA"
+    assertFullMatch nfa "\nA"
 
-//    assertPartialMatch nfa "\tD\tA123" "\tD\tA"
+    assertPartialMatch nfa "\tD\tA123" "\tD\tA"
 
-//    assertNoMatch nfa "\tD\tD\tA"
-//    assertNoMatch nfa "\tD\tD\nA"
-//    assertNoMatch nfa "\nD"
-//    assertNoMatch nfa "\nD\tA"
+    assertNoMatch nfa "\tD\tD\tA"
+    assertNoMatch nfa "\tD\tD\nA"
+    assertNoMatch nfa "\nD"
+    assertNoMatch nfa "\nD\tA"
 
 [<Test>]
 let ``Simple zero or more test``() =
