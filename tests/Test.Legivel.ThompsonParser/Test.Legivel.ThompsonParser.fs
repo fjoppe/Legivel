@@ -389,6 +389,8 @@ let ``Zero or more with non-distinctive iter/exit repeat-paths``() =
     assertFullMatch nfa "AAB"
     assertFullMatch nfa "AAAB"
 
+    assertNoMatch nfa "X"
+    assertNoMatch nfa "A"
 
 [<Test>]
 let ``Simple one or more test``() =
@@ -400,7 +402,8 @@ let ``Simple one or more test``() =
     assertFullMatch nfa "CDCDCE"
 
     assertNoMatch nfa "CE"
-
+    assertNoMatch nfa "C"
+    assertNoMatch nfa "A"
 
 [<Test>]
 let ``One or more with non-distinctive iter/exit repeat-paths``() =
@@ -411,4 +414,55 @@ let ``One or more with non-distinctive iter/exit repeat-paths``() =
     assertFullMatch nfa "AAB"
     assertFullMatch nfa "AAAB"
     assertFullMatch nfa "AAAAB"
+
+    assertNoMatch nfa "AB"
+    assertNoMatch nfa "A"
+    assertNoMatch nfa "X"
+
+
+[<Test>]
+let ``Simple Overlapping plain multipaths in iter/exit repeat-paths``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    RGP("A", [Token.``c-printable``]) |||
+                    RGP("B", [Token.``c-printable``]) 
+                    ) +
+                    (
+                    RGP("A", [Token.``c-printable``]) |||
+                    RGP("C", [Token.``c-printable``]) 
+                    )
+
+    assertFullMatch nfa "AA"
+    assertFullMatch nfa "BA"
+    assertFullMatch nfa "AC"
+    assertFullMatch nfa "BC"
+
+    assertFullMatch nfa "A"
+    assertFullMatch nfa "C"
+
+
+[<Test>]
+let ``Complex Overlapping plain multipaths in iter/exit repeat-paths``() =
+    
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    (RGP("A", [Token.``c-printable``]) |||
+                     RGP("B", [Token.``c-printable``])) + RGP("E", [Token.``c-printable``])
+                    ) +
+                    (
+                    RGP("A", [Token.``c-printable``]) |||
+                    RGP("C", [Token.``c-printable``]) 
+                    ) + RGP("F", [Token.``c-printable``])
+
+    assertFullMatch nfa "AEAF"
+    assertFullMatch nfa "BEAF"
+    assertFullMatch nfa "AECF"
+    assertFullMatch nfa "BECF"
+
+    assertFullMatch nfa "AF"
+    assertFullMatch nfa "CF"
+
+
 
