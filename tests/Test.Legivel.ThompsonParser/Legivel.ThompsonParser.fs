@@ -93,13 +93,24 @@ type RepeatId = | RepeatId of System.UInt32
                 i
 
 
+let mutable currentId = 0u
+let mutable currentRepeatId = 0u
+let CreateNewId() =
+    currentId <- (currentId + 1u)
+    currentId
+
+let CreateNewRepeatId() =
+    currentRepeatId <- (currentRepeatId + 1u)
+    RepeatId currentRepeatId
+
+
 type SinglePath = {
         Id         : StateId
         State      : SingleCharMatch
         NextState  : StatePointer 
     }
     with
-        static member Create id mt nx = { Id = id; State = mt; NextState = nx }
+        static member Create mt nx = { Id = CreateNewId(); State = mt; NextState = nx }
         member this.LinkTo i = { this with NextState = i}
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
@@ -110,7 +121,7 @@ type MultiPath = {
         States     : SinglePathPointer list
     }
     with
-        static member Create id mt = { Id = id; States = mt }
+        static member Create mt = { Id = CreateNewId(); States = mt }
         member this.StatePointer = MultiPathPointer(MultiPathPointer.Create this.Id)
 
 
@@ -250,31 +261,20 @@ type NFAMachine = {
         static member Create (i, s, r) = { States = s; Start = i; Repeats = r}
 
 
-let mutable currentId = 0u
-let mutable currentRepeatId = 0u
-let CreateNewId() =
-    currentId <- (currentId + 1u)
-    currentId
-
-let CreateNewRepeatId() =
-    currentRepeatId <- (currentRepeatId + 1u)
-    RepeatId currentRepeatId
-
-
 let qcOneInSet ls = ls |> List.fold(fun s i -> s ||| uint32(i)) 0u
     
 let createSpp i = SinglePathPointer (SinglePathPointer.Create i)
 
 let createSinglePathFromRgx rgx =
-    let id = CreateNewId() 
-    let idsp = id |> createSpp
     match rgx with
     |   Plain       d ->
-        idsp, [SinglePath (SinglePath.Create id (ExactMatch({ Char = d.``fixed``.[0]; ListCheck = d.Token })) PointerToStateFinal)], []
+        let sp = SinglePath.Create (ExactMatch({ Char = d.``fixed``.[0]; ListCheck = d.Token })) PointerToStateFinal
+        sp.StatePointer, [SinglePath sp], []
     |   OneInSet    d -> 
         let listCheck = d.Token'.Force()
         let quickCheck = qcOneInSet listCheck
-        idsp, [SinglePath (SinglePath.Create id (OneInSetMatch({ QuickCheck = quickCheck; ListCheck = listCheck})) PointerToStateFinal)], []
+        let sp = SinglePath.Create (OneInSetMatch({ QuickCheck = quickCheck; ListCheck = listCheck})) PointerToStateFinal
+        sp.StatePointer, [SinglePath sp], []
     |   _ -> failwith "Not a single char match"
 
 
@@ -459,7 +459,7 @@ let rec refactorCommonPlains (sil:SinglePathPointer list, snl:StateNode list) =
                                 |>  List.map(fun sp -> snlnMap.[sp.Id])
                                 |>  SortStateNodes
                                 
-                            let bundle = MultiPath(MultiPath.Create (CreateNewId()) (silnSorted|>List.map(fun sn -> sn.SinglePathPointer)))
+                            let bundle = MultiPath(MultiPath.Create (silnSorted|>List.map(fun sn -> sn.SinglePathPointer)))
                             silNew, (primary.SetNextState bundle.StatePointer) :: bundle :: (snln |>  List.filter(fun e -> filterIds |> List.exists(fun x -> x.Id = e.Id) |> not))
                 refactorPlains silNew snlNew tail
         refactorPlains sil snl stnl
@@ -519,8 +519,8 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list, snl:StateNode 
                     |>  List.filter(fun e -> toRemove |> List.exists(fun x -> x = e.Id) |> not)
                     |>  List.append allRefactoredOneInSet
 
-                let bundle = MultiPath(MultiPath.Create (CreateNewId()) allNextIds)
-                let sp = SinglePath (SinglePath.Create (CreateNewId()) (OneInSetMatch({ ListCheck = [cht]; QuickCheck = uint32(cht)})) (bundle.StatePointer))
+                let bundle = MultiPath(MultiPath.Create allNextIds)
+                let sp = SinglePath (SinglePath.Create (OneInSetMatch({ ListCheck = [cht]; QuickCheck = uint32(cht)})) (bundle.StatePointer))
 
                 let silNew = 
                     sil 
@@ -566,7 +566,7 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list, snl:St
                     |>  List.filter(fun e -> toRemove |> List.exists(fun x -> x.Id = e.Id) |> not)
                     |>  List.append allRefactoredOneInSet
 
-                let bundle = MultiPath(MultiPath.Create (CreateNewId()) allNextIds)
+                let bundle = MultiPath(MultiPath.Create allNextIds)
 
                 let silNew = 
                     sil 
@@ -628,7 +628,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     let oisSt = stMapNew.[ois.IdSp.Id]
                     let oisCl = removeTokenFromOneInSet [allTokens] [oisSt] |> List.head
 
-                    let bundle = MultiPath(MultiPath.Create (CreateNewId()) [ec.IdSp.SinglePathPointerValue; oisCl.SinglePathPointer])
+                    let bundle = MultiPath(MultiPath.Create [ec.IdSp.SinglePathPointerValue; oisCl.SinglePathPointer])
 
                     let stmr = 
                         stMapNew
@@ -680,7 +680,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
 
                     if iterPtr.Id = ec.Id then  // scenario 1
 
-                        let bundle = MultiPath(MultiPath.Create (CreateNewId()) [ecNew.SinglePathPointer; oisCleaned.SinglePathPointer])
+                        let bundle = MultiPath(MultiPath.Create [ecNew.SinglePathPointer; oisCleaned.SinglePathPointer])
 
                         let stMapRet =
                             stMapNew
@@ -693,7 +693,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                         let noMatch = NoMatch (CreateNewId())
                         let iterCheck = RepeatIterateOrExit.Create (CreateNewId()) iterNext repeatId noMatch.StatePointer |> RepeatIterOrExit
                         let oisNew = oisCleaned.SetNextState iterCheck.StatePointer
-                        let bundle = MultiPath(MultiPath.Create (CreateNewId()) [ecNew.SinglePathPointer; oisCleaned.SinglePathPointer])
+                        let bundle = MultiPath(MultiPath.Create [ecNew.SinglePathPointer; oisCleaned.SinglePathPointer])
 
                         let stMapRet =
                             stMapNew
@@ -725,11 +725,10 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     //  Create a new combination, and remove the origins.
                     //  To clarify, it is possible to distinguish iter-path and exit-path or overlapping tokens,
                     //  but it doesn't matter at this point, because all need the same next-step, which is "single"
-                    let idn = CreateNewId() 
                     let allTokens = oislst |>   List.map(fst)
                     let allIdt    = oislst |>   List.map(fun (_,n) -> n |> List.map(fun nd -> nd.IdSp.Id)) |> List.collect id |> List.distinct
                     let quickCheck = qcOneInSet allTokens
-                    let sp = SinglePath (SinglePath.Create idn (OneInSetMatch({ QuickCheck = quickCheck; ListCheck = allTokens})) single.StatePointer)
+                    let sp = SinglePath (SinglePath.Create (OneInSetMatch({ QuickCheck = quickCheck; ListCheck = allTokens})) single.StatePointer)
                     let stNew = allIdt |> List.fold(fun (s:Map<StateId, StateNode>) i -> s.Remove i) stMapNew
                     Refactored(sp.StatePointer), stNew.Add(sp.Id,sp)
                 |   Unrefactored    ->  //  was not refactored
@@ -784,7 +783,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                         SinglePath({Id = CreateNewId(); State = (OneInSetMatch({ QuickCheck = newQC; ListCheck = allOverlappingTokens})); NextState = t3IterExit.StatePointer})
 
 
-                    let bundle = MultiPath(MultiPath.Create (CreateNewId()) [t3.SinglePathPointer; exitPtr.SinglePathPointerValue])
+                    let bundle = MultiPath(MultiPath.Create [t3.SinglePathPointer; exitPtr.SinglePathPointerValue])
 
                     let stMapRet =
                         stMapNew
@@ -851,8 +850,29 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
             |   _ -> failwith "Not Implemented yet"
 
         
-        let refactorMultiPath mlst =
-            getPlainMerges mlst
+        let refactorMultiPath splst =
+            true
+
+            //  These scenario are refactor candidates:
+            //  (mp = multipath, sp = singlepath)
+            //  
+            //  Scenario 1:
+            //  Repeat Start -> |I  -> sp -> Next()
+            //                  |X  -> mp -> End
+            //
+            //  Scenario 2:
+            //  Repeat Start -> |I  -> mp -> Next()
+            //                  |X  -> sp -> End
+            //
+            //  Scenario 3:
+            //  Repeat Start -> |I  -> mp1 -> Next()
+            //                  |X  -> mp2 -> End
+            //
+            //  Splitting up the commonalities in the I- and X- path, in the RepeatIterOrExit step
+            //  results into these generic step-types
+            //
+            //  st1:    a construct
+
 
         refactorPlainMerges lst
         |>  function
@@ -982,12 +1002,12 @@ let rgxToNFA rgx =
                     let id = idlst.Head
                     id.StatePointer, snlst, []
                 else
-                    let id = CreateNewId()
-                    (MultiPathPointer.Create id).StatePointer, MultiPath(MultiPath.Create id (idlst)) :: snlst, []
+                    let mp = MultiPath.Create (idlst)
+                    mp.StatePointer, (MultiPath mp) :: snlst, []
             |>  NFAMachine.Create
-        |   Optional    o   -> createRepeat o 0 1
-        |   ZeroOrMore  zom -> createRepeat zom 0 0
-        |   OneOrMore   oom -> createRepeat oom 1 0
+        |   Optional    r -> createRepeat r 0 1
+        |   ZeroOrMore  r -> createRepeat r 0 0
+        |   OneOrMore   r -> createRepeat r 1 0
         |   _ -> failwith "Not Implemented Yet"
     processConversion rgx
     |>  removeUnused
