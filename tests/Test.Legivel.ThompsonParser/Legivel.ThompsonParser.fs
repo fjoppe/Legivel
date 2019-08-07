@@ -292,15 +292,6 @@ let SortStateNodes lst =
     )
 
 
-let getSinglePathValues sil =
-    sil
-    |>  List.fold(fun s i -> 
-        match i with
-        |   SinglePath sp -> sp :: s
-        |   _ -> s
-    ) []
-
-
 let nonGenericTokens =
     [   Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark``; Token.``t-colon``;
         Token.``t-dot``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``; Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``;
