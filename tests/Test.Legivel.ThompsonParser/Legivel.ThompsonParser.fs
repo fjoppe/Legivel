@@ -289,14 +289,14 @@ let SortStateNodes lst =
         |   (MultiPath _, SinglePath _) -> 1
         |   (EmptyPath _, SinglePath _) -> 1
         |   (SinglePath _, EmptyPath _) -> -1
-        |   (RepeatStart _, SinglePath _) -> -1
-        |   (SinglePath _, RepeatStart _) -> 1
-        |   (RepeatStart _, EmptyPath _) ->  1
-        |   (EmptyPath _, RepeatStart _) -> -1
-        |   (RepeatIterOrExit _, SinglePath _) -> -1
-        |   (SinglePath _, RepeatIterOrExit _) -> 1
-        |   (RepeatIterOrExit _, EmptyPath _) ->  1
-        |   (EmptyPath _, RepeatIterOrExit _) -> -1
+        |   (RepeatStart _, SinglePath _) -> 1
+        |   (SinglePath _, RepeatStart _) -> -1
+        |   (RepeatStart _, EmptyPath _) ->  -1
+        |   (EmptyPath _, RepeatStart _) -> 1
+        |   (RepeatIterOrExit _, SinglePath _) -> 1
+        |   (SinglePath _, RepeatIterOrExit _) -> -1
+        |   (RepeatIterOrExit _, EmptyPath _) ->  -1
+        |   (EmptyPath _, RepeatIterOrExit _) -> 1
         |   _ -> 0
     )
 
@@ -697,8 +697,8 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
             //
             //  And, in those cases st1/st2/st3 are multipaths on the same level, these are combined to one.
 
-            let st1Next = st1 |> List.map(fun i -> stMap.[i.Id].NextStatePtr.SinglePathPointerValue)
-            let st2Next = st2 |> List.map(fun i -> stMap.[i.Id].NextStatePtr.SinglePathPointerValue)
+            let st1Next = st1 |> List.map(fun i -> stMap.[i.Id].NextStatePtr.SinglePathPointerValue) |> List.distinct
+            let st2Next = st2 |> List.map(fun i -> stMap.[i.Id].NextStatePtr.SinglePathPointerValue) |> List.distinct
 
             let (st1, st2, st3, stMap) =
                 st1 @ st2
@@ -711,7 +711,8 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                         let dup = cl.Head
                         let stNew = SinglePath.Create (ExactMatch {Char = dup.ExactChar; ListCheck = [dup.Token]}) PointerToStateFinal |> SinglePath
                         let st3 = stNew.SinglePathPointer :: st3lst
-                        filterStatePointers (st1lst, st3), filterStatePointers (st2lst, st3), st3, wsAdd stNew smp
+                        let removeIds = cl |> List.map(fun e -> e.IdSp.SinglePathPointerValue)
+                        filterStatePointers (st1lst, removeIds), filterStatePointers (st2lst, removeIds), st3, wsAdd stNew smp
                     //|   OneInSetOverlap (t, ls) ->
                     //    let allOverlappingTokens = [t]
 
@@ -1058,83 +1059,43 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
             |   _ -> failwith "Not Implemented yet"
 
         
-        let refactorMultiPath splst =
-            true
+        let refactorMultiPath() =
+            let iterNode = stMap.[iterPtr.Id]
+            let nextNode = stMap.[nextPtr.Id]
 
-            //  These scenario are refactor candidates:
-            //  (mp = multipath, sp = singlepath, ns = next step)
-            //  
-            //  Scenario 1:
-            //  Repeat Start -> |I  -> sp -> ns1 -> Next()
-            //                  |X  -> mp -> ns2 -> End
-            //
-            //  Scenario 2:
-            //  Repeat Start -> |I  -> mp -> -> ns3 -> Next()
-            //                  |X  -> sp -> -> ns4 -> End
-            //
-            //  Scenario 3:
-            //  Repeat Start -> |I  -> mp1 -> ns5 -> Next()
-            //                  |X  -> mp2 -> ns6 -> End
-            //
-            //  Splitting up the commonalities in the I- and X- path, in the RepeatIterOrExit step
-            //  results into these generic step-types
-            //
-            //  st1: a stripped sp/mp that continues the I-path, stripped from overlapping singlepaths
-            //  st2: a stripped sp/mp that continues the X-path, stripped from overlapping singlepaths
-            //  st3: a new construct with merged sp's, that continues to a next I/X choice
-            //
-            //  So the initial construct becomes this, for all scenario's:
-            //  Repeat Start -> |st3 -> |I -> (ns1|ns3|ns5)  :1   
-            //                  |       |X -> (ns2|ns4|ns6)  :2
-            //                  ||I  -> st1 -> (ns1|ns3|ns5) :3
-            //                  ||X  -> st2 -> (ns2|ns4|ns6) :4
-            //
-            //  But this can be optimized for the following cases:-
-            //
-            //  If st1.IsEmpty and st2.IsEmpty then :3 and :4 are discarded:
-            //  Repeat Start -> |st3 -> |I -> (ns1|ns3|ns5)  :1   
-            //                  |       |X -> (ns2|ns4|ns6)  :2
-            //  
-            //  If st1.IsEmpty and not(st2.IsEmpty) then :3 ais discarded:
-            //  Repeat Start -> |st3 -> |I -> (ns1|ns3|ns5)  :1   
-            //                  |       |X -> (ns2|ns4|ns6)  :2
-            //                  |st2 -> (ns2|ns4|ns6)        :4
-            //
-            //  If not(st1.IsEmpty) and st2.IsEmpty then the tree is rearranged as follows
-            //  Repeat Start -> |st1 -> |I -> (ns1|ns3|ns5)  :1   
-            //                  |       |X -> NoMatch        :2
-            //                  |st3 -> |I  -> (ns1|ns3|ns5) :3
-            //                  |       |X  -> (ns2|ns4|ns6) :4
-            //
-            //  And, in those cases st1/st2/st3 are multipaths on the same level, these are combined to one.
+            match (iterNode, nextNode) with
+            |   (MultiPath mp1, MultiPath mp2) -> refactorGeneric mp1.States mp2.States stMap
+            |   (MultiPath mp, SinglePath sp)  -> refactorGeneric mp.States [(sp.SinglePathPointer)] stMap
+            |   (SinglePath sp, MultiPath mp)  -> refactorGeneric [(sp.SinglePathPointer)] mp.States stMap
+            |   _ -> Unrefactored, stMap
 
 
-
-
-        refactorPlainMerges lst
-        |>  function
-            |   (Unrefactored _, _) -> 
-                refactorOneInSetOverlap lst
-                |>  function
-                | (Unrefactored _, _) -> refactorPlainvsOneInSetOverlap lst
-                | x -> x
-            |   x -> x
+        [
+            fun () -> refactorPlainMerges lst 
+            fun () -> refactorOneInSetOverlap lst 
+            fun () -> refactorPlainvsOneInSetOverlap lst
+            fun () -> refactorMultiPath()
+        ]
+        |>  List.tryPick(fun fn ->
+            fn()
+            |>  function
+            | (Unrefactored _, _) -> None
+            | x                   -> Some x
+        )
+        |>  Option.fold(fun _ i -> i) (Unrefactored, stMap)
 
 
     let refactor (ep:EmptyPath) =
         match stMap.[ep.NextState.Id] with
         |   RepeatIterOrExit re ->
-            if not(re.IterateState.IsSinglePath && re.NextState.IsSinglePath) then
+            let (refac,stNew) = refactorRepeaterRec (re.IterateState.StatePointer) (re.NextState.StatePointer) (re.StatePointer) re.RepeatId stMap
+            match refac with
+            |   Refactored single    ->  //  was refactored
+                let p = EmptyPath { ep with NextState = single.StatePointer }
+                let nodes = stNew |> wsUpdate p |> Map.toList |> List.map(snd)
                 (start, nodes, repeaters)
-            else
-                let (refac,stNew) = refactorRepeaterRec (re.IterateState.StatePointer) (re.NextState.StatePointer) (re.StatePointer) re.RepeatId stMap
-                match refac with
-                |   Refactored single    ->  //  was refactored
-                    let p = EmptyPath { ep with NextState = single.StatePointer }
-                    let nodes = stNew |> wsUpdate p |> Map.toList |> List.map(snd)
-                    (start, nodes, repeaters)
-                |   Unrefactored     ->  //  was not refactored
-                    (start, nodes, repeaters)
+            |   Unrefactored     ->  //  was not refactored
+                (start, nodes, repeaters)
         | _ -> (start, nodes, repeaters)
 
     match stMap.[start.Id] with

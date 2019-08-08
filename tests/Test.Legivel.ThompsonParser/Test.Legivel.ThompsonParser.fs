@@ -441,6 +441,7 @@ let ``Simple Overlapping plain multipaths in iter/exit repeat-paths``() =
     assertFullMatch nfa "A"
     assertFullMatch nfa "C"
 
+    assertNoMatch nfa "BAC"
 
 [<Test>]
 let ``Complex Overlapping plain multipaths in iter/exit repeat-paths``() =
@@ -464,5 +465,7 @@ let ``Complex Overlapping plain multipaths in iter/exit repeat-paths``() =
     assertFullMatch nfa "AF"
     assertFullMatch nfa "CF"
 
+    assertNoMatch nfa "BEAEAF"
+    assertNoMatch nfa "BEAECF"
 
 
