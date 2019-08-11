@@ -569,3 +569,61 @@ let ``Complex double refactor overlapping OneInSet,plains multipaths in iter/exi
     assertFullMatch nfa "\n"
 
 
+
+[<Test>]
+let  ``Complex Overlapping I-OneInSet and X-Plain in I/X multipaths repeat-paths``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    (RGP("A", [Token.``c-printable``]) |||
+                     RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``]))
+                    + RGP("E", [Token.``c-printable``])
+                    ) +
+                    (
+                    RGP("B", [Token.``c-printable``]) |||
+                    RGP("\t", [Token.``t-tab``])
+                    ) + RGP("F", [Token.``c-printable``])
+
+    assertFullMatch nfa "AEBF"
+    assertFullMatch nfa "\tEBF"
+    assertFullMatch nfa "-EBF"
+
+    assertFullMatch nfa "AE\tF"
+    assertFullMatch nfa "\tE\tF"
+    assertFullMatch nfa "-E\tF"
+
+    assertFullMatch nfa "BF"
+    assertFullMatch nfa "\tF"
+
+    assertNoMatch nfa "\tE\tE\tF"
+
+
+[<Test>]
+let ``Complex Overlapping I-Plain and X-OneInSet in I/X multipaths repeat-paths``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    (RGP("A", [Token.``c-printable``]) |||
+                     RGP("\t", [Token.``t-tab``]))
+                    + RGP("E", [Token.``c-printable``])
+                    ) +
+                    (
+                    RGP("B", [Token.``c-printable``]) |||
+                    RGO("\t\n", [Token.``t-tab``; Token.NewLine])
+                    ) + RGP("F", [Token.``c-printable``])
+
+
+    assertFullMatch nfa "AEBF"
+    assertFullMatch nfa "\tEBF"
+
+    assertFullMatch nfa "AE\tF"
+    assertFullMatch nfa "\tE\tF"
+
+    assertFullMatch nfa "AE\nF"
+    assertFullMatch nfa "\tE\nF"
+
+    assertFullMatch nfa "BF"
+    assertFullMatch nfa "\tF"
+    assertFullMatch nfa "\nF"
+
+    assertNoMatch nfa "\tE\tE\tF"
