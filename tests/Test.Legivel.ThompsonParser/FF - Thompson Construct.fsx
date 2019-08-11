@@ -21,15 +21,20 @@ open Legivel.ThompsonParser
 let nfa = 
     rgxToNFA <| 
             OPT(
-                RGP("A", [Token.``c-printable``]) |||
-                RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``]) 
-                ) +
-                (
-                RGP("A", [Token.``c-printable``]) |||
-                RGO("\t\n", [Token.``t-tab``; Token.NewLine])
-                )
+                OPT(RGP("AC", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
+            ) +
+            RGP("AD", [Token.``c-printable``])
 
 
 PrintIt nfa
 
 
+let nfa2 = 
+    rgxToNFA <| 
+            OPT(
+                OPT(RGP("AC", [Token.``c-printable``]))+ RGP("AB", [Token.``c-printable``])
+            ) +
+            RGP("AD", [Token.``c-printable``])
+
+
+PrintIt nfa2
