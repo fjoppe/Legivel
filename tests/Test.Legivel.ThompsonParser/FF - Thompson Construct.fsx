@@ -20,14 +20,8 @@ open Legivel.ThompsonParser
 
 let nfa = 
     rgxToNFA <| 
-            OPT(
-                RGP("A", [Token.``c-printable``]) |||
-                RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``]) 
-                ) +
-                (
-                RGP("A", [Token.``c-printable``]) |||
-                RGO("\t\n", [Token.``t-tab``; Token.NewLine])
-                )
+            OOM(RGP("CD", [Token.``c-printable``])) + RGP("CE", [Token.``c-printable``]) 
+
 
 PrintIt nfa
 
