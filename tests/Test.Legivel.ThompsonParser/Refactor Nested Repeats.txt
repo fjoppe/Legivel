@@ -1,0 +1,393 @@
+﻿refactorNestedRepeater (start:StatePointer, nodes:StateNode list, repeaters) = true
+
+
+This function deals with state-collisions in nested Repeater constructs.
+It assumes that "refacorRepeaterStateCollisions" has been called for every inner-loop
+
+The problem this function solves is when an inner-loop has a state collission with an outer-loop.
+This may happen on the iter-path, and the exit-path.
+
+(RS = Repeat Start, ns = non-colliding next step, |I = iter path, |X = exit path, ~1 = empty path with id 1)
+
+
+The refactoring pattern that is discovered here roughly is:
+
+RS(1,2) -> GC -> |PC -> APC
+                 |CNC
+
+With:
+	RS - Repeat Start 1=outer loop, 2=inner loop
+	GC - Generic Common   - collisions which happen on all paths (ie both I and X in outerloop)
+	PC - Partially Common - collisions which happen on some paths, but not all, 
+		 ie an outerloop-X state colliding with either an inner-X or inner-I state. Collide with both is impossible bc inner-loop must be optimized.
+	APC - After Partially Common - the remaing states that follow the partial common match
+	CNC - Cleaned Non-Common - the original cleaned from partial common states.
+
+
+
+Plain-to-plain collissions
+--------------------------
+These are collisions between two states which match the same character.
+
+ie consider the following multipath:
+-> |A -> ns1
+   |A -> ns2
+
+The "A" is ambigious, because two plain "A"'s collide. After refactoring, the ambigiouty is removed:
+
+-> A -> |ns1   // ns1 and ns2 are non-colliding next steps, ie not ambigious
+        |ns2
+
+************************************************************************************************************************
+
+Scenario 0, no nested repeater collision:
+RS(1) ->  |I -> A -> RS(2) -> ns1
+          |X -> A -> ns2
+
+The above should be refactored with "refacorRepeaterStateCollisions", removing the colliding "A". 
+This scenario will be skipped from now on.
+
+************************************************************************************************************************
+
+Scenario 1, collision in the main path, ie OPT(ZOM(A+ns1)+(A+ns2))+(A+ns3):
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
+               |I1                        |X2 -> ns2 -> Next(~1)
+               |X1 -> A -> ns3 -> ~
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> A -> |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
+                             |I1    |I2                      |X2 -> ns2 -> Next(~1)
+	 	                     |I1    |X2 -> ns2 -> Next(~1)
+			                 |X1 -> ns3 -> ~
+
+The above refactoring-result is more NoMatch - friendly, rather than Match-friendly.
+In the following form, it is more Match-friendly. So compared to the above, "match" has better performance than "nomatch".
+
+RS(1) -> ~1 -> RS(2) -> A -> |ns1 -> |I1 -> |I2 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
+                             |       |I1    |I2               |X2 -> ns2 -> Next(~1)
+							 |       |I1    |X2 -> NoMatch
+							 |       |X1 -> NoMatch
+	 	                     |ns2 -> |I1 -> |I2 -> NoMatch
+							 |       |I1    |X2 -> Next(~1)
+			                 |       |X1 -> NoMatch
+							 |ns3 -> |I1 -> NoMatch
+							 |       |X1 -> ~
+
+This latter form moves the I/X path checks down the tree. So with ns1/ns2/ns3 match, the choice is made 
+which path to follow. While the I/X RepeatOrExit element only checks whether the loop-constraints allow 
+this path. In the NoMatch friendly form, in complex trees (cases later in this doc), the parser will always run 
+through the tree to discover the next path. 
+
+Also other standard patterns emerge from this approach, because all cases in the multipath after "A" are related
+to the three paths involved - the I1 -> (I2,X2) and X1 paths.
+
+It is functionally not a disadvantage to delay a loop-check like this (for better perf), 
+because the loop-check must happen somewhere in the loop.
+
+************************************************************************************************************************
+
+Scenario 2a, collision in the I-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> C -> ns1 -> Next(~2)
+               |I1                   |X2 -> ns2 -> Next(~1)
+               |X1 -> C -> ns3
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |C -> |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> C -> ns1 -> Next(~2)
+                        |     |I1    |I2                 |X2 -> ns2 -> Next(~1)
+			            |     |I1    |X2 -> NoMatch				(NoMatch rolls back to X1, with loop-check)
+			            |     |X1 -> ns3
+			            ||I1 -> |I2 -> NoMatch
+				        ||I1    |X2 -> ns2 -> Next(~1)
+			            ||X1 -> NoMatch 
+
+
+Match friendly version:
+RS(1) -> ~1 -> RS(2) -> |C -> ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> C -> ns1 -> Next(~2)
+                        |            |I1    |I2          |X2 -> ns2 -> Next(~1)
+						|			 |I1	|X2 -> NoMatch
+			            |            |X1 -> NoMatch
+			            |ns2 -> |I1 -> |I2 -> NoMatch
+				        |       |I1    |X2 -> Next(~1)
+						|ns3 -> |I1 -> NoMatch
+						|       |X1 -> ~
+
+
+************************************************************************************************************************
+
+Scenario 2b, collision in the mainpath and I-path:
+RS(1) -> ~1 -> |I1 -> RS(2) ~2 -> A -> |I2 -> C -> ns1 -> Next(~2)
+               |I1                     |X2 -> ns2 -> Next(~1)
+               |X1 -> A -> C -> ns3 
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> A -> |C -> |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> C -> ns1 -> Next(~2)
+                             |     |I1    |I2                      |X2 -> ns2 -> Next(~1)
+			                 |     |I1    |X2 -> NoMatch					(NoMatch rolls back to X1, with loop-check)
+			                 |     |X1 -> ns3
+			                 ||I1 -> |I2 -> NoMatch 
+					         ||I1    |X2 -> ns2 -> Next(~1)
+			                 ||X1 -> NoMatch 
+
+************************************************************************************************************************
+
+Scenario 3a, collision in the X-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> ns1 -> Next(~2)
+               |I1                   |X2 -> C -> ns2 -> Next(~1)
+               |X1 -> C -> ns3 
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |C -> |I1 -> |I2 -> NoMatch
+                        |     |I1    |X2 -> ns2 -> Next(~1)
+			            |     |X1 -> ns3
+			            ||I1 -> |I2 -> ns1 -> ~2 -> |I2 -> ns1 -> Next(~2)
+						||I1    |I2                 |X2 -> C -> ns2 -> Next(~1)
+				        ||I1    |X2 -> NoMatch
+	 		            ||X1 -> NoMatch
+
+************************************************************************************************************************
+
+Scenario 3b, collision in the mainpath and X-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
+               |I1                        |X2 -> C -> ns2 -> Next(~1)
+               |X1 -> A -> C -> ns3 
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> A -> |C -> |I1 -> |I2 -> NoMatch 
+                             |     |I1    |X2 -> ns2 -> Next(~1)
+			                 |     |X1 -> ns3
+			                 ||I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
+						     ||I1    |I2                      |X2 -> C -> ns2 -> Next(~1)
+					         ||I1    |X2 -> NoMatch
+	 		                 ||X1 -> NoMatch
+
+The above refactoring is more NoMatch - friendly, rather than Match-friendly.
+In the following form, it is more Match-friendly. So "match" has better performance than "nomatch".
+
+RS(1) -> ~1 -> RS(2) -> A -> |C -> |I1 -> |I2 -> NoMatch 
+                             |     |I1    |X2 -> ns2 -> Next(~1)
+			                 |     |X1 -> ns3
+			                 |ns1 -> |I1 -> |I2 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
+						     |       |I1    |I2                      |X2 -> C -> ns2 -> Next(~1)
+					         |       |I1    |X2 -> NoMatch
+	 		                 |       |X1 -> NoMatch
+
+
+OneInSet-to-OneInSet collissions
+--------------------------------
+These collissions occur between two character sets. [AB] means "A" or "B".
+The parser does not match the actual characters in a set, it matches their tokens only. 
+So when [AB] is split, it becomes [A] and [B], not "A" and "B".
+
+So a collision example is:
+
+-> |[AB] -> ns1
+   |[AC] -> ns2
+
+The refactor result is:
+-> |[A] -> |ns1
+   |       |ns2
+   |[B] -> |ns1
+   |[C] -> |ns2
+
+
+************************************************************************************************************************
+
+Scenario 1, collision in the main path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)
+               |I1                           |X2 -> ns2 -> Next(~1)
+               |X1 -> [AC] -> ns3 
+
+
+Intermediate:
+		|[A] -> | ns1 -> :> Next [AB] is valid, [C] invalid
+		|		| ns2 -> :> Next [ABC] is valid
+		|		| ns3	 :> End
+		|[B] -> | ns1 -> :> Next [AB] is valid, [C] invalid
+		|		| ns2 -> :> Next [ABC] is valid
+		|[C] -> ns3
+
+
+Should be refactored to:  (note, empty ~1 are the same state-nodes)
+RS(1) -> ~1 -> RS(2) -> |[A] -> |I1 -> |I2 -> ns1 -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)	
+                        |       |I1    |I2                         |X2 -> ns2 -> Next(~1)
+                        |       |I1    |X2 -> ns2 -> Next(~1)	
+                        |       |X1 -> ns3
+		                ||I1 -> [B] -> |I2 -> ns1 -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)	
+		                ||I1           |I2                         |X2 -> ns2 -> Next(~1)
+                        ||I1           |X2 -> ns2 -> Next(~1)
+                        ||X1 -> [C] -> ns3 
+
+************************************************************************************************************************
+
+Scenario 2a, collision in the I-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
+               |I1                   |X2 -> ns2 -> Next(~1)
+               |X1 -> [DC] -> ns3 
+
+Intermediate:
+	|[C] -> | ns1 -> :> Next valid path: ([BC] | ns2)
+    |       | ns3 -> :> End
+	|ns2 -> :> Next valid path: ([DC] | [BC] | ns2)
+	|[B] -> ns1 -> :> Next valid path: ([BC] | ns2)
+	|[D] -> ns3 :> End
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
+                        |        |I1    |I2                 |X2 -> ns2 -> Next(~1)
+		                |        |I1    |X2 -> NoMatch		(NoMatch rolls back to X1, with loop-check)
+		                |        |X1 -> ns3
+		                ||I1 -> |I2 -> [B] -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
+		                ||I1    |I2                        |X2 -> ns2 -> Next(~1)
+						||I1    |X2 -> ns2 -> Next(~1)
+                        ||X1 -> [D] -> ns3 
+
+************************************************************************************************************************
+
+Scenario 2b, collision in the mainpath and I-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> A -> |I2 -> [BC] -> ns1 -> Next(~2)
+               |I1                        |X2 -> ns2 -> Next(~1)
+               |X1 -> A -> [DC] -> ns3 
+
+Intermediate:
+	A	-> |[C]	-> | ns1 -> :> Next valid path: A -> ([BC] | ns2)
+           |       | ns3 -> :> End
+		   |ns2 -> :> Next valid path: A -> ([DC] | [BC] | ns2)
+		   |[B] -> ns1 -> :> Next valid path: A -> ([BC] | ns2)
+		   |[D] -> ns3 :> End
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> A -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> [BC] -> ns1 -> Next(~2)
+                             |        |I1    |I2                      |X2 -> ns2 -> Next(~1)
+			                 |        |I1    |X2 -> NoMatch				(NoMatch rolls back to X1, with loop-check)
+			                 |        |X1 -> ns3
+		                     ||I1 -> |I2 -> [B] -> ns1 -> ~2 -> A -> |I2 -> [BC] -> ns1 -> Next(~2)
+		                     ||I1    |I2                             |X2 -> ns2 -> Next(~1)
+						     ||I1    |X2 -> ns2 -> Next(~1)
+                             ||X1 -> [D] -> ns3 
+
+************************************************************************************************************************
+
+Scenario 3a-1, collision in the X-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> ns1 -> Next(~2)
+               |I1                   |X2 -> [BC] -> ns2 -> Next(~1)
+               |X1 -> [DC] -> ns3 
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> NoMatch
+		                |        |I1    |X2 -> ns2 -> Next(~1)
+		                |        |X1 -> ns3
+		                ||I1 -> |I2 -> ns1 -> ~2 -> |I2 -> ns1 -> Next(~2)
+		                ||I1    |I2                 |X2 -> [BC] -> ns2 -> Next(~1)
+						||I1    |X2 -> NoMatch
+                        ||X1 -> [D] -> ns3
+
+************************************************************************************************************************
+
+Scenario 3a-2, collision in the X-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> ns1 -> Next(~2)
+               |I1                   |X2 -> A -> [BC] -> ns2 -> Next(~1)
+               |X1 -> A -> [DC] -> ns3 
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |A -> |[C] ->  |I1 -> |I2 -> NoMatch
+		                |     |        |I1    |X2 -> ns2 -> Next(~1)
+		                |     |        |X1 -> ns3
+						|     |[D] ->  |I1 -> NoMatch
+						|     |        |X1 -> ns3
+		                ||I1 -> |I2 -> ns1 -> ~2 -> |I2 -> ns1 -> Next(~2)
+		                ||I1    |I2                 |X2 -> [BC] -> ns2 -> Next(~1)
+						||I1    |X2 -> NoMatch
+                        ||X1 -> NoMatch
+
+************************************************************************************************************************
+
+Scenario 3b, collision in the mainpath and X-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> A -> ~2 -> |I2 -> ns1 -> Next(~2)
+               |I1                        |X2 -> [BC] -> ns2 -> Next(~1)
+               |X1 -> A -> [DC] -> ns3 
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> A -> |[C] ->  |I1 -> |I2 -> NoMatch
+		                     |        |I1    |X2 -> [B] -> ns2 -> Next(~1)
+		                     |        |X1 -> ns3
+		                     ||I1 -> |I2 -> ns1 -> ~2 -> |I2 -> ns1 -> Next(~2)
+		                     ||I1    |I2                 |X2 -> [BC] -> ns2 -> Next(~1)
+						     ||I1    |X2 -> NoMatch
+                             ||X1 -> [D] -> ns3 
+
+
+Plain-to-OneInSet collissions
+-----------------------------
+These collissions occur between a state that matches a plain charecter and a state that matches a character set.
+The character sets only know the tokens of the characters they match. The plain-character state knows both the character and its token.
+So the collision is detected by comparing tokens, between the two types.
+
+A collision example is:
+-> |A    -> ns1
+   |[AB] -> ns2
+
+Where "A" is the collision. After refactoring:
+-> |A    ->|ns1
+   |       |ns2
+   |[B] -> ns2
+
+Merges happen only from character-sets to plain, not the other way round.
+
+************************************************************************************************************************
+
+Scenario 1-1, collision in the main path 1:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)
+               |I1                           |X2 -> ns2 -> Next(~1)
+               |X1 -> A -> ns3 
+
+
+Should be refactored to:  (note, empty ~1 are the same state-nodes)
+RS(1) -> ~1 -> RS(2) -> |A -> |I1 -> |I2 -> ns1 -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)	
+                        |     |I1    |I2                         |X2 -> ns2 -> Next(~1)
+                        |     |I1    |X2 -> ns2 -> Next(~1)	
+                        |     |X1 -> ns3
+		                ||I1 -> [B] -> |I2 -> ns1 -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)	
+		                ||I1           |I2                         |X2 -> ns2 -> Next(~1)
+                        ||I1           |X2 -> ns2 -> Next(~1)
+                        ||X1 -> NoMatch 
+
+************************************************************************************************************************
+
+Scenario 1-2, collision in the main path 2:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
+               |I1                        |X2 -> ns2 -> Next(~1)
+               |X1 -> [AC] -> ns3 
+
+
+Should be refactored to:  (note, empty ~1 are the same state-nodes)
+RS(1) -> ~1 -> RS(2) -> |A -> |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)	
+                        |     |I1    |I2                      |X2 -> ns2 -> Next(~1)
+                        |     |I1    |X2 -> ns2 -> Next(~1)	
+                        |     |X1 -> ns3
+		                ||I1 -> NoMatch
+                        ||X1 -> [C] -> ns3 
+
+************************************************************************************************************************
+
+Scenario 2a-1, collision in the I-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
+               |I1                   |X2 -> ns2 -> Next(~1)
+               |X1 -> C -> ns3 
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
+                        |        |I1    |I2                 |X2 -> ns2 -> Next(~1)
+		                |        |I1    |X2 -> NoMatch		(NoMatch rolls back to X1, with loop-check)
+		                |        |X1 -> ns3
+		                ||I1 -> |I2 -> [B] -> ns1 -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
+		                ||I1    |I2                        |X2 -> ns2 -> Next(~1)
+						||I1    |X2 -> ns2 -> Next(~1)
+                        ||X1 -> NoMatch
+

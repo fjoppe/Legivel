@@ -39,6 +39,9 @@
   <PropertyGroup Condition="'$(TargetFramework)' == 'net45'">
     <OutputType>Library</OutputType>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net45|AnyCPU'">
+    <OtherFlags>--deterministic-</OtherFlags>
+  </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net45'">
     <Reference Include="FSharp.Core">
       <HintPath>..\..\packages\FSharp.Core\lib\net45\FSharp.Core.dll</HintPath>
@@ -104,6 +107,8 @@
     <Compile Include="Test.Legivel.ThompsonParser.fs" />
     <None Include="RegexDSL.fsx" />
     <None Include="FF - Thompson Construct.fsx" />
+    <Content Include="Refactor Collisions in Repeat.txt" />
+    <Content Include="Refactor Nested Repeats.txt" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

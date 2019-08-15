@@ -1,0 +1,155 @@
+﻿refactorCollisionsGeneric (st1:SinglePathPointer list) (st2:SinglePathPointer list) (stMap:Map<StateId, StateNode>) =
+
+Repeat is used for option, zero-or-more, once-or-more and repeat-between-min-and-max.
+
+Repeat has two outgoing paths: iteration, and exit.
+
+When iter and exit paths have something in common - collisions, it is difficult to determine
+in which path the parser is supposed to be. To solve this, the collissions are joined together in both paths.
+The choice whether to follow the iter- or exit-paths is moved to a new location, where this choice is non-ambigiuos.
+
+All repeater involved paths must pass the "RepeatIterOrExit" state, which during parsing, 
+checks the "min" and "max" constraint of the loop, and succeeds or fails the pattern-match accordingly.
+
+A repeat-constraint is essential in a range-repeat, where both min/max must be checked against the iter-count. 
+"RepeatIterOrExit" also removes the repeat-state (iteration count) from the "running loops" list, when the exit-path is chosen.
+
+These scenario are refactor candidates:
+
+Legend of notation:
+mp = multipath, sp = singlepath, ns = next step
+Repeat Start = loop state is initialized
+Next = go to the step after "Repeat Start"
+End = end of scope, but a real path may continued
+ 
+
+Note that the sp/mp states collide in the I- and X-paths in the following scenario's
+
+Scenario 1:
+Repeat Start -> |I  -> sp -> ns1 -> Next()
+                |X  -> mp -> ns2 -> End
+
+Scenario 2:
+Repeat Start -> |I  -> mp -> ns3 -> Next()
+                |X  -> sp -> ns4 -> End
+
+Scenario 3:
+Repeat Start -> |I  -> mp1 -> ns5 -> Next()
+                |X  -> mp2 -> ns6 -> End
+
+Scenario 4:
+Repeat Start -> |I  -> sp1 -> ns5 -> Next()
+                |X  -> sp2 -> ns6 -> End
+
+
+Removing the collisions in the I- and X- path, and storing them in a separate state, results into these generic step-types:
+
+st1: a stripped sp/mp that continues the I-path, stripped from overlapping singlepaths, stripped-empty's removed
+st2: a stripped sp/mp that continues the X-path, stripped from overlapping singlepaths, stripped-empty's removed
+st3: a new construct with merged sp's, that continues to a next I/X choice
+
+Note: all step types are paths or collections of paths; this detail is invisible in the following.
+
+The generic construct after refactoring becomes this, when not(st1.IsEmpty) and not(st2.IsEmpty):
+Repeat Start -> |st3 -> |I -> (ns1|ns3|ns5)  :1   
+                |       |X -> (ns2|ns4|ns6)  :2
+                ||I  -> st1 -> (ns1|ns3|ns5) :3
+                ||X  -> st2 -> (ns2|ns4|ns6) :4
+
+This construct must be simplifie for the following cases:
+
+If st1.IsEmpty and st2.IsEmpty then :3 and :4 are discarded:
+Repeat Start -> |st3 -> |I -> (ns1|ns3|ns5)  :1   
+                |       |X -> (ns2|ns4|ns6)  :2
+  
+If st1.IsEmpty and not(st2.IsEmpty) then :3 is discarded:
+Repeat Start -> |st3 -> |I -> (ns1|ns3|ns5)  :1   
+                |       |X -> (ns2|ns4|ns6)  :2
+                |st2 -> (ns2|ns4|ns6)        :4
+
+If not(st1.IsEmpty) and st2.IsEmpty then the tree is rearranged as follows
+Repeat Start -> |st1 -> |I -> (ns1|ns3|ns5)  :1     The I/X choice is added to check min/max loop constraints 
+                |       |X -> NoMatch        :2     on the I-path, while the X-path is invalid.
+                |st3 -> |I  -> (ns1|ns3|ns5) :3
+                |       |X  -> (ns2|ns4|ns6) :4
+
+And, in those cases st1/st2/st3 are multipaths on the same level, these are combined into one.
+  
+Scenario's where plain-to-plain is merged, or oneinset-to-oneinset is merged, fit nice into the above scenario's,
+because they can easily (lineair) be split into donator and receiving states.
+
+Where plain-to-oneinset merges happen, it becomes more complex, because there can be multiple receivers states.
+
+The following scenario's apply for plain-to-oneinset merges:
+Scenario 1, merge canditate (A):
+Repeat Start -> |I -> A    -> np1 -> Next()
+                |X -> [AC] -> np2
+
+This is the st1.IsEmpty & not (st2.IsEmpty) scenario from above, it refactors to:
+(st3)  Repeat Start -> |A -> |I -> np1 -> Next()
+(st3)                  |     |X -> np2
+(st2)                  |[C] -> np2      (match [C] sure exits loop)
+                   
+
+Scenario 2, , merge canditate (A):
+Repeat Start -> |I -> [AC] -> np1 -> Next()
+                |X -> A    -> np2
+
+This is the not(st1.IsEmpty) & st2.IsEmpty scenario from above, it refactors to:
+(st1) Repeat Start -> |[C]  -> |I -> np1 -> Next()   RepeatIterOrExit is Required to check iteration-constraints (min/max).
+(st1)                 |        |X -> NoMatch         
+(st3)                 |A    -> |I -> np1 -> Next()
+                                |X -> np2
+
+Scenario 3, I/X crosswise overlap , merge canditates (A,B):
+Repeat Start -> |I -> |[AC] -> np1 -> Next()
+                |     |B    -> np2 
+                |X -> |A    -> np3 
+                |     |[BD] -> np4
+
+This is the not(st1.IsEmpty) & not(st2.IsEmpty) scenario from above, it refactors to:
+(st3)  Repeat Start -> |A    -> |I -> np1 -> Next()
+(st3)                  |        |X -> np3
+(st3)                  |B    -> |I -> np2
+(st3)                  |        |X -> np4
+(st1)                  ||I   -> |[C]  -> np1 -> Next()
+(st2)                  ||X   -> |[D]  -> np4                
+
+
+Scenario 4 adds a unaffected path to scenario 3:
+Repeat Start -> |I -> |[AC] -> np1 -> Next()
+                |     |B    -> np2 
+                |X -> |A    -> np3 
+                |     |[BD] -> np4
+                |     |F    -> np5      unaffected!
+
+This is the not(st1.IsEmpty) & not(st2.IsEmpty) scenario from above, it refactors to:
+(st3)  Repeat Start -> |A    -> |I -> np1 -> Next()
+(st3)                  |        |X -> np3
+(st3)                  |B    -> |I -> np2
+(st3)                  |        |X -> np4
+(st1)                  ||I   -> |[C] -> np1 -> Next()
+(st2)                  ||X   -> |[D] -> np4                
+(st2)                  |        |F   -> np5      unaffected!
+
+Scenario 5 adds a unaffected path to scenario 4:
+Repeat Start -> |I -> |[AC] -> np1 -> Next()
+                |     |B    -> np2 
+                |     |G    -> np6      unaffected! 
+                |X -> |A    -> np3 
+                |     |[BD] -> np4
+                |     |F    -> np5      unaffected!
+
+This is the not(st1.IsEmpty) & not(st2.IsEmpty) scenario from above, it refactors to:
+(st3)  Repeat Start -> |A    -> |I -> np1 -> Next()
+(st3)                  |        |X -> np3
+(st3)                  |B    -> |I -> np2
+(st3)                  |        |X -> np4
+(st1)                  ||I   -> |[C] -> np1 -> Next()
+(st1)                  |        |G   -> np6     unaffected!
+(st2)                  ||X   -> |[D] -> np4                
+(st2)                  |        |F   -> np5     unaffected!
+  
+This shows that st3 has a special property: 
+    Each element in st3 must know it's successor I- and X-path for refactoring, wich comes from its origin.
+

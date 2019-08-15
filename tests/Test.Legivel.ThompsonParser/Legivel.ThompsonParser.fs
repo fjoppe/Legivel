@@ -608,15 +608,15 @@ type RefactorResult =
     |   Refactored of StatePointer
     |   Unrefactored 
 
-let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
+let refacorRepeaterStateCollisions (start:StatePointer, nodes:StateNode list, repeaters) =
     //  Repeat is used for option, zero-or-more, once-or-more and repeat-between-min-and-max.
     //  Repeat has two outgoing paths: iteration, and exit.
-    //  When iter and exit paths have something in common, it is difficult to determine
-    //  in which path the parser is supposed to be. To solve this, the commonalties are "joined" together in both paths
-    //  and where the paths split, the choice is made to continue the iter-path, or follow the exit path.
+    //  When iter and exit paths have something in common - collisions, it is difficult to determine
+    //  in which path the parser is supposed to be. To solve this, the collissions are joined together in both paths.
+    //  The choice whether to follow the iter- or exit-paths is moved to a new location, where this choice is non-ambigiuos.
     //
-    //  The exit-paths must have a "Repeat-Exit" state, which during parsing, checks the "min" and "max" constraint 
-    //  in a range-repeat and removes the repeater from the "running loops" list.
+    //  All repeater involved paths must pass the "RepeatIterOrExit" state, which during parsing, checks the "min" and "max" constraint.
+    //  This constraint is essential in a range-repeat. It also removes the repeat-state (iteration count) from the "running loops" list.
     let stMap = nodes |> List.map(fun e -> e.Id, e) |> Map.ofList
 
     let rec refactorRepeaterRec (iterPtr : StatePointer) (nextPtr : StatePointer) (exitPtr:StatePointer) (repeatId:RepeatId) (stMap:Map<StateId, StateNode>) : RefactorResult * Map<StateId, StateNode> =
@@ -714,7 +714,7 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
             ret @ (stn3optimized |> List.map(fun (i,(s1,s2)) -> i.SinglePathPointer, s1,s2)), stMap
 
 
-        let refactorGeneric (st1:SinglePathPointer list) (st2:SinglePathPointer list) (stMap:Map<StateId, StateNode>) =
+        let refactorCollisionsGeneric (st1:SinglePathPointer list) (st2:SinglePathPointer list) (stMap:Map<StateId, StateNode>) =
             //  These scenario are refactor candidates:
             //  (mp = multipath, sp = singlepath, ns = next step)
             //  
@@ -976,18 +976,18 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
                     let (root, stMap) = createAndSimplifyMultiPathSp (repOld.SinglePathPointer::st3, stMap)
                     Refactored(root.StatePointer), stMap
         
-        let refactorMultiPath() =
+        let refactorCollissionsForPathType() =
             let iterNode = stMap.[iterPtr.Id]
             let nextNode = stMap.[nextPtr.Id]
 
             match (iterNode, nextNode) with
-            |   (MultiPath mp1, MultiPath mp2)   -> refactorGeneric mp1.States mp2.States stMap
-            |   (MultiPath mp, SinglePath sp)    -> refactorGeneric mp.States [(sp.SinglePathPointer)] stMap
-            |   (SinglePath sp, MultiPath mp)    -> refactorGeneric [(sp.SinglePathPointer)] mp.States stMap
-            |   (SinglePath sp1, SinglePath sp2) -> refactorGeneric [(sp1.SinglePathPointer)] [(sp2.SinglePathPointer)] stMap
+            |   (MultiPath mp1, MultiPath mp2)   -> refactorCollisionsGeneric mp1.States mp2.States stMap
+            |   (MultiPath mp, SinglePath sp)    -> refactorCollisionsGeneric mp.States [(sp.SinglePathPointer)] stMap
+            |   (SinglePath sp, MultiPath mp)    -> refactorCollisionsGeneric [(sp.SinglePathPointer)] mp.States stMap
+            |   (SinglePath sp1, SinglePath sp2) -> refactorCollisionsGeneric [(sp1.SinglePathPointer)] [(sp2.SinglePathPointer)] stMap
             |   _ -> Unrefactored, stMap
 
-        refactorMultiPath()
+        refactorCollissionsForPathType()
 
     let refactor (ep:EmptyPath) =
         match stMap.[ep.NextState.Id] with
@@ -1007,6 +1007,29 @@ let refacorRepeater (start:StatePointer, nodes:StateNode list, repeaters) =
         let (EmptyPath ep) = stMap.[d.NextState.Id]
         refactor ep
     |   _ -> (start, nodes, repeaters)
+
+
+let refactorNestedRepeater (start:StatePointer, nodes:StateNode list, repeaters) = true
+    //  This function deals with state-collisions in nested Repeater constructs.
+    //  It assumes that "refacorRepeaterStateCollisions" has been called for every inner-loop
+    //
+    //  The problem this function solves is when an inner-loop has a state collission with an outer-loop.
+    //  This may happen on the iter-path, and the exit-path.
+    //
+    //  (RS = Repeat Start, ns = next step, |I = iter path, |X = exit path)
+    //
+    //  Scenario 1, no collission:
+    //  RS(1)   ->  |I -> A -> RS(2) -> ns1
+    //              |X -> A -> ns2
+    //  The above should be refactored with "refacorRepeaterStateCollisions", removing the double "A"
+    //
+    //  Scenario 2, collision in the main path:
+    //  RS(1)   -> |I1 -> RS(2) -> A -> |I2 -> ns1
+    //             |I1                  |X2 -> ns2
+    //             |X1 -> A -> ns3
+    //  
+    //  Should be refactored to:
+    //
 
 
 let removeUnused (nfa:NFAMachine) =
@@ -1081,7 +1104,7 @@ let rgxToNFA rgx =
             |>  List.fold(fun (concatPtr:StatePointer, nodes:StateNode list, r) (entryStartId:StatePointer) ->
                     let newNodes = appendStateIdToAllFinalPathNodes entryStartId nodes concatPtr
                     (entryStartId, newNodes, repeats)
-                    |>  refacorRepeater
+                    |>  refacorRepeaterStateCollisions
                     ) (linkState.StatePointer, linkState::nodes, repeats)
             |>  NFAMachine.Create
         |   Or     l -> 
@@ -1218,22 +1241,26 @@ let parseIt (nfa:NFAMachine) yaml =
                 else 
                     NoMatch
             |   MultiPath p ->
-                p.States
-                |>  List.tryFind(fun t -> 
-                    match stMap.[t.Id] with
-                    |   SinglePath st -> st.State.Match currentChar
-                    |   EmptyPath  _  -> true
-                    |   RepeatIterOrExit _  -> true
-                    |   _ -> failwith "Not implemented yet"
-                    )
-                |>  function
-                    |   Some v -> 
-                        match stMap.[v.Id] with
-                        |   EmptyPath  st -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops
-                        |   SinglePath st -> processNextChar (st.NextState) (currentChar.Source.[0] :: acc) rollback runningLoops
-                        |   MultiPath  _  -> failwith "Not implemented yet"
-                        |   RepeatIterOrExit re -> processCurrentChar re.StatePointer acc rollback runningLoops
-                    |   None -> NoMatch 
+                let pos = stream.Position
+                let rec parseMultiPath (sptrLst:SinglePathPointer list) =
+                    match sptrLst with 
+                    |   []      -> NoMatch 
+                    |   h::tail ->
+                        match stMap.[h.Id] with
+                        |   SinglePath st -> 
+                            if st.State.Match currentChar then
+                                processNextChar (st.NextState) (currentChar.Source.[0] :: acc) rollback runningLoops
+                            else
+                                NoMatch
+                        |   EmptyPath  st  -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops
+                        |   RepeatIterOrExit re  -> processCurrentChar re.StatePointer acc rollback runningLoops
+                        |   _ -> failwith "Not implemented yet"
+                        |>  fun res -> 
+                            if not(res.IsMatch) && stream.Position = pos  then
+                                parseMultiPath tail
+                            else res
+
+                parseMultiPath p.States
             |   EmptyPath p -> processCurrentChar p.NextState acc rollback runningLoops
             |   RepeatStart r ->
                 let rlnew =
@@ -1247,12 +1274,13 @@ let parseIt (nfa:NFAMachine) yaml =
                 if rs.MustExit() then
                     processCurrentChar r.NextState acc rollback runningLoops
                 else
+                    let pos = stream.Position
                     let rlNew = runningLoops.Remove(r.RepeatId).Add(r.RepeatId, rs.Iterate())
                     let tryIterate = processCurrentChar r.IterateState acc rollback rlNew
                     if tryIterate.IsMatch then
                         tryIterate
                     else
-                        if rs.CanExit() && r.IterateState<>r.NextState then
+                        if stream.Position = pos && rs.CanExit() && r.IterateState<>r.NextState then
                             processCurrentChar r.NextState acc rollback (rlNew.Remove rs.RepeatId) // end loop by removing it from running loops
                         else
                             NoMatch

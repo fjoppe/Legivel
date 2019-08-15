@@ -22,7 +22,7 @@
     <OutputPath>.\bin\Debug</OutputPath>
     <DefineConstants>DEBUG</DefineConstants>
     <WarningLevel>5</WarningLevel>
-    <OtherFlags>--warnon:1182</OtherFlags>
+    <OtherFlags>--warnon:1182 --deterministic-</OtherFlags>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
     <DocumentationFile>.\bin\Debug\Legivel.Parser.XML</DocumentationFile>
