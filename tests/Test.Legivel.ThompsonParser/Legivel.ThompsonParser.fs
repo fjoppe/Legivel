@@ -126,7 +126,7 @@ type MultiPath = {
         member this.StatePointer = MultiPathPointer(MultiPathPointer.Create this.Id)
 
 
-type RepeatStart = {
+type RepeatInit = {
         Id          : StateId
         RepeatId    : RepeatId
         NextState   : SinglePathPointer 
@@ -179,7 +179,8 @@ type StateNode =
     |   SinglePath of SinglePath
     |   MultiPath  of MultiPath
     |   EmptyPath  of EmptyPath
-    |   RepeatStart of RepeatStart
+    |   RepeatInit of RepeatInit
+    |   RepeatStart of EmptyPath
     |   RepeatIterOrExit of RepeatIterateOrExit
     |   NoMatch of StateId
     with
@@ -189,6 +190,7 @@ type StateNode =
                 |   SinglePath d -> d.Id
                 |   MultiPath  d -> d.Id
                 |   EmptyPath  d -> d.Id
+                |   RepeatInit d -> d.Id
                 |   RepeatStart d -> d.Id
                 |   RepeatIterOrExit  d -> d.Id
                 |   NoMatch d -> d
@@ -198,12 +200,19 @@ type StateNode =
                 match this with
                 |   EmptyPath _ -> true
                 |   _ -> false
-         
+        
+        member this.IsRepeatStartValue
+            with get() =
+                match this with
+                |   RepeatStart _ -> true
+                |   _ -> false
+
         member this.NextState 
             with get() =
                 match this with
                 |   SinglePath d -> d.NextState.Id
                 |   EmptyPath  d -> d.NextState.Id
+                |   RepeatInit d -> d.NextState.Id
                 |   RepeatStart d -> d.NextState.Id
                 |   RepeatIterOrExit  d -> d.NextState.Id
                 |   MultiPath  _ -> failwith "Multipath has no single nextstate"
@@ -214,7 +223,8 @@ type StateNode =
                 match this with
                 |   SinglePath d -> d.NextState
                 |   EmptyPath  d -> d.NextState
-                |   RepeatStart d -> d.NextState.StatePointer
+                |   RepeatInit d -> d.NextState.StatePointer
+                |   RepeatStart d -> d.NextState
                 |   RepeatIterOrExit  d -> d.NextState
                 |   MultiPath  _ -> failwith "Multipath has no single nextstate"
                 |   NoMatch _ -> failwith "NoMatch has no single nextstate"
@@ -224,12 +234,13 @@ type StateNode =
                 match this with
                 |   SinglePath d -> SinglePath { d with NextState = i }
                 |   EmptyPath  d -> EmptyPath { d with NextState = i }
+                |   RepeatStart d -> RepeatStart { d with NextState = i }
                 |   RepeatIterOrExit  d -> RepeatIterOrExit  { d with NextState = i }
                 |   _ -> failwith "Illegal to set nextstate"
 
         member this.SetNextState i =
                 match this with
-                |   RepeatStart d -> RepeatStart { d with NextState = i }
+                |   RepeatInit d -> RepeatInit { d with NextState = i }
                 |   _ -> this.SetNextState (i.StatePointer)
 
         member this.StatePointer  
@@ -238,6 +249,7 @@ type StateNode =
                 |   SinglePath d -> d.StatePointer
                 |   MultiPath  d -> d.StatePointer
                 |   EmptyPath  d -> d.StatePointer
+                |   RepeatInit d -> d.StatePointer
                 |   RepeatStart d -> d.StatePointer
                 |   RepeatIterOrExit  d -> d.StatePointer
                 |   NoMatch d -> SinglePathPointer (SinglePathPointer.Create d)
@@ -247,6 +259,7 @@ type StateNode =
                 match this with
                 |   SinglePath d -> d.SinglePathPointer
                 |   EmptyPath  d -> d.SinglePathPointer
+                |   RepeatInit d -> d.SinglePathPointer
                 |   RepeatStart d -> d.SinglePathPointer
                 |   RepeatIterOrExit  d -> d.SinglePathPointer
                 |   MultiPath  d -> failwith "Multipath has no SinglePathPointer"
@@ -289,10 +302,10 @@ let SortStateNodes lst =
         |   (MultiPath _, SinglePath _) -> 1
         |   (EmptyPath _, SinglePath _) -> 1
         |   (SinglePath _, EmptyPath _) -> -1
-        |   (RepeatStart _, SinglePath _) -> 1
-        |   (SinglePath _, RepeatStart _) -> -1
-        |   (RepeatStart _, EmptyPath _) ->  -1
-        |   (EmptyPath _, RepeatStart _) -> 1
+        |   (RepeatInit _, SinglePath _) -> 1
+        |   (SinglePath _, RepeatInit _) -> -1
+        |   (RepeatInit _, EmptyPath _) ->  -1
+        |   (EmptyPath _, RepeatInit _) -> 1
         |   (RepeatIterOrExit _, SinglePath _) -> 1
         |   (SinglePath _, RepeatIterOrExit _) -> -1
         |   (RepeatIterOrExit _, EmptyPath _) ->  -1
@@ -427,7 +440,8 @@ let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (entryStateList
                 |   _ -> failwith "Not implemented yet"
             |   EmptyPath     d -> traverse d.StatePointer (d.NextState) workingSet (passedNodes.Add (d.Id)) concatPtr
             |   RepeatIterOrExit    d -> traverse d.StatePointer (d.NextState) workingSet (passedNodes.Add (d.Id)) concatPtr
-            |   RepeatStart   d -> traverse d.StatePointer (d.NextState.StatePointer) workingSet (passedNodes.Add (d.Id)) concatPtr
+            |   RepeatInit   d -> traverse d.StatePointer (d.NextState.StatePointer) workingSet (passedNodes.Add (d.Id)) concatPtr
+            |   RepeatStart d -> traverse d.StatePointer (d.NextState) workingSet (passedNodes.Add (d.Id)) concatPtr
             |   SinglePath d ->
                 if d.NextState.Id = 0u then
                     let p = SinglePath({ d with NextState = concatPtr})
@@ -995,7 +1009,7 @@ let refacorRepeaterStateCollisions (start:StatePointer, nodes:StateNode list, re
             let (refac,stNew) = refactorRepeaterRec (re.IterateState.StatePointer) (re.NextState.StatePointer) (re.StatePointer) re.RepeatId stMap
             match refac with
             |   Refactored single    ->  //  was refactored
-                let p = EmptyPath { ep with NextState = single.StatePointer }
+                let p = RepeatStart { ep with NextState = single.StatePointer }
                 let nodes = stNew |> wsUpdate p |> Map.toList |> List.map(snd)
                 (start, nodes, repeaters)
             |   Unrefactored     ->  //  was not refactored
@@ -1003,8 +1017,8 @@ let refacorRepeaterStateCollisions (start:StatePointer, nodes:StateNode list, re
         | _ -> (start, nodes, repeaters)
 
     match stMap.[start.Id] with
-    |   RepeatStart d -> 
-        let (EmptyPath ep) = stMap.[d.NextState.Id]
+    |   RepeatInit d -> 
+        let (RepeatStart ep) = stMap.[d.NextState.Id]
         refactor ep
     |   _ -> (start, nodes, repeaters)
 
@@ -1046,10 +1060,11 @@ let removeUnused (nfa:NFAMachine) =
                 mp.States 
                 |> List.fold(fun u stid -> traverse stid.StatePointer newPassed u) (mp.Id::used)
             |   EmptyPath  ep -> traverse (ep.NextState) (passedNodes.Add (ep.Id)) (ep.Id::used)
-            |   RepeatStart rs -> traverse (rs.NextState.StatePointer) (passedNodes.Add (rs.Id)) (rs.Id::used)
+            |   RepeatInit rs -> traverse (rs.NextState.StatePointer) (passedNodes.Add (rs.Id)) (rs.Id::used)
             |   RepeatIterOrExit   re  -> 
                 let ri =traverse (re.IterateState) (passedNodes.Add (re.Id)) (re.Id::used) 
                 traverse (re.NextState) (passedNodes.Add (re.Id)) (re.Id::ri)
+            |   RepeatStart ep -> traverse (ep.NextState) (passedNodes.Add (ep.Id)) (ep.Id::used)
             |   NoMatch d -> current.Id::used
     let usedLst =
         traverse nfa.Start Set.empty []
@@ -1076,11 +1091,11 @@ let rgxToNFA rgx =
             let repPath = convert o
             let repState = RepeatState.Create (CreateNewRepeatId()) min max
             let repExit = RepeatIterOrExit <| RepeatIterateOrExit.Create (CreateNewId())  repPath.Start repState.RepeatId linkState.StatePointer
-            let repeatLoopStart = EmptyPath <| EmptyPath.Create (CreateNewId()) repExit.StatePointer
+            let repeatLoopStart = RepeatStart <| EmptyPath.Create (CreateNewId()) repExit.StatePointer
             
             let repeatedStates = appendStateIdToAllFinalPathNodes repPath.Start repPath.States repeatLoopStart.StatePointer
 
-            let repStart = RepeatStart <| RepeatStart.Create (CreateNewId()) repState.RepeatId repeatLoopStart.SinglePathPointer
+            let repStart = RepeatInit <| RepeatInit.Create (CreateNewId()) repState.RepeatId repeatLoopStart.SinglePathPointer
             NFAMachine.Create (repStart.StatePointer, repStart :: repExit :: repeatLoopStart :: linkState :: repeatedStates, repState :: repPath.Repeats)
 
 
@@ -1192,10 +1207,13 @@ let PrintIt (nfa:NFAMachine) =
                         printf "|(%2d)" mp.Id
                         printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id)
                         t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer (passedNodes.Add mp.Id))
-                    |   RepeatStart rs ->
+                    |   RepeatInit rs ->
                         let rt = rsMap.[rs.RepeatId]
                         printf "->>(%2d:<%2d,%2d>)" rs.Id rt.Min rt.Max
                         printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id)
+                    |   RepeatStart rs ->
+                        printf "L(%2d)" rs.Id
+                        printLineRest (LevelType.Empty :: hist) rs.NextState (passedNodes.Add rs.Id)
                     |   RepeatIterOrExit ri ->
                         printf "-|I(%2d)" ri.Id
                         printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id)
@@ -1253,6 +1271,7 @@ let parseIt (nfa:NFAMachine) yaml =
                             else
                                 NoMatch
                         |   EmptyPath  st  -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops
+                        |   RepeatStart st  -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops
                         |   RepeatIterOrExit re  -> processCurrentChar re.StatePointer acc rollback runningLoops
                         |   _ -> failwith "Not implemented yet"
                         |>  fun res -> 
@@ -1262,7 +1281,8 @@ let parseIt (nfa:NFAMachine) yaml =
 
                 parseMultiPath p.States
             |   EmptyPath p -> processCurrentChar p.NextState acc rollback runningLoops
-            |   RepeatStart r ->
+            |   RepeatStart p -> processCurrentChar p.NextState acc rollback runningLoops
+            |   RepeatInit r ->
                 let rlnew =
                     if runningLoops.ContainsKey r.RepeatId then
                         runningLoops.Remove(r.RepeatId).Add(r.RepeatId, stRepeat.[r.RepeatId])

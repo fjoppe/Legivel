@@ -58,15 +58,15 @@ RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
 Should be refactored to:
 RS(1) -> ~1 -> RS(2) -> A -> |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
                              |I1    |I2                      |X2 -> ns2 -> Next(~1)
-	 	                     |I1    |X2 -> ns2 -> Next(~1)
+	 	                     |I1    |X2 -> ns2 -> Next(~1) (if RS(2)'s max=0, it must choose this path)
 			                 |X1 -> ns3 -> ~
 
-The above refactoring-result is more NoMatch - friendly, rather than Match-friendly.
-In the following form, it is more Match-friendly. So compared to the above, "match" has better performance than "nomatch".
+The above refactoring-result is more NoMatch-oriented, rather than Match-oriented.
+In the following form, it is more Match-oriented. Compared to the above, "match" has better performance in the below form than the above form.
 
 RS(1) -> ~1 -> RS(2) -> A -> |ns1 -> |I1 -> |I2 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
                              |       |I1    |I2               |X2 -> ns2 -> Next(~1)
-							 |       |I1    |X2 -> NoMatch
+							 |       |I1    |X2 -> ns2 -> Next(~1)
 							 |       |X1 -> NoMatch
 	 	                     |ns2 -> |I1 -> |I2 -> NoMatch
 							 |       |I1    |X2 -> Next(~1)
@@ -96,22 +96,23 @@ RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> C -> ns1 -> Next(~2)
 Should be refactored to:
 RS(1) -> ~1 -> RS(2) -> |C -> |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> C -> ns1 -> Next(~2)
                         |     |I1    |I2                 |X2 -> ns2 -> Next(~1)
-			            |     |I1    |X2 -> NoMatch				(NoMatch rolls back to X1, with loop-check)
+			            |     |I1    |X2 -> ns2 -> Next(~1)
 			            |     |X1 -> ns3
 			            ||I1 -> |I2 -> NoMatch
 				        ||I1    |X2 -> ns2 -> Next(~1)
 			            ||X1 -> NoMatch 
 
 
-Match friendly version:
-RS(1) -> ~1 -> RS(2) -> |C -> ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> C -> ns1 -> Next(~2)
-                        |            |I1    |I2          |X2 -> ns2 -> Next(~1)
-						|			 |I1	|X2 -> NoMatch
-			            |            |X1 -> NoMatch
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> |C -> |ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> C -> ns1 -> Next(~2)
+                        |     |       |I1    |I2          |X2 -> ns2 -> Next(~1)
+						|     |       |I1	 |X2 -> ns2 -> Next(~1)
+						|     |       |X1 -> NoMatch
+			            |     |ns3 -> |I1 -> NoMatch
+						|     |       |X1 -> ~
 			            |ns2 -> |I1 -> |I2 -> NoMatch
 				        |       |I1    |X2 -> Next(~1)
-						|ns3 -> |I1 -> NoMatch
-						|       |X1 -> ~
+						|       |X1 -> NoMatch
 
 
 ************************************************************************************************************************
@@ -124,11 +125,23 @@ RS(1) -> ~1 -> |I1 -> RS(2) ~2 -> A -> |I2 -> C -> ns1 -> Next(~2)
 Should be refactored to:
 RS(1) -> ~1 -> RS(2) -> A -> |C -> |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> C -> ns1 -> Next(~2)
                              |     |I1    |I2                      |X2 -> ns2 -> Next(~1)
-			                 |     |I1    |X2 -> NoMatch					(NoMatch rolls back to X1, with loop-check)
+			                 |     |I1    |X2 -> ns2 -> Next(~1)
 			                 |     |X1 -> ns3
 			                 ||I1 -> |I2 -> NoMatch 
 					         ||I1    |X2 -> ns2 -> Next(~1)
 			                 ||X1 -> NoMatch 
+
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> A -> |C -> |ns1 -> |I1 -> |I2 -> ~2 -> A -> |I2 -> C -> ns1 -> Next(~2)
+                             |     |       |I1    |I2               |X2 -> ns2 -> Next(~1)
+			                 |     |       |I1    |X2 -> ns2 -> Next(~1)
+			                 |     |       |X1 -> NoMatch
+							 |     |ns3 -> |I1 -> NoMatch
+							 |     |       |X1 -> ~
+			                 |ns2 -> |I1 -> |I2 -> NoMatch
+				             |       |I1    |X2 -> Next(~1)
+						     
+
 
 ************************************************************************************************************************
 
@@ -147,6 +160,19 @@ RS(1) -> ~1 -> RS(2) -> |C -> |I1 -> |I2 -> NoMatch
 				        ||I1    |X2 -> NoMatch
 	 		            ||X1 -> NoMatch
 
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> |C -> |ns2 -> |I1 -> |I2 -> NoMatch
+                        |     |       |I1    |X2 -> Next(~1)
+						|     |       |X1 -> NoMatch
+						|     |ns3 -> |I1 -> NoMatch
+						|     |       |X1 -> ~
+			            |ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> ns1 -> Next(~2)
+						|       |I1    |I2          |X2 -> C -> ns2 -> Next(~1)
+				        |       |I1    |X2 -> C -> ns2 -> Next(~1)
+	 		            |       |X1 -> NoMatch
+
+
+
 ************************************************************************************************************************
 
 Scenario 3b, collision in the mainpath and X-path:
@@ -164,15 +190,15 @@ RS(1) -> ~1 -> RS(2) -> A -> |C -> |I1 -> |I2 -> NoMatch
 					         ||I1    |X2 -> NoMatch
 	 		                 ||X1 -> NoMatch
 
-The above refactoring is more NoMatch - friendly, rather than Match-friendly.
-In the following form, it is more Match-friendly. So "match" has better performance than "nomatch".
-
-RS(1) -> ~1 -> RS(2) -> A -> |C -> |I1 -> |I2 -> NoMatch 
-                             |     |I1    |X2 -> ns2 -> Next(~1)
-			                 |     |X1 -> ns3
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> A -> |C -> |ns2 -> |I1 -> |I2 -> NoMatch 
+                             |     |       |I1    |X2 -> Next(~1)
+							 |     |       |X1 -> NoMatch
+						     |     |ns3 -> |I1 -> NoMatch
+						     |     |       |X1 -> ~
 			                 |ns1 -> |I1 -> |I2 -> ~2 -> A -> |I2 -> ns1 -> Next(~2)
-						     |       |I1    |I2                      |X2 -> C -> ns2 -> Next(~1)
-					         |       |I1    |X2 -> NoMatch
+						     |       |I1    |I2               |X2 -> C -> ns2 -> Next(~1)
+					         |       |I1    |X2 -> C -> ns2 -> Next(~1)
 	 		                 |       |X1 -> NoMatch
 
 
@@ -221,6 +247,24 @@ RS(1) -> ~1 -> RS(2) -> |[A] -> |I1 -> |I2 -> ns1 -> ~2 -> [AB] -> |I2 -> ns1 ->
                         ||I1           |X2 -> ns2 -> Next(~1)
                         ||X1 -> [C] -> ns3 
 
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> |[A] -> |ns1 -> |I1 -> |I2 -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)	
+                        |       |       |I1    |I2                  |X2 -> ns2 -> Next(~1)
+						|       |       |I1    |X2 -> ns2 -> Next(~1)
+                        |       |ns2 -> |I1 -> |I2 -> NoMatch
+						|       |       |X2 -> Next(~1)	
+                        |       |ns3 -> |I1 -> NoMatch
+						|       |       |X1 -> ~
+		                |[B] -> |ns1 -> |I1 -> |I2 -> ~2 -> [AB] -> |I2 -> ns1 -> Next(~2)	
+                        |       |       |I1    |I2                  |X2 -> ns2 -> Next(~1)
+						|       |       |I1    |X2 -> ns2 -> Next(~1)
+                        |       |ns2 -> |I1 -> |I2 -> NoMatch
+						|       |       |X2 -> Next(~1)	
+                        |[C] -> |I1 -> NoMatch
+						|       |X1 -> ns3
+
+
+
 ************************************************************************************************************************
 
 Scenario 2a, collision in the I-path:
@@ -238,12 +282,27 @@ Intermediate:
 Should be refactored to:
 RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
                         |        |I1    |I2                 |X2 -> ns2 -> Next(~1)
-		                |        |I1    |X2 -> NoMatch		(NoMatch rolls back to X1, with loop-check)
+		                |        |I1    |X2 -> ns2 -> Next(~1)
 		                |        |X1 -> ns3
 		                ||I1 -> |I2 -> [B] -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
 		                ||I1    |I2                        |X2 -> ns2 -> Next(~1)
 						||I1    |X2 -> ns2 -> Next(~1)
                         ||X1 -> [D] -> ns3 
+
+
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> |[C] -> |ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> [BC] -> Next(~2)
+                        |       |       |I1    |I2          |X2 -> ns2 -> Next(~1)
+		                |       |       |I1    |X2 -> ns2 -> Next(~1)
+		                |       |ns3 -> |I1 -> NoMatch 
+						|       |       |X1 -> ~
+		                |[B] -> |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
+		                |       |I1    |I2          |X2 -> ns2 -> Next(~1)
+						|       |I1    |X2 -> ns2 -> Next(~1)
+						|       |X1 -> NoMatch
+                        |[D] -> |I1 -> NoMatch
+						|       |X1 -> ns3
+
 
 ************************************************************************************************************************
 
@@ -263,12 +322,26 @@ Intermediate:
 Should be refactored to:
 RS(1) -> ~1 -> RS(2) -> A -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> [BC] -> ns1 -> Next(~2)
                              |        |I1    |I2                      |X2 -> ns2 -> Next(~1)
-			                 |        |I1    |X2 -> NoMatch				(NoMatch rolls back to X1, with loop-check)
+			                 |        |I1    |X2 -> ns2 -> Next(~1)
 			                 |        |X1 -> ns3
 		                     ||I1 -> |I2 -> [B] -> ns1 -> ~2 -> A -> |I2 -> [BC] -> ns1 -> Next(~2)
 		                     ||I1    |I2                             |X2 -> ns2 -> Next(~1)
 						     ||I1    |X2 -> ns2 -> Next(~1)
                              ||X1 -> [D] -> ns3 
+
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> A -> |[C] -> |ns1 ->  |I1 -> |I2 -> ~2 -> A -> |I2 -> [BC] -> ns1 -> Next(~2)
+                             |       |        |I1    |I2               |X2 -> ns2 -> Next(~1)
+			                 |       |        |I1    |X2 -> ns2 -> Next(~1)
+			                 |       |ns3 -> |I1 -> NoMatch
+							 |       |       |X1 -> ~
+		                     |[B] -> |I1 -> |I2 -> ns1 -> ~2 -> A -> |I2 -> [BC] -> ns1 -> Next(~2)
+		                     |       |I1    |I2                      |X2 -> ns2 -> Next(~1)
+						     |       |I1    |X2 -> ns2 -> Next(~1)
+							 |       |X1 -> NoMatch
+                             |[D] -> |I1 -> NoMatch
+							 |       |X1 -> ns3
+
 
 ************************************************************************************************************************
 
@@ -283,8 +356,24 @@ RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> NoMatch
 		                |        |X1 -> ns3
 		                ||I1 -> |I2 -> ns1 -> ~2 -> |I2 -> ns1 -> Next(~2)
 		                ||I1    |I2                 |X2 -> [BC] -> ns2 -> Next(~1)
-						||I1    |X2 -> NoMatch
+						||I1    |X2 -> [BC] -> ns2 -> Next(~1)
                         ||X1 -> [D] -> ns3
+
+Match-friendly version:
+RS(1) -> ~1 -> RS(2) -> |[C] -> |ns2 -> |I1 -> |I2 -> NoMatch
+		                |       |       |I1    |X2 -> Next(~1)
+		                |       |ns3 -> |I1 -> NoMatch
+						|       |       |X1 -> ~
+		                |ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> ns1 -> Next(~2)
+		                |       |I1    |I2          |X2 -> [BC] -> ns2 -> Next(~1)
+						|       |I1    |X2 -> [BC] -> ns2 -> Next(~1)
+						|       |X1 -> NoMatch
+						|[B] -> |I1 -> |I2 -> NoMatch
+		                |       |I1    |X2 -> ns2 -> Next(~1)
+						|       |X1 -> NoMatch
+                        |[D] -> |I1 -> NoMatch
+						|       |X1 -> ns3
+
 
 ************************************************************************************************************************
 
@@ -390,4 +479,44 @@ RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> ns1 -
 		                ||I1    |I2                        |X2 -> ns2 -> Next(~1)
 						||I1    |X2 -> ns2 -> Next(~1)
                         ||X1 -> NoMatch
+
+
+
+
+
+
+X-path into Repeat collissions
+------------------------------
+This type of collission happens when the X-path of the outer loop collides with the I-path 
+of the inner loop, perhaps for some iterations, perhaps even colliding with the X-path of the inner loop.
+
+
+1a Collision into (only) the I-path repeated.
+
+
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> A -> B -> Next(~2)
+               |I1                   |X2 -> ns1 -> Next(~1)
+               |X1 -> A -> B -> A -> B -> ns2
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |A -> B -> |I2 -> A -> B -> |I1 -> |I2 ->  ~2 -> |I2 -> A -> B -> Next(~2)
+                        |          |I2              |I1    |I2           |X2 -> ns1 -> Next(~1)
+                        |          |I2              |I1    |X2 -> ns1 -> Next(~1)
+						|          |I2              |X1 -> ns2
+			            |          |X2 -> ns1 -> Next(~1)
+			            |ns1 -> |I1 -> |I2 -> NoMatch
+				        |       |I1    |X2 -> Next(~1)
+			            |       |X1 -> NoMatch 
+
+If RS(2) has a max of 1 then:
+RS(1) -> ~1 -> RS(2) -> |A -> B -> |I2 -> A -> B -> ns2 -> |I1 -> NoMatch
+                        |          |I2                     |X1 -> ~
+			            |          |X2 -> ns1 -> Next(~1)
+			            |ns1 -> |I1 -> |I2 -> NoMatch
+				        |       |I1    |X2 -> Next(~1)
+			            |       |X1 -> NoMatch 
+
+
+
 
