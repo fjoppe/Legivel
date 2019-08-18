@@ -280,24 +280,25 @@ Intermediate:
 	|[D] -> ns3 :> End
 
 Should be refactored to:
-RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
+RS(1) -> ~1 -> RS(2) -> |[C] ->  |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
                         |        |I1    |I2                 |X2 -> ns2 -> Next(~1)
 		                |        |I1    |X2 -> ns2 -> Next(~1)
 		                |        |X1 -> ns3
-		                ||I1 -> |I2 -> [B] -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
+		                ||I1 -> |I2 -> [B] -> ns1 -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
 		                ||I1    |I2                        |X2 -> ns2 -> Next(~1)
 						||I1    |X2 -> ns2 -> Next(~1)
                         ||X1 -> [D] -> ns3 
 
 
 Match-friendly version:
-RS(1) -> ~1 -> RS(2) -> |[C] -> |ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> [BC] -> Next(~2)
+RS(1) -> ~1 -> RS(2) -> |[C] -> |ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
                         |       |       |I1    |I2          |X2 -> ns2 -> Next(~1)
 		                |       |       |I1    |X2 -> ns2 -> Next(~1)
+						|       |       |X1 -> NoMatch
 		                |       |ns3 -> |I1 -> NoMatch 
 						|       |       |X1 -> ~
-		                |[B] -> |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> Next(~2)
-		                |       |I1    |I2          |X2 -> ns2 -> Next(~1)
+		                |[B] -> |I1 -> |I2 -> ns1 -> ~2 -> |I2 -> [BC] -> ns1 -> Next(~2)
+		                |       |I1    |I2                 |X2 -> ns2 -> Next(~1)
 						|       |I1    |X2 -> ns2 -> Next(~1)
 						|       |X1 -> NoMatch
                         |[D] -> |I1 -> NoMatch
@@ -518,5 +519,49 @@ RS(1) -> ~1 -> RS(2) -> |A -> B -> |I2 -> A -> B -> ns2 -> |I1 -> NoMatch
 			            |       |X1 -> NoMatch 
 
 
+Nested Repeat on I- and X-path:
+
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> A -> B -> Next(~2)
+               |I1                   |X2 -> ns1 -> Next(~1)
+               |X1 -> RS(3) -> ~3 -> |I3 -> A -> B -> Next(~3)
+			   |X1                   |X3 -> ns2
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |A -> B -> |I1 -> |I2 -> ~2 -> |I2 -> A -> B -> Next(~2)
+                        |          |I1    |I2          |X2 -> ns1 -> Next(~1)
+			            |          |I1    |X2 -> ns1 -> Next(~1)
+						|          |X1 -> |I3 -> ~3 -> |I3 -> A -> B -> Next(~3)
+						|          |X1    |I3          |X3 -> ns2
+			            |ns1 -> |I1 -> |I2 -> NoMatch
+				        |       |I1    |X2 -> Next(~1)
+			            |       |X1 -> NoMatch
+						|ns2 -> |I1 -> NoMatch
+						|       |X1 -> |I3 -> NoMatch
+						|       |X1    |X3 -> ~
+
+
+Double collision  on I- and X-path:
+RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> A -> B -> Next(~2)
+               |I1                   |X2 -> [BC] -> ns1 -> Next(~1)
+               |X1 -> RS(3) -> ~3 -> |I3 -> A -> B -> Next(~3)
+			   |X1                   |X3 -> [DC] -> ns2
+
+
+Should be refactored to:
+RS(1) -> ~1 -> RS(2) -> |A -> B -> |I1 -> |I2 -> ~2 -> |I2 -> A -> B -> Next(~2)
+                        |          |I1    |I2          |X2 -> [BC] -> ns1 -> Next(~1)
+			            |          |I1    |X2 -> ns1 -> Next(~1)
+						|          |X1 -> |I3 -> ~3 -> |I3 -> A -> B -> Next(~3)
+						|          |X1    |I3          |X3 -> [DC] -> ns2
+						|[C] -> |I1 -> |I2 -> NoMatch
+						|       |I1    |X2 -> ns1 -> Next(~1)
+						|       |X1 -> |I3 -> NoMatch
+						|       |X1    |X3 -> ns2
+			            |[B] -> |I1 -> |I2 -> NoMatch
+				        |       |I1    |X2 -> ns1 -> Next(~1)
+			            |       |X1 -> NoMatch
+						|[D] -> |I1 -> NoMatch
+						|       |X1 -> |I3 -> NoMatch
+						|       |X1    |X3 -> ns2
 
 
