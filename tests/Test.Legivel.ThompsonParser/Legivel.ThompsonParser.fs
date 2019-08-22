@@ -129,7 +129,7 @@ type MultiPath = {
 type RepeatInit = {
         Id          : StateId
         RepeatId    : RepeatId
-        NextState   : SinglePathPointer 
+        NextState   : StatePointer
     }
     with
         static member Create ri nx = { Id = CreateNewId(); RepeatId = ri; NextState = nx }
@@ -236,12 +236,8 @@ type StateNode =
                 |   EmptyPath  d -> EmptyPath { d with NextState = i }
                 |   RepeatStart d -> RepeatStart { d with NextState = i }
                 |   RepeatIterOrExit  d -> RepeatIterOrExit  { d with NextState = i }
-                |   _ -> failwith "Illegal to set nextstate"
-
-        member this.SetNextState i =
-                match this with
                 |   RepeatInit d -> RepeatInit { d with NextState = i }
-                |   _ -> this.SetNextState (i.StatePointer)
+                |   _ -> failwith "Illegal to set nextstate"
 
         member this.StatePointer  
             with get() =
@@ -328,7 +324,7 @@ module MT = //    Match Tree
     let createRepeatInit ri nx = RepeatInit.Create ri nx |> RepeatInit |> addAndReturn
     let createRepeatStart  nx = EmptyPath.Create (CreateNewId()) nx |> RepeatStart |> addAndReturn
     let createRepeatIterOrExit it ri nx = RepeatIterateOrExit.Create it ri nx |> RepeatIterOrExit |> addAndReturn
-    let noMatch = NoMatch (CreateNewId()) |> addAndReturn
+    let noMatch() = NoMatch (CreateNewId()) |> addAndReturn
 
     let inline lookup< ^a when ^a:(member Id : uint32)> sp = getNode (^a : (member Id  : uint32) sp)
     let inline setNextState (nx:StatePointer) sp =
@@ -342,6 +338,15 @@ module MT = //    Match Tree
     let updateNode nd = nd |> updateAndReturn
     
     let ToNFAMachine st = NFAMachine.Create (st, (allNodes |> Map.toList |> List.map(snd)), (allRepeats |> Seq.toList))
+
+    let duplicateAndLinkToNext (next:StatePointer) (currPtr : StatePointer) =
+        match lookup currPtr with
+        |   EmptyPath   _ -> createEmptyPath next
+        |   SinglePath  p -> createSinglePath p.State next
+        |   RepeatStart _ -> createRepeatStart next
+        |   RepeatInit  p -> createRepeatInit p.RepeatId next
+        |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId next
+
 
 
 let qcOneInSet ls = ls |> List.fold(fun s i -> s ||| uint32(i)) 0u
@@ -1021,7 +1026,7 @@ let refacorRepeaterStateCollisions (start:StatePointer) =
                     //                  |       |X  -> (ns2|ns4|ns6) :4
                     
                     let st1NextState = createAndSimplifyMultiPath st1Next
-                    let repIoNm = MT.createRepeatIterOrExit st1NextState repeatId MT.noMatch
+                    let repIoNm = MT.createRepeatIterOrExit st1NextState repeatId (MT.noMatch())
 
                     let root = createAndSimplifyMultiPathSp (st3 @ st1clean)
                     Refactored (root.StatePointer)
@@ -1047,44 +1052,26 @@ let refacorRepeaterStateCollisions (start:StatePointer) =
 
 
     let rec refactorNestedRepeatersRec (iterPtr : StatePointer) (nextPtr : StatePointer) (exitPtr:StatePointer) (repeatIdouterLoop:RepeatId) : RefactorResult =
-        let rec duplicateAndLinkToNext (currPtr : StatePointer) (next:StatePointer) (stMap:Map<StateId, StateNode>) =
-            let node = stMap.[currPtr.Id]
-            match node with
-            |   EmptyPath p -> 
-                let np = p.Duplicate() |> EmptyPath
-                np.StatePointer, wsAdd (np.SetNextState next) stMap
-            |   SinglePath p ->
-                let np = p.Duplicate() |> SinglePath
-                np.StatePointer, wsAdd (np.SetNextState next) stMap
-            |   RepeatStart p ->
-                let np = p.Duplicate() |> RepeatStart
-                np.StatePointer, wsAdd (np.SetNextState next) stMap
-            |   RepeatInit p ->
-                let np = p.Duplicate() |> RepeatInit
-                np.StatePointer, wsAdd (np.SetNextState next) stMap
-            |   RepeatIterOrExit p ->
-                let np = p.Duplicate() |> RepeatIterOrExit
-                np.StatePointer, wsAdd (np.SetNextState next) stMap
 
-
-        let rec refactorInnrLoopIterPathCollisions (mustRefactor) (st1:SinglePathPointer list) (st2:SinglePathPointer list) (repeatIdinnerLoop:RepeatId) =
+        let rec refactorInnerLoopIterPathCollisions (repeatInnerLoop:RepeatIterateOrExit) (st1:SinglePathPointer list) (st2:SinglePathPointer list) =
             let (st1clean, st2clean, st3andIAndX) = refactorAndSeperateSinglePaths st1 st2 
-            if st3andIAndX.Length = 0 then
-                if mustRefactor then
-                    let noMatch = NoMatch (CreateNewId())
+            if st3andIAndX.Length > 0 then
+                let (st3, st3NextILst, st3NextXLst) = st3andIAndX |> List.head 
+                let st3NextI = st3NextILst.Head
+                let st3NextX = st3NextXLst.Head
 
-                    let (st3, st3NextILst, st3NextXLst) = st3andIAndX |> List.head 
-                    let st3NextI = st3NextILst.Head
-                    let st3NextX = st3NextXLst.Head
+                let iPathInnerLoopCheck = MT.createRepeatIterOrExit st3NextI repeatInnerLoop.RepeatId (MT.noMatch())
+                let iPathOuterLoopCheck = MT.createRepeatIterOrExit iPathInnerLoopCheck.StatePointer repeatIdouterLoop st3NextX
 
-                    let innerLoopCheck = MT.createRepeatIterOrExit st3NextI repeatIdinnerLoop st3NextX 
-                    let outerLoopCheck = MT.createRepeatIterOrExit innerLoopCheck.StatePointer repeatIdouterLoop noMatch.StatePointer
+                let st3node = MT.setNextState iPathOuterLoopCheck st3
 
-                    let st3node = MT.setNextState outerLoopCheck st3
+                let xPthNxt = MT.lookup repeatInnerLoop.NextState
 
-                    Refactored(st3node.StatePointer)
-                else
-                    Unrefactored
+                let xPathInnerLoopCheck = MT.createRepeatIterOrExit (MT.noMatch()) repeatInnerLoop.RepeatId xPthNxt.NextStatePtr
+                let xPathOuterLoopCheck = MT.createRepeatIterOrExit xPathInnerLoopCheck repeatIdouterLoop (MT.noMatch())
+                
+                let xPthDup = MT.duplicateAndLinkToNext xPathOuterLoopCheck repeatInnerLoop.NextState
+                Refactored(createAndSimplifyMultiPath [st3node; xPthDup])
             else
                 Unrefactored
 
@@ -1097,7 +1084,11 @@ let refacorRepeaterStateCollisions (start:StatePointer) =
                 
                 Unrefactored
 
-        refactorCollissionsForPathType iterPtr nextPtr  refactorCollisionsGeneric
+        match MT.lookup iterPtr with
+        |   RepeatIterOrExit roi2 ->
+            refactorCollissionsForPathType roi2.IterateState nextPtr (refactorInnerLoopIterPathCollisions roi2)
+        |   _ -> Unrefactored
+        
 
 
     let refactorNestedRepeater (outerLoop:RepeatInit) (ep:EmptyPath) =
@@ -1108,6 +1099,11 @@ let refacorRepeaterStateCollisions (start:StatePointer) =
                 match MT.lookup innerLoop.NextState with
                 |   RepeatStart rs2 ->
                     refactorNestedRepeatersRec (rs2.NextState.StatePointer) (reOuterloop.NextState.StatePointer) (reOuterloop.StatePointer) reOuterloop.RepeatId
+                    |>  function
+                        |   Refactored single -> 
+                            MT.setNextState single reOuterloop.IterateState |> ignore
+                            Refactored reOuterloop.IterateState
+                        |   Unrefactored -> Unrefactored
                 |   _ -> Unrefactored
             |   _ -> Unrefactored
         | _ -> Unrefactored
@@ -1162,8 +1158,6 @@ let removeUnused (nfa:NFAMachine) =
 
 
 let rgxToNFA rgx =
-    //currentId <- 0u
-    //currentRepeatId <- 0u
     MT.Init()
 
     let rec processConversion rgx : StatePointer =
@@ -1172,8 +1166,6 @@ let rgxToNFA rgx =
             |   Plain pl   -> if pl.``fixed``.Length > 1 then processConversion rg else createSinglePathFromRgx rg
             |   OneInSet _ -> createSinglePathFromRgx rg
             |   _ -> processConversion rg
-            
-        let emptyState() = EmptyPath({ Id = CreateNewId(); NextState = PointerToStateFinal})
 
         let createRepeat o min max =
             let linkState = MT.createEmptyPath PointerToStateFinal
@@ -1184,7 +1176,7 @@ let rgxToNFA rgx =
             
             appendStateIdToAllFinalPathNodes repPath repeatLoopStart
 
-            let repStart = MT.createRepeatInit repState.RepeatId repeatLoopStart.SinglePathPointerValue
+            let repStart = MT.createRepeatInit repState.RepeatId repeatLoopStart
             repStart 
 
         match rgx with
@@ -1308,7 +1300,7 @@ let PrintIt (nfa:NFAMachine) =
                         else
                             printPrefix hist
                             printf "|X(%2d) :::^^^\n" ri.NextState.Id
-                    |   NoMatch d -> printf "-Err(%2d)\n" d
+                    |   NoMatch d -> printf "-NoMatch(%2d)\n" d
                 else
                     printf "-Loop(%2d)\n" current.Id
 
@@ -1322,6 +1314,7 @@ let parseIt (nfa:NFAMachine) yaml =
     let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
     let runningLoops = Map.empty<RepeatId, RepeatState>
 
+    let NoMatch = { IsMatch = false ; FullMatch = [] }
 
     let rec processStr currentChar cs acc rollback (runningLoops : Map<RepeatId, RepeatState>) =
         let processCurrentChar = processStr currentChar
@@ -1329,7 +1322,6 @@ let parseIt (nfa:NFAMachine) yaml =
             let chk = (stream.Get())
             processStr chk cs acc rollback runningLoops 
 
-        let NoMatch = { IsMatch = false ; FullMatch = [] }
         if cs = PointerToStateFinal then
             { IsMatch = true; FullMatch = acc |> List.rev }
         else
