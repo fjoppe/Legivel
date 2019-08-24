@@ -17,13 +17,12 @@ open System.Text.RegularExpressions
 open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
 
-
 let nfa = 
     rgxToNFA <| 
             OPT(
-                OPT(RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
+                OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
             ) +
-            RGP("A", [Token.``c-printable``]) 
+            RGO("-\t", [Token.``t-hyphen``; Token.``t-tab``]) + RGP("D", [Token.``c-printable``])
 
 
 PrintIt nfa

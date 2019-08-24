@@ -649,7 +649,7 @@ let ``Simple non-colliding nested Repeater paths``() =
 
 
 [<Test>]
-let ``Colliding nested Repeater I/X paths with one state deep``() =
+let ``Colliding plains in nested Repeater I/X paths with one state deep``() =
     let nfa = 
         rgxToNFA <| 
                 OPT(
@@ -661,9 +661,12 @@ let ``Colliding nested Repeater I/X paths with one state deep``() =
     assertFullMatch nfa "BA"
     assertFullMatch nfa "A"
 
+    assertPartialMatch nfa "ABABA" "ABA"
+    assertPartialMatch nfa "BABA" "BA"
+
 
 [<Test>]
-let ``Colliding nested Repeater I/X paths with two states deep``() =
+let ``Colliding plains in nested Repeater I/X paths with two states deep``() =
     let nfa = 
         rgxToNFA <| 
                 OPT(
@@ -675,4 +678,47 @@ let ``Colliding nested Repeater I/X paths with two states deep``() =
     assertFullMatch nfa "BAD"
     assertFullMatch nfa "AD"
 
+    assertNoMatch nfa "ACBABAD" 
+    assertNoMatch nfa "BACBAD"
+
+
+[<Test>]
+let ``Colliding OiS in nested Repeater I/X paths with one state deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]))+ RGP("B", [Token.``c-printable``])
+                ) +
+                RGO("-\t", [Token.``t-hyphen``; Token.``t-tab``]) 
+    
+    assertFullMatch nfa "\tB\t"
+    assertFullMatch nfa "\nB\t"
+
+    assertFullMatch nfa "\tB-"
+    assertFullMatch nfa "\nB-"
+
+    assertFullMatch nfa "-"
+    assertFullMatch nfa "\t"
+
+    assertPartialMatch nfa "\tB\tB-" "\tB\t"
+    assertPartialMatch nfa "\nB\tB-" "\nB\t"
+
+
+[<Test>]
+let ``Colliding OiS in nested Repeater I/X paths with two states deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
+                ) +
+                RGO("-\t", [Token.``t-hyphen``; Token.``t-tab``]) + RGP("D", [Token.``c-printable``])
+    
+    assertFullMatch nfa "\tAB\tD"
+    assertFullMatch nfa "\nAB\tD"
+
+    assertFullMatch nfa "B-D"
+    assertFullMatch nfa "B\tD"
+
+    assertFullMatch nfa "-D"
+    assertFullMatch nfa "\tD"
 

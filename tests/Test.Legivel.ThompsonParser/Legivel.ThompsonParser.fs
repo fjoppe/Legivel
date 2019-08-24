@@ -1056,22 +1056,50 @@ let refacorRepeaterStateCollisions (start:StatePointer) =
         let rec refactorInnerLoopIterPathCollisions (repeatInnerLoop:RepeatIterateOrExit) (st1:SinglePathPointer list) (st2:SinglePathPointer list) =
             let (st1clean, st2clean, st3andIAndX) = refactorAndSeperateSinglePaths st1 st2 
             if st3andIAndX.Length > 0 then
-                let (st3, st3NextILst, st3NextXLst) = st3andIAndX |> List.head 
-                let st3NextI = st3NextILst.Head
-                let st3NextX = st3NextXLst.Head
+                let st3refactored =
+                    st3andIAndX |>
+                    List.map(fun (st3, st3NextILst, st3NextXLst) ->
+                        let st3NextI = createAndSimplifyMultiPath st3NextILst
+                        let st3NextX = createAndSimplifyMultiPath st3NextXLst
 
-                let iPathInnerLoopCheck = MT.createRepeatIterOrExit st3NextI repeatInnerLoop.RepeatId (MT.noMatch())
-                let iPathOuterLoopCheck = MT.createRepeatIterOrExit iPathInnerLoopCheck.StatePointer repeatIdouterLoop st3NextX
+                        let iPathInnerLoopCheck = MT.createRepeatIterOrExit st3NextI repeatInnerLoop.RepeatId (MT.noMatch())
+                        let iPathOuterLoopCheck = MT.createRepeatIterOrExit iPathInnerLoopCheck.StatePointer repeatIdouterLoop st3NextX
 
-                let st3node = MT.setNextState iPathOuterLoopCheck st3
+                        let st3node = MT.setNextState iPathOuterLoopCheck st3
 
-                let xPthNxt = MT.lookup repeatInnerLoop.NextState
+                        let xPthNxt = MT.lookup repeatInnerLoop.NextState
 
-                let xPathInnerLoopCheck = MT.createRepeatIterOrExit (MT.noMatch()) repeatInnerLoop.RepeatId xPthNxt.NextStatePtr
-                let xPathOuterLoopCheck = MT.createRepeatIterOrExit xPathInnerLoopCheck repeatIdouterLoop (MT.noMatch())
-                
-                let xPthDup = MT.duplicateAndLinkToNext xPathOuterLoopCheck repeatInnerLoop.NextState
-                Refactored(createAndSimplifyMultiPath [st3node; xPthDup])
+                        let xPathInnerLoopCheck = MT.createRepeatIterOrExit (MT.noMatch()) repeatInnerLoop.RepeatId xPthNxt.NextStatePtr
+                        let xPathOuterLoopCheck = MT.createRepeatIterOrExit xPathInnerLoopCheck repeatIdouterLoop (MT.noMatch())
+                        
+                        let xPthDup = MT.duplicateAndLinkToNext xPathOuterLoopCheck repeatInnerLoop.NextState
+                        [st3node; xPthDup]
+                    )
+                    
+                let st1Refactored =
+                    st1clean
+                    |>  List.map(fun st1 ->
+                        let st1Next = MT.Next st1
+
+                        let xPathInnerLoopCheck = MT.createRepeatIterOrExit st1Next repeatInnerLoop.RepeatId (MT.noMatch())
+                        let xPathOuterLoopCheck = MT.createRepeatIterOrExit xPathInnerLoopCheck repeatIdouterLoop (MT.noMatch())
+
+                        let st1Dup = MT.duplicateAndLinkToNext xPathOuterLoopCheck st1.StatePointer
+                        [st1Dup]
+                    )
+                let st2Refactored =
+                    st2clean
+                    |>  List.map(fun st2 ->
+                        let st2Next = MT.Next st2
+
+                        let xPathOuterLoopCheck = MT.createRepeatIterOrExit (MT.noMatch()) repeatIdouterLoop  st2Next
+
+                        let st1Dup = MT.duplicateAndLinkToNext xPathOuterLoopCheck st2.StatePointer
+                        [st1Dup]
+                    )
+
+                let allRefactoredNode = st3refactored @ st1Refactored @ st2Refactored |> List.collect id
+                Refactored(createAndSimplifyMultiPath allRefactoredNode)
             else
                 Unrefactored
 
