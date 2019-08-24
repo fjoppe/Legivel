@@ -649,7 +649,7 @@ let ``Simple non-colliding nested Repeater paths``() =
 
 
 [<Test>]
-let ``Colliding plains in nested Repeater I/X paths with one state deep``() =
+let ``Colliding plains in nested Repeater I-path with one state deep``() =
     let nfa = 
         rgxToNFA <| 
                 OPT(
@@ -666,7 +666,7 @@ let ``Colliding plains in nested Repeater I/X paths with one state deep``() =
 
 
 [<Test>]
-let ``Colliding plains in nested Repeater I/X paths with two states deep``() =
+let ``Colliding plains in nested Repeater I-path with two states deep``() =
     let nfa = 
         rgxToNFA <| 
                 OPT(
@@ -683,7 +683,7 @@ let ``Colliding plains in nested Repeater I/X paths with two states deep``() =
 
 
 [<Test>]
-let ``Colliding OiS in nested Repeater I/X paths with one state deep``() =
+let ``Colliding OiS in nested Repeater I-path with one state deep``() =
     let nfa = 
         rgxToNFA <| 
                 OPT(
@@ -705,7 +705,7 @@ let ``Colliding OiS in nested Repeater I/X paths with one state deep``() =
 
 
 [<Test>]
-let ``Colliding OiS in nested Repeater I/X paths with two states deep``() =
+let ``Colliding OiS in nested Repeater I-paths with two states deep``() =
     let nfa = 
         rgxToNFA <| 
                 OPT(
@@ -720,5 +720,114 @@ let ``Colliding OiS in nested Repeater I/X paths with two states deep``() =
     assertFullMatch nfa "B\tD"
 
     assertFullMatch nfa "-D"
+    assertFullMatch nfa "\tD"
+
+
+[<Test>]
+let ``Colliding Plain/OiS in nested Repeater I-paths with one state deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGP("\t", [Token.``t-tab``]))+ RGP("B", [Token.``c-printable``])
+                ) +
+                RGO("-\t", [Token.``t-hyphen``; Token.``t-tab``]) 
+    
+    assertFullMatch nfa "\tB\t"
+
+    assertFullMatch nfa "\tB-"
+
+    assertFullMatch nfa "-"
+    assertFullMatch nfa "\t"
+
+    assertPartialMatch nfa "\tB\tB-" "\tB\t"
+
+
+[<Test>]
+let ``Colliding Plain/OiS in nested Repeater I-path with two states deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
+                ) +
+                RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])
+    
+    assertFullMatch nfa "\tAB\tD"
+    assertFullMatch nfa "\nAB\tD"
+    assertFullMatch nfa "B\tD"
+    assertFullMatch nfa "\tD"
+
+
+
+[<Test>]
+let ``Colliding plains in nested Repeater X-path with one state deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGP("B", [Token.``c-printable``]))+ RGP("A", [Token.``c-printable``])
+                ) +
+                RGP("A", [Token.``c-printable``]) 
+    
+    assertFullMatch nfa "BAA"
+    assertFullMatch nfa "AA"
+    assertFullMatch nfa "A"
+
+    assertNoMatch nfa "BABAA"
+    assertNoMatch nfa "ABAA"
+
+
+[<Test>]
+let ``Colliding plains in nested Repeater X-path with two states deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGP("B", [Token.``c-printable``]))+ RGP("AC", [Token.``c-printable``])
+                ) +
+                RGP("AD", [Token.``c-printable``])
+    
+    assertFullMatch nfa "BACAD"
+    assertFullMatch nfa "ACAD"
+    assertFullMatch nfa "AD"
+
+    assertNoMatch nfa "BACACAD" 
+    assertNoMatch nfa "BACBACAD"
+
+
+[<Test>]
+let ``Colliding Plain/OiS in nested Repeater X-paths with one state deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGP("B", [Token.``c-printable``]))+ RGP("\t", [Token.``t-tab``])
+                ) +
+                RGO("-\t", [Token.``t-hyphen``; Token.``t-tab``]) 
+    
+    assertFullMatch nfa "B\t\t"
+    assertFullMatch nfa "B\t-"
+
+
+    assertFullMatch nfa "\t\t"
+    assertFullMatch nfa "\t-"
+
+    assertFullMatch nfa "-"
+    assertFullMatch nfa "\t"
+
+    assertNoMatch nfa "B\tB\t-"
+
+
+[<Test>]
+let ``Colliding Plain/OiS in nested Repeater X-path with two states deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    OPT(RGP("B", [Token.``c-printable``]) + RGP("A", [Token.``c-printable``]))+ RGO("\t\n", [Token.``t-tab``; Token.NewLine])
+                ) +
+                RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])
+    
+    assertFullMatch nfa "BA\t\tD"
+    assertFullMatch nfa "BA\n\tD"
+    assertFullMatch nfa "\t\tD"
+    assertFullMatch nfa "\n\tD"
+
+    assertFullMatch nfa "\tD"
     assertFullMatch nfa "\tD"
 

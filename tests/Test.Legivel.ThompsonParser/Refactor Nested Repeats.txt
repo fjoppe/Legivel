@@ -168,7 +168,7 @@ RS(1) -> ~1 -> RS(2) -> |C -> |ns2 -> |I1 -> |I2 -> NoMatch
 						|     |       |X1 -> ~
 			            |ns1 -> |I1 -> |I2 -> ~2 -> |I2 -> ns1 -> Next(~2)
 						|       |I1    |I2          |X2 -> C -> ns2 -> Next(~1)
-				        |       |I1    |X2 -> C -> ns2 -> Next(~1)
+				        |       |I1    |X2 -> NoMatch
 	 		            |       |X1 -> NoMatch
 
 
