@@ -523,7 +523,7 @@ RS(1) -> ~1 -> RS(2) -> |A -> B -> |I2 -> A -> B -> ns2 -> |I1 -> NoMatch
 
 
 Nested Repeat on I- and X-path:
-
+-------------------------------
 RS(1) -> ~1 -> |I1 -> RS(2) -> ~2 -> |I2 -> A -> B -> Next(~2)
                |I1                   |X2 -> ns1 -> Next(~1)
                |X1 -> RS(3) -> ~3 -> |I3 -> A -> B -> Next(~3)
@@ -566,5 +566,107 @@ RS(1) -> ~1 -> RS(2) -> |A -> B -> |I1 -> |I2 -> ~2 -> |I2 -> A -> B -> Next(~2)
 						|[D] -> |I1 -> NoMatch
 						|       |X1 -> |I3 -> NoMatch
 						|       |X1    |X3 -> ns2
+
+
+
+Nested Repeat on Nested Repeat (refactored)
+-------------------------------------------
+
+1a	Collision limited to inner collision I-path
+
+Starting inner loops:
+RS(2) -> ~2 -> |I2 -> RS(1) -> ~1 -> |I1 -> C -> ns1 -> Next(~1)
+               |I2                   |X1 -> ns2 -> Next(~2)
+               |X2 -> C -> ns3
+
+
+Refactored to:
+RS(2) -> ~2 -> RS(1) -> |C -> |I2 -> |I1 -> ns1 -> ~1 -> |I1 -> C -> ns1 -> Next(~1)
+                        |     |I2    |I1                 |X1 -> ns2 -> Next(~2)
+			            |     |I2    |X1 -> NoMatch
+			            |     |X2 -> ns3
+						|ns2 -> |I2 -> |I1 -> NoMatch
+				        |       |I2    |X1 -> Next(~1)
+						|       |X2 -> NoMatch
+
+
+Adding 3rd nesting simplified:
+RS(3) -> ~3 -> |I3 -> stuff above -> Next(~3)
+		       |X3 -> C -> ns4
+
+Or in full unrefactored:
+RS(3) -> ~3 -> |I3 -> RS(2) -> ~2 -> |I2 -> RS(1) -> ~1 -> |I1 -> C -> ns1 -> Next(~1)
+               |I3                   |I2                   |X1 -> ns2 -> Next(~2)
+               |I3                   |X2 -> C -> ns3
+			   |X3 -> C -> ns4
+
+
+After refactorng the inner part:
+RS(3) -> ~3 -> |I3 -> RS(2) -> ~2 -> RS(1) -> |C -> |I2 -> |I1 -> ns1 -> ~1 -> |I1 -> C -> ns1 -> Next(~1)
+               |I3                            |     |I2    |I1                 |X1 -> ns2 -> Next(~2)
+		       |I3                            |     |I2    |X1 -> NoMatch
+		       |I3                            |     |X2 -> ns3 -> Next(~3)
+		       |I3			                  |ns2 -> |I2 -> |I1 -> NoMatch
+		       |I3	                          |       |I2    |X1 -> Next(~2)
+		       |I3			                  |       |X2 -> NoMatch
+		       |X3 -> C -> ns4
+
+
+Must be fully refactored to (something like):
+RS(3) -> ~3 -> RS(2) -> ~2 -> RS(1) -> |C -> |I3 -> |I2 -> |I1 -> ns1 -> ~1 -> |I1 -> C -> ns1 -> Next(~1)
+                                       |     |I3    |I2    |I1                 |X1 -> ns2 -> Next(~2)
+		                               |     |I3    |I2    |X1 -> NoMatch
+		                               |     |I3    |X2 -> ns3 -> Next(~3)
+									   |	 |X3 -> ns4
+									   |ns2 -> |I2 -> |I1 -> NoMatch
+		                               |       |I2    |X1 -> Next(~2)
+		       		                   |       |X2 -> NoMatch
+
+
+1b	Collision exceeds inner-loop collision I-path
+
+
+Starting inner loops:
+RS(2) -> ~2 -> |I2 -> RS(1) -> ~1 -> |I1 -> A -> C -> ns1 -> Next(~1)
+               |I2                   |X1 -> ns2 -> Next(~2)
+               |X2 -> A -> ns3
+
+Refactored to:
+RS(2) -> ~2 -> RS(1) -> |A -> |I2 -> |I1 -> C -> ns1 -> ~1 -> |I1 -> A -> C -> ns1 -> Next(~1)
+                        |     |I2    |I1                      |X1 -> ns2 -> Next(~2)
+			            |     |I2    |X1 -> NoMatch
+			            |     |X2 -> ns3
+						|ns2 -> |I2 -> |I1 -> NoMatch
+				        |       |I2    |X1 -> Next(~1)
+						|       |X2 -> NoMatch
+
+Adding 3rd nesting simplified:
+RS(3) -> ~3 -> |I3 -> stuff above -> Next(~3)
+		       |X3 -> A -> C -> ns4
+
+
+After refactorng the inner part:
+RS(3) -> ~3 -> |I3 -> RS(2) -> ~2 -> RS(1) -> |A -> |I2 -> |I1 -> C -> ns1 -> ~1 -> |I1 -> A -> C -> ns1 -> Next(~1)
+               |I3                            |     |I2    |I1                      |X1 -> ns2 -> Next(~2)
+		       |I3                            |     |I2    |X1 -> NoMatch
+		       |I3                            |     |X2 -> ns3 -> Next(~3)
+		       |I3			                  |ns2 -> |I2 -> |I1 -> NoMatch
+		       |I3	                          |       |I2    |X1 -> Next(~2)
+		       |I3			                  |       |X2 -> NoMatch
+		       |X3 -> A -> C -> ns4
+
+
+Must be fully refactored to (something like):
+RS(3) -> ~3 -> RS(2) -> ~2 -> RS(1) -> |A -> |C -> |I3 -> |I2 -> |I1 -> ns1 -> ~1 -> |I1 -> A -> C -> ns1 -> Next(~1)
+                                       |     |     |I3    |I2    |I1                 |X1 -> ns2 -> Next(~2)
+		                               |     |     |I3    |I2    |X1 -> NoMatch
+		                               |     |     |I3    |X2 -> NoMatch
+									   |     |     |X3 -> ns4
+									   |     |ns3 -> |I3 -> |I2 -> NoMatch
+									   |     |       |I3    |X2 -> Next(~3)
+									   |     |       |X3 -> NoMatch
+									   |ns2 -> |I2 -> |I1 -> NoMatch
+		                               |       |I2    |X1 -> Next(~2)
+		       		                   |       |X2 -> NoMatch
 
 

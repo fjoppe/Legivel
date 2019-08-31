@@ -831,3 +831,50 @@ let ``Colliding Plain/OiS in nested Repeater X-path with two states deep``() =
     assertFullMatch nfa "\tD"
     assertFullMatch nfa "\tD"
 
+
+
+[<Test>]
+let ``Colliding plains in main path with one state deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    RGP("A", [Token.``c-printable``]) +
+                    OPT(RGP("B", [Token.``c-printable``]))+ RGP("C", [Token.``c-printable``])
+                ) +
+                RGP("AD", [Token.``c-printable``]) 
+    
+    assertFullMatch nfa "ABCAD"
+    assertFullMatch nfa "ACAD"
+    assertFullMatch nfa "AD"
+
+
+
+[<Test>]
+let ``Colliding plains in main path with two state deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    RGP("AE", [Token.``c-printable``]) +
+                    OPT(RGP("B", [Token.``c-printable``]))+ RGP("C", [Token.``c-printable``])
+                ) +
+                RGP("AED", [Token.``c-printable``]) 
+    
+    assertFullMatch nfa "AEBCAED"
+    assertFullMatch nfa "AECAED"
+    assertFullMatch nfa "AED"
+
+
+[<Test>]
+let ``Colliding plains in main path into the I-path with one state deep``() =
+    let nfa = 
+        rgxToNFA <| 
+                OPT(
+                    RGP("A", [Token.``c-printable``]) +
+                    OPT(RGP("B", [Token.``c-printable``]))+ RGP("C", [Token.``c-printable``])
+                ) +
+                RGP("ABD", [Token.``c-printable``]) 
+    
+    assertFullMatch nfa "ABCABD"
+    assertFullMatch nfa "ACABD"
+    assertFullMatch nfa "ABD"
+

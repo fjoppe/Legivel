@@ -93,28 +93,17 @@ type RepeatId = | RepeatId of System.UInt32
                 i
 
 
-let mutable currentId = 0u
-let mutable currentRepeatId = 0u
-let CreateNewId() =
-    currentId <- (currentId + 1u)
-    currentId
-
-let CreateNewRepeatId() =
-    currentRepeatId <- (currentRepeatId + 1u)
-    RepeatId currentRepeatId
-
-
 type SinglePath = {
         Id         : StateId
         State      : SingleCharMatch
         NextState  : StatePointer 
     }
     with
-        static member Create mt nx = { Id = CreateNewId(); State = mt; NextState = nx }
+        static member Create i mt nx = { Id = i; State = mt; NextState = nx }
         member this.LinkTo i = { this with NextState = i}
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
-        member this.Duplicate() = {this with Id = CreateNewId()}
+        member this.Duplicate i = {this with Id = i}
 
 
 type MultiPath = {
@@ -122,9 +111,9 @@ type MultiPath = {
         States     : SinglePathPointer list
     }
     with
-        static member Create mt = { Id = CreateNewId(); States = mt }
+        static member Create i mt = { Id = i; States = mt }
         member this.StatePointer = MultiPathPointer(MultiPathPointer.Create this.Id)
-        member this.Duplicate() = {this with Id = CreateNewId()}
+        member this.Duplicate i = {this with Id = i}
 
 type RepeatInit = {
         Id          : StateId
@@ -132,10 +121,10 @@ type RepeatInit = {
         NextState   : StatePointer
     }
     with
-        static member Create ri nx = { Id = CreateNewId(); RepeatId = ri; NextState = nx }
+        static member Create i ri nx = { Id = i; RepeatId = ri; NextState = nx }
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
-        member this.Duplicate() = {this with Id = CreateNewId()}
+        member this.Duplicate i = {this with Id = i}
 
 type RepeatIterateOrExit = {
         Id          : StateId
@@ -144,10 +133,10 @@ type RepeatIterateOrExit = {
         NextState   : StatePointer 
     }
     with
-        static member Create it ri nx = { Id = CreateNewId(); IterateState = it; RepeatId = ri; NextState = nx }
+        static member Create i it ri nx = { Id = i; IterateState = it; RepeatId = ri; NextState = nx }
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
-        member this.Duplicate() = {this with Id = CreateNewId()}
+        member this.Duplicate i = {this with Id = i}
 
 type RepeatState = {
         RepeatId  : RepeatId
@@ -170,7 +159,7 @@ type EmptyPath = {
         member this.LinkTo i = { this with NextState = i}
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
-        member this.Duplicate() = {this with Id = CreateNewId()}
+        member this.Duplicate i = {this with Id = i}
 
 let PointerToStateFinal = SinglePathPointer (SinglePathPointer.Create 0u) 
 
@@ -262,17 +251,6 @@ type StateNode =
                 |   NoMatch d -> SinglePathPointer.Create d
 
 
-//let inline Navigate<'a> (stMap:Map<StateId, StateNode>) (start:StatePointer) =
-//    match stMap.[start.Id] with
-//    |   SinglePath p when  typeof<'a> = typeof<SinglePath> -> p |> box 
-//    |   EmptyPath  p when  typeof<'a> = typeof<EmptyPath> ->  p |> box
-//    |   RepeatInit p when  typeof<'a> = typeof<RepeatInit> -> p |> box
-//    |   RepeatStart p when typeof<'a> = typeof<EmptyPath> ->  p |> box
-//    |   MultiPath p when   typeof<'a> = typeof<MultiPath> ->  p |> box
-//    |   RepeatIterOrExit p when typeof<'a> = typeof<RepeatIterateOrExit> ->  p |> box
-//    |   _ -> failwith "Navigating to incorrect"
-//    |>  fun v -> unbox<'a> v
-
 
 type NFAMachine = {
     Start   : StatePointer
@@ -284,15 +262,15 @@ with
 
 
 module MT = //    Match Tree
-    //let mutable private currentId = 0u
-    //let mutable private currentRepeatId = 0u
-    //let private CreateNewId() =
-    //    currentId <- (currentId + 1u)
-    //    currentId
+    let mutable private currentId = 0u
+    let mutable private currentRepeatId = 0u
+    let private CreateNewId() =
+        currentId <- (currentId + 1u)
+        currentId
     
-    //let private CreateNewRepeatId() =
-    //    currentRepeatId <- (currentRepeatId + 1u)
-    //    RepeatId currentRepeatId
+    let private CreateNewRepeatId() =
+        currentRepeatId <- (currentRepeatId + 1u)
+        RepeatId currentRepeatId
 
     let mutable private allNodes = Map.empty<StateId, StateNode>
     let mutable private allRepeats = new System.Collections.Generic.List<RepeatState>()
@@ -318,12 +296,12 @@ module MT = //    Match Tree
 
     let getNode i = allNodes.[i]
 
-    let createSinglePath mt nx = SinglePath.Create mt nx |> SinglePath |> addAndReturn
-    let createMultiPath mt = MultiPath.Create mt |> MultiPath |> addAndReturn
+    let createSinglePath mt nx = SinglePath.Create (CreateNewId()) mt nx |> SinglePath |> addAndReturn
+    let createMultiPath mt = MultiPath.Create (CreateNewId()) mt |> MultiPath |> addAndReturn
     let createEmptyPath  nx = EmptyPath.Create (CreateNewId()) nx |> EmptyPath |> addAndReturn
-    let createRepeatInit ri nx = RepeatInit.Create ri nx |> RepeatInit |> addAndReturn
+    let createRepeatInit ri nx = RepeatInit.Create (CreateNewId()) ri nx |> RepeatInit |> addAndReturn
     let createRepeatStart  nx = EmptyPath.Create (CreateNewId()) nx |> RepeatStart |> addAndReturn
-    let createRepeatIterOrExit it ri nx = RepeatIterateOrExit.Create it ri nx |> RepeatIterOrExit |> addAndReturn
+    let createRepeatIterOrExit it ri nx = RepeatIterateOrExit.Create (CreateNewId()) it ri nx |> RepeatIterOrExit |> addAndReturn
     let noMatch() = NoMatch (CreateNewId()) |> addAndReturn
 
     let inline lookup< ^a when ^a:(member Id : uint32)> sp = getNode (^a : (member Id  : uint32) sp)
@@ -393,15 +371,15 @@ let nonGenericTokens =
 
 
 
-type NormalizedExactChar = { Token : Token; IdSp : StatePointer; Next : StatePointer ; ExactChar : char }
-type NormalizedOneInSet  = { Token : Token; IdSp : StatePointer; Next : StatePointer }
+type NormalizedSPExactChar = { Token : Token; IdSp : StatePointer; Next : StatePointer ; ExactChar : char }
+type NormalizedSPOneInSet  = { Token : Token; IdSp : StatePointer; Next : StatePointer }
 
-type NormalizedForRefactoring =
-    |   ExactMatchItem of NormalizedExactChar
-    |   OneInSetItem of NormalizedOneInSet
+type NormalizedForSPRefactoring =
+    |   ExactMatchItem of NormalizedSPExactChar
+    |   OneInSetItem of NormalizedSPOneInSet
 
 
-let normalizeForRefactoring (stNodes:StateNode list) =
+let normalizeForSPRefactoring (stNodes:StateNode list) =
     stNodes
     |>  List.fold(fun s e ->
         match e with
@@ -418,12 +396,12 @@ let normalizeForRefactoring (stNodes:StateNode list) =
 
 
 type RefactoringCanditate =
-    |   PlainMerge          of char  * (NormalizedExactChar list)
-    |   OneInSetOverlap     of Token * (NormalizedOneInSet list)
-    |   CrossTypeOverlap    of Token * (NormalizedExactChar list) * (NormalizedOneInSet list)
+    |   PlainMerge          of char  * (NormalizedSPExactChar list)
+    |   OneInSetOverlap     of Token * (NormalizedSPOneInSet list)
+    |   CrossTypeOverlap    of Token * (NormalizedSPExactChar list) * (NormalizedSPOneInSet list)
 
 
-let getPlainMerges (lst:NormalizedForRefactoring list) =
+let getPlainMerges (lst:NormalizedForSPRefactoring list) =
     lst
     |>  List.fold(fun s e -> 
         match e with
@@ -433,7 +411,7 @@ let getPlainMerges (lst:NormalizedForRefactoring list) =
     |>  List.groupBy(fun e -> e.ExactChar)
 
 
-let getOneInSetOverlap (lst:NormalizedForRefactoring list) =
+let getOneInSetOverlap (lst:NormalizedForSPRefactoring list) =
     lst
     |>  List.fold(fun s e ->
         match e with
@@ -443,7 +421,7 @@ let getOneInSetOverlap (lst:NormalizedForRefactoring list) =
     |>  List.groupBy(fun e -> e.Token)
 
 
-let getCrossTypeOverlap (lst:NormalizedForRefactoring list) =
+let getCrossTypeOverlap (lst:NormalizedForSPRefactoring list) =
     lst
     |>  List.groupBy(fun e ->
         match e with
@@ -462,7 +440,7 @@ let getCrossTypeOverlap (lst:NormalizedForRefactoring list) =
         (t,ecl, osl) :: s
     ) []
 
-let getRefactoringCanditates (lst:NormalizedForRefactoring list) =
+let getRefactoringCanditates (lst:NormalizedForSPRefactoring list) =
     let l1 =
         lst
         |>  getPlainMerges
@@ -520,14 +498,14 @@ let rec refactorCommonPlains (sil:SinglePathPointer list) =
     let stnl = 
         sil 
         |>  List.map(fun sp -> MT.lookup sp)
-        |>  normalizeForRefactoring
+        |>  normalizeForSPRefactoring
         |>  getPlainMerges
         |>  List.filter(fun (_,lst) -> List.length lst > 1)    // only with more than one occurrence (ie only ambigious situations)
 
     if stnl.Length = 0 then
         sil
     else
-        let rec refactorPlains (sil:SinglePathPointer list) (stnl:(char * (NormalizedExactChar list)) list) =
+        let rec refactorPlains (sil:SinglePathPointer list) (stnl:(char * (NormalizedSPExactChar list)) list) =
             match stnl with
             |   []  -> sil
             |   hd :: tail ->
@@ -591,7 +569,7 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list) =
     let stnl =
         sil
         |>  List.map(fun sp -> MT.lookup sp)
-        |>  normalizeForRefactoring
+        |>  normalizeForSPRefactoring
         |>  getOneInSetOverlap
         |>  List.filter(fun (t, ls) -> List.length ls > 1)
 
@@ -599,7 +577,7 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list) =
         sil
     else
         //  Combine duplicate tokens
-        let rec refactorCharacterSets (sil:SinglePathPointer list) (stnl:(Token*(NormalizedOneInSet list)) list) =
+        let rec refactorCharacterSets (sil:SinglePathPointer list) (stnl:(Token*(NormalizedSPOneInSet list)) list) =
             match stnl with
             |   []  -> sil
             |   (cht, lst) :: tail ->
@@ -627,14 +605,14 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list) =
     let stnl =
         sil 
         |>  List.map(fun i -> MT.lookup i)
-        |>  normalizeForRefactoring
+        |>  normalizeForSPRefactoring
         |>  getCrossTypeOverlap
         |>  List.filter(fun (_, l1, l2) -> l1.Length > 0 && l2.Length >0)
 
     if List.length stnl = 0 then
         sil
     else
-        let rec refactorPlainsWithCharSets (sil:SinglePathPointer list) (stnl:(Token*(NormalizedExactChar list)*(NormalizedOneInSet list)) list) =
+        let rec refactorPlainsWithCharSets (sil:SinglePathPointer list) (stnl:(Token*(NormalizedSPExactChar list)*(NormalizedSPOneInSet list)) list) =
             match stnl with
             |   []  -> sil
             |   (cht, elst, clst)  :: tail -> 
@@ -781,7 +759,7 @@ let refacorRepeaterStateCollisions (start:StatePointer) =
         //      sMap - updated input stMap with all changes processed
         st1 @ st2
         |>  List.map(MT.lookup)
-        |>  normalizeForRefactoring
+        |>  normalizeForSPRefactoring
         |>  getRefactoringCanditates
         |>  List.fold(fun (st1lst, st2lst, st3lst) rc ->
             match rc with
