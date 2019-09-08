@@ -624,17 +624,17 @@ let rec refactorCommonPlains (sil:SinglePathPointer list) =
 
 let removeTokenFromOneInSet (chtLst: Token list) (nodes:StatePointer list) =
     let tks = Set.ofList chtLst
-    nodes
-    |>  List.map MT.duplicate
-    |>  List.map MT.lookup
-    |>  List.fold(fun s n ->
-        match n with
+    let oldNewMp = nodes |> List.map(fun n -> n, MT.duplicate n)
+    oldNewMp
+    |>  List.fold(fun s (o,n) ->
+        let nd = MT.lookup n
+        match nd with
         |   SinglePath sp -> 
             let (OneInSetMatch ois) = sp.State
             let newLC = ois.ListCheck |> List.filter(fun t -> not(tks.Contains t))
             if newLC.Length > 0 then
                 let newQC = qcOneInSet newLC
-                (MT.updateNode <| SinglePath({ sp with State = (OneInSetMatch({ QuickCheck = newQC; ListCheck = newLC}))})) :: s
+                (o, (MT.updateNode <| SinglePath({ sp with State = (OneInSetMatch({ QuickCheck = newQC; ListCheck = newLC}))}))) :: s
             else 
                 s
         |   _ -> failwith "Not implemented - this should never happen"
@@ -663,9 +663,15 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list) =
                     |>  List.map(fun e -> e.IdSp.Id, (MT.getSinglePathPointers e.Next))
                     |>  List.unzip
 
-                let allRefactoredOneInSet = 
-                    let oisids = lst |> List.map(fun e -> e.IdSp)
-                    removeTokenFromOneInSet [cht] (lst |> List.map(fun i ->  i.IdSp))
+                let allRefactoredOneInSet = removeTokenFromOneInSet [cht] (lst |> List.map(fun i ->  i.IdSp)) 
+
+                let tailNew =
+                    let mpOoldToNew = Map.ofList allRefactoredOneInSet
+                    let mapOrOld r = if mpOoldToNew.ContainsKey r then mpOoldToNew.[r] else r
+                    tail
+                    |>  List.map(fun (t,nois) -> 
+                        t, nois |> List.map(fun ns -> { ns with IdSp = mapOrOld ns.IdSp })
+                    )
 
                 let bundle = MT.createMultiPath (allNextIds |> List.collect id)
                 let sp = MT.createSinglePath (OneInSetMatch({ ListCheck = [cht]; QuickCheck = uint32(cht)})) bundle
@@ -673,8 +679,8 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list) =
                 let silNew = 
                     sil 
                     |>  List.filter(fun i -> toRemove |> List.contains(i.Id) |> not)
-                    |>  List.append (allRefactoredOneInSet |> List.map(fun i -> i.SinglePathPointerValue))
-                refactorCharacterSets (sp.SinglePathPointerValue :: silNew) tail
+                    |>  List.append (allRefactoredOneInSet |> List.map snd |> List.map(fun i -> i.SinglePathPointerValue))
+                refactorCharacterSets (sp.SinglePathPointerValue :: silNew) tailNew
         refactorCharacterSets sil stnl
 
 
@@ -703,15 +709,23 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list) =
 
                 let allRefactoredOneInSet = removeTokenFromOneInSet [cht] (clst |> List.map(fun e -> e.IdSp))
 
+                let tailNew =
+                    let mpOoldToNew = Map.ofList allRefactoredOneInSet
+                    let mapOrOld r = if mpOoldToNew.ContainsKey r then mpOoldToNew.[r] else r
+                    tail
+                    |>  List.map(fun (t, ne ,nois) -> 
+                        t,ne, nois |> List.map(fun ns -> { ns with IdSp = mapOrOld ns.IdSp })
+                    )
+
                 let bundle = MT.createMultiPath allNextIds
                 MT.setNextState bundle.StatePointer primary |> ignore
 
                 let silNew = 
                     sil 
                     |>  List.filter(fun i -> toRemove |> List.exists(fun x -> x.Id = i.Id) |> not)
-                    |>  List.append ( primary.SinglePathPointerValue :: (allRefactoredOneInSet |> List.map(fun i -> i.SinglePathPointerValue)))
+                    |>  List.append ( primary.SinglePathPointerValue :: (allRefactoredOneInSet |> List.map snd |> List.map(fun i -> i.SinglePathPointerValue)))
                 
-                refactorPlainsWithCharSets silNew tail
+                refactorPlainsWithCharSets silNew tailNew
         refactorPlainsWithCharSets sil stnl
 
 
@@ -853,7 +867,7 @@ let refactorRepeaterStateCollisions (start:StatePointer) =
             |   OneInSetOverlap (t, ls) ->
                 let allOverlappingTokens = [t]
 
-                let cleanedNodes = removeTokenFromOneInSet allOverlappingTokens (ls |> List.map(fun i ->  i.IdSp))
+                let cleanedNodes = removeTokenFromOneInSet allOverlappingTokens (ls |> List.map(fun i ->  i.IdSp)) |> List.map snd
 
                 let removeIds =
                     let orig = ls |> List.map(fun i -> i.IdSp.Id) |> Set.ofList
