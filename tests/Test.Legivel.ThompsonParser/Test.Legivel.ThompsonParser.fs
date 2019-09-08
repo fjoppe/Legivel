@@ -878,3 +878,13 @@ let ``Colliding plains in main path into the I-path with one state deep``() =
     assertFullMatch nfa "ACABD"
     assertFullMatch nfa "ABD"
 
+
+[<Test>]
+let ``Partial Repeat match After Fullmatch``() =
+    let nfa = 
+        rgxToNFA <| 
+                ZOM(RGP("ABC", [Token.``c-printable``]))
+    
+    assertPartialMatch nfa "ABCABCABD" "ABCABC"
+    assertPartialMatch nfa "ABCAB" "ABC"
+
