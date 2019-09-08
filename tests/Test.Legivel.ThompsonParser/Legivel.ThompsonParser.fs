@@ -317,6 +317,14 @@ module MT = //    Match Tree
     
     let ToNFAMachine st = NFAMachine.Create (st, (allNodes |> Map.toList |> List.map(snd)), (allRepeats |> Seq.toList))
 
+    let duplicate (currPtr : StatePointer) =
+        match lookup currPtr with
+        |   EmptyPath   p -> createEmptyPath p.NextState
+        |   SinglePath  p -> createSinglePath p.State p.NextState
+        |   RepeatStart p -> createRepeatStart p.NextState
+        |   RepeatInit  p -> createRepeatInit p.RepeatId p.NextState
+        |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId p.NextState
+
     let duplicateAndLinkToNext (next:StatePointer) (currPtr : StatePointer) =
         match lookup currPtr with
         |   EmptyPath   _ -> createEmptyPath next
@@ -324,6 +332,7 @@ module MT = //    Match Tree
         |   RepeatStart _ -> createRepeatStart next
         |   RepeatInit  p -> createRepeatInit p.RepeatId next
         |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId next
+
 
 
     let SortStateNodes lst =
@@ -616,7 +625,8 @@ let rec refactorCommonPlains (sil:SinglePathPointer list) =
 let removeTokenFromOneInSet (chtLst: Token list) (nodes:StatePointer list) =
     let tks = Set.ofList chtLst
     nodes
-    |>  List.map(MT.lookup)
+    |>  List.map MT.duplicate
+    |>  List.map MT.lookup
     |>  List.fold(fun s n ->
         match n with
         |   SinglePath sp -> 
