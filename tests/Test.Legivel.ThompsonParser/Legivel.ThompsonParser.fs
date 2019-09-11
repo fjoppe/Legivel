@@ -586,7 +586,7 @@ let rec refactorCommonPlains (sil:SinglePathPointer list) =
             |   []  -> sil
             |   hd :: tail ->
                 let target = hd |> snd |> List.map(fun e -> (e.IdSp, e.Next))
-                let primary = fst target.Head
+                let primary = fst target.Head |> MT.duplicate
                 let (filterIds, nextIds) = target |> List.unzip
                 let silNew = 
                     let siln = refactorCommonPlains (nextIds |> List.map(MT.getSinglePathPointers) |> List.collect id)
@@ -699,7 +699,7 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list) =
             match stnl with
             |   []  -> sil
             |   (cht, elst, clst)  :: tail -> 
-                let primary = elst |> List.head |> fun i -> i.IdSp
+                let primary = elst |> List.head |> fun i -> i.IdSp |> MT.duplicate
                 let toRemove, allNextIds =
                     clst
                     |>  List.map(fun e -> e.IdSp, e.Next.SinglePathPointerValue)
@@ -956,10 +956,9 @@ let PrintIt (nfa:NFAMachine) =
     printLine [] nfa.Start passedNodes
 
 
-let parseIt (nfa:NFAMachine) yaml =
+let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) (*yaml*) =
     let stMap = nfa.States |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.Id, i)) Map.empty<StateId, StateNode>
     let stRepeat = nfa.Repeats |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.RepeatId, i)) Map.empty<RepeatId, RepeatState>
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
     let runningLoops = Map.empty<RepeatId, RepeatState>
 
     let NoMatch = { IsMatch = false ; FullMatch = [] }

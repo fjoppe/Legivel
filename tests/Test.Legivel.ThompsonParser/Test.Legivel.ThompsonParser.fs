@@ -8,18 +8,21 @@ open Legivel.ThompsonParser
 
 
 
-let assertFullMatch nfa str =
-    let r = parseIt nfa str
+let assertFullMatch nfa yaml =
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let r = parseIt nfa stream
     r |> ParseResult.IsMatch   |> shouldEqual true
-    r |> ParseResult.FullMatch |> clts |> shouldEqual str
+    r |> ParseResult.FullMatch |> clts |> shouldEqual yaml
 
-let assertPartialMatch nfa str strmatched =
-    let r = parseIt nfa str
+let assertPartialMatch nfa yaml strmatched =
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let r = parseIt nfa stream
     r |> ParseResult.IsMatch   |> shouldEqual true
     r |> ParseResult.FullMatch |> clts |> shouldEqual strmatched
 
-let assertNoMatch nfa str =
-    let r = parseIt nfa "XYC"
+let assertNoMatch nfa yaml =
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let r = parseIt nfa stream
     r |> ParseResult.IsMatch   |> shouldEqual false
     r |> ParseResult.FullMatch |> shouldEqual []
  
@@ -441,7 +444,7 @@ let ``Simple Overlapping plain multipaths in iter/exit repeat-paths``() =
     assertFullMatch nfa "A"
     assertFullMatch nfa "C"
 
-    assertNoMatch nfa "BAC"
+    assertPartialMatch nfa "BAC" "BA"
 
 [<Test>]
 let ``Complex Overlapping plain multipaths in iter/exit repeat-paths``() =
@@ -595,6 +598,7 @@ let  ``Complex Overlapping I-OneInSet and X-Plain in I/X multipaths repeat-paths
     assertFullMatch nfa "BF"
     assertFullMatch nfa "\tF"
 
+    assertNoMatch nfa "AE\tEBF"
     assertNoMatch nfa "\tE\tE\tF"
 
 
@@ -772,7 +776,7 @@ let ``Colliding plains in nested Repeater X-path with one state deep``() =
     assertFullMatch nfa "A"
 
     assertNoMatch nfa "BABAA"
-    assertNoMatch nfa "ABAA"
+    assertPartialMatch nfa "ABAA" "A"
 
 
 [<Test>]

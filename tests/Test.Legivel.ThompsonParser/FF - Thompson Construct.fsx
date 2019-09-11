@@ -17,10 +17,12 @@ open System.Text.RegularExpressions
 open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
 
-//   ``Colliding Plain/OiS in nested Repeater X-paths with one state deep``() 
+//   ``Complex optional with Colliding oneinset/plain enter-and-exit paths with plain in exit-path``()
 let nfa = 
     rgxToNFA <| 
-            ZOM(RGP("ABC", [Token.``c-printable``]))
+        OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
+            (RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) 
+
 
 PrintIt nfa
 
