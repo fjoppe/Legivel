@@ -14,11 +14,23 @@ let assertFullMatch nfa yaml =
     r |> ParseResult.IsMatch   |> shouldEqual true
     r |> ParseResult.FullMatch |> clts |> shouldEqual yaml
 
+
+let assertGroupMatch nfa yaml gn mt =
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let r = parseIt nfa stream
+    r |> ParseResult.IsMatch   |> shouldEqual true
+    r.Groups |> List.item gn |> clts |> shouldEqual mt
+
+
 let assertPartialMatch nfa yaml strmatched =
     let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
     let r = parseIt nfa stream
     r |> ParseResult.IsMatch   |> shouldEqual true
     r |> ParseResult.FullMatch |> clts |> shouldEqual strmatched
+
+    let rest = yaml.Substring(strmatched.Length)
+    let c = stream.Get()
+    c.Source.[0] |> shouldEqual rest.[0]
 
 let assertNoMatch nfa yaml =
     let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
@@ -891,4 +903,15 @@ let ``Partial Repeat match After Fullmatch``() =
     
     assertPartialMatch nfa "ABCABCABD" "ABCABC"
     assertPartialMatch nfa "ABCAB" "ABC"
+
+
+
+[<Test>]
+let ``Simple group test``() =
+    let nfa = 
+        rgxToNFA <| 
+                RGP("AB", [Token.``c-printable``]) + GRP(RGP("CD", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``])
+    
+    assertFullMatch nfa "ABCDAB" 
+    assertGroupMatch nfa "ABCDAB" 0 "CD"
 

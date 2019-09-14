@@ -17,11 +17,9 @@ open System.Text.RegularExpressions
 open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
 
-//   ``Complex optional with Colliding oneinset/plain enter-and-exit paths with plain in exit-path``()
 let nfa = 
     rgxToNFA <| 
-        OPT(RGO("\t\n", [Token.``t-tab``; Token.NewLine]) + RGP("A", [Token.``c-printable``])) + 
-            (RGP("\t", [Token.``t-tab``]) + RGP("D", [Token.``c-printable``])) 
+            RGP("AB", [Token.``c-printable``]) + GRP(RGP("CD", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``])
 
 
 PrintIt nfa
