@@ -6,6 +6,8 @@ open FsUnitTyped
 open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
 
+let ``start-of-line`` = RGP ("^", [Token.NoToken])
+let ``end-of-file`` = RGP ("\\z", [Token.NoToken])
 
 
 let assertFullMatch nfa yaml =
@@ -948,5 +950,22 @@ let ``Two groups with nested Repeat test``() =
 
     assertGroupMatch nfa "ABCDABEFAB" 1"EF"
     assertGroupMatch nfa "ABCDCDABEFEFAB" 1 "EFEF"
+
+
+[<Test>]
+let ``Start of Line optional match``() =
+    let nfa = 
+        rgxToNFA <|
+                (RGO("-\n", [Token.``t-hyphen``; Token.NewLine])) +
+                (RGP("AB", [Token.``c-printable``]) ||| 
+                    ``start-of-line`` + RGP("CD", [Token.``c-printable``])) +
+                RGP("EF", [Token.``c-printable``])
+
+    assertFullMatch nfa "-ABEF"
+    assertFullMatch nfa "\nABEF"
+    assertFullMatch nfa "\nCDEF"
+
+    assertNoMatch nfa "-CDEF"
+
 
 

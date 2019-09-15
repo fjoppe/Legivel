@@ -17,9 +17,12 @@ open System.Text.RegularExpressions
 open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
 
+let ``start-of-line`` = RGP ("^", [Token.NoToken])
+let ``end-of-file`` = RGP ("\\z", [Token.NoToken])
+
+
 let nfa = 
-    rgxToNFA <| 
-            RGP("AB", [Token.``c-printable``]) + GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + RGP("AB", [Token.``c-printable``])
+    rgxToNFA <| ``start-of-line`` + RGP("CD", [Token.``c-printable``])
 
 PrintIt nfa
 
