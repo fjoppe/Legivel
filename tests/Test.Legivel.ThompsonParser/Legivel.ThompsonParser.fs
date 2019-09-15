@@ -580,7 +580,7 @@ let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:Stat
             |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
                 match MT.lookup prev with
                 |   SinglePath _ ->  MT.setNextState concatPtr prev
-                |   MultiPath  _ -> current
+                |   MultiPath  _ -> MT.setNextState concatPtr current
                 |   RepeatIterOrExit  _ -> MT.setNextState concatPtr prev 
                 |   GroupStart _ -> MT.setNextState concatPtr prev 
                 |   GroupEnd  _ -> MT.setNextState concatPtr prev 
@@ -945,7 +945,7 @@ let rgxToNFA rgx =
         |   OneOrMore   r -> createRepeat r 1 0
         |   Group       r ->
             let ep = MT.createEmptyPath PointerToStateFinal
-            let gp = convert r
+            let gp = convert r |> convertRepeaterToExplicitTree
             let gs = MT.createGroup()
             let ge = MT.createGroupEnd gs ep
             appendStateIdToAllFinalPathNodes gp ge
@@ -1068,6 +1068,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) (*yaml*) =
                 |>  List.sortBy(fun (i, _) -> i)
                 |>  List.map snd
                 |>  List.map(fun g -> g |> List.rev)
+                |>  List.rev
             { IsMatch = true; FullMatch = acc |> List.rev; Groups = gs }
         else
             let st = stMap.[cs.Id]

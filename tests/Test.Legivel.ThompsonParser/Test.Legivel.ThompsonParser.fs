@@ -18,7 +18,7 @@ let assertFullMatch nfa yaml =
 let assertGroupMatch nfa yaml gn mt =
     let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
     let r = parseIt nfa stream
-    r |> ParseResult.IsMatch   |> shouldEqual true
+    r |> ParseResult.IsMatch |> shouldEqual true
     r.Groups |> List.item gn |> clts |> shouldEqual mt
 
 
@@ -914,4 +914,39 @@ let ``Simple group test``() =
     
     assertFullMatch nfa "ABCDAB" 
     assertGroupMatch nfa "ABCDAB" 0 "CD"
+
+
+[<Test>]
+let ``Group with nested Repeat test``() =
+    let nfa = 
+        rgxToNFA <| 
+                RGP("AB", [Token.``c-printable``]) + GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + RGP("AB", [Token.``c-printable``])
+    
+    assertFullMatch nfa "ABAB" 
+    assertFullMatch nfa "ABCDAB" 
+
+    assertGroupMatch nfa "ABCDAB" 0 "CD"
+    assertGroupMatch nfa "ABCDCDAB" 0 "CDCD"
+
+
+[<Test>]
+let ``Two groups with nested Repeat test``() =
+    let nfa = 
+        rgxToNFA <| 
+                RGP( "AB", [Token.``c-printable``]) + 
+                GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + 
+                RGP("AB", [Token.``c-printable``]) + 
+                GRP(ZOM(RGP("EF", [Token.``c-printable``]))) + 
+                RGP("AB", [Token.``c-printable``])
+    
+    assertFullMatch nfa "ABABAB" 
+    assertFullMatch nfa "ABCDABAB" 
+    assertFullMatch nfa "ABABEFAB" 
+
+    assertGroupMatch nfa "ABCDABAB" 0 "CD"
+    assertGroupMatch nfa "ABCDCDABAB" 0 "CDCD"
+
+    assertGroupMatch nfa "ABCDABEFAB" 1"EF"
+    assertGroupMatch nfa "ABCDCDABEFEFAB" 1 "EFEF"
+
 

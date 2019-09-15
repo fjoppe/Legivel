@@ -19,8 +19,7 @@ open Legivel.ThompsonParser
 
 let nfa = 
     rgxToNFA <| 
-            RGP("AB", [Token.``c-printable``]) + GRP(RGP("CD", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``])
-
+            RGP("AB", [Token.``c-printable``]) + GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + RGP("AB", [Token.``c-printable``])
 
 PrintIt nfa
 
