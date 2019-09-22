@@ -2,7 +2,7 @@
 
 #time
 
-#r @"bin/Debug/net45/FSharp.Core.dll"
+//#r @"bin/Debug/net45/FSharp.Core.dll"
 //#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
 #r @"bin/Debug/net45/Legivel.Parser.dll"
 #r @"bin/Debug/net45/NLog.dll"
@@ -93,27 +93,7 @@ let YamlParseWithErrors s =
 
 let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
-//YamlParse "
-//{
-//\"adjacent\":value,
-//\"readable\":value,
-//\"empty\":
-//}
-// "
 
 YamlParse s
 
 
-
-let sd = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "logs/FailFast YamlParserTest 5.fsx.log.data"))
-
-sd.Split([|"\n"|], StringSplitOptions.RemoveEmptyEntries)
-|>  List.ofArray
-|>  List.map(fun s -> Int32.Parse(s))
-|>  List.groupBy id
-|>  List.map(fun (i, ls) -> i, ls.Length)
-|>  List.sortByDescending(fun (i, c) -> c,-i)
-|> List.filter(fun (i,c) -> c=3)
-//|>  List.length
-
-(8141 * 3) + 14904

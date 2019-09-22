@@ -1,4 +1,4 @@
-﻿module internal rec HardValues
+﻿module rec HardValues
 
 #nowarn "40"
 

@@ -470,17 +470,3 @@ let ``Deserialize - IDictionary Mapping blockstyle - Sunny Day`` () =
     res.["c"] |> shouldEqual "d"
 
 
-#if NETCOREAPP2_0
-open Open.Collections
-
-[<Test>]
-let ``Deserialize - OrderedDictionary Mapping blockstyle - Sunny Day`` () =
-    let yml = "{a : b, c : d}"
-    let res = DeserializeSuccess<Open.Collections.OrderedDictionary<string,string>> yml
-    res.["a"] |> shouldEqual "b"
-    res.["c"] |> shouldEqual "d"
-    
-    res.Keys |> List.ofSeq |> shouldEqual ["a"; "c"]
-
-
-#endif

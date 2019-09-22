@@ -17,7 +17,6 @@ nuget NUnit
 nuget NLog
 nuget NUnit3TestAdapter
 nuget NLog.FSharp
-nuget Open.Collections
 nuget System.ValueTuple
 github fsprojects/FsUnit src/FsUnit.NUnit/FsUnitTyped.fs
 
