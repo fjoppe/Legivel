@@ -78,6 +78,8 @@
     <Compile Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fs">
       <Link>Legivel.RegexDSL.fs</Link>
     </Compile>
+    <Compile Include="Legivel.Regex.PatternMatch.fsi" />
+    <Compile Include="Legivel.Regex.PatternMatch.fs" />
     <Compile Include="..\Legivel.Common\Legivel.ErrorsAndWarnings.fs">
       <Link>Legivel.ErrorsAndWarnings.fs</Link>
     </Compile>

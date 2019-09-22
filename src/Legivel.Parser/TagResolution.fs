@@ -8,6 +8,7 @@ open Legivel.Common
 open Legivel.Internals
 open System.Text.RegularExpressions
 open Legivel.Tokenizer
+open Legivel.Utilities.Regex.PatternMatch
 
 [<NoEquality; NoComparison>]
 type TagResolutionInfo = {

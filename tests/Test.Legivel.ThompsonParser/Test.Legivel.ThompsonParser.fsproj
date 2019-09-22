@@ -5,14 +5,7 @@
     <Name>Test.Legivel.ThompsonParser</Name>
     <AssemblyName>Test.Legivel.ThompsonParser</AssemblyName>
     <RootNamespace>Test.Legivel.ThompsonParser</RootNamespace>
-    <!-- <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>ed4cd570-a206-4922-88aa-991a2e8c2642</ProjectGuid> -->
     <TargetFrameworks>net45</TargetFrameworks>
-    <!-- <TargetFrameworkProfile />
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
     <NoWarn>NU1701</NoWarn>
     <IsPackable>false</IsPackable>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -99,9 +92,9 @@
     <Compile Include="..\Legivel.Tests\TestUtils.fs">
       <Link>TestUtils.fs</Link>
     </Compile>    
-    <Compile Include="..\Legivel.Tests\APIs.guru.Tests.fs">
+    <None Include="..\Legivel.Tests\APIs.guru.Tests.fs">
       <Link>APIs.guru.Tests.fs</Link>
-    </Compile>    
+    </None>    
     <Compile Include="Legivel.Utilities.RegexDSL.fs" />    
     <Compile Include="Legivel.ThompsonParser.fs" />    
     <Compile Include="Test.Legivel.ThompsonParser.fs" />

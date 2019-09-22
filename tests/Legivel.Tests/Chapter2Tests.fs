@@ -435,7 +435,7 @@ date: 2002-12-14
         yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
-//[<Ignore "TODO: Implement real binary">]
+
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761694")>]
 let ``Example 2.23. Various Explicit Tags``() =
     let yml = YamlParseForSchema YamlExtended.Schema "

@@ -428,4 +428,84 @@ let ``l-document-prefix`` = OPT(``c-byte-order-mark``) + ZOM(``l-comment``)
 //  [203]   http://www.yaml.org/spec/1.2/spec.html#c-directives-end
 let ``c-directives-end`` = ``c-sequence-entry`` + ``c-sequence-entry`` + ``c-sequence-entry`` // RGP ("---", [Token.``c-directives-end``])
 
+//  [204]   http://www.yaml.org/spec/1.2/spec.html#c-document-end
+let ``c-document-end`` =
+    let dot = RGP("\\.", [Token.``t-dot``])
+    dot + dot + dot
+
+//  [205]   http://www.yaml.org/spec/1.2/spec.html#l-document-suffix
+let ``l-document-suffix`` = ``c-document-end`` + ``s-l-comments``
+
+//  [206]   http://www.yaml.org/spec/1.2/spec.html#c-forbidden
+let ``c-forbidden`` = 
+    (``start-of-line`` ||| ``b-break``) +
+    (``c-directives-end`` ||| ``c-document-end``) +
+    (``b-char`` ||| ``s-white`` ||| ``end-of-file``)
+
+let ``ns-yaml-directive with comments`` = ``ns-yaml-directive`` + ``s-l-comments`` |> rgxToNFA
+
+let ``ns-tag-directive with comments`` = ``ns-tag-directive``  + ``s-l-comments`` |> rgxToNFA
+
+let ``ns-reserved-directive with comments`` = GRP(``ns-reserved-directive``) + ``s-l-comments`` |> rgxToNFA
+
+let ``NFA Percent`` = (RGP ("%", [Token.``t-percent``])) |> rgxToNFA
+let ``NFA Ampersand`` = (RGP ("&", [Token.``t-ampersand``])) |> rgxToNFA
+
+let ``NFA s-l-comments`` = ``s-l-comments`` |> rgxToNFA
+
+let ``NFA ns-anchor-name`` = ``ns-anchor-name`` |> rgxToNFA
+let ``NFA illegal ns-anchor-name`` = OOM(``ns-char``) |> rgxToNFA
+
+let private lsvt = RGP ("!", [Token.``t-quotationmark``]) + RGP ("<", [Token.``c-printable``])
+let private rsvt = RGP (">", [Token.``t-gt``])
+let ``NFA Verbatim`` = lsvt + GRP(OOM(``ns-uri-char``)) + rsvt |> rgxToNFA
+let ``NFA Illegal Verbatim`` = lsvt + OOM(``ns-uri-char``) |> rgxToNFA
+let ``NFA Illegal Verbatim No Local Tag`` = lsvt + RGP ("!", [Token.``t-quotationmark``]) + rsvt |> rgxToNFA
+let ``NFA Shorthand Named`` = GRP(``c-named-tag-handle``) + GRP(OOM(``ns-tag-char``)) |> rgxToNFA
+let ``NFA Illegal Shorthand Named`` = GRP(``c-named-tag-handle``) |> rgxToNFA
+let ``NFA Shorthand Secondary`` = ``c-secondary-tag-handle`` + GRP(OOM(``ns-tag-char``)) |> rgxToNFA
+let ``NFA Illegal Shorthand Secondary`` = ``c-secondary-tag-handle``  |> rgxToNFA
+let ``NFA Shorthand Primary`` = ``c-primary-tag-handle``+ GRP(OOM(``ns-tag-char``)) |> rgxToNFA
+let ``NFA c-non-specific-tag`` =  ``c-non-specific-tag`` |> rgxToNFA
+
+let ``NFA tagged uri`` = ``c-primary-tag-handle`` + OOM(``ns-tag-char``) |> rgxToNFA
+
+let ``NFA Asterisk`` = (RGP ("\\*", [Token.``t-asterisk``])) |> rgxToNFA
+
+let ``NFA c-sequence-end`` = ``c-sequence-end`` |> rgxToNFA
+let ``NFA c-mapping-end`` = ``c-mapping-end`` |> rgxToNFA
+let ``NFA c-mapping-key`` = ``c-mapping-key`` |>rgxToNFA
+
+let ``NFA c-mapping-value`` = ``c-mapping-value`` |> rgxToNFA
+
+let ``NFA optional s-separate-in-line`` = (OPT(``s-separate-in-line``)) |> rgxToNFA
+
+let ``NFA indent chomp`` = GRP(``c-indentation-indicator``) + GRP(``c-chomping-indicator``) + ``s-b-comment`` |> rgxToNFA
+
+let ``NFA chomp indent`` = GRP(``c-chomping-indicator``) + GRP(``c-indentation-indicator``) + ``s-b-comment`` |> rgxToNFA
+
+let ``NFA illformed chomping``  = GRP(OOMNG(``nb-char``)) + ``s-b-comment`` |> rgxToNFA
+
+let ``NFA pipe`` = RGP ("\\|", [Token.``t-pipe``]) |> rgxToNFA
+
+let ``NFA c-folded`` = ``c-folded`` |> rgxToNFA
+
+let ``NFA hyphen`` = (RGP("-", [Token.``t-hyphen``])) |> rgxToNFA
+
+let ``NFA ns-char`` =``ns-char`` |> rgxToNFA
+
+let ``NFA e-node s-l-comments`` = (``e-node`` + ``s-l-comments``) |> rgxToNFA
+
+let ``NFA ZOM s-space`` = ZOM(RGP(``s-space``,[Token.``t-space``])) |> rgxToNFA
+
+let ``NFA e-node`` = ``e-node`` |> rgxToNFA
+
+let ``NFA c-forbidden`` = ``c-forbidden`` |>rgxToNFA
+
+let ``NFA c-directives-end`` = ``c-directives-end`` |> rgxToNFA
+
+let ``NFA l-document-prefix`` = (ZOM(``l-document-prefix``)) |> rgxToNFA
+
+let ``NFA l-document-suffix l-document-prefix`` = (OOM(``l-document-suffix``) + ZOM(``l-document-prefix``)) |> rgxToNFA
+
 

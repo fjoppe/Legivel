@@ -4,6 +4,8 @@ open System
 open System.Diagnostics
 open ErrorsAndWarnings
 open Legivel.Utilities.SpookyHash
+open System.Text.RegularExpressions
+open Legivel.Utilities.RegexDSL
 
 module InternalUtil =
     let equalsOn f (yobj:obj) =
@@ -187,4 +189,26 @@ module FallibleOption =
         |   _ -> failwith "FallibleOption: illegal value"
 
 
+///// Returns list of match groups, for pattern p on string s
+[<DebuggerStepThrough>]
+let Match(s, p) = 
+    let mt = Regex.Matches(s, RGS(p), RegexOptions.Multiline)
+    if mt.Count = 0 then 
+        []
+    else
+        [ for g in mt -> g.Value ]
+
+/// Returns whether pattern p matches on string s
+[<DebuggerStepThrough>]
+let IsMatchStr(s, p) = 
+    let ml = Match(s, p)
+    ml.Length > 0
+
+
+/// Regex Active pattern to match string pattern on string input, and returns a list of matches
+[<DebuggerStepThrough>]
+let (|Regex|_|) pattern input =
+    let m = Regex.Match(input, pattern, RegexOptions.Multiline)
+    if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
+    else None
 
