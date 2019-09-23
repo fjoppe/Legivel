@@ -1,5 +1,7 @@
 ﻿module Legivel.Utilities.RegexDSL 
 
+open System.Text.RegularExpressions
+
 #nowarn "52" // "value has been copied to ensure the original is not mutated"
 
 open System
@@ -18,26 +20,30 @@ type [<NoComparison>] Plain =
 
      member this.OptimizeOnce() = 
         if (this.optimized = []) then
-            let unescapedString = 
-                this.``fixed``
-                    .Replace("\\{","{")
-                    .Replace("\\}","}")
-                    .Replace("\\[","[")
-                    .Replace("\\]","]")
-                    .Replace("\\(","(")
-                    .Replace("\\)",")")
-                    .Replace("\\|","|")
-                    .Replace("\\+","+")
-                    .Replace("\\*","*")
-                    .Replace("\\.",".")
-                    .Replace("\\?","?")
-                    .Replace("\\\\","\\")
-
-            this.optimized <-
-                unescapedString.ToCharArray()
-                |>  List.ofArray
-                |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) this.Token)
-                |>  List.rev
+            if this.Token.Head <> Token.EOF then
+                let unescapedString = 
+                    this.``fixed``
+                        .Replace("\\{","{")
+                        .Replace("\\}","}")
+                        .Replace("\\[","[")
+                        .Replace("\\]","]")
+                        .Replace("\\(","(")
+                        .Replace("\\)",")")
+                        .Replace("\\|","|")
+                        .Replace("\\+","+")
+                        .Replace("\\*","*")
+                        .Replace("\\.",".")
+                        .Replace("\\?","?")
+                        .Replace("\\z", "")
+                        .Replace("\\\\","\\")
+            
+                this.optimized <-
+                    unescapedString.ToCharArray()
+                    |>  List.ofArray
+                    |>  List.map(fun c -> Plain <| Plain.Create (c.ToString()) this.Token)
+                    |>  List.rev
+            else
+                this.optimized <- [Plain(Plain.Create "" [Token.EOF])]
 
      static member (+) (r1:Plain, r2:Plain) = 
         let appd = r1.``fixed`` + r2.``fixed``
@@ -664,8 +670,12 @@ module MT = //    Match Tree
 
 
     let createAndSimplifyMultiPath (lst:StatePointer list) : StatePointer =
-        if lst |> List.length = 1 then (lst |> List.head).StatePointer
-        else 
+        let lstf = lst |> List.filter(fun e -> e.Id <> PointerToStateFinal.Id)
+
+        match lstf.Length with
+        |   0 -> createEmptyPath PointerToStateFinal
+        |   1 -> (lst |> List.head).StatePointer
+        |   _ ->
             let sorted =
                 lst
                 |>  List.map lookup
@@ -693,10 +703,11 @@ let qcOneInSet ls = ls |> List.fold(fun s i -> s ||| uint32(i)) 0u
 let createSinglePathFromRgx rgx =
     match rgx with
     |   Plain d when d.``fixed`` = "^" && d.Token = [Token.NoToken] -> MT.createStartLinePath PointerToStateFinal
-    |   Plain d when d.``fixed`` = "\\z" && d.Token = [Token.NoToken] -> 
+    |   Plain d when d.``fixed`` = "" && d.Token = [Token.EOF] -> 
         let listCheck = [Token.EOF]
         let quickCheck = qcOneInSet listCheck
         MT.createSinglePath (OneInSetMatch({ QuickCheck = quickCheck; ListCheck = listCheck})) PointerToStateFinal
+    |   Plain d when d.``fixed`` = "" && d.Token = [] -> MT.createEmptyPath PointerToStateFinal
     |   Plain       d -> MT.createSinglePath (ExactMatch({ Char = d.``fixed``.[0]; ListCheck = d.Token })) PointerToStateFinal
     |   OneInSet    d -> 
         let listCheck = d.Token'.Force()
@@ -816,14 +827,18 @@ let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:Stat
                 d.States |> List.map(fun stid -> traverse d.StatePointer (stid.StatePointer) (passedNodes.Add d.Id) concatPtr) |> ignore
                 current
             |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
-                match MT.lookup prev with
-                |   SinglePath _ ->  MT.setNextState concatPtr prev
-                |   StartLinePath _ -> MT.setNextState concatPtr prev
-                |   MultiPath  _ -> MT.setNextState concatPtr current
-                |   RepeatIterOrExit  _ -> MT.setNextState concatPtr prev 
-                |   GroupStart _ -> MT.setNextState concatPtr prev 
-                |   GroupEnd  _ -> MT.setNextState concatPtr prev 
-                |   _ -> failwith "Not implemented yet"
+                if prev.Id = PointerToStateFinal.Id then
+                    MT.setNextState concatPtr node 
+                else
+                    match MT.lookup prev with
+                    |   SinglePath _ ->  MT.setNextState concatPtr prev
+                    |   StartLinePath _ -> MT.setNextState concatPtr prev
+                    |   MultiPath  _ -> MT.setNextState concatPtr current
+                    |   RepeatIterOrExit  _ -> MT.setNextState concatPtr prev 
+                    |   GroupStart _ -> MT.setNextState concatPtr prev 
+                    |   GroupEnd  _ -> MT.setNextState concatPtr prev 
+                    |   EmptyPath _ -> MT.setNextState concatPtr prev 
+                    |   _ -> failwith "Not implemented yet"
             |   EmptyPath     d -> traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
             |   RepeatIterOrExit    d -> traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
             |   RepeatInit  d -> traverse d.StatePointer (d.NextState.StatePointer) (passedNodes.Add (d.Id)) concatPtr
@@ -910,7 +925,7 @@ let rec refactorCommonPlains (sil:SinglePathPointer list) =
                 let primary = fst target.Head |> MT.duplicate
                 let (filterIds, nextIds) = target |> List.unzip
                 let silNew = 
-                    let siln = refactorCommonPlains (nextIds |> List.map(MT.getSinglePathPointers) |> List.collect id)
+                    let siln = refactorCommonPlains (nextIds |> List.filter(fun e -> e.Id <> PointerToStateFinal.Id) |> List.map(MT.getSinglePathPointers) |> List.collect id)
                     let filtIdSet = filterIds |> List.map(fun e -> e.Id) |> Set.ofList
 
                     let silNew = primary.SinglePathPointerValue :: (sil |> List.filter(fun e -> not(filtIdSet.Contains e.Id)))
@@ -1073,7 +1088,7 @@ let convertRepeaterToExplicitTree (start:StatePointer) =
                 let loopStart = MT.createRepeatStart PointerToStateFinal
                 let iterDup = duplicateStructureAndLinkToNext [rs.StatePointer] [(rs.StatePointer, loopStart)] rioe.IterateState loopStart
                 let mpo =
-                    [iterDup.SinglePathPointerValue;rioe.NextState.SinglePathPointerValue]
+                    MT.getSinglePathPointers iterDup @ MT.getSinglePathPointers rioe.NextState
                     |>  refactorConflictingCharacterSets
                     |>  refacorConflictingPlainWithCharacterSets
                     |>  refactorCommonPlains
@@ -1140,7 +1155,7 @@ let rgxToNFA rgx =
 
         let createRepeat o min max =
             let linkState = MT.createEmptyPath PointerToStateFinal
-            let repPath = convert o
+            let repPath = convert o |> convertRepeaterToExplicitTree
             let repState = MT.createRepeatState min max
             let repExit = MT.createRepeatIterOrExit repPath repState.RepeatId linkState
             let repeatLoopStart = MT.createRepeatStart repExit
@@ -1156,12 +1171,14 @@ let rgxToNFA rgx =
                 pl.OptimizeOnce()
                 processConversion (Concat (pl.optimized))
             else
-                failwith "Uncontained plain - not implemented yet"
+                convert rgx
+                //failwith "Uncontained plain - not implemented yet"
+        |   OneInSet _ -> convert rgx
         |   Concat l -> 
             let linkState = MT.createEmptyPath PointerToStateFinal
             let converts =
                 l
-                |>  List.map(convert)
+                |>  List.map(convert >> convertRepeaterToExplicitTree)
 
             converts
             |>  List.fold(fun (concatPtr:StatePointer) (entryStart:StatePointer) ->
@@ -1170,15 +1187,15 @@ let rgxToNFA rgx =
                     ) linkState
         |   Or     l -> 
             l
-            |>  List.map(convert)
-            |>  List.map(fun sp -> sp.SinglePathPointerValue)
+            |>  List.map(convert >> convertRepeaterToExplicitTree)
+            |>  List.map(fun sp -> sp)
             |>  List.fold(fun sil sp ->
                     let mpl = 
                         MT.lookup sp
                         |>  function
                             |   MultiPath  mp -> mp.States
-                            |   _             -> []
-                    (sp :: sil) @ mpl
+                            |   _             -> [sp.SinglePathPointerValue]
+                    sil @ mpl
             ) []
             |>  refactorConflictingCharacterSets
             |>  refacorConflictingPlainWithCharacterSets
@@ -1186,7 +1203,9 @@ let rgxToNFA rgx =
             |>  MT.createAndSimplifyMultiPathSp
         |   Optional    r -> createRepeat r 0 1
         |   ZeroOrMore  r -> createRepeat r 0 0
+        |   ZeroOrMoreNonGreedy  r -> createRepeat r 0 0
         |   OneOrMore   r -> createRepeat r 1 0
+        |   OneOrMoreNonGreedy r -> createRepeat r 1 0
         |   Group       r ->
             let ep = MT.createEmptyPath PointerToStateFinal
             let gp = convert r |> convertRepeaterToExplicitTree
@@ -1307,6 +1326,92 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
             |   NoMatch _ -> NoMatch
 
     processStr (stream.Get()) nfa.Start [] 0 runningLoops groupParse startOfLine
+
+
+type LevelType = 
+    |   Concat = 0
+    |   Multi   = 1
+    |   RepeatIter = 4
+    |   RepeatExit = 2
+    |   LoopStart = 3
+    |   Empty     = 5
+    |   Group = 6
+
+
+let PrintIt (nfa:NFAMachine) =
+    let stMap = nfa.States |> List.map(fun e -> e.Id,e) |> Map.ofList
+    let rsMap = nfa.Repeats |> List.map(fun e -> e.RepeatId,e) |> Map.ofList
+    let passedNodes = Set.empty<StateId>
+
+    let rec printLine (hist : LevelType list) (current: StatePointer) (passedNodes:Set<StateId>) =
+        let printPrefix hist =
+            hist
+            |>  List.rev
+            |>  List.iter(fun i ->
+                match i with
+                |   LevelType.Concat    -> printf "         "
+                |   LevelType.Group     -> printf "          "
+                |   LevelType.Empty     -> printf "     "
+                |   LevelType.Multi     -> printf "|    "
+                |   LevelType.RepeatExit-> printf " |X    "
+                |   LevelType.RepeatIter-> printf " |I    "
+                |   LevelType.LoopStart -> printf "               "
+            )
+
+        printPrefix hist
+        let rec printLineRest (hist : LevelType list) (current: StatePointer) (passedNodes:Set<StateId>) =
+            if current.Id = 0u then
+                printf "-*\n"
+            else
+                if not(passedNodes.Contains current.Id) then
+                    match stMap.[current.Id] with
+                    |   EmptyPath  ep   ->  
+                        printf "~(%2d)" ep.Id
+                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id)
+                    |   StartLinePath  ep   ->  
+                        printf "^(%2d)" ep.Id
+                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id)
+                    |   SinglePath sp   -> 
+                        match sp.State with
+                        |   ExactMatch c    -> printf "-(%2d:\"%s\")" sp.Id (Regex.Escape(c.Char.ToString()))
+                        |   OneInSetMatch o -> printf "-(%2d:[@])" sp.Id
+                        printLineRest (LevelType.Concat :: hist) sp.NextState (passedNodes.Add sp.Id)
+                    |   MultiPath mp    ->
+                        let h::t = mp.States
+                        printf "|(%2d)" mp.Id
+                        printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id)
+                        t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer (passedNodes.Add mp.Id))
+                    |   RepeatInit rs ->
+                        let rt = rsMap.[rs.RepeatId]
+                        printf "->>(%2d:<%2d,%2d>)" rs.Id rt.Min rt.Max
+                        printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id)
+                    |   RepeatStart rs ->
+                        printf "L(%2d)" rs.Id
+                        printLineRest (LevelType.Empty :: hist) rs.NextState (passedNodes.Add rs.Id)
+                    |   RepeatIterOrExit ri ->
+                        printf "-|I(%2d)" ri.Id
+                        printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id)
+
+                        if ri.IterateState.Id <> ri.NextState.Id then
+                            printPrefix hist
+                            printf "-|X(%2d)" ri.Id
+                            printLineRest (LevelType.RepeatExit :: hist) ri.NextState (passedNodes.Add ri.Id)
+                        else
+                            printPrefix hist
+                            printf "|X(%2d) :::^^^\n" ri.NextState.Id
+                    |   GroupStart gp ->
+                        printf "-%2d, (%2d){" gp.GroupId.Id gp.Id 
+                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id)
+                    |   GroupEnd gp ->
+                        printf "}(%2d)     " gp.Id 
+                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id)
+                    |   NoMatch d -> printf "-NoMatch(%2d)\n" d
+                else
+                    printf "-Loop(%2d)\n" current.Id
+
+        printLineRest hist current passedNodes
+    printLine [] nfa.Start passedNodes
+
 
 let clts (cl:char list) = System.String.Concat(cl)
 

@@ -80,3 +80,5 @@ val rgxToNFA : rgx:RGXType -> NFAMachine
 
 val parseIt : nfa:NFAMachine -> stream:RollingStream<TokenData> -> ParseResult
 
+val PrintIt : NFAMachine -> unit
+

@@ -972,11 +972,13 @@ let ``Start of Line optional match``() =
 
 [<Test>]
 let ``Something with HardValues``() =
-    let v = HardValues.``s-white``
+    // HardValues.``ns-yaml-directive`` + HardValues.``s-l-comments`` 
+
+    let v = HardValues.``ns-yaml-directive``
 
     let nfa = rgxToNFA <| v
     
-    assertFullMatch nfa " "
+    assertFullMatch nfa "YAML 1.1"
 
 
 
