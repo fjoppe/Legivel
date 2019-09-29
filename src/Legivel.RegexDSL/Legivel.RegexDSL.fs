@@ -350,7 +350,7 @@ type MultiPath = {
         member this.Duplicate i = {this with Id = i}
 
 
-type RepeatInit = {
+type RepeatStateRef = {
         Id          : StateId
         RepeatId    : RepeatId
         NextState   : StatePointer
@@ -414,14 +414,14 @@ type EmptyPath = {
 
 let PointerToStateFinal = SinglePathPointer (SinglePathPointer.Create 0u) 
 
-
+[<StructuredFormatDisplay("{AsString}")>]
 type StateNode =
     |   SinglePath of SinglePath
     |   StartLinePath of EmptyPath
     |   MultiPath  of MultiPath
     |   EmptyPath  of EmptyPath
-    |   RepeatInit of RepeatInit
-    |   RepeatStart of EmptyPath
+    |   RepeatInit of RepeatStateRef
+    |   RepeatStart of RepeatStateRef
     |   RepeatIterOrExit of RepeatIterateOrExit
     |   GroupStart of GroupState
     |   GroupEnd of GroupState
@@ -516,6 +516,22 @@ type StateNode =
                 |   MultiPath  d -> failwith "Multipath has no SinglePathPointer"
                 |   NoMatch d -> SinglePathPointer.Create d
 
+        member this.AsString =
+            match this with
+            |   SinglePath d -> 
+                match d.State with
+                |   ExactMatch    em -> sprintf "Id: %d, SinglePath Exact: '%c', Next: %d" d.Id em.Char d.NextState.Id
+                |   OneInSetMatch _  -> sprintf "Id: %d, SinglePath OiS, Next: %d" d.Id d.NextState.Id
+            |   StartLinePath d -> sprintf "Id: %d, StartLinePath Next: %d" d.Id d.NextState.Id
+            |   MultiPath  d -> sprintf "Id: %d, MultiPath, States: %O" d.Id (d.States |> List.map(fun i -> i.Id))
+            |   EmptyPath  d -> sprintf "Id: %d, EmptyPath Next: %d" d.Id d.NextState.Id
+            |   RepeatInit d -> sprintf "Id: %d, RepeatInit Next: %d" d.Id d.NextState.Id
+            |   RepeatStart d -> sprintf "Id: %d, RepeatStart Next: %d" d.Id d.NextState.Id
+            |   RepeatIterOrExit  d -> sprintf "Id: %d, RepeatIterOrExit, I: %d, E: %d" d.Id d.IterateState.Id d.NextState.Id
+            |   GroupStart  d -> sprintf "Id: %d, GroupStart Next: %d" d.Id d.NextState.Id
+            |   GroupEnd    d -> sprintf "Id: %d, GroupEnd Next: %d" d.Id d.NextState.Id
+            |   NoMatch     d -> sprintf "Id: %d, NoMatch" d
+
 
 type NFAMachine = {
     Start   : StatePointer
@@ -598,8 +614,8 @@ module MT = //    Match Tree
     let createStartLinePath nx = EmptyPath.Create (CreateNewId()) nx |> StartLinePath |> addAndReturn
     let createMultiPath mt = MultiPath.Create (CreateNewId()) mt |> MultiPath |> addAndReturn
     let createEmptyPath nx = EmptyPath.Create (CreateNewId()) nx |> EmptyPath |> addAndReturn
-    let createRepeatInit ri nx = RepeatInit.Create (CreateNewId()) ri nx |> RepeatInit |> addAndReturn
-    let createRepeatStart  nx = EmptyPath.Create (CreateNewId()) nx |> RepeatStart |> addAndReturn
+    let createRepeatInit ri nx = RepeatStateRef.Create (CreateNewId()) ri nx |> RepeatInit |> addAndReturn
+    let createRepeatStart ri nx = RepeatStateRef.Create (CreateNewId()) ri nx |> RepeatStart |> addAndReturn
     let createRepeatIterOrExit it ri nx = RepeatIterateOrExit.Create (CreateNewId()) it ri nx |> RepeatIterOrExit |> addAndReturn
     let createGroupStart gid nx = GroupState.Create (CreateNewId()) nx gid |> GroupStart  |> addAndReturn
     let createGroupEnd gid nx = GroupState.Create (CreateNewId()) nx gid |> GroupEnd  |> addAndReturn
@@ -623,7 +639,7 @@ module MT = //    Match Tree
         |   EmptyPath   p -> createEmptyPath p.NextState
         |   SinglePath  p -> createSinglePath p.State p.NextState
         |   StartLinePath p -> createStartLinePath p.NextState
-        |   RepeatStart p -> createRepeatStart p.NextState
+        |   RepeatStart p -> createRepeatStart p.RepeatId p.NextState
         |   RepeatInit  p -> createRepeatInit p.RepeatId p.NextState
         |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId p.NextState
         |   GroupStart  p -> createGroupStart p.GroupId p.NextState 
@@ -635,7 +651,7 @@ module MT = //    Match Tree
         |   EmptyPath   _ -> createEmptyPath next
         |   SinglePath  p -> createSinglePath p.State next
         |   StartLinePath p -> createStartLinePath next
-        |   RepeatStart _ -> createRepeatStart next
+        |   RepeatStart p -> createRepeatStart p.RepeatId next
         |   RepeatInit  p -> createRepeatInit p.RepeatId next
         |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId next
         |   GroupStart  p -> createGroupStart p.GroupId next
@@ -669,18 +685,42 @@ module MT = //    Match Tree
         |>  List.sortWith sortOrder
 
 
-    let createAndSimplifyMultiPath (lst:StatePointer list) : StatePointer =
-        let lstf = lst |> List.filter(fun e -> e.Id <> PointerToStateFinal.Id)
+    let cleanupEmptyPaths pt =
+        let rec searchStart cp =
+            match lookup cp with
+            |   EmptyPath p when p.NextState.Id <> PointerToStateFinal.Id -> searchStart p.NextState
+            |   _  -> cp
 
-        match lstf.Length with
+        searchStart pt
+
+
+    let simplifyMultiPathStates (lst:StatePointer list) =
+        lst 
+        |> List.groupBy id 
+        |> List.map fst
+        |> List.filter(fun e -> e.Id <> PointerToStateFinal.Id)
+
+
+    let getSinglePathPointers pt =
+        match pt with 
+        |   SinglePathPointer p -> [pt.SinglePathPointerValue]
+        |   MultiPathPointer  p -> 
+            let (MultiPath mp) = lookup pt
+            mp.States
+
+    let createAndSimplifyMultiPath (lst:StatePointer list) : StatePointer =
+        match lst.Length with
         |   0 -> createEmptyPath PointerToStateFinal
         |   1 -> (lst |> List.head).StatePointer
         |   _ ->
             let sorted =
                 lst
+                |>  List.map cleanupEmptyPaths
                 |>  List.map lookup
                 |>  SortStateNodes
-                |>  List.map(fun i -> i.SinglePathPointer)
+                |>  List.map(fun e -> e.StatePointer)
+                |>  List.map getSinglePathPointers
+                |>  List.collect id
             let mn = createMultiPath sorted
             mn
 
@@ -690,12 +730,7 @@ module MT = //    Match Tree
 
     let getRepeatState (ri:RepeatId) = allRepeats |> Seq.find(fun e -> e.RepeatId = ri)
 
-    let getSinglePathPointers pt =
-        match pt with 
-        |   SinglePathPointer p -> [pt.SinglePathPointerValue]
-        |   MultiPathPointer  p -> 
-            let (MultiPath mp) = lookup pt
-            mp.States
+
 
 
 let qcOneInSet ls = ls |> List.fold(fun s i -> s ||| uint32(i)) 0u
@@ -748,6 +783,11 @@ let normalizeForSPRefactoring (stNodes:StateNode list) =
         |   _  -> s
     ) []
     |>  List.collect id
+
+
+type RefactorResult =
+    |   Refactored of StatePointer
+    |   Unrefactored
 
 
 type RefactoringCanditate =
@@ -815,50 +855,6 @@ let getRefactoringCanditates (lst:NormalizedForSPRefactoring list) =
 
 
 
-let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
-    let passedNodes = Set.empty<StateId>
-    
-    let rec traverse (prev:StatePointer) (current:StatePointer) (passedNodes:Set<StateId>) (concatPtr:StatePointer) =
-        if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then current 
-        else
-            let node = MT.lookup current
-            match node with
-            |   MultiPath  d -> 
-                d.States |> List.map(fun stid -> traverse d.StatePointer (stid.StatePointer) (passedNodes.Add d.Id) concatPtr) |> ignore
-                current
-            |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
-                if prev.Id = PointerToStateFinal.Id then
-                    MT.setNextState concatPtr node 
-                else
-                    match MT.lookup prev with
-                    |   SinglePath _ ->  MT.setNextState concatPtr prev
-                    |   StartLinePath _ -> MT.setNextState concatPtr prev
-                    |   MultiPath  _ -> MT.setNextState concatPtr current
-                    |   RepeatIterOrExit  _ -> MT.setNextState concatPtr prev 
-                    |   GroupStart _ -> MT.setNextState concatPtr prev 
-                    |   GroupEnd  _ -> MT.setNextState concatPtr prev 
-                    |   EmptyPath _ -> MT.setNextState concatPtr prev 
-                    |   _ -> failwith "Not implemented yet"
-            |   EmptyPath     d -> traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
-            |   RepeatIterOrExit    d -> traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
-            |   RepeatInit  d -> traverse d.StatePointer (d.NextState.StatePointer) (passedNodes.Add (d.Id)) concatPtr
-            |   RepeatStart d -> traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
-            |   GroupStart  d -> traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
-            |   GroupEnd    d -> traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
-            |   SinglePath  d ->
-                if d.NextState.Id = 0u then
-                    MT.setNextState concatPtr current
-                else
-                    traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
-            |   StartLinePath d -> 
-                if d.NextState.Id = 0u then
-                    MT.setNextState concatPtr current
-                else
-                    traverse d.StatePointer (d.NextState) (passedNodes.Add (d.Id)) concatPtr
-            |   NoMatch _ -> current
-    traverse PointerToStateFinal entryStartId passedNodes concatPtr |> ignore
-
-
 let duplicateStructureAndLinkToNext (passed:StatePointer list) (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
     let passedNodes = 
         passed
@@ -875,7 +871,8 @@ let duplicateStructureAndLinkToNext (passed:StatePointer list) (premapped:(State
         MT.duplicateAndLinkToNext tr c
 
     let rec traverse (current:StatePointer) (passedNodes:Set<StateId>) (pm:Map<StatePointer, StatePointer>)=
-        if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then current 
+        if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then 
+            if pm.ContainsKey current then pm.[current] else current
         else
             let node = MT.lookup current
             match node with
@@ -950,7 +947,7 @@ let rec refactorCommonPlains (sil:SinglePathPointer list) =
                                 |>  MT.SortStateNodes
                                 |>List.map(fun sn -> sn.SinglePathPointer)
 
-                            let bundle = MT.createMultiPath (silnSorted)
+                            let bundle = MT.createAndSimplifyMultiPathSp (silnSorted)
                             MT.setNextState bundle primary |> ignore
                             silNew
                 refactorPlains silNew tail
@@ -1009,7 +1006,13 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list) =
                         t, nois |> List.map(fun ns -> { ns with IdSp = mapOrOld ns.IdSp })
                     )
 
-                let bundle = MT.createMultiPath (allNextIds |> List.collect id)
+                let bundle = 
+                    (allNextIds |> List.collect id |> List.map(fun e -> e.StatePointer))
+                    |>  MT.simplifyMultiPathStates
+                    |>  List.map MT.cleanupEmptyPaths
+                    |>  List.map MT.getSinglePathPointers
+                    |>  List.collect id
+                    |>  MT.createAndSimplifyMultiPathSp 
                 let sp = MT.createSinglePath (OneInSetMatch({ ListCheck = [cht]; QuickCheck = uint32(cht)})) bundle
 
                 let silNew = 
@@ -1053,7 +1056,14 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list) =
                         t,ne, nois |> List.map(fun ns -> { ns with IdSp = mapOrOld ns.IdSp })
                     )
 
-                let bundle = MT.createMultiPath allNextIds
+                let bundle = 
+                    allNextIds |> List.map(fun e -> e.StatePointer)
+                    |>  MT.simplifyMultiPathStates
+                    |>  List.map MT.cleanupEmptyPaths
+                    |>  List.map MT.getSinglePathPointers
+                    |>  List.collect id
+                    |>  MT.createAndSimplifyMultiPathSp 
+
                 MT.setNextState bundle.StatePointer primary |> ignore
 
                 let silNew = 
@@ -1064,34 +1074,101 @@ let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list) =
                 refactorPlainsWithCharSets silNew tailNew
         refactorPlainsWithCharSets sil stnl
 
+let refactorMultiPathStates (lst : StatePointer list) =
+    lst
+    |>  MT.simplifyMultiPathStates
+    |>  List.map MT.cleanupEmptyPaths
+    |>  List.map MT.getSinglePathPointers
+    |>  List.collect id
+    |>  refactorConflictingCharacterSets
+    |>  refacorConflictingPlainWithCharacterSets
+    |>  refactorCommonPlains
+
+    
+
+let refactorMultiPathStatesSp (lst : SinglePathPointer list) =
+    lst
+    |>  List.map(fun e -> e.StatePointer)
+    |>  refactorMultiPathStates
+
+
+
+let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
+    let passedNodes = Set.empty<StateId>
+    
+    let inline setNextState obj nx = MT.setNextState nx obj
+
+    let rec traverse (current:StatePointer) (passedNodes:Set<StateId>) (concatPtr:StatePointer) =
+        if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then current 
+        else
+            let node = MT.lookup current
+            match node with
+            |   MultiPath  d -> 
+                d.States 
+                |>  List.map(fun stid -> traverse stid.StatePointer (passedNodes.Add d.Id) concatPtr)
+                |>  refactorMultiPathStates
+                |>  MT.createAndSimplifyMultiPathSp
+            |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
+                MT.setNextState concatPtr node 
+            |   EmptyPath     d -> 
+                traverse d.NextState (passedNodes.Add (d.Id)) concatPtr
+                |>  setNextState current
+                |>  MT.cleanupEmptyPaths
+            |   RepeatIterOrExit    d -> 
+                traverse d.NextState (passedNodes.Add (d.Id)) concatPtr
+                |>  MT.cleanupEmptyPaths
+                |>  setNextState current
+            |   RepeatInit  d -> 
+                traverse d.NextState.StatePointer (passedNodes.Add (d.Id)) concatPtr
+                |>  setNextState current
+            |   RepeatStart d -> 
+                traverse d.NextState (passedNodes.Add (d.Id)) concatPtr
+                |>  setNextState current
+            |   GroupStart  d -> 
+                traverse d.NextState (passedNodes.Add (d.Id)) concatPtr
+                |>  setNextState current
+            |   GroupEnd    d -> 
+                traverse d.NextState (passedNodes.Add (d.Id)) concatPtr
+                |>  setNextState current
+            |   SinglePath  d ->
+                if d.NextState.Id = PointerToStateFinal.Id then
+                    MT.setNextState concatPtr current
+                else
+                    traverse d.NextState (passedNodes.Add (d.Id)) concatPtr
+                    |>  setNextState current
+            |   StartLinePath d -> 
+                if d.NextState.Id = 0u then
+                    MT.setNextState concatPtr current
+                else
+                    traverse d.NextState (passedNodes.Add (d.Id)) concatPtr
+                    |>  setNextState current
+            |   NoMatch _ -> current
+    traverse entryStartId passedNodes concatPtr
+
 
 
 let convertRepeaterToExplicitTree (start:StatePointer) =
 
-    let convertRepeaterToExplicitTree (ri:RepeatInit) (rs:EmptyPath) (rioe:RepeatIterateOrExit) (rt:RepeatState) =
+    let convertRepeaterToExplicitTree (ri:RepeatStateRef) (rs:RepeatStateRef) (rioe:RepeatIterateOrExit) (rt:RepeatState) =
         if rt.Max > 0 then
             [rt.Max .. -1 .. 1]
             |>  List.fold(fun nxt cur ->
-                let iterPath = duplicateStructureAndLinkToNext [rs.StatePointer] [(rs.StatePointer, nxt)] rioe.IterateState nxt
+                let iterPath = duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, nxt);(rs.StatePointer, nxt)] rioe.IterateState nxt
 
                 if cur > rt.Min then
                     (MT.getSinglePathPointers iterPath) @ (MT.getSinglePathPointers rioe.NextState)
-                    |>  refactorConflictingCharacterSets
-                    |>  refacorConflictingPlainWithCharacterSets
-                    |>  refactorCommonPlains
+                    |>  refactorMultiPathStatesSp
                     |>  MT.createAndSimplifyMultiPathSp
                 else
                     iterPath
             ) rioe.NextState
         else
             let finalPath =
-                let loopStart = MT.createRepeatStart PointerToStateFinal
+                let loopStart = MT.createRepeatStart rs.RepeatId PointerToStateFinal
                 let iterDup = duplicateStructureAndLinkToNext [rs.StatePointer] [(rs.StatePointer, loopStart)] rioe.IterateState loopStart
                 let mpo =
                     MT.getSinglePathPointers iterDup @ MT.getSinglePathPointers rioe.NextState
-                    |>  refactorConflictingCharacterSets
-                    |>  refacorConflictingPlainWithCharacterSets
-                    |>  refactorCommonPlains
+                    |>  refactorMultiPathStatesSp
                     |>  MT.createAndSimplifyMultiPathSp
                 MT.setNextState mpo loopStart
 
@@ -1110,6 +1187,7 @@ let convertRepeaterToExplicitTree (start:StatePointer) =
             nxt
         | _ -> start
     |   _ -> start
+
 
 
 let removeUnused (nfa:NFAMachine) =
@@ -1158,9 +1236,13 @@ let rgxToNFA rgx =
             let repPath = convert o |> convertRepeaterToExplicitTree
             let repState = MT.createRepeatState min max
             let repExit = MT.createRepeatIterOrExit repPath repState.RepeatId linkState
-            let repeatLoopStart = MT.createRepeatStart repExit
+            let repeatLoopStart = MT.createRepeatStart repState.RepeatId repExit
             
-            appendStateIdToAllFinalPathNodes repPath repeatLoopStart
+            let nx = appendStateIdToAllFinalPathNodes repPath repeatLoopStart
+            let (RepeatIterOrExit ioe) = MT.lookup repExit
+            RepeatIterOrExit {ioe with IterateState = nx}
+            |>  MT.updateNode
+            |>  ignore
 
             let repStart = MT.createRepeatInit repState.RepeatId repeatLoopStart
             repStart 
@@ -1178,16 +1260,16 @@ let rgxToNFA rgx =
             let linkState = MT.createEmptyPath PointerToStateFinal
             let converts =
                 l
-                |>  List.map(convert >> convertRepeaterToExplicitTree)
+                |>  List.map(convert)
 
             converts
             |>  List.fold(fun (concatPtr:StatePointer) (entryStart:StatePointer) ->
                     appendStateIdToAllFinalPathNodes entryStart concatPtr
-                    convertRepeaterToExplicitTree entryStart
+                    |>  convertRepeaterToExplicitTree
                     ) linkState
         |   Or     l -> 
             l
-            |>  List.map(convert >> convertRepeaterToExplicitTree)
+            |>  List.map(convert >> MT.cleanupEmptyPaths >> convertRepeaterToExplicitTree)
             |>  List.map(fun sp -> sp)
             |>  List.fold(fun sil sp ->
                     let mpl = 
@@ -1197,9 +1279,10 @@ let rgxToNFA rgx =
                             |   _             -> [sp.SinglePathPointerValue]
                     sil @ mpl
             ) []
-            |>  refactorConflictingCharacterSets
-            |>  refacorConflictingPlainWithCharacterSets
-            |>  refactorCommonPlains
+            |>  refactorMultiPathStatesSp
+            //|>  refactorConflictingCharacterSets
+            //|>  refacorConflictingPlainWithCharacterSets
+            //|>  refactorCommonPlains
             |>  MT.createAndSimplifyMultiPathSp
         |   Optional    r -> createRepeat r 0 1
         |   ZeroOrMore  r -> createRepeat r 0 0
@@ -1212,7 +1295,11 @@ let rgxToNFA rgx =
             let gs = MT.createGroup()
             let ge = MT.createGroupEnd gs ep
             appendStateIdToAllFinalPathNodes gp ge
-            MT.createGroupStart gs gp 
+            |>  MT.createGroupStart gs
+        |   IterRange (irx,mxo,mno) ->
+            match mno with
+            |   Some minVal -> createRepeat irx minVal mxo
+            |   None        -> createRepeat irx mxo mxo  
         |   _ -> failwith "Not Implemented Yet"
     processConversion rgx
     |>  convertRepeaterToExplicitTree
@@ -1243,7 +1330,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
             let ch = stream.Get()
             ch.Token = Token.NewLine
 
-    let rec processStr currentChar cs acc rollback (runningLoops : Map<RepeatId, RepeatState>) (groupParse: GroupParse) startOfLine =
+    let rec processStr currentChar cs acc rollback (runningLoops : Map<RepeatId, RepeatState>) (loopToPosMap:Map<RepeatId, int>) (groupParse: GroupParse) startOfLine =
         let processCurrentChar = processStr currentChar
         let processNextChar cs acc rollback (runningLoops : Map<RepeatId, RepeatState>) = 
             let chk = (stream.Get())
@@ -1266,30 +1353,49 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                 let nxt = p.NextState
                 if (p.State.Match currentChar) then
                     let ch = currentChar.Source.[0]
-                    processNextChar nxt (ch :: acc) rollback runningLoops (groupParse.AddChar ch) (currentChar.Token = Token.NewLine)
+                    processNextChar nxt (ch :: acc) rollback runningLoops loopToPosMap (groupParse.AddChar ch) (currentChar.Token = Token.NewLine)
                 else 
                     NoMatch
+            |   StartLinePath st ->
+                if startOfLine then processCurrentChar (st.NextState) acc (rollback+1) runningLoops loopToPosMap groupParse startOfLine
+                else NoMatch
             |   MultiPath p ->
                 let pos = stream.Position
                 let rec parseMultiPath (sptrLst:SinglePathPointer list) =
                     match sptrLst with 
                     |   []      -> NoMatch 
                     |   h::tail ->
-                        match stMap.[h.Id] with
-                        |   SinglePath st -> 
-                            if st.State.Match currentChar then
-                                let ch = currentChar.Source.[0]
-                                processNextChar (st.NextState) (ch :: acc) rollback runningLoops (groupParse.AddChar ch) (currentChar.Token = Token.NewLine)
-                            else
-                                NoMatch
-                        |   EmptyPath  st -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops groupParse startOfLine
-                        |   GroupStart st -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops groupParse startOfLine
-                        |   StartLinePath st ->
-                            if startOfLine then processCurrentChar (st.NextState) acc (rollback+1) runningLoops groupParse startOfLine
-                            else NoMatch
-                        |   RepeatStart st  -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops groupParse startOfLine
-                        |   RepeatIterOrExit re  -> processCurrentChar re.StatePointer acc rollback runningLoops groupParse startOfLine
-                        |   _ -> failwith "Not implemented yet"
+                        processCurrentChar h.StatePointer acc (rollback+1) runningLoops loopToPosMap groupParse startOfLine
+                        //match stMap.[h.Id] with
+                        //|   SinglePath st -> 
+                        //    if st.State.Match currentChar then
+                        //        let ch = currentChar.Source.[0]
+                        //        processNextChar (st.NextState) (ch :: acc) rollback runningLoops loopToPosMap (groupParse.AddChar ch) (currentChar.Token = Token.NewLine)
+                        //    else
+                        //        NoMatch
+                        //|   EmptyPath  st -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops loopToPosMap groupParse startOfLine
+                        //|   GroupStart st -> processCurrentChar (st.NextState) acc (rollback+1) runningLoops loopToPosMap groupParse startOfLine
+                        //|   StartLinePath st ->
+                        //    if startOfLine then processCurrentChar (st.NextState) acc (rollback+1) runningLoops loopToPosMap groupParse startOfLine
+                        //    else NoMatch
+                        //|   RepeatStart p  -> 
+                        //    let strPos = stream.Position
+                        //    let addPos ri p loopToPosMap =
+                        //        loopToPosMap
+                        //        |>  Map.remove ri
+                        //        |>  Map.add ri p
+
+                        //    if loopToPosMap.ContainsKey p.RepeatId then
+                        //        if strPos > loopToPosMap.[p.RepeatId] then
+                        //            let ln = addPos p.RepeatId strPos loopToPosMap
+                        //            processCurrentChar p.NextState acc rollback runningLoops ln groupParse startOfLine
+                        //        else
+                        //            NoMatch
+                        //    else
+                        //        let ln = addPos p.RepeatId strPos loopToPosMap
+                        //        processCurrentChar p.NextState acc rollback runningLoops ln groupParse startOfLine
+                        //|   RepeatIterOrExit re  -> processCurrentChar re.StatePointer acc rollback runningLoops loopToPosMap groupParse startOfLine
+                        //|   _ -> failwith "Not implemented yet"
                         |>  fun res -> 
                             if not(res.IsMatch) then
                                 stream.Position <- pos
@@ -1297,35 +1403,50 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                             else res
 
                 parseMultiPath p.States
-            |   EmptyPath p -> processCurrentChar p.NextState acc rollback runningLoops groupParse startOfLine
-            |   RepeatStart p -> processCurrentChar p.NextState acc rollback runningLoops groupParse startOfLine
+            |   EmptyPath p -> processCurrentChar p.NextState acc rollback runningLoops loopToPosMap groupParse startOfLine
+            |   RepeatStart p ->
+                let strPos = stream.Position
+                let addPos ri p loopToPosMap =
+                    loopToPosMap
+                    |>  Map.remove ri
+                    |>  Map.add ri p
+
+                if loopToPosMap.ContainsKey p.RepeatId then
+                    if strPos > loopToPosMap.[p.RepeatId] then
+                        let ln = addPos p.RepeatId strPos loopToPosMap
+                        processCurrentChar p.NextState acc rollback runningLoops ln groupParse startOfLine
+                    else
+                        NoMatch
+                else
+                    let ln = addPos p.RepeatId strPos loopToPosMap
+                    processCurrentChar p.NextState acc rollback runningLoops ln groupParse startOfLine
             |   RepeatInit r ->
                 let rlnew =
                     if runningLoops.ContainsKey r.RepeatId then
                         runningLoops.Remove(r.RepeatId).Add(r.RepeatId, stRepeat.[r.RepeatId])
                     else
                         runningLoops.Add(r.RepeatId, stRepeat.[r.RepeatId])
-                processCurrentChar r.NextState.StatePointer acc rollback rlnew groupParse startOfLine
+                processCurrentChar r.NextState.StatePointer acc rollback rlnew loopToPosMap groupParse startOfLine
             |   RepeatIterOrExit r ->
                 let rs = runningLoops.[r.RepeatId]
                 if rs.MustExit() then
-                    processCurrentChar r.NextState acc rollback runningLoops groupParse startOfLine
+                    processCurrentChar r.NextState acc rollback runningLoops loopToPosMap groupParse startOfLine
                 else
                     let pos = stream.Position
                     let rlNew = runningLoops.Remove(r.RepeatId).Add(r.RepeatId, rs.Iterate())
-                    let tryIterate = processCurrentChar r.IterateState acc rollback rlNew groupParse startOfLine
+                    let tryIterate = processCurrentChar r.IterateState acc rollback rlNew loopToPosMap groupParse startOfLine
                     if tryIterate.IsMatch then
                         tryIterate
                     else
                         if stream.Position = pos && rs.CanExit() && r.IterateState<>r.NextState then
-                            processCurrentChar r.NextState acc rollback (rlNew.Remove rs.RepeatId) groupParse startOfLine // end loop by removing it from running loops
+                            processCurrentChar r.NextState acc rollback (rlNew.Remove rs.RepeatId) loopToPosMap groupParse startOfLine // end loop by removing it from running loops
                         else
                             NoMatch
-            |   GroupStart gp -> processCurrentChar gp.NextState acc rollback runningLoops (groupParse.Start gp.GroupId) startOfLine
-            |   GroupEnd   gp -> processCurrentChar gp.NextState acc rollback runningLoops (groupParse.Stop gp.GroupId) startOfLine
+            |   GroupStart gp -> processCurrentChar gp.NextState acc rollback runningLoops loopToPosMap (groupParse.Start gp.GroupId) startOfLine
+            |   GroupEnd   gp -> processCurrentChar gp.NextState acc rollback runningLoops loopToPosMap (groupParse.Stop gp.GroupId) startOfLine
             |   NoMatch _ -> NoMatch
 
-    processStr (stream.Get()) nfa.Start [] 0 runningLoops groupParse startOfLine
+    processStr (stream.Get()) nfa.Start [] 0 runningLoops Map.empty groupParse startOfLine
 
 
 type LevelType = 

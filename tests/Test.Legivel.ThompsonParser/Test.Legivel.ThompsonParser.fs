@@ -968,4 +968,3 @@ let ``Start of Line optional match``() =
     assertNoMatch nfa "-CDEF"
 
 
-

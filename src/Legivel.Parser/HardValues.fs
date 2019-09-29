@@ -166,14 +166,14 @@ let ``ns-dec-digit`` = RGO ("\u0030-\u0039", [Token.``ns-dec-digit``])      //  
 
 //  [36]    http://www.yaml.org/spec/1.2/spec.html#ns-hex-digit
 let ``ns-hex-digit`` =
-    ``ns-dec-digit`` +
-    RGO ("\u0041-\u0046", [Token.``c-printable``])  +  //  A-F
-    RGO ("\u0061-\u0066", [Token.``c-printable``])     //  a-f
+    ``ns-dec-digit`` |||
+    RGO ("\u0041-\u0046", [Token.``c-printable``])  |||  //  A-F
+    RGO ("\u0061-\u0066", [Token.``c-printable``])       //  a-f
 
 //  [37]    http://www.yaml.org/spec/1.2/spec.html#ns-ascii-letter
 let ``ns-ascii-letter`` = 
-    RGO ("\u0041-\u005A", [Token.``c-printable``]) +   //  A-Z
-    RGO ("\u0061-\u007A", [Token.``c-printable``])     //  a-z
+    RGO ("\u0041-\u005A", [Token.``c-printable``]) |||   //  A-Z
+    RGO ("\u0061-\u007A", [Token.``c-printable``])       //  a-z
 
 //  [38]    http://www.yaml.org/spec/1.2/spec.html#ns-word-char
 let ``ns-word-char`` =
