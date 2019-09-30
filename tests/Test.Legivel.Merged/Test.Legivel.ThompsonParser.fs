@@ -979,4 +979,12 @@ let ``Something with hardvalues``() =
     assertFullMatch nfa "!%12"    
 
 
+[<Test>]
+let ``Something else with hardvalues``() =
+    let nfa = 
+        rgxToNFA <| HardValues.``c-single-quote`` + GRP(HardValues.``nb-single-one-line``) + HardValues.``c-single-quote``
+
+    assertGroupMatch nfa "''" 0 ""
+
+
 
