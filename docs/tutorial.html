@@ -331,6 +331,49 @@ with the constraint that the target type has a parameterless constructor.</p>
  SugarMg = 150;}]];
     Warn = [];}]</code></pre></td></tr></table>
 
+<div class="tip" id="fs1">namespace System</div>
+<div class="tip" id="fs2">namespace System.Collections</div>
+<div class="tip" id="fs3">namespace System.Collections.Generic</div>
+<div class="tip" id="fs4">namespace Legivel</div>
+<div class="tip" id="fs5">module Serialization<br /><br />from Legivel</div>
+<div class="tip" id="fs6">val Deserialize : yaml:string -&gt; DeserializeResult&lt;&#39;tp&gt; list</div>
+<div class="tip" id="fs7">Multiple items<br />val int : value:&#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; = int</div>
+<div class="tip" id="fs8">Multiple items<br />val float : value:&#39;T -&gt; float (requires member op_Explicit)<br /><br />--------------------<br />type float = Double<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; = float</div>
+<div class="tip" id="fs9">type bool = Boolean</div>
+<div class="tip" id="fs10">Multiple items<br />type DateTime =<br />&#160;&#160;struct<br />&#160;&#160;&#160;&#160;new : ticks:int64 -&gt; DateTime + 10 overloads<br />&#160;&#160;&#160;&#160;member Add : value:TimeSpan -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddDays : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddHours : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMilliseconds : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMinutes : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddMonths : months:int -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddSeconds : value:float -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddTicks : value:int64 -&gt; DateTime<br />&#160;&#160;&#160;&#160;member AddYears : value:int -&gt; DateTime<br />&#160;&#160;&#160;&#160;...<br />&#160;&#160;end<br /><br />--------------------<br />DateTime ()<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em></div>
+<div class="tip" id="fs11">type &#39;T list = List&lt;&#39;T&gt;</div>
+<div class="tip" id="fs12">module Attributes<br /><br />from Legivel</div>
+<div class="tip" id="fs13">type PlayerStats =<br />&#160;&#160;{name: string;<br />&#160;&#160;&#160;hr: int;<br />&#160;&#160;&#160;average: float;}</div>
+<div class="tip" id="fs14">PlayerStats.name: string</div>
+<div class="tip" id="fs15">Multiple items<br />val string : value:&#39;T -&gt; string<br /><br />--------------------<br />type string = String</div>
+<div class="tip" id="fs16">PlayerStats.hr: int</div>
+<div class="tip" id="fs17">Multiple items<br /><br />--------------------<br />new : Name:string -&gt; YamlFieldAttribute</div>
+<div class="tip" id="fs18">PlayerStats.average: float</div>
+<div class="tip" id="fs19">val yaml : string</div>
+<div class="tip" id="fs20">type OptionExample =<br />&#160;&#160;{opt1: int option;<br />&#160;&#160;&#160;opt2: int option;}</div>
+<div class="tip" id="fs21">OptionExample.opt1: int option</div>
+<div class="tip" id="fs22">type &#39;T option = Option&lt;&#39;T&gt;</div>
+<div class="tip" id="fs23">OptionExample.opt2: int option</div>
+<div class="tip" id="fs24">type UnionCaseEnum =<br />&#160;&#160;| One = 1<br />&#160;&#160;| Two = 2</div>
+<div class="tip" id="fs25">UnionCaseEnum.One: UnionCaseEnum = 1</div>
+<div class="tip" id="fs26">Multiple items<br /><br />--------------------<br />new : Id:string -&gt; YamlValueAttribute</div>
+<div class="tip" id="fs27">UnionCaseEnum.Two: UnionCaseEnum = 2</div>
+<div class="tip" id="fs28">type SomeData =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Age: int;}</div>
+<div class="tip" id="fs29">SomeData.Name: string</div>
+<div class="tip" id="fs30">SomeData.Age: int</div>
+<div class="tip" id="fs31">type UnionCaseWithData =<br />&#160;&#160;| One of SomeData<br />&#160;&#160;| Two of SomeData</div>
+<div class="tip" id="fs32">union case UnionCaseWithData.One: SomeData -&gt; UnionCaseWithData</div>
+<div class="tip" id="fs33">union case UnionCaseWithData.Two: SomeData -&gt; UnionCaseWithData</div>
+<div class="tip" id="fs34">type ProductType =<br />&#160;&#160;| Zero = 0<br />&#160;&#160;| Light = 1<br />&#160;&#160;| Normal = 2</div>
+<div class="tip" id="fs35">ProductType.Zero: ProductType = 0</div>
+<div class="tip" id="fs36">ProductType.Light: ProductType = 1</div>
+<div class="tip" id="fs37">ProductType.Normal: ProductType = 2</div>
+<div class="tip" id="fs38">type Contents =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;SugarMg: int;}</div>
+<div class="tip" id="fs39">Contents.Name: string</div>
+<div class="tip" id="fs40">Contents.SugarMg: int</div>
+<div class="tip" id="fs41">Multiple items<br />module Map<br /><br />from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&lt;&#39;Key,&#39;Value (requires comparison)&gt; =<br />&#160;&#160;interface IReadOnlyDictionary&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;interface IReadOnlyCollection&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface IEnumerable<br />&#160;&#160;interface IComparable<br />&#160;&#160;interface IEnumerable&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface ICollection&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface IDictionary&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member Add : key:&#39;Key * value:&#39;Value -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member ContainsKey : key:&#39;Key -&gt; bool<br />&#160;&#160;...<br /><br />--------------------<br />new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;</div>
+<div class="tip" id="fs42">Multiple items<br />type Dictionary&lt;&#39;TKey,&#39;TValue&gt; =<br />&#160;&#160;new : unit -&gt; Dictionary&lt;&#39;TKey, &#39;TValue&gt; + 5 overloads<br />&#160;&#160;member Add : key:&#39;TKey * value:&#39;TValue -&gt; unit<br />&#160;&#160;member Clear : unit -&gt; unit<br />&#160;&#160;member Comparer : IEqualityComparer&lt;&#39;TKey&gt;<br />&#160;&#160;member ContainsKey : key:&#39;TKey -&gt; bool<br />&#160;&#160;member ContainsValue : value:&#39;TValue -&gt; bool<br />&#160;&#160;member Count : int<br />&#160;&#160;member GetEnumerator : unit -&gt; Enumerator&lt;&#39;TKey, &#39;TValue&gt;<br />&#160;&#160;member GetObjectData : info:SerializationInfo * context:StreamingContext -&gt; unit<br />&#160;&#160;member Item : &#39;TKey -&gt; &#39;TValue with get, set<br />&#160;&#160;...<br />&#160;&#160;nested type Enumerator<br />&#160;&#160;nested type KeyCollection<br />&#160;&#160;nested type ValueCollection<br /><br />--------------------<br />Dictionary() : Dictionary&lt;&#39;TKey,&#39;TValue&gt;<br />Dictionary(capacity: int) : Dictionary&lt;&#39;TKey,&#39;TValue&gt;<br />Dictionary(comparer: IEqualityComparer&lt;&#39;TKey&gt;) : Dictionary&lt;&#39;TKey,&#39;TValue&gt;<br />Dictionary(dictionary: IDictionary&lt;&#39;TKey,&#39;TValue&gt;) : Dictionary&lt;&#39;TKey,&#39;TValue&gt;<br />Dictionary(capacity: int, comparer: IEqualityComparer&lt;&#39;TKey&gt;) : Dictionary&lt;&#39;TKey,&#39;TValue&gt;<br />Dictionary(dictionary: IDictionary&lt;&#39;TKey,&#39;TValue&gt;, comparer: IEqualityComparer&lt;&#39;TKey&gt;) : Dictionary&lt;&#39;TKey,&#39;TValue&gt;</div>
+
         </div>
         <div class="span3">
           <img src="/Legivel/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />  

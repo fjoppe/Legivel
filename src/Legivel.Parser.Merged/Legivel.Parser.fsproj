@@ -13,6 +13,7 @@
     <TargetFrameworks>net45;netstandard2.0</TargetFrameworks>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <TargetFrameworkProfile />
+    <OtherFlags>--deterministic- --debug:portable --warnon:1182</OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,7 +23,6 @@
     <OutputPath>.\bin\Debug</OutputPath>
     <DefineConstants>DEBUG</DefineConstants>
     <WarningLevel>5</WarningLevel>
-    <OtherFlags>--warnon:1182</OtherFlags>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
     <DocumentationFile>.\bin\Debug\Legivel.Parser.XML</DocumentationFile>
@@ -35,8 +35,6 @@
     <DefineConstants>
     </DefineConstants>
     <WarningLevel>5</WarningLevel>
-    <OtherFlags>--warnon:1182</OtherFlags>
-    <!-- <DocumentationFile>.\bin\Release\Legivel.Parser.XML</DocumentationFile> -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
   </PropertyGroup>
@@ -46,21 +44,6 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)|$(TargetFramework)' == 'Release|AnyCPU|netstandard2.0' ">
     <DocumentationFile>.\bin\Release\netstandard2.0\Legivel.Parser.XML</DocumentationFile>
   </PropertyGroup>
-
-  <!-- <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" /> -->
-  <!-- <Choose>
-    <When Condition="'$(VisualStudioVersion)' == '11.0'">
-      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets')">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose> -->
-  <!-- <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" /> -->
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fsi">
@@ -110,13 +93,6 @@
       <Link>Serialization.fs</Link>
     </Compile>
   </ItemGroup>
-  <!-- <ItemGroup>
-    <Reference Include="FSharp.Core, Version=4.4.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" /> 
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" /> 
-  </ItemGroup> -->
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And $(TargetFrameworkVersion) == 'v4.5'">
       <ItemGroup>

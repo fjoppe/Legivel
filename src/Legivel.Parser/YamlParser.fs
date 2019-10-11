@@ -132,8 +132,9 @@ type ParseState = {
         /// Context sensitive restrictions 
         Restrictions : ParseRestrictions
 
-        ///// Memoize scalar values by position and regex.
-        //Caching : Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>
+        /// Keep track of nested Mappings
+        BreadCrumb : (Node list) list
+
 #if DEBUG
         LoggingFunction : (string->unit)
 #endif
@@ -216,6 +217,16 @@ type ParseState = {
 
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
+        member this.AddBreadCrumbItem n = 
+            let bc =
+                match this.BreadCrumb with
+                |   []      -> [[n]]
+                |   h :: t  -> (n :: h) :: t
+            { this with BreadCrumb = bc }
+
+        member this.AddBreadCrumbLevel() =
+            { this with BreadCrumb = [] :: this.BreadCrumb }
+
 
 #if DEBUG
         static member Create pm inputStr lf = {
@@ -226,7 +237,8 @@ type ParseState = {
                 TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
                 Restrictions = ParseRestrictions.Create(); TrackLength = 0
                 IndentLevels = []
-                ; LoggingFunction = lf
+                BreadCrumb = []
+                LoggingFunction = lf
             }
 #else
         static member Create pm inputStr = {
@@ -237,7 +249,7 @@ type ParseState = {
                 TagReport = TagReport.Create (Unrecognized.Create 0 0) 0 0
                 Restrictions = ParseRestrictions.Create(); TrackLength = 0
                 IndentLevels = []
-                ; (*Caching = Dictionary()*)
+                BreadCrumb = []
             }
 #endif
 
@@ -413,6 +425,9 @@ module ParseState =
     let ResetRestrictions (ps:ParseState) = ps.ResetRestrictions()
     let ResetTrackLength (ps:ParseState) = ps.ResetTrackLength()
 
+    let AddBreadCrumbItem n (ps:ParseState) = ps.AddBreadCrumbItem n
+    let AddBreadCrumbLevel (ps:ParseState) = ps.AddBreadCrumbLevel()
+
 let getParseInfo pso psn = ParseInfo.Create (pso.Location) (psn.Location)
 
 type ParseFuncResult<'a> = (FallibleOption<'a * ParseState>*ParseMessage)      //  returns parsed node, if possible
@@ -429,6 +444,7 @@ let stringify (pattern:RGXType) =
         memoizeRGXType.Add(pattern, tosr)
         tosr
 
+[<NoComparison; NoEquality>]
 type ParsedItem = {
     StartPosition : int
     EndPosition   : int
@@ -460,20 +476,9 @@ with
                         Result = (r,m)
                     }
                 // calling "parseFunc" can change the dictionary, and we may override it here
-                if this.Cached.ContainsKey(sp,c,t) then this.Cached.Remove((sp,c,t)) |> ignore
-                this.Cached.Add((sp,c,t), chd)
-            //|   FallibleOptionValue.NoResult ->
-            //    let chd =
-            //        {
-            //            StartPosition = sp
-            //            EndPosition = sp
-            //            Type = t
-            //            Context = c
-            //            Result = (r,m)
-            //        }
-            //    // calling "parseFunc" can change the dictionary, and we may override it here
-            //    if this.Cached.ContainsKey(sp,c,t) then this.Cached.Remove((sp,c,t)) |> ignore
-            //    this.Cached.Add((sp,c,t), chd)
+                lock (this.Cached) <| fun () -> 
+                    if this.Cached.ContainsKey(sp,c,t) then this.Cached.Remove((sp,c,t)) |> ignore
+                    this.Cached.Add((sp,c,t), chd)
             |   _ -> ()
             (r,m)
 
@@ -558,8 +563,6 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     member private this.GlobalTagSchema
         with get() = globalTagSchema 
 
-        /// Memoize scalar values by position and regex.
-    //member private this.Caching = Dictionary<ScalarMemoizeKey, ScalarMemoizeValue>()
 
     new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, (fun _ -> ()))
 
@@ -1735,7 +1738,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         match nsflowyamlnode.Result with
         |   FallibleOptionValue.Value -> 
             let  (ck, prs) = nsflowyamlnode.Data
-            let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs)) |> ParseState.ResetRestrictions
+            let prs = 
+                prs.SkipIfMatch (OPT(this.``s-separate`` prs)) |> ParseState.ResetRestrictions
+                |>  ParseState.AddBreadCrumbItem ck
+
             let (cnsflowmapseparatevalue,pm2) = (this.``c-ns-flow-map-separate-value`` prs) 
             match cnsflowmapseparatevalue.Result with
             |   FallibleOptionValue.Value -> 
@@ -1754,7 +1760,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     //  [146]   http://www.yaml.org/spec/1.2/spec.html#c-ns-flow-map-empty-key-entry(n,c)
     member this.``c-ns-flow-map-empty-key-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "c-ns-flow-map-empty-key-entry" ps
-        let (cnsflowmapseparatevalue,pm) = (this.``c-ns-flow-map-separate-value`` ps) 
+        let (cnsflowmapseparatevalue,pm) = 
+            ps
+            |>  ParseState.AddBreadCrumbItem (this.ResolvedNullNode ps) // breadcrumb empty
+            |>  this.``c-ns-flow-map-separate-value``
         match cnsflowmapseparatevalue.Result with
         |   FallibleOptionValue.Value -> 
             let (c, prs) = cnsflowmapseparatevalue.Data
@@ -1788,7 +1797,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         match cflowjsonnode.Result with
         |   FallibleOptionValue.Value -> 
             let (ck, prs) = cflowjsonnode.Data
-            let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
+            let prs = 
+                prs.SkipIfMatch (OPT(this.``s-separate`` prs))
+                |>  ParseState.AddBreadCrumbItem ck
             let (cnsflowmapadjacentvalue,pm2) = (this.``c-ns-flow-map-adjacent-value`` prs) 
             match cnsflowmapadjacentvalue.Result with
             |   FallibleOptionValue.Value  -> 
@@ -2604,7 +2615,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             let (ck, prs1) = clblockmapexplicitkey.Data
             let noResult pm prs1  =
                 prs1 |> ParseState.``Match and Advance`` (this.``e-node``) (fun prs2 -> FallibleOption.Value((ck, this.ResolvedNullNode prs2), prs2), pm)
-            let (lblockmapexplicitvalue, pm2) = (this.``l-block-map-explicit-value`` prs1) 
+            let (lblockmapexplicitvalue, pm2) = 
+                prs1
+                |>  ParseState.AddBreadCrumbItem ck
+                |>  this.``l-block-map-explicit-value``
             match lblockmapexplicitvalue.Result with
             |   FallibleOptionValue.Value  -> 
                 let (cv, prs1) = lblockmapexplicitvalue.Data
@@ -2642,7 +2656,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     member this.``ns-l-block-map-implicit-entry`` ps : ParseFuncResult<_> =
         logger "ns-l-block-map-implicit-entry" ps
         let matchValue (ck, prs) =
-            let (clblockmapimplicitvalue, pm) = (this.``c-l-block-map-implicit-value`` prs) 
+            let (clblockmapimplicitvalue, pm) = 
+                prs
+                |>  ParseState.AddBreadCrumbItem ck
+                |>  this.``c-l-block-map-implicit-value``
             match clblockmapimplicitvalue.Result with
             |   FallibleOptionValue.Value -> 
                 let (cv, prs2) = clblockmapimplicitvalue.Data
@@ -2658,7 +2675,6 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                     |> FallibleOption.bind(matchValue)
                 )
             else
-                //let prsc = psp |> ParseState.ProcessErrors
                 FallibleOption.ErrorResult (), psp.Messages
 
         let (nssblockmapimplicitkey, pm) = (this.``ns-s-block-map-implicit-key`` ps) 

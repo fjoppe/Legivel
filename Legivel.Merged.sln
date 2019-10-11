@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2010
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29326.143
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{63297B98-5CED-492C-A5B7-A5B4F73CF142}"
 	ProjectSection(SolutionItems) = preProject
@@ -31,13 +31,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "content", "content", "{8E6D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.Parser", "src\Legivel.Parser.Merged\Legivel.Parser.fsproj", "{B0B8F1C7-CB0D-495F-9B09-E8D68561AEE7}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Legivel.Parser", "src\Legivel.Parser.Merged\Legivel.Parser.fsproj", "{B0B8F1C7-CB0D-495F-9B09-E8D68561AEE7}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.LegivelMerged", "tests\Test.Legivel.Merged\Test.LegivelMerged.fsproj", "{ED4CD570-A206-4922-88AA-991A2E8C2642}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Test.LegivelMerged", "tests\Test.Legivel.Merged\Test.LegivelMerged.fsproj", "{ED4CD570-A206-4922-88AA-991A2E8C2642}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.Mapper", "src\Legivel.Mapper.Merged\Legivel.Mapper.fsproj", "{F1048C7D-0AD1-41E2-86EF-D8AA4BAE982D}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Legivel.Mapper", "src\Legivel.Mapper.Merged\Legivel.Mapper.fsproj", "{F1048C7D-0AD1-41E2-86EF-D8AA4BAE982D}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Legivel.YamlPath", "src\Legivel.YamlPath.Merged\Legivel.YamlPath.fsproj", "{E8E3C303-65C3-40F1-8E7F-5B43868A9E6F}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Legivel.YamlPath", "src\Legivel.YamlPath.Merged\Legivel.YamlPath.fsproj", "{E8E3C303-65C3-40F1-8E7F-5B43868A9E6F}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Test.NetCore", "tests\Test.NetCore\Test.NetCore.fsproj", "{91344241-1CD5-4567-BEF0-B97FBC9E2978}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -61,6 +63,10 @@ Global
 		{E8E3C303-65C3-40F1-8E7F-5B43868A9E6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E8E3C303-65C3-40F1-8E7F-5B43868A9E6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E8E3C303-65C3-40F1-8E7F-5B43868A9E6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{91344241-1CD5-4567-BEF0-B97FBC9E2978}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91344241-1CD5-4567-BEF0-B97FBC9E2978}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91344241-1CD5-4567-BEF0-B97FBC9E2978}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91344241-1CD5-4567-BEF0-B97FBC9E2978}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -69,6 +75,7 @@ Global
 		{83F16175-43B1-4C90-A1EE-8E351C33435D} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
 		{8E6D5255-776D-4B61-85F9-73C37AA1FB9A} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
 		{ED4CD570-A206-4922-88AA-991A2E8C2642} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
+		{91344241-1CD5-4567-BEF0-B97FBC9E2978} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F90B0D09-3639-4BDD-951E-89F0AA90674E}

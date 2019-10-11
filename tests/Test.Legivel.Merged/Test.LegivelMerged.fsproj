@@ -5,17 +5,11 @@
     <Name>Legivel.Tests</Name>
     <AssemblyName>Legivel.Tests</AssemblyName>
     <RootNamespace>YamlParser.Tests</RootNamespace>
-    <!-- <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>ed4cd570-a206-4922-88aa-991a2e8c2642</ProjectGuid> -->
     <TargetFrameworks>net45;netcoreapp2.0</TargetFrameworks>
-    <!-- <TargetFrameworkProfile />
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
     <NoWarn>NU1701</NoWarn>
     <IsPackable>false</IsPackable>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <OtherFlags>--deterministic- --debug:portable</OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -43,11 +37,6 @@
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net45'">
-    <!-- <Reference Include="FSharp.Charting">
-      <HintPath>..\..\packages\FSharp.Charting\lib\net45\FSharp.Charting.dll</HintPath>
-      <Private>True</Private>
-      <Paket>True</Paket>
-    </Reference> -->
     <Reference Include="FSharp.Core">
       <HintPath>..\..\packages\FSharp.Core\lib\net45\FSharp.Core.dll</HintPath>
       <Private>True</Private>
@@ -97,16 +86,6 @@
     </Reference>
     <Reference Include="nunit.framework">
       <HintPath>..\..\packages\NUnit\lib\netstandard2.0\nunit.framework.dll</HintPath>
-      <Private>True</Private>
-      <Paket>True</Paket>
-    </Reference>
-    <Reference Include="Open.Collections">
-      <HintPath>..\..\packages\Open.Collections\lib\netstandard2.0\Open.Collections.dll</HintPath>
-      <Private>True</Private>
-      <Paket>True</Paket>
-    </Reference>
-    <Reference Include="Open.Disposable">
-      <HintPath>..\..\packages\Open.Disposable\lib\netstandard2.0\Open.Disposable.dll</HintPath>
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>

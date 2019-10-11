@@ -16,6 +16,8 @@ type ProcessingOption =
     |   MappingMode of MapYaml
 
 
+val ParseOptions : ProcessingOption list -> ProcessingOptions
+
 /// Returned when deserialization was succesful
 type SuccessInfo<'tp> = {
         Data : 'tp

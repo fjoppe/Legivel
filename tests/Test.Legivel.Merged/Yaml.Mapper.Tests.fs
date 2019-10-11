@@ -1,4 +1,4 @@
-module Legivel.Tests
+module Legivel.Mapping.Tests
 
 open NUnit.Framework
 open FsUnitTyped
@@ -470,17 +470,59 @@ let ``Deserialize - IDictionary Mapping blockstyle - Sunny Day`` () =
     res.["c"] |> shouldEqual "d"
 
 
-#if NETCOREAPP2_0
-open Open.Collections
+//#if NETCOREAPP2_0
+//open Open.Collections
+
+//[<Test>]
+//let ``Deserialize - OrderedDictionary Mapping blockstyle - Sunny Day`` () =
+//    let yml = "{a : b, c : d}"
+//    let res = DeserializeSuccess<Open.Collections.OrderedDictionary<string,string>> yml
+//    res.["a"] |> shouldEqual "b"
+//    res.["c"] |> shouldEqual "d"
+    
+//    res.Keys |> List.ofSeq |> shouldEqual ["a"; "c"]
+
+
+//#endif
+
+
+type Doc = {
+    t1: string list
+    t2: Map<string, int>
+    t3: Map<int, string>
+}
+
+
+open Legivel.Customization
+open Legivel.Customization.Mapping
+open Legivel.Serialization
+open Legivel.TagResolution
+
+
+let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : DeserializeResult<'tp> list =
+    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options)) MapYamlDocumentToNative ParseYamlToNative (Failsafe.Schema) (YamlExtended.NullGlobalTag.Uri) (Failsafe.StringGlobalTag.Uri) yml
+    |>  List.map(fun r ->
+        match r with
+        |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
+        |   WithErrors d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
+    )
+
 
 [<Test>]
-let ``Deserialize - OrderedDictionary Mapping blockstyle - Sunny Day`` () =
-    let yml = "{a : b, c : d}"
-    let res = DeserializeSuccess<Open.Collections.OrderedDictionary<string,string>> yml
-    res.["a"] |> shouldEqual "b"
-    res.["c"] |> shouldEqual "d"
-    
-    res.Keys |> List.ofSeq |> shouldEqual ["a"; "c"]
+let ``Deserialize - undesired boolean conversion - Sunny Day`` () =
+    let yml = "
+t1: [yes, maybe, no]
+t2: {true: 2, false: 0, ambiguous: 1, null: -1}
+t3: {1: yes, 0: maybe, -1: no}"
 
 
-#endif
+    let r = DeserializeWithOptions<Doc> [MappingMode(MapYaml.AndRequireFullProjection)] yml
+
+    r
+    |> List.head
+    |>  function
+        |   Succes s -> s.Data.t1 |> List.head |> shouldEqual "yes"
+        |   Error e -> failwith "Unexpected error"
+
+
+
