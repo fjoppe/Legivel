@@ -133,7 +133,7 @@ type ParseState = {
         Restrictions : ParseRestrictions
 
         /// Keep track of nested Mappings
-        BreadCrumb : (Node list) list
+        BreadCrumb : Node list 
 
 #if DEBUG
         LoggingFunction : (string->unit)
@@ -217,15 +217,7 @@ type ParseState = {
 
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
-        member this.AddBreadCrumbItem n = 
-            let bc =
-                match this.BreadCrumb with
-                |   []      -> [[n]]
-                |   h :: t  -> (n :: h) :: t
-            { this with BreadCrumb = bc }
-
-        member this.AddBreadCrumbLevel() =
-            { this with BreadCrumb = [] :: this.BreadCrumb }
+        member this.AddBreadCrumbItem n = { this with BreadCrumb = n :: this.BreadCrumb }
 
 
 #if DEBUG
@@ -426,7 +418,6 @@ module ParseState =
     let ResetTrackLength (ps:ParseState) = ps.ResetTrackLength()
 
     let AddBreadCrumbItem n (ps:ParseState) = ps.AddBreadCrumbItem n
-    let AddBreadCrumbLevel (ps:ParseState) = ps.AddBreadCrumbLevel()
 
 let getParseInfo pso psn = ParseInfo.Create (pso.Location) (psn.Location)
 
@@ -544,7 +535,7 @@ type CreateErrorMessage() =
 let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 
 
-type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit)) =
+type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit), parseEvents: ParseEvents) =
     let logger s ps = 
 //#if DEBUG
 //        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
@@ -563,8 +554,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     member private this.GlobalTagSchema
         with get() = globalTagSchema 
 
+    new(globalTagSchema : GlobalTagSchema, parseEvents: ParseEvents) = Yaml12Parser(globalTagSchema, (fun _ -> ()), parseEvents)
 
-    new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, (fun _ -> ()))
+    new(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit)) = Yaml12Parser(globalTagSchema, loggingFunction, ParseEvents.Create())
+
+    new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, (fun _ -> ()), ParseEvents.Create())
+
 
     member private this.LogReturn str (ps:ParseState) (pso:FallibleOption<_>, pm:ParseMessage) = 
         //match pso.Result with
@@ -738,7 +733,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         let convertPrainEscapedMultiLine (str:string) = str.Replace("\x0d\x0a", "\n")
         this.``flow fold lines`` convertPrainEscapedMultiLine ps str
 
-    member this.ResolveTag (ps:ParseState) tag tagLocation (node:Node) : FallibleOption<Node * ParseState>*ParseMessage =
+    member this.ResolveTag (ps:ParseState) (tag:TagKind) tagLocation (node:Node) : FallibleOption<Node * ParseState>*ParseMessage =
         let checkTagKindMatch (t:GlobalTag) rs =
             if t.Kind = node.Kind then FallibleOption.Value(rs), ps.Messages
             else
@@ -788,16 +783,21 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 | Some tsh -> ResolveShorthand tsh sub
                 | None -> ps.AddErrorMessage (MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrHandleNotDeclared (lazy sprintf "The %s handle wasn't declared." name))
 
-        match tag with
-        |   NonSpecificQM   -> ResolveNonSpecificTag "?"
-        |   NonSpecificQT   -> ResolveNonSpecificTag "!"
-        |   ShortHandPrimary name -> 
-            TryResolveTagShortHand "!" name
-            |> FallibleOption.ifnoresult(fun () -> ResolveLocalTag ("!"+name))
-        |   ShortHandSecondary sub  -> ResolveTagShortHand "!!" sub
-        |   ShortHandNamed (name, sub)  -> ResolveTagShortHand name sub
-        |   Verbatim name   -> ResolveLocalTag name
-        |   TagKind.Empty   -> FallibleOption.Value(node,ps), ps.Messages
+
+        parseEvents.ResolveTagEvent ps.BreadCrumb node (EventNodeKind.MappingKey) 
+        |>  function
+        |   None    ->
+            match tag with
+            |   NonSpecificQM   -> ResolveNonSpecificTag "?"
+            |   NonSpecificQT   -> ResolveNonSpecificTag "!"
+            |   ShortHandPrimary name -> 
+                TryResolveTagShortHand "!" name
+                |> FallibleOption.ifnoresult(fun () -> ResolveLocalTag ("!"+name))
+            |   ShortHandSecondary sub  -> ResolveTagShortHand "!!" sub
+            |   ShortHandNamed (name, sub)  -> ResolveTagShortHand name sub
+            |   Verbatim name   -> ResolveLocalTag name
+            |   TagKind.Empty   -> FallibleOption.Value(node,ps), ps.Messages
+        |   Some t  -> FallibleOption.Value(node.SetTag t, ps),ps.Messages 
 
 
     member this.PostProcessAndValidateNode (fn : FallibleOption<Node * ParseState>, pm:ParseMessage) : FallibleOption<Node * ParseState>*ParseMessage = 

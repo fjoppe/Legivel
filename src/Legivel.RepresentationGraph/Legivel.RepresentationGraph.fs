@@ -356,3 +356,21 @@ type Representation =
     |   CompleteRepresentaton of ParsedDocumentResult
     |   EmptyRepresentation of EmptyDocumentResult
 
+
+
+type EventNodeKind =
+    |   MappingKey
+    |   MappingValue
+    |   SequenceItem
+
+
+[<NoEquality; NoComparison>]
+type ParseEvents = {
+    ResolveTagEvent : (Node list -> Node -> EventNodeKind -> TagKind option)
+}
+
+    
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module ParseEvents =
+    let Create() = { ResolveTagEvent = fun _ _ _ -> None }
+    let ResolveTagEvent ve pe = { pe with ResolveTagEvent = ve}

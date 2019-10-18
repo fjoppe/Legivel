@@ -261,3 +261,22 @@ type Representation =
     /// There was no result (possible candidate to discard; this never occurred when testing)
     |   EmptyRepresentation of EmptyDocumentResult
 
+
+
+type EventNodeKind =
+    |   MappingKey
+    |   MappingValue
+    |   SequenceItem
+
+
+[<NoEquality; NoComparison>]
+type ParseEvents = internal {
+    ResolveTagEvent : (Node list -> Node -> EventNodeKind -> TagKind option)
+}
+
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module ParseEvents =
+    val Create : unit -> ParseEvents
+    val ResolveTagEvent :  (Node list -> Node -> EventNodeKind -> TagKind option) -> ParseEvents -> ParseEvents
+
