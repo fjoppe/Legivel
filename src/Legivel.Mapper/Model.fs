@@ -5,6 +5,21 @@ open Legivel.Common
 open Legivel.RepresentationGraph
 open Legivel.Customization.Utilities
 
+
+type TypePath = {
+    Path : string list
+}
+with
+    static member Create() = { Path = []}
+    member this.Add name = { this with Path = name :: this.Path}
+
+
+type NodeToTypeMapping = {
+    AllMappings : Map<TypePath, GlobalTag>
+}
+
+
+
 /// Base type for any yaml to native mapping, for simple and compex types.
 type IYamlToNativeMapping =
     /// Map a Node to the target type-instance (boxed into type obj)
@@ -46,9 +61,16 @@ and MappedTypes = private {
 
         member this.GetMapper r = this.RefToMapper.[r]
 
+and FoundMappers = {
+    Ref     : YTMRef
+    Mappers : AllTryFindIdiomaticMappers
+}
+with
+    static member Create r m = { Ref = r; Mappers = m}
+
 
 /// The return type of a TryFindMapper function
-and TryFindMapperReturnType = FallibleOption<YTMRef*AllTryFindIdiomaticMappers>*ProcessMessages
+and TryFindMapperReturnType = FallibleOption<FoundMappers>*ProcessMessages
 
 /// signature of a TryFindMapper function, which may return a mapping construct for the given native type
 and TryFindIdiomaticMapperForType = (ProcessMessages -> AllTryFindIdiomaticMappers -> Type -> TryFindMapperReturnType)

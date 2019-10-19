@@ -500,7 +500,7 @@ open Legivel.TagResolution
 
 
 let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : DeserializeResult<'tp> list =
-    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options)) MapYamlDocumentToNative ParseYamlToNative (Failsafe.Schema) (YamlExtended.NullGlobalTag.Uri) (Failsafe.StringGlobalTag.Uri) yml
+    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options) YamlScalarToNativeMappings) MapYamlDocumentToNative ParseYamlToNative (Failsafe.Schema) (YamlExtended.NullGlobalTag.Uri) (Failsafe.StringGlobalTag.Uri) yml
     |>  List.map(fun r ->
         match r with
         |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
