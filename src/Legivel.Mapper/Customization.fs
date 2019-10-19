@@ -66,17 +66,17 @@ type PrimitiveMappingInfo = {
     }
     with
         /// Return a PrimitiveMappingInfo when the given type maps to one of the supported yaml scalar tags
-        static member TryFindMapper (po : ProcessingOptions) (primitiveMappers:ScalarToNativeMapping list) (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType =
-            if mappers.HasType t then
-                FallibleOption.Value (FoundMappers.Create (mappers.GetRef t) mappers), msgList
+        static member TryFindMapper (po : ProcessingOptions) (primitiveMappers:ScalarToNativeMapping list) (fmp:FindMapperParams) : TryFindMapperReturnType =
+            if fmp.Mappers.HasType fmp.CurrentType then
+                FallibleOption.Value (FoundMappers.Create (fmp.Mappers.GetRef fmp.CurrentType) fmp.Mappers), fmp.MessageList
             else
-                let (r,nm) = mappers.RegisterType t
+                let (r,nm) = fmp.Mappers.RegisterType fmp.CurrentType
                 primitiveMappers
-                |> List.tryFind(fun yt -> AreTypesEqual t yt.TargetType) 
+                |> List.tryFind(fun yt -> AreTypesEqual fmp.CurrentType yt.TargetType) 
                 |> Option.map(fun yt -> { ScalarMapping = yt; ProcessingOptions = po } :> IYamlToNativeMapping)
                 |>  function
-                    |   Some d  -> FallibleOption.Value (FoundMappers.Create r (nm.RegisterMapper r d)), msgList
-                    |   None    -> FallibleOption.NoResult(), msgList
+                    |   Some d  -> FallibleOption.Value (FoundMappers.Create r (nm.RegisterMapper r d)), fmp.MessageList
+                    |   None    -> FallibleOption.NoResult(), fmp.MessageList
         
         interface IYamlToNativeMapping with
 
@@ -117,19 +117,19 @@ type RecordMappingInfo = {
     }
     with
         /// Return a RecordMappingInfo when the given type is a record and all record-fields can be mapped
-        static member TryFindMapper (po : ProcessingOptions) (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType  =
-            if mappers.HasType t then
-                FallibleOption.Value (FoundMappers.Create (mappers.GetRef t) mappers), msgList
+        static member TryFindMapper (po : ProcessingOptions) (fmp:FindMapperParams) : TryFindMapperReturnType  =
+            if fmp.Mappers.HasType fmp.CurrentType then
+                FallibleOption.Value (FoundMappers.Create (fmp.Mappers.GetRef fmp.CurrentType) fmp.Mappers), fmp.MessageList
             else
-                if FSharpType.IsRecord t then
-                    let (r,nm) = mappers.RegisterType t
-                    FSharpType.GetRecordFields t
+                if FSharpType.IsRecord fmp.CurrentType then
+                    let (r,nm) = fmp.Mappers.RegisterType fmp.CurrentType
+                    FSharpType.GetRecordFields fmp.CurrentType
                     |>  List.ofArray
                     |>  List.fold(fun (rfms, (nms:AllTryFindIdiomaticMappers)) (fld:PropertyInfo) ->
-                        faillableSequence msgList {
-                            let! foundMappers = nms.TryFindMapper msgList fld.PropertyType
+                        faillableSequence fmp.MessageList {
+                            let! foundMappers = nms.TryFindMapper fmp.MessageList fld.PropertyType
                             let! yamlName =
-                                GetCustomAttributeMmbr<YamlFieldAttribute> msgList fld
+                                GetCustomAttributeMmbr<YamlFieldAttribute> fmp.MessageList fld
                                 |>  fun (custAttrib, pm) ->
                                     match custAttrib.Result with
                                     |   FallibleOptionValue.NoResult -> FallibleOption.Value (fld.Name), pm
@@ -150,13 +150,13 @@ type RecordMappingInfo = {
                     |> fun (fl, nmps) ->
                         fl
                         |>  List.rev
-                        |>  FallibleOption.errorsOrValues msgList (fun possibleMappings ->
+                        |>  FallibleOption.errorsOrValues fmp.MessageList (fun possibleMappings ->
                             let m = possibleMappings |>  List.map(fun (pm,msg) -> pm.Data)
-                            let d = { Target = t; FieldMapping = m; StringTagUri = nmps.StringTagUri; ProcessingOptions = po } :> IYamlToNativeMapping 
-                            FallibleOption.Value (FoundMappers.Create r (nmps.RegisterMapper r d)), msgList
+                            let d = { Target = fmp.CurrentType; FieldMapping = m; StringTagUri = nmps.StringTagUri; ProcessingOptions = po } :> IYamlToNativeMapping 
+                            FallibleOption.Value (FoundMappers.Create r (nmps.RegisterMapper r d)), fmp.MessageList
                         )
                 else
-                    FallibleOption.NoResult(), msgList
+                    FallibleOption.NoResult(), fmp.MessageList
 
 
         interface IYamlToNativeMapping with
@@ -231,19 +231,19 @@ type OptionalMappingInfo = {
     }
     with
         /// Return a OptionalMappingInfo when the given type is an option and the option-data type can be mapped
-        static member TryFindMapper (po : ProcessingOptions) (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType =
-            if mappers.HasType t then
-                FallibleOption.Value (FoundMappers.Create (mappers.GetRef t) mappers), msgList
+        static member TryFindMapper (po : ProcessingOptions) (fmp:FindMapperParams) : TryFindMapperReturnType =
+            if fmp.Mappers.HasType fmp.CurrentType then
+                FallibleOption.Value (FoundMappers.Create (fmp.Mappers.GetRef fmp.CurrentType) fmp.Mappers), fmp.MessageList
             else
                 let IsOptional (t:Type) = AreTypesEqual typeof<FSharp.Core.Option<obj>> t
-                if IsOptional t then
-                    let (r,nm) = mappers.RegisterType t
-                    nm.TryFindMapper msgList t.GenericTypeArguments.[0]
+                if IsOptional fmp.CurrentType then
+                    let (r,nm) = fmp.Mappers.RegisterType fmp.CurrentType
+                    nm.TryFindMapper fmp.MessageList fmp.CurrentType.GenericTypeArguments.[0]
                     |>  FallibleOption.map(fun (foundMappers) -> 
-                            let d = {OptionType=t; OptionMapping = foundMappers.Ref;NullTagUri = mappers.NullTagUri; ProcessingOptions = po} :> IYamlToNativeMapping
+                            let d = {OptionType=fmp.CurrentType; OptionMapping = foundMappers.Ref;NullTagUri = fmp.Mappers.NullTagUri; ProcessingOptions = po} :> IYamlToNativeMapping
                             FoundMappers.Create r (foundMappers.Mappers.RegisterMapper r d))
                 else
-                    FallibleOption.NoResult(), msgList
+                    FallibleOption.NoResult(), fmp.MessageList
 
         interface IYamlToNativeMapping with
 
@@ -270,19 +270,19 @@ type ListMappingInfo = {
     }
     with
         /// Return a ListMappingInfo when the given type is a list and the list-data-type can be mapped
-        static member TryFindMapper (po : ProcessingOptions) (msgList:ProcessMessages)  (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType =
-            if mappers.HasType t then
-                FallibleOption.Value (FoundMappers.Create (mappers.GetRef t) mappers), msgList
+        static member TryFindMapper (po : ProcessingOptions) (fmp:FindMapperParams) : TryFindMapperReturnType =
+            if fmp.Mappers.HasType fmp.CurrentType then
+                FallibleOption.Value (FoundMappers.Create (fmp.Mappers.GetRef fmp.CurrentType) fmp.Mappers), fmp.MessageList
             else
                 let IsList (t:Type) = AreTypesEqual typeof<FSharp.Collections.List<obj>> t
-                if IsList t then
-                    let (r,nm) = mappers.RegisterType t
-                    nm.TryFindMapper msgList t.GenericTypeArguments.[0]
+                if IsList fmp.CurrentType then
+                    let (r,nm) = fmp.Mappers.RegisterType fmp.CurrentType
+                    nm.TryFindMapper fmp.MessageList fmp.CurrentType.GenericTypeArguments.[0]
                     |>  FallibleOption.map(fun (foundMappers) -> 
-                        let d = {ListType = t; ListMapping = foundMappers.Ref; ProcessingOptions = po} :> IYamlToNativeMapping
+                        let d = {ListType = fmp.CurrentType; ListMapping = foundMappers.Ref; ProcessingOptions = po} :> IYamlToNativeMapping
                         FoundMappers.Create r (foundMappers.Mappers.RegisterMapper r d))
                 else
-                    FallibleOption.NoResult(), msgList
+                    FallibleOption.NoResult(), fmp.MessageList
 
 
         interface IYamlToNativeMapping with
@@ -320,9 +320,9 @@ type MapMappingInfo = {
     }
     with
         /// Return a MapMappingInfo when the given type is a Map
-        static member TryFindMapper (po : ProcessingOptions) (msgList:ProcessMessages)  (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType =
-            if mappers.HasType t then
-                FallibleOption.Value (FoundMappers.Create (mappers.GetRef t) mappers), msgList
+        static member TryFindMapper (po : ProcessingOptions) (fmp:FindMapperParams) : TryFindMapperReturnType =
+            if fmp.Mappers.HasType fmp.CurrentType then
+                FallibleOption.Value (FoundMappers.Create (fmp.Mappers.GetRef fmp.CurrentType) fmp.Mappers), fmp.MessageList
             else
                 let (|IsMap|_|) (t:Type) = if (AreTypesEqual typeof<FSharp.Collections.Map<int, int>> t) then Some t else None
                 let (|IsValidIDictionary|_|) (t:Type) =
@@ -332,12 +332,12 @@ type MapMappingInfo = {
                         |>  List.filter(fun s -> s.FullName.StartsWith("System.Collections.Generic.IDictionary`2") && s.GetGenericArguments().Length = 2)
                     if (idict.Length = 1) then Some t else None // any type inheriting this interface twice or more is also not supported
 
-                match t with
+                match fmp.CurrentType with
                 |   IsMap   mt ->
-                    let (r,nm) = mappers.RegisterType mt
-                    faillableSequence  msgList {
-                        let! keyType = nm.TryFindMapper msgList mt.GenericTypeArguments.[0]
-                        let! valType = keyType.Mappers.TryFindMapper msgList mt.GenericTypeArguments.[1]
+                    let (r,nm) = fmp.Mappers.RegisterType mt
+                    faillableSequence  fmp.MessageList {
+                        let! keyType = nm.TryFindMapper fmp.MessageList mt.GenericTypeArguments.[0]
+                        let! valType = keyType.Mappers.TryFindMapper fmp.MessageList mt.GenericTypeArguments.[1]
                         return (keyType.Ref,valType.Ref), valType.Mappers
                     }
                     |>  FallibleOption.map(fun ((kt,vt), nmps) -> 
@@ -345,18 +345,18 @@ type MapMappingInfo = {
                         FoundMappers.Create r (nmps.RegisterMapper r d))
                 |   IsValidIDictionary mt ->
                     if mt.GetConstructor([||])=null then
-                        AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Type in target deserialization type, has no parameterless constructor '%s'" (mt.FullName)))
+                        AddError fmp.MessageList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Type in target deserialization type, has no parameterless constructor '%s'" (mt.FullName)))
                     else
-                        let (r,nm) = mappers.RegisterType mt
-                        faillableSequence  msgList {
-                            let! keyType = nm.TryFindMapper msgList mt.GenericTypeArguments.[0]
-                            let! valType = keyType.Mappers.TryFindMapper msgList mt.GenericTypeArguments.[1]
+                        let (r,nm) = fmp.Mappers.RegisterType mt
+                        faillableSequence  fmp.MessageList {
+                            let! keyType = nm.TryFindMapper fmp.MessageList mt.GenericTypeArguments.[0]
+                            let! valType = keyType.Mappers.TryFindMapper fmp.MessageList mt.GenericTypeArguments.[1]
                             return (keyType.Ref,valType.Ref), valType.Mappers
                         }
                         |>  FallibleOption.map(fun ((kt,vt), nmps) -> 
                             let d = {MapType = mt; IsFsharpMap = false; KeyType = kt; ValueType = vt; ProcessingOptions = po} :> IYamlToNativeMapping
                             FoundMappers.Create r (nmps.RegisterMapper r d))
-                |    _ -> FallibleOption.NoResult(), msgList
+                |    _ -> FallibleOption.NoResult(), fmp.MessageList
 
         member private this.EmptyMap 
             with get() =
@@ -423,20 +423,20 @@ type EnumMappingInfo = {
     }
     with
         /// Return a EnumMappingInfo when the given type is an enum
-        static member TryFindMapper (po : ProcessingOptions) (msgList:ProcessMessages)  (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType =
-            if mappers.HasType t then
-                FallibleOption.Value (FoundMappers.Create (mappers.GetRef t) mappers), msgList
+        static member TryFindMapper (po : ProcessingOptions) (fmp:FindMapperParams) : TryFindMapperReturnType =
+            if fmp.Mappers.HasType fmp.CurrentType then
+                FallibleOption.Value (FoundMappers.Create (fmp.Mappers.GetRef fmp.CurrentType) fmp.Mappers), fmp.MessageList
             else
-                if t.IsEnum then
-                    let (r,nm) = mappers.RegisterType t
-                    let enml =  [for i in t.GetEnumValues() do yield i]
+                if fmp.CurrentType.IsEnum then
+                    let (r,nm) = fmp.Mappers.RegisterType fmp.CurrentType
+                    let enml =  [for i in fmp.CurrentType.GetEnumValues() do yield i]
 
                     let mappedValues =
                         enml 
                         |>  List.map(fun e -> 
                             let es = e.ToString()
-                            let fi = t.GetField(es)
-                            GetCustomAttributeFld<YamlValueAttribute> msgList fi
+                            let fi = fmp.CurrentType.GetField(es)
+                            GetCustomAttributeFld<YamlValueAttribute> fmp.MessageList fi
                             |>  fun (customAttrib, pm) -> 
                                 match customAttrib.Result with
                                 |   FallibleOptionValue.NoResult -> FallibleOption.Value { YamlName = es; EnumName = es; EnumValue = e}, pm
@@ -446,13 +446,13 @@ type EnumMappingInfo = {
                             )
 
                     mappedValues
-                    |>  FallibleOption.errorsOrValues msgList (fun ecm -> 
+                    |>  FallibleOption.errorsOrValues fmp.MessageList (fun ecm -> 
                         let um = ecm |> List.map(fun (d, _) -> d.Data)
-                        let d = { EnumType = t; EnumCases = um; ProcessingOptions = po} :> IYamlToNativeMapping 
-                        FoundMappers.Create r (nm.RegisterMapper r d) |> FallibleOption.Value, msgList
+                        let d = { EnumType = fmp.CurrentType; EnumCases = um; ProcessingOptions = po} :> IYamlToNativeMapping 
+                        FoundMappers.Create r (nm.RegisterMapper r d) |> FallibleOption.Value, fmp.MessageList
                     )
                 else
-                    FallibleOption.NoResult(), msgList
+                    FallibleOption.NoResult(), fmp.MessageList
 
         interface IYamlToNativeMapping with
 
@@ -492,20 +492,21 @@ type DiscriminatedUnionMappingInfo = {
         DUField : string option
         UnionCases : DUFieldMapping list
         UnionCaseMapping : (string * YTMRef) list
+        ProcessingOptions : ProcessingOptions
     }
     with
         /// Return a DiscriminatedUnionMappingInfo when the given type is a Discriminated Union
-        static member TryFindMapper (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (t:Type) : TryFindMapperReturnType =
-            if mappers.HasType t then
-                FallibleOption.Value (FoundMappers.Create (mappers.GetRef t) mappers), msgList
+        static member TryFindMapper (po : ProcessingOptions) (fmp:FindMapperParams) : TryFindMapperReturnType =
+            if fmp.Mappers.HasType fmp.CurrentType then
+                FallibleOption.Value (FoundMappers.Create (fmp.Mappers.GetRef fmp.CurrentType) fmp.Mappers), fmp.MessageList
             else
-                if FSharpType.IsUnion(t) then
-                    let (r,nm) = mappers.RegisterType t
+                if FSharpType.IsUnion(fmp.CurrentType) then
+                    let (r,nm) = fmp.Mappers.RegisterType fmp.CurrentType
 
-                    let ucl = FSharpType.GetUnionCases(t) |> List.ofArray
+                    let ucl = FSharpType.GetUnionCases(fmp.CurrentType) |> List.ofArray
 
                     let duf =
-                        GetCustomAttributeTp<YamlFieldAttribute> msgList t
+                        GetCustomAttributeTp<YamlFieldAttribute> fmp.MessageList fmp.CurrentType
                         |>  fun (hasName, pm) ->
                             match hasName.Result with
                             |   FallibleOptionValue.Value -> Some hasName.Data.Name'
@@ -516,9 +517,9 @@ type DiscriminatedUnionMappingInfo = {
                         |>  List.fold(fun (mfl, (nmpl:AllTryFindIdiomaticMappers)) uc ->
                                 let fld = uc.GetFields() |> List.ofArray
                                 match fld with
-                                |   []      ->  (FallibleOption.NoResult(), msgList) :: mfl, nmpl
+                                |   []      ->  (FallibleOption.NoResult(), fmp.MessageList) :: mfl, nmpl
                                 |   [fd]    ->  
-                                    nmpl.TryFindMapper msgList (fd.PropertyType)
+                                    nmpl.TryFindMapper fmp.MessageList (fd.PropertyType)
                                     |>  fun (foundMapper,pm) ->
                                         match foundMapper.Result with
                                         |   FallibleOptionValue.Value -> 
@@ -526,13 +527,13 @@ type DiscriminatedUnionMappingInfo = {
                                             (FallibleOption.Value(uc.Name, fmp.Ref), pm) :: mfl , fmp.Mappers
                                         |   FallibleOptionValue.NoResult -> (FallibleOption.NoResult(),pm) :: mfl , nmpl
                                         |   FallibleOptionValue.ErrorResult -> (FallibleOption.ErrorResult(),pm) :: mfl, nmpl
-                                |   _       ->  AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Union case contains more than one data-type '%s' in type: '%s'" uc.Name t.FullName)) :: mfl, nmpl
+                                |   _       ->  AddError fmp.MessageList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Union case contains more than one data-type '%s' in type: '%s'" uc.Name fmp.CurrentType.FullName)) :: mfl, nmpl
                         ) ([], nm)
 
                     let ucmp =
                         ucl
                         |>  List.map(fun uc ->
-                            GetCustomAttributeDU<YamlValueAttribute> msgList uc
+                            GetCustomAttributeDU<YamlValueAttribute> fmp.MessageList uc
                             |>  fun (customerAttrib, pm) ->
                                 match customerAttrib.Result with
                                 |   FallibleOptionValue.NoResult -> { YamlName = uc.Name; DUName = uc.Name; UCI = uc} |> FallibleOption.Value, pm
@@ -542,15 +543,15 @@ type DiscriminatedUnionMappingInfo = {
                         )
 
                     ucmp
-                    |>  FallibleOption.errorsOrValues msgList (fun ucm -> 
+                    |>  FallibleOption.errorsOrValues fmp.MessageList (fun ucm -> 
                         let um = ucm |> List.map(fun (d, _) -> d.Data)
                         mappedFields
-                        |>  FallibleOption.errorsOrValues msgList (fun cml -> 
-                            let d = { DUType = t; DUField = duf; UnionCases = um; UnionCaseMapping = cml |> List.map(fun (d, _) -> d.Data)} :> IYamlToNativeMapping 
-                            (FoundMappers.Create r (nmprs.RegisterMapper r d) |> FallibleOption.Value), msgList)
+                        |>  FallibleOption.errorsOrValues fmp.MessageList (fun cml -> 
+                            let d = { DUType = fmp.CurrentType; DUField = duf; UnionCases = um; UnionCaseMapping = cml |> List.map(fun (d, _) -> d.Data); ProcessingOptions = po} :> IYamlToNativeMapping 
+                            (FoundMappers.Create r (nmprs.RegisterMapper r d) |> FallibleOption.Value), fmp.MessageList)
                     )
                 else
-                    FallibleOption.NoResult(), msgList
+                    FallibleOption.NoResult(), fmp.MessageList
 
         //
         //  Plain Style
@@ -642,7 +643,7 @@ let BuildInTryFindMappers (po : ProcessingOptions) (primitives: ScalarToNativeMa
         MapMappingInfo.TryFindMapper po
         //  Do discriminated union last:
         //  FSharpType.IsUnion(typeof<obj list>) = true, there could be other cases?
-        DiscriminatedUnionMappingInfo.TryFindMapper 
+        DiscriminatedUnionMappingInfo.TryFindMapper po
     ]
 
 

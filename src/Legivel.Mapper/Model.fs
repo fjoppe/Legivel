@@ -17,7 +17,9 @@ with
 type NodeToTypeMapping = {
     AllMappings : Map<TypePath, GlobalTag>
 }
-
+with
+    static member Create() = { AllMappings = Map.empty}
+    member this.Add p t = { this with AllMappings = this.AllMappings.Add (p, t)}
 
 
 /// Base type for any yaml to native mapping, for simple and compex types.
@@ -68,12 +70,20 @@ and FoundMappers = {
 with
     static member Create r m = { Ref = r; Mappers = m}
 
+and FindMapperParams = {
+    MessageList : ProcessMessages 
+    Mappers     : AllTryFindIdiomaticMappers 
+    CurrentType : Type
+}
+with
+    static member Create ml mp t = { MessageList = ml; Mappers = mp; CurrentType = t}
+
 
 /// The return type of a TryFindMapper function
 and TryFindMapperReturnType = FallibleOption<FoundMappers>*ProcessMessages
 
 /// signature of a TryFindMapper function, which may return a mapping construct for the given native type
-and TryFindIdiomaticMapperForType = (ProcessMessages -> AllTryFindIdiomaticMappers -> Type -> TryFindMapperReturnType)
+and TryFindIdiomaticMapperForType = (FindMapperParams -> TryFindMapperReturnType)
 
 /// Structure containing all TryFindMapper functions available
 and AllTryFindIdiomaticMappers = private {
@@ -87,8 +97,9 @@ and AllTryFindIdiomaticMappers = private {
 
         /// Try to find a mapper for the given type, look in all potential mappers
         member this.TryFindMapper (msgList:ProcessMessages) (t:Type) : TryFindMapperReturnType =
+            let findParams = FindMapperParams.Create msgList this t
             this.PotentialMappers
-            |>  List.tryFindFo msgList (fun pmf -> pmf msgList this t)
+            |>  List.tryFindFo msgList (fun pmf -> pmf findParams)
             |>  fun (foundMapper, pm) ->
                 match foundMapper.Result with
                 |   FallibleOptionValue.NoResult    -> AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
