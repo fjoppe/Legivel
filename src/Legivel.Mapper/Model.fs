@@ -5,25 +5,38 @@ open Legivel.Common
 open Legivel.RepresentationGraph
 open Legivel.Customization.Utilities
 
-
-type TypePath = {
-    Path : string list
-}
-with
-    static member Create() = { Path = []}
-    member this.Add name = { this with Path = name :: this.Path}
+type NodePathType = string list
 
 
 type NodeToTypeMapping = {
-    AllMappings : Map<TypePath, GlobalTag>
+    AllMappings : Map<string, TagKind>
 }
 with
-    static member Create() = { AllMappings = Map.empty}
-    member this.Add p t = { this with AllMappings = this.AllMappings.Add (p, t)}
+
+    member this.Add t p = { this with AllMappings = this.AllMappings.Add (p, t)}
+
+
+module NodeToTypeMapping =
+    let Create() = { AllMappings = Map.empty}
+    let ToPath (l: NodePathType) = String.Join("/", l |> List.rev |> List.toArray) 
+    let RootPath (l: NodePathType) (nt:NodeToTypeMapping) =
+        let root = ToPath l
+        nt.AllMappings
+        |>  Map.toList
+        |>  List.map(fun (k,v) -> (root + k,v))
+        |>  Map.ofList
+        |>  fun c -> { AllMappings = c }
+    let Add t p (nt:NodeToTypeMapping) = nt.Add t p
+    let Merge (p:NodeToTypeMapping) (nt:NodeToTypeMapping) =
+        {
+            AllMappings = p.AllMappings |> Map.fold(fun s k v -> s |> Map.add k v) nt.AllMappings
+        }
 
 
 /// Base type for any yaml to native mapping, for simple and compex types.
 type IYamlToNativeMapping =
+    abstract member NodeToTypeMappings : NodePathType -> NodeToTypeMapping
+
     /// Map a Node to the target type-instance (boxed into type obj)
     abstract member map : msgList:ProcessMessages -> am:AllTryFindIdiomaticMappers -> n:Node -> FallibleOption<obj> * ProcessMessages
 
@@ -66,17 +79,29 @@ and MappedTypes = private {
 and FoundMappers = {
     Ref     : YTMRef
     Mappers : AllTryFindIdiomaticMappers
+    NodeType: NodeToTypeMapping
 }
 with
-    static member Create r m = { Ref = r; Mappers = m}
+    static member Create r m nt = { Ref = r; Mappers = m; NodeType = nt}
 
 and FindMapperParams = {
     MessageList : ProcessMessages 
     Mappers     : AllTryFindIdiomaticMappers 
     CurrentType : Type
+    PathToRoot  : NodePathType
 }
 with
-    static member Create ml mp t = { MessageList = ml; Mappers = mp; CurrentType = t}
+    static member Create ml mp t p = { MessageList = ml; Mappers = mp; CurrentType = t; PathToRoot = p}
+    member this.AddToPath name = { this with PathToRoot = name :: this.PathToRoot}
+
+    member this.GetExistingType() =
+        if this.Mappers.HasType this.CurrentType then
+            let ref = this.Mappers.GetRef this.CurrentType
+            let mapper : IYamlToNativeMapping = this.Mappers.GetMapper ref 
+            let nt = mapper.NodeToTypeMappings this.PathToRoot
+            (FallibleOption.Value (FoundMappers.Create ref this.Mappers nt), this.MessageList) |>  Some
+        else
+            None
 
 
 /// The return type of a TryFindMapper function
@@ -96,8 +121,8 @@ and AllTryFindIdiomaticMappers = private {
         static member Create ml nt st = {PotentialMappers = ml; NullTagUri' = nt; StringTagUri' = st; KnownTypes=MappedTypes.Create()}
 
         /// Try to find a mapper for the given type, look in all potential mappers
-        member this.TryFindMapper (msgList:ProcessMessages) (t:Type) : TryFindMapperReturnType =
-            let findParams = FindMapperParams.Create msgList this t
+        member this.TryFindMapper (msgList:ProcessMessages) (t:Type) pthtr : TryFindMapperReturnType =
+            let findParams = FindMapperParams.Create msgList this t pthtr
             this.PotentialMappers
             |>  List.tryFindFo msgList (fun pmf -> pmf findParams)
             |>  fun (foundMapper, pm) ->
