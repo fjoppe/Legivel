@@ -91,8 +91,7 @@ and FindMapperParams = {
     PathToRoot  : NodePathType
 }
 with
-    static member Create ml mp t p = { MessageList = ml; Mappers = mp; CurrentType = t; PathToRoot = p}
-    member this.AddToPath name = { this with PathToRoot = name :: this.PathToRoot}
+    static member Create ml mp t ptr = { MessageList = ml; Mappers = mp; CurrentType = t; PathToRoot = ptr }
 
     member this.GetExistingType() =
         if this.Mappers.HasType this.CurrentType then
