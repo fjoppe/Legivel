@@ -1,3 +1,6 @@
+#### 0.4.0 - Oct 31 2019
+*   BREAKING CHANGE: Renamed "Succes" to "Success" - output in type DeserializeResult, Legivel.Mapper
+
 #### 0.3.1 - May 12 2019
 *   Added support for Mapper target IDictionary<TK, TV>
 *   Data values are inserted into IDictionary<TK, TV>, in the same order of appearance, as in the yaml source

@@ -13,6 +13,7 @@
     <TargetFrameworks>net45;netstandard2.0</TargetFrameworks>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <TargetFrameworkProfile />
+    <OtherFlags>--warnon:1182 --deterministic- --debug:portable</OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,10 +23,9 @@
     <OutputPath>.\bin\Debug</OutputPath>
     <DefineConstants>DEBUG</DefineConstants>
     <WarningLevel>5</WarningLevel>
-    <OtherFlags>--warnon:1182</OtherFlags>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
-    <DocumentationFile>.\bin\Debug\Legivel.Parser.XML</DocumentationFile>
+    <!-- <DocumentationFile>.\bin\Debug\Legivel.Parser.XML</DocumentationFile> -->
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>PdbOnly</DebugType>
@@ -35,7 +35,6 @@
     <DefineConstants>
     </DefineConstants>
     <WarningLevel>5</WarningLevel>
-    <OtherFlags>--warnon:1182</OtherFlags>
     <!-- <DocumentationFile>.\bin\Release\Legivel.Parser.XML</DocumentationFile> -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
