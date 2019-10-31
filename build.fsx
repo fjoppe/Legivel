@@ -234,7 +234,7 @@ Target.create "NuGet" (fun _ ->
     {
         p with
             OutputPath = Some(Path.combine __SOURCE_DIRECTORY__ "bin")
-            // NoBuild = true
+            // NoBuild = true           
             Common = 
                 { 
                     DotNet.Options.Create() with 
