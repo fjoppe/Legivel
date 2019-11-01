@@ -3,7 +3,7 @@ framework: net45, netstandard2.0
 
 source https://nuget.org/api/v2
 
-nuget FSharp.Core
+nuget FSharp.Core 
 nuget Argu
 
 nuget Expecto
