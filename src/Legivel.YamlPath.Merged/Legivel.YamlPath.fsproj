@@ -14,6 +14,7 @@
     <!-- <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion> -->
     <Name>Legivel.YamlPath</Name>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <OtherFlags>--deterministic- --debug:portable</OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

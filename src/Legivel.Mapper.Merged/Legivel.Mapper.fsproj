@@ -13,6 +13,7 @@
     <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
     <Name>Legivel.Mapper</Name>
     <TargetFrameworkProfile />
+    <OtherFlags>--deterministic- --debug:portable</OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

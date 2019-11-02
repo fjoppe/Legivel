@@ -151,6 +151,7 @@ Target.create "CleanDocs" (fun _ ->
 Target.create "Restore" (fun _ ->
     solutionFile
     |> DotNet.restore id
+    Paket.restore id
 )
 
 Target.create "Build" (fun _ ->
@@ -234,7 +235,7 @@ Target.create "NuGet" (fun _ ->
     {
         p with
             OutputPath = Some(Path.combine __SOURCE_DIRECTORY__ "bin")
-            NoBuild = true
+            NoBuild = true           
             Common = 
                 { 
                     DotNet.Options.Create() with 

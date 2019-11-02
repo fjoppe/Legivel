@@ -18,14 +18,14 @@ let DeserializeSuccess<'tp> yml =
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data
+        |   Success s -> s.Data
         |   Error e -> failwith "Unexpected error"
         
 let DeserializeError<'tp> yml = 
     Deserialize<'tp> yml
     |> List.head
     |>  function
-        |   Succes _ -> failwith "Unexpected success"
+        |   Success _ -> failwith "Unexpected success"
         |   Error e -> e
 
 [<Test>]
@@ -386,7 +386,7 @@ let CustomDeserializeSuccess<'tp> opt yml =
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data
+        |   Success s -> s.Data
         |   Error e -> failwith "Unexpected error"
 
 let CustomDeserializeSuccessAndWarnings<'tp> opt yml = 
@@ -394,14 +394,14 @@ let CustomDeserializeSuccessAndWarnings<'tp> opt yml =
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data, s.Warn
+        |   Success s -> s.Data, s.Warn
         |   Error e -> failwith "Unexpected error"
         
 let CustomDeserializeError<'tp> opt yml = 
     DeserializeWithOptions<'tp> opt yml
     |> List.head
     |>  function
-        |   Succes _ -> failwith "Unexpected success"
+        |   Success _ -> failwith "Unexpected success"
         |   Error e -> e
 
 
