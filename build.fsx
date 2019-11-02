@@ -149,8 +149,7 @@ Target.create "CleanDocs" (fun _ ->
 // Build library & test project
 
 Target.create "Restore" (fun _ ->
-    solutionFile
-    |> DotNet.restore id
+    Paket.restore id
 )
 
 Target.create "Build" (fun _ ->
