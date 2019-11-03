@@ -17,9 +17,9 @@ type ParseInfo = {
 
 /// A Node may be of Maping, Sequence or Scalar type
 type NodeKind = 
-    | Mapping
-    | Sequence
-    | Scalar
+    | Mapping   = 0
+    | Sequence  = 1
+    | Scalar    = 2
 
 
 /// Each Global Tag must implement the functions in this type
@@ -264,9 +264,12 @@ type Representation =
 
 
 type EventNodeKind =
-    |   MappingKey
-    |   MappingValue
-    |   SequenceItem
+    |   Mapping       = 0  
+    |   MappingKey    = 1
+    |   MappingValue  = 2
+    |   Sequence      = 3
+    |   SequenceItem  = 4
+    |   Scalar        = 5
 
 
 [<NoEquality; NoComparison>]

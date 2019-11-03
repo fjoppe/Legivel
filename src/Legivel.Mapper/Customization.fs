@@ -29,9 +29,9 @@ module YamlMapped =
 
     let YEFailSafeResolution nst =
         match nst.Content.Kind with
-        |   Mapping -> Some YamlExtended.MappingGlobalTag
-        |   Sequence-> Some YamlExtended.SequenceGlobalTag
-        |   Scalar  -> Some YamlExtended.StringGlobalTag
+        |   NodeKind.Mapping -> Some YamlExtended.MappingGlobalTag
+        |   NodeKind.Sequence-> Some YamlExtended.SequenceGlobalTag
+        |   NodeKind.Scalar  -> Some YamlExtended.StringGlobalTag
 
     let tagResolutionYamlExtended = Legivel.TagResolution.SchemaUtils.tagResolution YEFailSafeResolution (YamlExtended.MappingGlobalTag, YamlExtended.SequenceGlobalTag, YamlExtended.StringGlobalTag)
 
@@ -656,6 +656,9 @@ let BuildInTryFindMappers (po : ProcessingOptions) (primitives: ScalarToNativeMa
         DiscriminatedUnionMappingInfo.TryFindMapper po
     ]
 
+let TagAssigner (nl:Node list) (n:Node) (nt:EventNodeKind) = 
+    None
+
 
 /// Creates a yaml-to-native-mapper for the given type 'tp
 let CreateTypeMappings<'tp> (msgList:ProcessMessages) (tryFindMappers:TryFindIdiomaticMapperForType list) nullTagUri stringTagUri =
@@ -701,7 +704,11 @@ let MapYamlDocumentToNative (msgList:ProcessMessages) (mappers:AllTryFindIdiomat
 
 /// Parses a yaml string, for the given yaml-schema and maps it to a native type instance
 let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema yml =
-    let yamlParser = Yaml12Parser(schema)
+    let parseEvents =
+        ParseEvents.Create()
+        |>  ParseEvents.ResolveTagEvent TagAssigner 
+
+    let yamlParser = Yaml12Parser(schema, parseEvents)
     (yamlParser.``l-yaml-stream`` yml) 
     |> List.map(fun ymlpl ->
         match ymlpl with

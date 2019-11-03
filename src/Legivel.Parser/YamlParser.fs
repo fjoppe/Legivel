@@ -133,7 +133,10 @@ type ParseState = {
         Restrictions : ParseRestrictions
 
         /// Keep track of nested Mappings
-        BreadCrumb : Node list 
+        BreadCrumb : Node list
+
+        /// Current Event Node Type
+        EventNodeType : EventNodeKind
 
 #if DEBUG
         LoggingFunction : (string->unit)
@@ -218,7 +221,8 @@ type ParseState = {
         member this.ResetTrackLength() = { this with TrackLength = 0 }
 
         member this.AddBreadCrumbItem n = { this with BreadCrumb = n :: this.BreadCrumb }
-
+        member this.PopBreadCrumbItem() = { this with BreadCrumb = this.BreadCrumb |> List.tail }
+        member this.SetCurrentEventNodeType enk = { this with EventNodeType = enk }
 
 #if DEBUG
         static member Create pm inputStr lf = {
@@ -231,7 +235,9 @@ type ParseState = {
                 IndentLevels = []
                 BreadCrumb = []
                 LoggingFunction = lf
+                EventNodeType = EventNodeKind.Scalar
             }
+
 #else
         static member Create pm inputStr = {
                 Location = DocumentLocation.Create 1 1; Input = RollingTokenizer.Create inputStr ; n=0; m=0; c=Context.``Block-out``; t=Chomping.``Clip``; 
@@ -418,6 +424,8 @@ module ParseState =
     let ResetTrackLength (ps:ParseState) = ps.ResetTrackLength()
 
     let AddBreadCrumbItem n (ps:ParseState) = ps.AddBreadCrumbItem n
+    let PopBreadCrumbItem (ps:ParseState) = ps.PopBreadCrumbItem()
+    let SetCurrentEventNodeType enk (ps:ParseState) = ps.SetCurrentEventNodeType enk
 
 let getParseInfo pso psn = ParseInfo.Create (pso.Location) (psn.Location)
 
@@ -653,7 +661,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             |> FallibleOption.bind(fun (content:Node, prs) ->
                 let prs = addAnchor anchor content prs
                 content
-                |> this.ResolveTag prs tag tl 
+                |> this.ResolveTag prs tag tl
                 |> this.PostProcessAndValidateNode
             )
         |   FallibleOptionValue.NoResult -> FallibleOption.NoResult(), pm
@@ -763,8 +771,8 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                     |   Some t  -> checkTagKindMatch t (node.SetTag (Global t),ps)
                     |   None    -> 
                         match node.Kind with
-                        |   Scalar  -> FallibleOption.Value(Unrecognized (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub)) |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar), ps.Messages
-                        |   _       -> FallibleOption.Value(Global (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub))       |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection), ps.Messages
+                        |   NodeKind.Scalar  -> FallibleOption.Value(Unrecognized (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub)) |> node.SetTag, ps |> ParseState.IncUnrecognizedScalar), ps.Messages
+                        |   _                -> FallibleOption.Value(Global (this.GlobalTagSchema.UnresolvedResolution (node.Kind) (tsh.MappedTagBase+sub))       |> node.SetTag, ps |> ParseState.IncUnrecognizedCollection), ps.Messages
             |   Regex(RGSF(this.``c-ns-local-tag-prefix``)) _ -> FallibleOption.Value(Local (LocalTag.Create (tsh.MappedTagBase+sub) (this.GlobalTagSchema.LocalTags))|> node.SetTag, ps), ps.Messages
             |   _ -> FallibleOption.NoResult(), ps.Messages
 
@@ -784,7 +792,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 | None -> ps.AddErrorMessage (MessageAtLine.CreateTerminate (ps.Location) MessageCode.ErrHandleNotDeclared (lazy sprintf "The %s handle wasn't declared." name))
 
 
-        parseEvents.ResolveTagEvent ps.BreadCrumb node (EventNodeKind.MappingKey) 
+        parseEvents.ResolveTagEvent ps.BreadCrumb node ps.EventNodeType
         |>  function
         |   None    ->
             match tag with
@@ -811,7 +819,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         |   _ -> failwith "Illegal value for fn"
 
     member this.ResolvedNullNode (ps:ParseState) =  
-        let n,_ = (this.ResolveTag ps NonSpecificQM (ps.Location) (PlainEmptyNode (getParseInfo ps ps)))
+        let n,_ = this.ResolveTag ps NonSpecificQM (ps.Location) (PlainEmptyNode (getParseInfo ps ps)) 
         n.Data |> fst // should never be None
 
           
@@ -1559,7 +1567,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 let noResult prs =
                     prs |> ParseState.``Match and Advance`` (this.``c-sequence-end``) (fun psx -> 
                         CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psx) [] 
-                        |> this.ResolveTag psx NonSpecificQM (prs.Location)
+                        |> this.ResolveTag (psx|> ParseState.SetCurrentEventNodeType EventNodeKind.Sequence) NonSpecificQM (prs.Location)
                         |> this.PostProcessAndValidateNode
                         )
 
@@ -1591,10 +1599,14 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 if lst.Length = 0 then rs   // empty sequence
                 else 
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) lst 
-                    |> this.ResolveTag psr NonSpecificQM (psr.Location)
+                    |> this.ResolveTag (psr|> ParseState.SetCurrentEventNodeType EventNodeKind.Sequence) NonSpecificQM (psr.Location)
                     |> this.PostProcessAndValidateNode
 
-            let (nsflowseqentry,pm) =(this.``ns-flow-seq-entry`` psp)
+            let (nsflowseqentry,pm) =
+                psp
+                |>  ParseState.SetCurrentEventNodeType EventNodeKind.SequenceItem
+                |>  this.``ns-flow-seq-entry``
+
             match  nsflowseqentry.Result with
             |   FallibleOptionValue.Value ->
                 let (entry, prs) = nsflowseqentry.Data
@@ -1605,7 +1617,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-seq-entries`` prs2 lst
                 |   _ ->  
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst
-                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
+                    |> this.ResolveTag (prs|> ParseState.SetCurrentEventNodeType EventNodeKind.Sequence) NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
             |   FallibleOptionValue.NoResult     -> psp |> noResult (FallibleOption.NoResult(), pm)
             |   FallibleOptionValue.ErrorResult  -> psp |> noResult (FallibleOption.ErrorResult(), pm)
@@ -1620,7 +1632,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         logger "ns-flow-seq-entry" ps
 
         (ps |> ParseState.OneOf) {
-            either(this.``ns-flow-pair`` >> FallibleOption.bind(fun ((ck, cv), prs) -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) [(ck,cv)] |> this.ResolveTag prs NonSpecificQM (prs.Location)))
+            either(this.``ns-flow-pair`` >> FallibleOption.bind(fun ((ck, cv), prs) -> 
+                CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) [(ck,cv)] 
+                |> this.ResolveTag (prs|>ParseState.SetCurrentEventNodeType EventNodeKind.Mapping) NonSpecificQM (prs.Location)))
             either(this.``ns-flow-node``)
             ifneither(FallibleOption.NoResult())
         }
@@ -1637,7 +1651,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 let prs = prs.SetStyleContext(this.``in-flow`` prs)
                 let (mres,pm) = this.``ns-s-flow-map-entries`` prs
 
-                let noResult prs = prs |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] |> this.ResolveTag prs2 NonSpecificQM (prs2.Location))
+                let noResult prs = prs |> ParseState.``Match and Advance`` (this.``c-mapping-end``) (fun prs2 -> 
+                    CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs2) [] 
+                    |> this.ResolveTag (prs2|>ParseState.SetCurrentEventNodeType EventNodeKind.Mapping) NonSpecificQM (prs2.Location))
 
                 match mres.Result with
                 |   FallibleOptionValue.Value  -> 
@@ -1667,7 +1683,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 if lst.Length = 0 then rs   // empty sequence
                 else
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) lst 
-                    |> this.ResolveTag psr NonSpecificQM (psr.Location)
+                    |> this.ResolveTag (psr|> ParseState.SetCurrentEventNodeType EventNodeKind.Mapping) NonSpecificQM (psr.Location)
                     |> this.PostProcessAndValidateNode
 
             let (nsflowmapentry,pm) = (this.``ns-flow-map-entry`` psp) 
@@ -1675,13 +1691,14 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             |   FallibleOptionValue.Value  -> 
                 let ((ck, cv), prs) = nsflowmapentry.Data
                 let lst = (ck, cv) :: lst
-                let prs = prs.SkipIfMatch (OPT(this.``s-separate`` prs))
+                let prs = 
+                    prs.SkipIfMatch (OPT(this.``s-separate`` prs))
                 let commaPattern = this.``c-collect-entry`` + OPT(this.``s-separate`` prs)
                 match prs with
                 |   Regex3(commaPattern) (_, prs2) -> ``ns-s-flow-map-entries`` prs2 lst
                 |   _ -> 
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) lst  
-                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
+                    |> this.ResolveTag (prs |> ParseState.SetCurrentEventNodeType EventNodeKind.Mapping) NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
             |   FallibleOptionValue.NoResult -> psp |> noResult (FallibleOption.NoResult(),pm)
             |   FallibleOptionValue.ErrorResult -> psp |> noResult (FallibleOption.ErrorResult(), pm)
@@ -1694,9 +1711,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     //  [142]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-entry(n,c)
     member this.``ns-flow-map-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-map-entry" ps
-        let ``ns-flow-map-explicit-entry`` ps = 
-            ps |> ParseState.``Match and Advance`` (this.``c-mapping-key`` + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
-        (ps |> ParseState.OneOf) {
+        let ``ns-flow-map-explicit-entry`` = ParseState.``Match and Advance`` (this.``c-mapping-key`` + (this.``s-separate`` ps)) (this.``ns-flow-map-explicit-entry``)
+
+        (ps 
+        |>  ParseState.SetCurrentEventNodeType EventNodeKind.MappingKey
+        |>  ParseState.OneOf
+        ) {
             either (``ns-flow-map-explicit-entry``)
             either (this.``ns-flow-map-implicit-entry``)
             ifneither (FallibleOption.NoResult())        
@@ -1721,7 +1741,8 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     //  [144]   http://www.yaml.org/spec/1.2/spec.html#ns-flow-map-implicit-entry(n,c)
     member this.``ns-flow-map-implicit-entry`` (ps:ParseState) : ParseFuncResult<_> =
         logger "ns-flow-map-implicit-entry" ps
-        (ps |> ParseState.OneOf) {
+        (ps 
+        |>  ParseState.OneOf) {
             either (this.``ns-flow-map-yaml-key-entry``)
             either (this.``c-ns-flow-map-empty-key-entry``)
             either (this.``c-ns-flow-map-json-key-entry``)
@@ -1738,15 +1759,17 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         match nsflowyamlnode.Result with
         |   FallibleOptionValue.Value -> 
             let  (ck, prs) = nsflowyamlnode.Data
-            let prs = 
-                prs.SkipIfMatch (OPT(this.``s-separate`` prs)) |> ParseState.ResetRestrictions
-                |>  ParseState.AddBreadCrumbItem ck
 
-            let (cnsflowmapseparatevalue,pm2) = (this.``c-ns-flow-map-separate-value`` prs) 
+            let (cnsflowmapseparatevalue,pm2) = 
+                prs.SkipIfMatch (OPT(this.``s-separate`` prs)) 
+                |>  ParseState.ResetRestrictions
+                |>  ParseState.AddBreadCrumbItem ck
+                |>  this.``c-ns-flow-map-separate-value`` 
+
             match cnsflowmapseparatevalue.Result with
             |   FallibleOptionValue.Value -> 
                 let (cv, prs2)  = cnsflowmapseparatevalue.Data
-                FallibleOption.Value((ck,cv), prs2),pm2 
+                FallibleOption.Value((ck,cv), prs2.PopBreadCrumbItem()),pm2 
             |   FallibleOptionValue.NoResult -> FallibleOption.Value((ck, this.ResolvedNullNode prs), prs), pm2  //  ``e-node``
             |   FallibleOptionValue.ErrorResult -> 
                 FallibleOption.Value((ck, this.ResolvedNullNode prs), prs),pm2  //  ``e-node``
@@ -1767,7 +1790,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         match cnsflowmapseparatevalue.Result with
         |   FallibleOptionValue.Value -> 
             let (c, prs) = cnsflowmapseparatevalue.Data
-            FallibleOption.Value((this.ResolvedNullNode prs, c), prs), pm   //  ``e-node``
+            FallibleOption.Value((this.ResolvedNullNode prs, c), prs.PopBreadCrumbItem()), pm   //  ``e-node``
         |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
         |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
         | _ -> failwith "Illegal value for cnsflowmapseparatevalue"
@@ -1780,7 +1803,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         ps |> ParseState.``Match and Advance`` this.``c-mapping-value`` (fun prs ->
             if IsMatch(prs.Input.Data, (this.``ns-plain-safe`` prs)) then FallibleOption.NoResult(), prs.Messages
             else
-                let (nsflownode,pm) = prs |> ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
+                let (nsflownode,pm) = 
+                    prs
+                    |>  ParseState.SetCurrentEventNodeType EventNodeKind.MappingValue
+                    |>  ParseState.``Match and Advance`` (this.``s-separate`` prs) (this.``ns-flow-node``)
                 match nsflownode.Result with
                 |   FallibleOptionValue.ErrorResult ->
                     PlainEmptyNode (getParseInfo ps prs) |> this.ResolveTag prs NonSpecificQM (prs.Location)  //  ``e-node``
@@ -1803,8 +1829,8 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             let (cnsflowmapadjacentvalue,pm2) = (this.``c-ns-flow-map-adjacent-value`` prs) 
             match cnsflowmapadjacentvalue.Result with
             |   FallibleOptionValue.Value  -> 
-                let (cv, prs2) = cnsflowmapadjacentvalue.Data
-                FallibleOption.Value((ck,cv), prs2), pm2
+                let (cv, prs2:ParseState) = cnsflowmapadjacentvalue.Data
+                FallibleOption.Value((ck,cv), prs2.PopBreadCrumbItem()), pm2
             |   FallibleOptionValue.NoResult -> FallibleOption.Value((ck, this.ResolvedNullNode prs), prs), pm2  //  ``e-node``
             |   FallibleOptionValue.ErrorResult -> 
                 FallibleOption.Value((ck, this.ResolvedNullNode prs), prs), pm2  //  ``e-node``
@@ -2435,14 +2461,17 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                             if (acc.Length = 0) then rs
                             else 
                                 CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
-                                |> this.ResolveTag psp NonSpecificQM (psp.Location)
+                                |> this.ResolveTag (psp |> ParseState.SetCurrentEventNodeType EventNodeKind.Sequence) NonSpecificQM (psp.Location)
                                 |> this.PostProcessAndValidateNode
                         else
                             //let prsc = psr |> ParseState.ProcessErrors
                             FallibleOption.ErrorResult(), psr.Messages
 
                     let pspf = psp.FullIndented
-                    let (clblockseqentry, pm) = pspf |> ParseState.``Match and Advance`` (this.``s-indent(n)`` pspf) (this.``c-l-block-seq-entry``)
+                    let (clblockseqentry, pm) = 
+                        pspf 
+                        |>  ParseState.SetCurrentEventNodeType EventNodeKind.SequenceItem
+                        |>  ParseState.``Match and Advance`` (this.``s-indent(n)`` pspf) (this.``c-l-block-seq-entry``)
                     match clblockseqentry.Result with
                     |   FallibleOptionValue.Value -> 
                         let (c, prs2) = clblockseqentry.Data
@@ -2462,7 +2491,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     member this.``c-l-block-seq-entry`` ps =
         logger "c-l-block-seq-entry" ps
 
-        ps |> ParseState.``Match and Advance`` (RGP("-", [Token.``t-hyphen``])) (fun prs ->
+        ps 
+        |>  ParseState.SetCurrentEventNodeType EventNodeKind.SequenceItem
+        |>  ParseState.``Match and Advance`` (RGP("-", [Token.``t-hyphen``])) (fun prs ->
             if IsMatch(prs.Input.Data, (this.``ns-char``)) then // Not followed by an ns-char
                 FallibleOption.NoResult(), prs.Messages
             else
@@ -2511,9 +2542,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         let rec ``ns-l-compact-sequence`` psp (acc: Node list) =
             let contentOrNone rs psr = 
                 if (acc.Length = 0) then rs
-                else 
+                else
                     CreateSeqNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
-                    |> this.ResolveTag psr NonSpecificQM (psr.Location)
+                    |> this.ResolveTag (psr|> ParseState.SetCurrentEventNodeType EventNodeKind.Sequence) NonSpecificQM (psr.Location)
                     |> this.PostProcessAndValidateNode
 
             if not(IsMatch(psp.Input.Data, (this.``s-indent(n)`` psp))) then
@@ -2536,7 +2567,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                     psp.AddErrorMessage <| CreateErrorMessage.IndentLevelError psp
             else
                 //psp.Input.Reset()
-                let (clblockseqentry, pm) = psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
+                let (clblockseqentry, pm) = 
+                    psp 
+                    |>  ParseState.SetCurrentEventNodeType EventNodeKind.SequenceItem
+                    |>  ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``c-l-block-seq-entry``)
                 match clblockseqentry.Result  with
                 |   FallibleOptionValue.Value -> 
                     let (c, prs2) = clblockseqentry.Data
@@ -2571,9 +2605,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                     let contentOrNone rs psr = 
                         if (ParseState.HasNoTerminatingError psr) then
                             if (acc.Length = 0) then rs
-                            else 
+                            else
                                 CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps psr) acc 
-                                |> this.ResolveTag psr NonSpecificQM (psr.Location)
+                                |> this.ResolveTag (psr |> ParseState.SetCurrentEventNodeType EventNodeKind.Mapping) NonSpecificQM (psr.Location)
                                 |> this.PostProcessAndValidateNode
                         else
                             //let prsc = psr |> ParseState.ProcessErrors
@@ -2597,7 +2631,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     //  [188]   http://www.yaml.org/spec/1.2/spec.html#ns-l-block-map-entry(n)
     member this.``ns-l-block-map-entry`` (ps:ParseState) : ParseFuncResult<_> = 
         logger "ns-l-block-map-entry" ps
-        (ps |> ParseState.OneOf) {
+        (ps
+        |>  ParseState.SetCurrentEventNodeType EventNodeKind.MappingKey
+        |>  ParseState.OneOf) {
             either (this.``c-l-block-map-explicit-entry``)
             either (this.``ns-l-block-map-implicit-entry``)
             ifneither (FallibleOption.NoResult())
@@ -2622,7 +2658,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             match lblockmapexplicitvalue.Result with
             |   FallibleOptionValue.Value  -> 
                 let (cv, prs1) = lblockmapexplicitvalue.Data
-                FallibleOption.Value((ck, cv), prs1), pm2
+                FallibleOption.Value((ck, cv), prs1.PopBreadCrumbItem()), pm2
             |   FallibleOptionValue.NoResult  -> prs1 |> noResult pm2
             |   FallibleOptionValue.ErrorResult -> prs1 |> noResult pm2
             | _ -> failwith "Illegal value for lblockmapexplicitvalue"
@@ -2646,7 +2682,10 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     member this.``l-block-map-explicit-value`` ps : ParseFuncResult<_> = 
         logger "l-block-map-explicit-value" ps
         ps |> ParseState.``Match and Advance`` ((this.``s-indent(n)`` ps) + this.``c-mapping-value``) (fun prs ->
-            this.``s-l+block-indented`` (prs |> ParseState.SetStyleContext Context.``Block-out``)
+            prs
+            |>  ParseState.SetCurrentEventNodeType EventNodeKind.MappingValue
+            |>  ParseState.SetStyleContext Context.``Block-out``
+            |>  this.``s-l+block-indented`` 
         )
         |> ParseState.ResetEnv ps
         |> ParseState.TrackParseLocation ps
@@ -2663,7 +2702,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             match clblockmapimplicitvalue.Result with
             |   FallibleOptionValue.Value -> 
                 let (cv, prs2) = clblockmapimplicitvalue.Data
-                FallibleOption.Value((ck, cv), prs2), pm
+                FallibleOption.Value((ck, cv), prs2.PopBreadCrumbItem()), pm
             |   FallibleOptionValue.NoResult   -> FallibleOption.NoResult(), pm
             |   FallibleOptionValue.ErrorResult -> FallibleOption.ErrorResult(), pm
             | _ -> failwith "Illegal value for clblockmapimplicitvalue"
@@ -2732,7 +2771,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                 if (acc.Length = 0) then rs
                 else 
                     CreateMapNode (NonSpecific.NonSpecificTagQM) (getParseInfo ps prs) acc 
-                    |> this.ResolveTag prs NonSpecificQM (prs.Location)
+                    |> this.ResolveTag (prs |> ParseState.SetCurrentEventNodeType EventNodeKind.Mapping) NonSpecificQM (prs.Location)
                     |> this.PostProcessAndValidateNode
 
             let (nslblockmapentry, pm) = psp |> ParseState.``Match and Advance`` (this.``s-indent(n)`` psp) (this.``ns-l-block-map-entry``)

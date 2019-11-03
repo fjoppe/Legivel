@@ -12,9 +12,9 @@ type ParseInfo = {
         static member Create s e = { Start = s; End = e}
 
 type NodeKind = 
-    | Mapping
-    | Sequence
-    | Scalar
+    | Mapping   = 0
+    | Sequence  = 1
+    | Scalar    = 2
 
 [<NoEquality; NoComparison>]
 type TagFunctions = {
@@ -274,9 +274,9 @@ and
         member this.Kind
             with get() =
                 match this with
-                |   SeqNode _       -> Sequence
-                |   MapNode _       -> Mapping
-                |   ScalarNode _    -> Scalar
+                |   SeqNode _       -> NodeKind.Sequence
+                |   MapNode _       -> NodeKind.Mapping
+                |   ScalarNode _    -> NodeKind.Scalar
 
         member this.DebuggerInfo 
             with get() =
@@ -359,9 +359,12 @@ type Representation =
 
 
 type EventNodeKind =
-    |   MappingKey
-    |   MappingValue
-    |   SequenceItem
+    |   Mapping       = 0  
+    |   MappingKey    = 1
+    |   MappingValue  = 2
+    |   Sequence      = 3
+    |   SequenceItem  = 4
+    |   Scalar        = 5
 
 
 [<NoEquality; NoComparison>]
