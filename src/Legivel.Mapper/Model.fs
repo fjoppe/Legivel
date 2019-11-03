@@ -123,7 +123,10 @@ and AllTryFindIdiomaticMappers = private {
         member this.TryFindMapper (msgList:ProcessMessages) (t:Type) pthtr : TryFindMapperReturnType =
             let findParams = FindMapperParams.Create msgList this t pthtr
             this.PotentialMappers
-            |>  List.tryFindFo msgList (fun pmf -> pmf findParams)
+            |>  List.tryFindFo msgList (fun pmf -> 
+                match findParams.GetExistingType() with
+                |   Some v -> v
+                |   None -> pmf findParams)
             |>  fun (foundMapper, pm) ->
                 match foundMapper.Result with
                 |   FallibleOptionValue.NoResult    -> AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
