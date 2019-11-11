@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\packages\test\NUnit\build\NUnit.props" Condition="Exists('..\..\packages\test\NUnit\build\NUnit.props')" Label="Paket" />
+  <PropertyGroup>
+    <ProjectGuid>91344241-1cd5-4567-bef0-b97fbc9e2978</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Test.NetCore</RootNamespace>
+    <AssemblyName>Test.NetCore</AssemblyName>
+    <TargetFrameworks>netcoreapp2.0</TargetFrameworks>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <UseStandardResourceNames>true</UseStandardResourceNames>
+    <WarningsAsErrors>3239;$(WarningsAsErrors)</WarningsAsErrors>
+    <Name>Test.NetCore</Name>
+    <OtherFlags>--deterministic- --debug:portable</OtherFlags>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <Tailcalls>false</Tailcalls>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <WarningLevel>3</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <Tailcalls>true</Tailcalls>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <WarningLevel>3</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+    <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.0'">
+    <Reference Include="FSharp.Core">
+      <HintPath>..\..\packages\FSharp.Core\lib\netstandard1.6\FSharp.Core.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <Reference Include="FSharp.Data">
+      <HintPath>..\..\packages\FSharp.Data\lib\netstandard2.0\FSharp.Data.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <Reference Include="NLog">
+      <HintPath>..\..\packages\NLog\lib\netstandard2.0\NLog.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <Reference Include="NLog.FSharp">
+      <HintPath>..\..\packages\NLog.FSharp\lib\net40\NLog.FSharp.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <Reference Include="nunit.framework">
+      <HintPath>..\..\packages\NUnit\lib\netstandard2.0\nunit.framework.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <Reference Include="Open.Collections">
+      <HintPath>..\..\packages\Open.Collections\lib\netstandard2.0\Open.Collections.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <Reference Include="Open.Disposable">
+      <HintPath>..\..\packages\Open.Disposable\lib\netstandard2.0\Open.Disposable.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit3TestAdapter" framework="netcoreapp2.0" version="3.12.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Legivel.Mapper.Merged\Legivel.Mapper.fsproj">
+      <Name>Legivel.Mapper</Name>
+      <Project>{f1048c7d-0ad1-41e2-86ef-d8aa4bae982d}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.Parser.Merged\Legivel.Parser.fsproj">
+      <Name>Legivel.Parser</Name>
+      <Project>{b0b8f1c7-cb0d-495f-9b09-e8d68561aee7}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Legivel.YamlPath.Merged\Legivel.YamlPath.fsproj">
+      <Name>Legivel.YamlPath</Name>
+      <Project>{e8e3c303-65c3-40f1-8e7f-5b43868a9e6f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\paket-files\fsprojects\FsUnit\src\FsUnit.NUnit\FsUnitTyped.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/FsUnitTyped.fs</Link>
+    </Compile>
+    <Compile Include="AssemblyInfo.fs" />
+    <None Include="App.config" />
+    <Compile Include="Yaml.Mapper.Tests.fs" />
+    <None Include="paket.references" />
+    <Content Include="packages.config" />
+  </ItemGroup>
+
+</Project>

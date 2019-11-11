@@ -3,15 +3,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <!-- <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{e8e3c303-65c3-40f1-8e7f-5b43868a9e6f}</ProjectGuid> -->
     <OutputType>Library</OutputType>
     <RootNamespace>Legivel.YamlPath</RootNamespace>
     <AssemblyName>Legivel.YamlPath</AssemblyName>
-    <!-- <TargetFrameworkVersion>v4.5</TargetFrameworkVersion> -->
     <TargetFrameworks>net45;netstandard2.0</TargetFrameworks>
-    <!-- <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
-    <!-- <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion> -->
     <Name>Legivel.YamlPath</Name>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     <OtherFlags>--deterministic- --debug:portable</OtherFlags>

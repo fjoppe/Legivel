@@ -229,16 +229,16 @@ module Failsafe =
     
     let localtagFunctions = { LocalTagsFuncs.AreEqual = localTagsAreEqual; GetHash = localTagsGetHash}
 
-    let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", Mapping, fsMappingTag)
-    let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", Sequence, fsSequenceTag)
-    let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", Scalar, fsScalarTag )
+    let MappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:map", NodeKind.Mapping, fsMappingTag)
+    let SequenceGlobalTag = GlobalTag.Create("tag:yaml.org,2002:seq", NodeKind.Sequence, fsSequenceTag)
+    let StringGlobalTag =   GlobalTag.Create("tag:yaml.org,2002:str", NodeKind.Scalar, fsScalarTag )
 
 
     let defaultFailSafeResolution nst =
         match nst.Content.Kind with
-        |   Mapping -> Some MappingGlobalTag
-        |   Sequence-> Some SequenceGlobalTag
-        |   Scalar  -> Some StringGlobalTag
+        |   NodeKind.Mapping -> Some MappingGlobalTag
+        |   NodeKind.Sequence-> Some SequenceGlobalTag
+        |   NodeKind.Scalar  -> Some StringGlobalTag
 
     let providedTags = [MappingGlobalTag; SequenceGlobalTag; StringGlobalTag]
 
@@ -263,7 +263,7 @@ module JSON =
     let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
 
     let NullGlobalTag =
-        GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "null",
+        GlobalTag.Create("tag:yaml.org,2002:null", NodeKind.Scalar, "null",
             (fun s -> 
                     match s with
                     | Regex "null" _ -> Some "null"
@@ -272,7 +272,7 @@ module JSON =
         )
 
     let BooleanGlobalTag = 
-        GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "true|false",
+        GlobalTag.Create("tag:yaml.org,2002:bool", NodeKind.Scalar, "true|false",
             (fun s -> 
                 match s with
                 | Regex "true" _ -> Some "true"
@@ -282,7 +282,7 @@ module JSON =
         )
 
     let IntegerGlobalTag = 
-        GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "[-]?(0|[1-9][0-9]*)",
+        GlobalTag.Create("tag:yaml.org,2002:int", NodeKind.Scalar, "[-]?(0|[1-9][0-9]*)",
             (fun s ->
                 match s with
                 | Regex "^([-])?(0|[1-9][0-9_]*)$" [sign; is] -> sprintf "%+d" (Int64.Parse(String.Concat(sign, is))) |> Some
@@ -291,7 +291,7 @@ module JSON =
         )
 
     let FloatGlobalTag = 
-        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "[-]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?",
+        GlobalTag.Create("tag:yaml.org,2002:float", NodeKind.Scalar, "[-]?(0|[1-9][0-9]*)?(\.[0-9]*)?([eE][-+][0-9]+)?",
             (fun s -> 
                 let canonicalSign sign = if sign = "-" then "-" else "+"
                 match s with
@@ -330,7 +330,7 @@ module YamlCore =
     let formattedScalarTag = { Failsafe.fsScalarTag with PostProcessAndValidateNode = SchemaUtils.isFormattedScalarValid }
 
     let NullGlobalTag =
-        GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
+        GlobalTag.Create("tag:yaml.org,2002:null", NodeKind.Scalar, "~|null|Null|NULL|^$",
             (fun s -> 
                     match s with
                     | Regex "~|null|Null|NULL|^$" _ -> Some "~"
@@ -339,7 +339,7 @@ module YamlCore =
         )
 
     let BooleanGlobalTag = 
-        GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "true|True|TRUE|false|False|FALSE",
+        GlobalTag.Create("tag:yaml.org,2002:bool", NodeKind.Scalar, "true|True|TRUE|false|False|FALSE",
             (fun s -> 
                 match s with
                 | Regex "true|True|TRUE"    _ -> Some "true"
@@ -349,7 +349,7 @@ module YamlCore =
         )
 
     let IntegerGlobalTag = 
-        GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "0o[0-7]+|[-+]?([0-9]+)|0x[0-9a-fA-F]+",
+        GlobalTag.Create("tag:yaml.org,2002:int", NodeKind.Scalar, "0o[0-7]+|[-+]?([0-9]+)|0x[0-9a-fA-F]+",
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
@@ -383,7 +383,7 @@ module YamlCore =
             | Regex "^(\\.(nan|NaN|NAN))$" _ -> ".nan" |> Some
             | _ -> None
 
-        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?|[-+]?\\.(inf|Inf|INF)|\\.(nan|NaN|NAN)",
+        GlobalTag.Create("tag:yaml.org,2002:float", NodeKind.Scalar, "[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?|[-+]?\\.(inf|Inf|INF)|\\.(nan|NaN|NAN)",
             toCanonical, formattedScalarTag
         )
 
@@ -482,7 +482,7 @@ module YamlExtended =
             FallibleOption.ErrorResult(), pm
 
     let NullGlobalTag =
-        GlobalTag.Create("tag:yaml.org,2002:null", Scalar, "~|null|Null|NULL|^$",
+        GlobalTag.Create("tag:yaml.org,2002:null", NodeKind.Scalar, "~|null|Null|NULL|^$",
             (fun s -> 
                     match s with
                     | Regex "(^(~|null|Null|NULL)$)|^$" _ -> "~" |> Some
@@ -491,7 +491,7 @@ module YamlExtended =
         )
 
     let BooleanGlobalTag = 
-        GlobalTag.Create("tag:yaml.org,2002:bool", Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
+        GlobalTag.Create("tag:yaml.org,2002:bool", NodeKind.Scalar, "y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF",
             (fun s -> 
                 match s with
                 | Regex "^(y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON)$" _ -> Some "true"
@@ -501,7 +501,7 @@ module YamlExtended =
         )
 
     let IntegerGlobalTag = 
-        GlobalTag.Create("tag:yaml.org,2002:int", Scalar, "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
+        GlobalTag.Create("tag:yaml.org,2002:int", NodeKind.Scalar, "[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?(0|[1-9][0-9_]*)|[-+]?0x[0-9a-fA-F_]+|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+",
             (fun s ->
                 // used for both digit and hex conversion
                 let digitToValue c = if c >= 'A' then 10+(int c)-(int 'A') else (int c)-(int '0')
@@ -552,7 +552,7 @@ module YamlExtended =
             | Regex "^(?:(\.(nan|NaN|NAN)))$" _ -> Some ".nan"
             | _ -> None
 
-        GlobalTag.Create("tag:yaml.org,2002:float", Scalar, "^([-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN))$",
+        GlobalTag.Create("tag:yaml.org,2002:float", NodeKind.Scalar, "^([-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN))$",
             toCanonical, formattedScalarTag
         )
 
@@ -606,14 +606,14 @@ module YamlExtended =
                 pm.AddError <| MessageAtLine.CreateContinue (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (lazy sprintf "Timestamp has incorrect format: %s" str)
                 FallibleOption.ErrorResult(), pm
 
-        GlobalTag.Create("tag:yaml.org,2002:timestamp", Scalar, RGSF(rgtimestamp),
+        GlobalTag.Create("tag:yaml.org,2002:timestamp", NodeKind.Scalar, RGSF(rgtimestamp),
             (timestampToCanonical), { formattedScalarTag with PostProcessAndValidateNode = validateTimestamp}
         )
 
     //  http://yaml.org/type/value.html
     let ValueGlobalTag =
         //  this tag only marks !!value, no logic; a native constuctor could/should effect this
-        GlobalTag.Create("tag:yaml.org,2002:value", Scalar, "=",
+        GlobalTag.Create("tag:yaml.org,2002:value", NodeKind.Scalar, "=",
             (fun s -> 
                     match s with
                     | Regex "=" _ -> Some "=" 
@@ -624,7 +624,7 @@ module YamlExtended =
     //  http://yaml.org/type/merge.html
     let MergeGlobalTag =
         //  this tag only marks !!merge, the !!map tag should effect this
-        GlobalTag.Create("tag:yaml.org,2002:merge", Scalar, "<<",
+        GlobalTag.Create("tag:yaml.org,2002:merge", NodeKind.Scalar, "<<",
             (fun s -> 
                     match s with
                     | Regex "<<" _ -> Some "<<"
@@ -653,7 +653,7 @@ module YamlExtended =
             match s with
             | Regex (RGSF allowedChars) [_] -> Regex.Replace(s, RGSFR(controlChar),"") |> Some
             | _ -> None
-        GlobalTag.Create("tag:yaml.org,2002:binary", Scalar, RGSF(allowedChars), 
+        GlobalTag.Create("tag:yaml.org,2002:binary", NodeKind.Scalar, RGSF(allowedChars), 
             binaryToCanonical, { formattedScalarTag with IsMatch = fun _ _ -> false })
 
 
@@ -698,13 +698,13 @@ module YamlExtended =
     let unorderedSetTagFuncs = TagFunctions.Create Failsafe.areUnorderedMappingsEqual Failsafe.getUnorderedMappingHash validateUnorderedSet isMatchUnorderedSet
 
     //  http://yaml.org/type/omap.html
-    let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", Sequence, orderedMappingTagFuncs)
+    let OrderedMappingGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:omap", NodeKind.Sequence, orderedMappingTagFuncs)
 
     //  http://yaml.org/type/pairs.html
-    let OrderedPairsGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:pairs", Sequence, orderedPairsTagFuncs)
+    let OrderedPairsGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:pairs", NodeKind.Sequence, orderedPairsTagFuncs)
 
     //  http://yaml.org/type/set.html
-    let UnOrderedSetGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:set", Mapping, unorderedSetTagFuncs)
+    let UnOrderedSetGlobalTag =  GlobalTag.Create("tag:yaml.org,2002:set", NodeKind.Mapping, unorderedSetTagFuncs)
 
     let  mergeAndValidateMapping (pm:ParseMessage) n = 
         let (mn,rn) = (SchemaUtils.getMapNode n) |> List.partition(fun (k,_) -> k.NodeTag.Uri = MergeGlobalTag.Uri)
@@ -776,9 +776,9 @@ module YamlExtended =
 
     let YEFailSafeResolution nst =
         match nst.Content.Kind with
-        |   Mapping -> Some MappingGlobalTag
-        |   Sequence-> Some SequenceGlobalTag
-        |   Scalar  -> Some StringGlobalTag
+        |   NodeKind.Mapping -> Some MappingGlobalTag
+        |   NodeKind.Sequence-> Some SequenceGlobalTag
+        |   NodeKind.Scalar  -> Some StringGlobalTag
 
    
     //  order is important, !!pairs is a superset of !!omap

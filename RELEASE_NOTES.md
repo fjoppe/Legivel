@@ -1,3 +1,8 @@
+#### 0.4.1 - Nov 11 2019
+*   Legivel.Mapper - deserialization contract is now forced on the yaml-input, was inferred before.
+*   Solved issue #16
+
+
 #### 0.4.0 - Oct 31 2019
 *   BREAKING CHANGE: Renamed "Succes" to "Success" - output in type DeserializeResult, Legivel.Mapper
 

@@ -5,8 +5,17 @@ open Legivel.Common
 open Legivel.RepresentationGraph
 open Legivel.Customization.Utilities
 
+type NodePathType = string list
+
+
+type NodeTypeTree =
+    |   ExpectedTag of TagKind
+    |   InStructure of YTMRef
+
 /// Base type for any yaml to native mapping, for simple and compex types.
-type IYamlToNativeMapping =
+and IYamlToNativeMapping =
+    abstract member GetTagFor : Node -> EventNodeKind -> string list -> (NodeTypeTree * (string list)) option
+
     /// Map a Node to the target type-instance (boxed into type obj)
     abstract member map : msgList:ProcessMessages -> am:AllTryFindIdiomaticMappers -> n:Node -> FallibleOption<obj> * ProcessMessages
 
@@ -46,27 +55,53 @@ and MappedTypes = private {
 
         member this.GetMapper r = this.RefToMapper.[r]
 
+and FoundMappers = {
+    Ref     : YTMRef
+    Mappers : AllTryFindIdiomaticMappers
+}
+with
+    static member Create r m = { Ref = r; Mappers = m}
+
+and FindMapperParams = {
+    MessageList : ProcessMessages 
+    Mappers     : AllTryFindIdiomaticMappers 
+    CurrentType : Type
+}
+with
+    static member Create ml mp t = { MessageList = ml; Mappers = mp; CurrentType = t }
+
+    member this.GetExistingType() =
+        if this.Mappers.HasType this.CurrentType then
+            let ref = this.Mappers.GetRef this.CurrentType
+            (FallibleOption.Value (FoundMappers.Create ref this.Mappers), this.MessageList) |>  Some
+        else
+            None
+
 
 /// The return type of a TryFindMapper function
-and TryFindMapperReturnType = FallibleOption<YTMRef*AllTryFindIdiomaticMappers>*ProcessMessages
+and TryFindMapperReturnType = FallibleOption<FoundMappers>*ProcessMessages
 
 /// signature of a TryFindMapper function, which may return a mapping construct for the given native type
-and TryFindIdiomaticMapperForType = (ProcessMessages -> AllTryFindIdiomaticMappers -> Type -> TryFindMapperReturnType)
+and TryFindIdiomaticMapperForType = (FindMapperParams -> TryFindMapperReturnType)
 
 /// Structure containing all TryFindMapper functions available
 and AllTryFindIdiomaticMappers = private {
         PotentialMappers : TryFindIdiomaticMapperForType list
-        NullTagUri' : string
-        StringTagUri' : string
-        KnownTypes : MappedTypes
+        NullTagUri'      : GlobalTag
+        StringTagUri'    : GlobalTag
+        KnownTypes       : MappedTypes
     }
     with
         static member Create ml nt st = {PotentialMappers = ml; NullTagUri' = nt; StringTagUri' = st; KnownTypes=MappedTypes.Create()}
 
         /// Try to find a mapper for the given type, look in all potential mappers
         member this.TryFindMapper (msgList:ProcessMessages) (t:Type) : TryFindMapperReturnType =
+            let findParams = FindMapperParams.Create msgList this t
             this.PotentialMappers
-            |>  List.tryFindFo msgList (fun pmf -> pmf msgList this t)
+            |>  List.tryFindFo msgList (fun pmf -> 
+                match findParams.GetExistingType() with
+                |   Some v -> v
+                |   None -> pmf findParams)
             |>  fun (foundMapper, pm) ->
                 match foundMapper.Result with
                 |   FallibleOptionValue.NoResult    -> AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))

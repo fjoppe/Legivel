@@ -17,9 +17,9 @@ type ParseInfo = {
 
 /// A Node may be of Maping, Sequence or Scalar type
 type NodeKind = 
-    | Mapping
-    | Sequence
-    | Scalar
+    | Mapping   = 0
+    | Sequence  = 1
+    | Scalar    = 2
 
 
 /// Each Global Tag must implement the functions in this type
@@ -260,4 +260,26 @@ type Representation =
 
     /// There was no result (possible candidate to discard; this never occurred when testing)
     |   EmptyRepresentation of EmptyDocumentResult
+
+
+
+type EventNodeKind =
+    |   Mapping       = 0  
+    |   MappingKey    = 1
+    |   MappingValue  = 2
+    |   Sequence      = 3
+    |   SequenceItem  = 4
+    |   Scalar        = 5
+
+
+[<NoEquality; NoComparison>]
+type ParseEvents = internal {
+    ResolveTagEvent : (Node list -> Node -> EventNodeKind -> TagKind option)
+}
+
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module ParseEvents =
+    val Create : unit -> ParseEvents
+    val ResolveTagEvent :  (Node list -> Node -> EventNodeKind -> TagKind option) -> ParseEvents -> ParseEvents
 

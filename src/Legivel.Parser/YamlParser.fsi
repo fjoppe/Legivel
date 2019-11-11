@@ -7,6 +7,10 @@ open TagResolution
 /// Main type for Yaml 1.2 parsing
 type Yaml12Parser =
     class
+        new : GlobalTagSchema * (string->unit) * ParseEvents -> Yaml12Parser
+
+        new : GlobalTagSchema * ParseEvents -> Yaml12Parser
+
         /// Constructor with logging - the parser logs to the given function
         new : GlobalTagSchema * (string->unit) -> Yaml12Parser
 
