@@ -20,13 +20,15 @@ let DeserializeSuccess<'tp> yml =
     |>  function
         |   Succes s -> s.Data
         |   Error e -> failwith "Unexpected error"
-        
+      
+      
 let DeserializeError<'tp> yml = 
     Deserialize<'tp> yml
     |> List.head
     |>  function
         |   Succes _ -> failwith "Unexpected success"
         |   Error e -> e
+
 
 [<Test>]
 let ``Deserialize - check docs - time to string - Sunny Day`` () =
@@ -35,18 +37,19 @@ let ``Deserialize - check docs - time to string - Sunny Day`` () =
     res |> shouldEqual "20:03:20"
 
 
-
 [<Test>]
 let ``Deserialize - int - Sunny Day`` () =
     let yml = "43"
     let res = DeserializeSuccess<int> yml 
     res |> shouldEqual 43
 
+
 [<Test>]
 let ``Deserialize - float - Sunny Day`` () =
     let yml = "43.5"
     let res = DeserializeSuccess<float> yml 
     res |> shouldEqual 43.5
+
 
 [<Test>]
 let ``Deserialize - bool - Sunny Day`` () =
@@ -106,6 +109,7 @@ type OptionalField = {
     Age    : int option
 }
 
+
 [<Test>]
 let ``Deserialize - Optional Record Field - present - Sunny Day`` () =
     let yml = "{ Name: 'Frank', Age: 43 }"
@@ -135,6 +139,7 @@ type NestedRecord = {
         HouseNumber : int
     }
 
+
 type ContainingNested = {
         Name    : string
         Address : NestedRecord
@@ -155,6 +160,7 @@ type ContainingOptionalNested = {
         Address : NestedRecord option
     }
 
+
 [<Test>]
 let ``Deserialize - Nested Optional Record - present - Sunny Day`` () =
     let yml = "{ Name: 'Frank', Address: { Street: 'Rosegarden', HouseNumber: 5 } }"
@@ -163,6 +169,7 @@ let ``Deserialize - Nested Optional Record - present - Sunny Day`` () =
     res.Address |> Option.get |> fun a -> a.Street |> shouldEqual "Rosegarden"
     res.Address |> Option.get |> fun a -> a.HouseNumber |> shouldEqual 5
 
+
 [<Test>]
 let ``Deserialize - Nested Optional Record - missing - Sunny Day`` () =
     let yml = "{ Name: 'Frank' }"
@@ -170,18 +177,21 @@ let ``Deserialize - Nested Optional Record - missing - Sunny Day`` () =
     res.Name    |> shouldEqual "Frank"
     res.Address |> shouldEqual None
 
+
 [<Test>]
 let ``Deserialize - List - Sunny Day`` () =
     let yml = "[1, 1, 3, 5, 8, 9]" // not a pattern
     let res = DeserializeSuccess<int list> yml 
     res |> shouldEqual [1; 1; 3; 5; 8; 9]
 
+
 [<Test>]
 let ``Deserialize - List with type mismatch scalar element - Rainy Day`` () =
     let yml = "[1, 1, a]" 
     let res = DeserializeError<int list> yml 
     res.Error.Length |> shouldBeGreaterThan 0
-    res.Error.Head |> fun m -> m.Message.StartsWith("Type mismatch") |> shouldEqual true
+    res.Error.Head |> fun m -> m.Message.StartsWith("Incorrect format: 'a', for tag: tag:yaml.org,2002:int") |> shouldEqual true
+
 
 [<Test>]
 let ``Deserialize - List with type mismatch map element - Rainy Day`` () =
@@ -190,6 +200,7 @@ let ``Deserialize - List with type mismatch map element - Rainy Day`` () =
     res.Error.Length |> shouldBeGreaterThan 0
     res.Error.Head |> fun m -> m.Message.StartsWith("Type mismatch") |> shouldEqual true
 
+
 [<Test>]
 let ``Deserialize - List with type mismatch seq element - Rainy Day`` () =
     let yml = "[1, 1, [1, 2]]"
@@ -197,16 +208,26 @@ let ``Deserialize - List with type mismatch seq element - Rainy Day`` () =
     res.Error.Length |> shouldBeGreaterThan 0
     res.Error.Head |> fun m -> m.Message.StartsWith("Type mismatch") |> shouldEqual true
 
+
 [<Test>]
 let ``Deserialize - List with general type mismatch, given scalar for seq - Rainy Day`` () =
     let yml = "wrongtype"
     let res = DeserializeError<int list> yml 
     res.Error.Length |> shouldBeGreaterThan 0
-    res.Error.Head |> fun m -> m.Message.StartsWith("Expecting a Sequence Node") |> shouldEqual true
+    res.Error.Head |> fun m -> m.Message.StartsWith("Incorrect format: 'wrongtype', for tag: tag:yaml.org,2002:int") |> shouldEqual true
+
 
 [<Test>]
-let ``Deserialize - List with general type mismatch, given map for seq - Rainy Day`` () =
+let ``Deserialize - List with general type mismatch, given map<string,int> for seq - Rainy Day`` () =
     let yml = "{ a : 1}"
+    let res = DeserializeError<int list> yml 
+    res.Error.Length |> shouldBeGreaterThan 0
+    res.Error.Head |> fun m -> m.Message.StartsWith("Incorrect format: 'a', for tag: tag:yaml.org,2002:int") |> shouldEqual true
+
+
+[<Test>]
+let ``Deserialize - List with general type mismatch, given map<int,string> for seq - Rainy Day`` () =
+    let yml = "{ 1 : a}"
     let res = DeserializeError<int list> yml 
     res.Error.Length |> shouldBeGreaterThan 0
     res.Error.Head |> fun m -> m.Message.StartsWith("Expecting a Sequence Node") |> shouldEqual true
@@ -217,6 +238,7 @@ type ListField = {
     Scores : int list
 }
 
+
 [<Test>]
 let ``Deserialize - Record with List - Sunny Day`` () =
     let yml = "{ Name: 'Frank', Scores: [1, 1, 3, 5, 8, 9]}"
@@ -225,11 +247,26 @@ let ``Deserialize - Record with List - Sunny Day`` () =
     res.Scores  |> shouldEqual [1; 1; 3; 5; 8; 9]
 
 
+type ListOptonField = {
+    Name   : string
+    Scores : int option list
+}
+
+
+[<Test>]
+let ``Deserialize - Record with Option List - Sunny Day`` () =
+    let yml = "{ Name: 'Frank', Scores: [1, 1, ~, 5, null, 9]}"
+    let res = DeserializeSuccess<ListOptonField> yml 
+    res.Name    |> shouldEqual "Frank"
+    res.Scores  |> shouldEqual [Some 1; Some 1; None; Some 5; None ; Some 9]
+
+
 type UnionCaseNoData =
     |   Zero
     |   One
     |   Two
     |   Three
+
 
 [<Test>]
 let ``Deserialize - Discriminated Union Simple - Sunny Day`` () =
@@ -246,8 +283,6 @@ let ``Deserialize - Discriminated Union - Bad value - Rainy Day`` () =
     res.Error.Head |> fun m -> m.Message.StartsWith("Union case 'Four' not availble in type") |> shouldEqual true
 
 
-
-
 type UCData1 = {
     Name : string
     Age  : int
@@ -258,6 +293,7 @@ type UCData1 = {
 type UnionCaseWithData =
     |   One of UCData1
     |   [<YamlValue("two")>] Two of UCData1
+
 
 [<Test>]
 let ``Deserialize - Discriminated Union With Data - Sunny Day`` () =
@@ -271,7 +307,6 @@ let ``Deserialize - Discriminated Union With Data - Sunny Day`` () =
     |   One d -> d.Name |> shouldEqual "Frank"
                  d.Age  |> shouldEqual 43
     | _ -> failwith "Incorrect value!"
-
 
 
 [<Test>]
@@ -305,11 +340,13 @@ type UnionCaseEnum =
     |   [<YamlValue("two")>] Two=2
     |   Three=3
 
+
 [<Test>]
 let ``Deserialize - Discriminated Union Enum Simple - Sunny Day`` () =
     let yml = "One"
     let res = DeserializeSuccess<UnionCaseEnum> yml
     res |> shouldEqual UnionCaseEnum.One
+
 
 [<Test>]
 let ``Deserialize - Discriminated Union Enum-Alias - Sunny Day`` () =
@@ -368,6 +405,7 @@ type RecursiveType = {
         Next : RecursiveType option
     }
 
+
 [<Test>]
 let ``Deserialize - Recursive Type - Sunny Day`` () =
     let yml = "
@@ -389,6 +427,7 @@ let CustomDeserializeSuccess<'tp> opt yml =
         |   Succes s -> s.Data
         |   Error e -> failwith "Unexpected error"
 
+
 let CustomDeserializeSuccessAndWarnings<'tp> opt yml = 
     let r = DeserializeWithOptions<'tp> opt yml
     r
@@ -397,6 +436,7 @@ let CustomDeserializeSuccessAndWarnings<'tp> opt yml =
         |   Succes s -> s.Data, s.Warn
         |   Error e -> failwith "Unexpected error"
         
+
 let CustomDeserializeError<'tp> opt yml = 
     DeserializeWithOptions<'tp> opt yml
     |> List.head
@@ -409,6 +449,7 @@ type ProcessingOptionsType = {
     Field1 : string
     Field2 : string option
 }
+
 
 [<Test>]
 let ``Deserialize - Processing Options Default - Sunny Day`` () =
@@ -459,7 +500,6 @@ ShouldErrorMap : mappingValue
 
     err.Error |> List.length |> shouldEqual 1
     err.Error.Head.Message.StartsWith("Field 'ShouldErrorMap' cannot be mapped to target type") |> shouldEqual true
-
 
 
 [<Test>]

@@ -58,7 +58,7 @@ type DeserializeResult<'tp> =
 
 
 let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : DeserializeResult<'tp> list =
-    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options) YamlScalarToNativeMappings) MapYamlDocumentToNative ParseYamlToNative (Legivel.Customization.Mapping.YamlMapped.Schema) (YamlExtended.NullGlobalTag.Uri) (YamlExtended.StringGlobalTag.Uri) yml
+    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options) YamlScalarToNativeMappings) MapYamlDocumentToNative ParseYamlToNative (Legivel.Customization.Mapping.YamlMapped.Schema) (YamlExtended.NullGlobalTag) (YamlExtended.StringGlobalTag) yml
     |>  List.map(fun r ->
         match r with
         |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)

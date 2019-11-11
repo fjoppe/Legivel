@@ -82,10 +82,10 @@ type PrimitiveMappingInfo = {
             |   None    -> FallibleOption.NoResult(), fmp.MessageList
         
         interface IYamlToNativeMapping with
-            member this.GetTagFor nt sl =
+            member this.GetTagFor nd nt sl =
                 match sl with
                 |   [value] ->   (ExpectedTag this.ExpectedTag, []) |> Some
-                |   []      ->   None
+                |   _       ->   None
 
 
             /// Map the given Node to the target primitive type
@@ -120,7 +120,7 @@ type RecordFieldMapping = {
 type RecordMappingInfo = {
         Target       : Type
         FieldMapping : RecordFieldMapping list
-        StringTagUri : string
+        StringTagUri : GlobalTag
         ProcessingOptions : ProcessingOptions
     }
     with
@@ -165,7 +165,7 @@ type RecordMappingInfo = {
 
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor nt sl =
+            member this.GetTagFor nd nt sl =
                 match sl with
                 |   []      -> None
                 |   [value] -> Some(ExpectedTag (Global Failsafe.StringGlobalTag), [])  //  failsafe schema should always work and be an option
@@ -197,7 +197,7 @@ type RecordMappingInfo = {
                         dt.Data
                         |>  List.map(fun (k,v) -> 
                             //  k = record field name, should always be of type string
-                            if k.NodeTag.Uri =  this.StringTagUri then
+                            if k.NodeTag.Uri =  this.StringTagUri.Uri then
                                 getScalarNode msgList k
                                 |>  FallibleOption.bind(fun kf -> mapKeyValue pm k (kf.Data) v)
                             else
@@ -242,7 +242,7 @@ type RecordMappingInfo = {
 type OptionalMappingInfo = {
         OptionType    : Type
         OptionMapping : YTMRef
-        NullTagUri    : string
+        NullTagUri    : GlobalTag
         ProcessingOptions : ProcessingOptions
     }
     with
@@ -259,11 +259,19 @@ type OptionalMappingInfo = {
                 FallibleOption.NoResult(), fmp.MessageList
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor nt sl = Some (InStructure this.OptionMapping, sl)
+            member this.GetTagFor nd nt sl = 
+                match sl with
+                |   [value] ->
+                    if this.NullTagUri.TagFunctions.IsMatch nd this.NullTagUri then
+                        (ExpectedTag (Global this.NullTagUri), []) |> Some
+                    else
+                        Some (InStructure this.OptionMapping, sl)
+                |   _       ->   None
+                
 
             /// Map the given Node to the target option type
             member this.map (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (n:Node) = 
-                if n.NodeTag.Uri = this.NullTagUri then
+                if n.NodeTag.Uri = this.NullTagUri.Uri then
                     (this:> IYamlToNativeMapping).Default, msgList
                 else
                     let ctor = this.OptionType.GetConstructors() |> Array.head
@@ -297,7 +305,7 @@ type ListMappingInfo = {
 
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor nt sl =  Some (InStructure this.ListMapping, sl)
+            member this.GetTagFor nd nt sl =  Some (InStructure this.ListMapping, sl)
 
             /// Map the given Node to the target list type
             member this.map (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (n:Node) = 
@@ -378,7 +386,7 @@ type MapMappingInfo = {
                     ctor.Invoke([||])
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor nt sl = 
+            member this.GetTagFor nd nt sl = 
                 match sl with
                 |   []      -> None
                 |   [value] ->
@@ -475,7 +483,7 @@ type EnumMappingInfo = {
                 FallibleOption.NoResult(), fmp.MessageList
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor nt sl = 
+            member this.GetTagFor nd nt sl = 
                 match sl with
                 //|   []      -> None
                 |   [value] -> Some(ExpectedTag (Global Failsafe.StringGlobalTag), [])  //  failsafe schema should always work and be an option
@@ -598,7 +606,7 @@ type DiscriminatedUnionMappingInfo = {
         //      Remarks: requires [<YamlField("fieldid")>] for DU type, and preferably [<YamlValue("unioncase")>] per union-case
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor nt sl = 
+            member this.GetTagFor nd nt sl = 
                 let name = sl |> List.head
                 this.UnionCaseMapping
                 |>  List.tryFind(fun (s,_) -> s = name)
@@ -676,9 +684,9 @@ let BuildInTryFindMappers (po : ProcessingOptions) (primitives: ScalarToNativeMa
         DiscriminatedUnionMappingInfo.TryFindMapper po
     ]
 
-let TagAssigner (mapper:IYamlToNativeMapping) (foundMappers:AllTryFindIdiomaticMappers) (nl:Node list) (n:Node) (nt:EventNodeKind) = 
+let TagAssigner (mapper:IYamlToNativeMapping) (foundMappers:AllTryFindIdiomaticMappers) (nl:Node list) (nd:Node) (nt:EventNodeKind) = 
     let strnodes =
-        n :: nl
+        nd :: nl
         |> List.fold(fun st nd ->
            match nd with 
            |    ScalarNode ndt -> ndt.Data :: st
@@ -687,16 +695,17 @@ let TagAssigner (mapper:IYamlToNativeMapping) (foundMappers:AllTryFindIdiomaticM
         ) []
 
     let rec tryFindTag (ndlst:string list) (mpref:IYamlToNativeMapping) =
-        mpref.GetTagFor nt ndlst
+        mpref.GetTagFor nd nt ndlst
         |>  function
             |   Some(ExpectedTag t,   lst) -> t |> Some
             |   Some(InStructure ref, lst) -> foundMappers.GetMapper ref |>  tryFindTag lst
             |   None -> None
 
-    let res = tryFindTag strnodes mapper
-
-    res
-    //None
+    if strnodes.Length = 0 then
+        None
+    else
+        let res = tryFindTag strnodes mapper
+        res
 
 
 /// Creates a yaml-to-native-mapper for the given type 'tp

@@ -14,7 +14,7 @@ type NodeTypeTree =
 
 /// Base type for any yaml to native mapping, for simple and compex types.
 and IYamlToNativeMapping =
-    abstract member GetTagFor : EventNodeKind -> string list -> (NodeTypeTree * (string list)) option
+    abstract member GetTagFor : Node -> EventNodeKind -> string list -> (NodeTypeTree * (string list)) option
 
     /// Map a Node to the target type-instance (boxed into type obj)
     abstract member map : msgList:ProcessMessages -> am:AllTryFindIdiomaticMappers -> n:Node -> FallibleOption<obj> * ProcessMessages
@@ -87,9 +87,9 @@ and TryFindIdiomaticMapperForType = (FindMapperParams -> TryFindMapperReturnType
 /// Structure containing all TryFindMapper functions available
 and AllTryFindIdiomaticMappers = private {
         PotentialMappers : TryFindIdiomaticMapperForType list
-        NullTagUri' : string
-        StringTagUri' : string
-        KnownTypes : MappedTypes
+        NullTagUri'      : GlobalTag
+        StringTagUri'    : GlobalTag
+        KnownTypes       : MappedTypes
     }
     with
         static member Create ml nt st = {PotentialMappers = ml; NullTagUri' = nt; StringTagUri' = st; KnownTypes=MappedTypes.Create()}
