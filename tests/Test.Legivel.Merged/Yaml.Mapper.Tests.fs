@@ -493,21 +493,6 @@ type Doc = {
 }
 
 
-//open Legivel.Customization
-//open Legivel.Customization.Mapping
-//open Legivel.Serialization
-//open Legivel.TagResolution
-
-
-//let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : DeserializeResult<'tp> list =
-//    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options) YamlScalarToNativeMappings) MapYamlDocumentToNative ParseYamlToNative (Failsafe.Schema) (YamlExtended.NullGlobalTag.Uri) (Failsafe.StringGlobalTag.Uri) yml
-//    |>  List.map(fun r ->
-//        match r with
-//        |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
-//        |   WithErrors d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
-//    )
-
-
 [<Test>]
 let ``Deserialize - undesired boolean conversion - Sunny Day`` () =
     let yml = "
@@ -521,7 +506,15 @@ t3: {1: yes, 0: maybe, -1: no}"
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data.t1 |> List.head |> shouldEqual "yes"
+        |   Succes s -> 
+            s.Data.t1 |> List.head  |> shouldEqual "yes"
+            s.Data.t2.["true"]      |> shouldEqual 2
+            s.Data.t2.["false"]     |> shouldEqual 0
+            s.Data.t2.["ambiguous"] |> shouldEqual 1
+            s.Data.t2.["null"]      |> shouldEqual -1
+            s.Data.t3.[1]           |> shouldEqual "yes"
+            s.Data.t3.[0]           |> shouldEqual "maybe"
+            s.Data.t3.[-1]          |> shouldEqual "no"
         |   Error e -> failwith "Unexpected error"
 
 

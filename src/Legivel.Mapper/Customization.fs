@@ -82,10 +82,10 @@ type PrimitiveMappingInfo = {
             |   None    -> FallibleOption.NoResult(), fmp.MessageList
         
         interface IYamlToNativeMapping with
-            member this.GetTagFor sl =
+            member this.GetTagFor nt sl =
                 match sl with
-                |   [] ->   (ExpectedTag this.ExpectedTag, []) |> Some
-                |   _ ->    None
+                |   [value] ->   (ExpectedTag this.ExpectedTag, []) |> Some
+                |   []      ->   None
 
 
             /// Map the given Node to the target primitive type
@@ -165,13 +165,16 @@ type RecordMappingInfo = {
 
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor sl =
-                let name = sl |> List.head
-                this.FieldMapping
-                |>  List.tryFind(fun fm -> fm.YamlName = name)
-                |>  function
-                    |   Some v -> ((InStructure v.PropertyMapping), sl |> List.tail) |> Some
-                    |   None ->   None
+            member this.GetTagFor nt sl =
+                match sl with
+                |   []      -> None
+                |   [value] -> Some(ExpectedTag (Global Failsafe.StringGlobalTag), [])  //  failsafe schema should always work and be an option
+                |   name :: tail ->
+                    this.FieldMapping
+                    |>  List.tryFind(fun fm -> fm.YamlName = name)
+                    |>  function
+                        |   Some v -> ((InStructure v.PropertyMapping), tail) |> Some
+                        |   None ->   None
 
 
             /// Map the given Node to the target record type
@@ -256,7 +259,7 @@ type OptionalMappingInfo = {
                 FallibleOption.NoResult(), fmp.MessageList
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor sl = Some (InStructure this.OptionMapping, sl)
+            member this.GetTagFor nt sl = Some (InStructure this.OptionMapping, sl)
 
             /// Map the given Node to the target option type
             member this.map (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (n:Node) = 
@@ -294,7 +297,7 @@ type ListMappingInfo = {
 
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor sl = Some (InStructure this.ListMapping, sl)
+            member this.GetTagFor nt sl =  Some (InStructure this.ListMapping, sl)
 
             /// Map the given Node to the target list type
             member this.map (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (n:Node) = 
@@ -375,7 +378,19 @@ type MapMappingInfo = {
                     ctor.Invoke([||])
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor sl = Some (InStructure this.ValueType, sl)
+            member this.GetTagFor nt sl = 
+                match sl with
+                |   []      -> None
+                |   [value] ->
+                    match nt with
+                    |   EventNodeKind.MappingKey    ->  Some (InStructure this.KeyType, [value])
+                    |   EventNodeKind.MappingValue  ->  Some (InStructure this.ValueType, [value])
+                    |   _ -> None
+                |   h :: tail -> 
+                    match nt with
+                    |   EventNodeKind.MappingKey    ->  Some (InStructure this.KeyType, h::tail)
+                    |   EventNodeKind.MappingValue  ->  Some (InStructure this.ValueType, tail)
+                    |   _ -> None
 
             /// Map the given Node to the target map type
             member this.map (msgList:ProcessMessages)  (mappers:AllTryFindIdiomaticMappers) (n:Node) = 
@@ -460,7 +475,12 @@ type EnumMappingInfo = {
                 FallibleOption.NoResult(), fmp.MessageList
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor sl = Some (InStructure this.EnumRef, sl)
+            member this.GetTagFor nt sl = 
+                match sl with
+                //|   []      -> None
+                |   [value] -> Some(ExpectedTag (Global Failsafe.StringGlobalTag), [])  //  failsafe schema should always work and be an option
+                |   _ -> None
+                //Some (InStructure this.EnumRef, sl)
 
             /// Map the given Node to the target enum value
             member this.map (msgList:ProcessMessages) (mappers:AllTryFindIdiomaticMappers) (n:Node) = 
@@ -578,7 +598,7 @@ type DiscriminatedUnionMappingInfo = {
         //      Remarks: requires [<YamlField("fieldid")>] for DU type, and preferably [<YamlValue("unioncase")>] per union-case
 
         interface IYamlToNativeMapping with
-            member this.GetTagFor sl = 
+            member this.GetTagFor nt sl = 
                 let name = sl |> List.head
                 this.UnionCaseMapping
                 |>  List.tryFind(fun (s,_) -> s = name)
@@ -656,8 +676,27 @@ let BuildInTryFindMappers (po : ProcessingOptions) (primitives: ScalarToNativeMa
         DiscriminatedUnionMappingInfo.TryFindMapper po
     ]
 
-let TagAssigner (foundMappers:AllTryFindIdiomaticMappers) (nl:Node list) (n:Node) (nt:EventNodeKind) = 
-    None
+let TagAssigner (mapper:IYamlToNativeMapping) (foundMappers:AllTryFindIdiomaticMappers) (nl:Node list) (n:Node) (nt:EventNodeKind) = 
+    let strnodes =
+        n :: nl
+        |> List.fold(fun st nd ->
+           match nd with 
+           |    ScalarNode ndt -> ndt.Data :: st
+           |    MapNode    ndt -> st
+           |    SeqNode    ndt -> st
+        ) []
+
+    let rec tryFindTag (ndlst:string list) (mpref:IYamlToNativeMapping) =
+        mpref.GetTagFor nt ndlst
+        |>  function
+            |   Some(ExpectedTag t,   lst) -> t |> Some
+            |   Some(InStructure ref, lst) -> foundMappers.GetMapper ref |>  tryFindTag lst
+            |   None -> None
+
+    let res = tryFindTag strnodes mapper
+
+    res
+    //None
 
 
 /// Creates a yaml-to-native-mapper for the given type 'tp
@@ -703,10 +742,10 @@ let MapYamlDocumentToNative (msgList:ProcessMessages) (mappers:AllTryFindIdiomat
         |   _ -> failwith "Illegal value for mapper"
 
 /// Parses a yaml string, for the given yaml-schema and maps it to a native type instance
-let ParseYamlToNative (foundMappers:AllTryFindIdiomaticMappers) (mapToNative:ParsedDocumentResult -> Result<'tp>) schema yml =
+let ParseYamlToNative (mapper:IYamlToNativeMapping) (foundMappers:AllTryFindIdiomaticMappers) (mapToNative:ParsedDocumentResult -> Result<'tp>) schema yml =
     let parseEvents =
         ParseEvents.Create()
-        |>  ParseEvents.ResolveTagEvent (TagAssigner foundMappers)
+        |>  ParseEvents.ResolveTagEvent (TagAssigner mapper foundMappers)
 
     let yamlParser = Yaml12Parser(schema, parseEvents)
     (yamlParser.``l-yaml-stream`` yml) 
@@ -720,7 +759,7 @@ let ParseYamlToNative (foundMappers:AllTryFindIdiomaticMappers) (mapToNative:Par
 
 
 /// Customized yaml deserialization, where one can inject everything required
-let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:ProcessMessages->AllTryFindIdiomaticMappers->IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:AllTryFindIdiomaticMappers -> (ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri stringTagUri yml : Result<'tp> list =
+let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:ProcessMessages->AllTryFindIdiomaticMappers->IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:IYamlToNativeMapping -> AllTryFindIdiomaticMappers -> (ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri stringTagUri yml : Result<'tp> list =
     let msgList = ProcessMessages.Create()
     CreateTypeMappings<'tp> msgList tryFindMappers nullTagUri stringTagUri
     |>  fun (typeMapping,pm) ->
@@ -729,7 +768,8 @@ let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType lis
         |   FallibleOptionValue.ErrorResult -> [Error.Create (msgList.Errors |> List.ofSeq) (msgList.Warnings |> List.ofSeq) NoDocumentLocation |> WithErrors]
         |   FallibleOptionValue.Value -> 
             let fmp = typeMapping.Data
-            parseYmlToNative fmp.Mappers (mapYmlDocToNative msgList fmp.Mappers (fmp.Mappers.GetMapper fmp.Ref)) schema yml
+            let mapper = fmp.Mappers.GetMapper fmp.Ref
+            parseYmlToNative mapper fmp.Mappers (mapYmlDocToNative msgList fmp.Mappers mapper) schema yml
         |   _ -> failwith "Illegal value for typeMapping"
 
 

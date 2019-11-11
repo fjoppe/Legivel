@@ -14,7 +14,7 @@ type NodeTypeTree =
 
 /// Base type for any yaml to native mapping, for simple and compex types.
 and IYamlToNativeMapping =
-    abstract member GetTagFor : string list -> (NodeTypeTree * (string list)) option
+    abstract member GetTagFor : EventNodeKind -> string list -> (NodeTypeTree * (string list)) option
 
     /// Map a Node to the target type-instance (boxed into type obj)
     abstract member map : msgList:ProcessMessages -> am:AllTryFindIdiomaticMappers -> n:Node -> FallibleOption<obj> * ProcessMessages
