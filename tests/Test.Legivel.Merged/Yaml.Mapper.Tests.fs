@@ -18,7 +18,7 @@ let DeserializeSuccess<'tp> yml =
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data
+        |   Success s -> s.Data
         |   Error e -> failwith "Unexpected error"
       
       
@@ -26,7 +26,7 @@ let DeserializeError<'tp> yml =
     Deserialize<'tp> yml
     |> List.head
     |>  function
-        |   Succes _ -> failwith "Unexpected success"
+        |   Success _ -> failwith "Unexpected success"
         |   Error e -> e
 
 
@@ -424,7 +424,7 @@ let CustomDeserializeSuccess<'tp> opt yml =
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data
+        |   Success s -> s.Data
         |   Error e -> failwith "Unexpected error"
 
 
@@ -433,7 +433,7 @@ let CustomDeserializeSuccessAndWarnings<'tp> opt yml =
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data, s.Warn
+        |   Success s -> s.Data, s.Warn
         |   Error e -> failwith "Unexpected error"
         
 
@@ -441,7 +441,7 @@ let CustomDeserializeError<'tp> opt yml =
     DeserializeWithOptions<'tp> opt yml
     |> List.head
     |>  function
-        |   Succes _ -> failwith "Unexpected success"
+        |   Success _ -> failwith "Unexpected success"
         |   Error e -> e
 
 
@@ -546,7 +546,7 @@ t3: {1: yes, 0: maybe, -1: no}"
     r
     |> List.head
     |>  function
-        |   Succes s -> 
+        |   Success s -> 
             s.Data.t1 |> List.head  |> shouldEqual "yes"
             s.Data.t2.["true"]      |> shouldEqual 2
             s.Data.t2.["false"]     |> shouldEqual 0

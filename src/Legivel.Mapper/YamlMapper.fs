@@ -53,7 +53,7 @@ type ErrorInfo = {
 
 
 type DeserializeResult<'tp> =
-    |   Succes of SuccessInfo<'tp>
+    |   Success of SuccessInfo<'tp>
     |   Error of ErrorInfo
 
 
@@ -61,7 +61,7 @@ let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : Deserial
     CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options) YamlScalarToNativeMappings) MapYamlDocumentToNative ParseYamlToNative (Legivel.Customization.Mapping.YamlMapped.Schema) (YamlExtended.NullGlobalTag) (YamlExtended.StringGlobalTag) yml
     |>  List.map(fun r ->
         match r with
-        |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
+        |   Processed d -> Success (SuccessInfo<'tp>.Create d.Data d.Warn)
         |   WithErrors d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
     )
 

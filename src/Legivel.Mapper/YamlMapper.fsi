@@ -39,7 +39,7 @@ type ErrorInfo = {
 
 /// Deserialization result
 type DeserializeResult<'tp> =
-    |   Succes of SuccessInfo<'tp>
+    |   Success of SuccessInfo<'tp>
     |   Error of ErrorInfo
 
 val DeserializeWithOptions<'tp> : options:ProcessingOption list -> yaml:string  -> DeserializeResult<'tp> list

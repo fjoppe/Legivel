@@ -18,14 +18,14 @@ let DeserializeSuccess<'tp> yml =
     r
     |> List.head
     |>  function
-        |   Succes s -> s.Data
+        |   Success s -> s.Data
         |   Error e -> failwith "Unexpected error"
         
 let DeserializeError<'tp> yml = 
     Deserialize<'tp> yml
     |> List.head
     |>  function
-        |   Succes _ -> failwith "Unexpected success"
+        |   Success _ -> failwith "Unexpected success"
         |   Error e -> e
 
 //[<Test>]

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>RGXType - Legivel</title>
+    <title>FindMapperParams - Legivel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Frank Joppe"/>
@@ -35,16 +35,102 @@
 
 
 
-<h1>RGXType</h1>
+<h1>FindMapperParams</h1>
 <p>
 
-    <span>Namespace: Legivel.Utilities</span><br />
-        <span>Parent Module: <a href="legivel-utilities-regexdsl.html">RegexDSL</a></span><br />
+    <span>Namespace: Legivel.Mapper</span><br />
+        <span>Parent Module: <a href="legivel-mapper-model.html">Model</a></span><br />
     </p>
 <div class="xmldoc">
-<p>Contains a Regular Expression</p>
-
 </div>
+  <h3>Record Fields</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Record Field</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '431', 431)" onmouseover="showTip(event, '431', 431)">
+            CurrentType
+          </code>
+          <div class="tip" id="431">
+            <strong>Signature:</strong> Type<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Model.fs#L68-68" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '432', 432)" onmouseover="showTip(event, '432', 432)">
+            Mappers
+          </code>
+          <div class="tip" id="432">
+            <strong>Signature:</strong> AllTryFindIdiomaticMappers<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Model.fs#L67-67" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '433', 433)" onmouseover="showTip(event, '433', 433)">
+            MessageList
+          </code>
+          <div class="tip" id="433">
+            <strong>Signature:</strong> ProcessMessages<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Model.fs#L66-66" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <h3>Instance members</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Instance member</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '434', 434)" onmouseover="showTip(event, '434', 434)">
+            x.GetExistingType()
+          </code>
+          <div class="tip" id="434">
+            <strong>Signature:</strong> unit -&gt; (FallibleOption&lt;FoundMappers&gt; * ProcessMessages) option<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Model.fs#L73-73" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
   <h3>Static members</h3>
   <table class="table table-bordered member-list">
     <thead>
@@ -54,58 +140,19 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '475', 475)" onmouseover="showTip(event, '475', 475)">
-            RGXType.( - )(arg1, arg2)
+          <code onmouseout="hideTip(event, '435', 435)" onmouseover="showTip(event, '435', 435)">
+            FindMapperParams.Create ml mp t
           </code>
-          <div class="tip" id="475">
-            <strong>Signature:</strong> (RGXType * RGXType) -&gt; RGXType<br />
+          <div class="tip" id="435">
+            <strong>Signature:</strong> ml:ProcessMessages -&gt; mp:AllTryFindIdiomaticMappers -&gt; t:Type -&gt; FindMapperParams<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L170-170" class="github-link">
+                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.Mapper/Model.fs#L71-71" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-              <p>CompiledName: <code>op_Subtraction</code></p>
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '476', 476)" onmouseover="showTip(event, '476', 476)">
-            RGXType.( ||| )(arg1, arg2)
-          </code>
-          <div class="tip" id="476">
-            <strong>Signature:</strong> (RGXType * RGXType) -&gt; RGXType<br />
-                                  </div>
-        </td>
-        <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L162-162" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-              <p>CompiledName: <code>op_BitwiseOr</code></p>
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '477', 477)" onmouseover="showTip(event, '477', 477)">
-            RGXType.( + )(arg1, arg2)
-          </code>
-          <div class="tip" id="477">
-            <strong>Signature:</strong> (RGXType * RGXType) -&gt; RGXType<br />
-                                  </div>
-        </td>
-        <td class="xmldoc">
-                      <a href="https://github.com/fjoppe/Legivel/tree/master/src/Legivel.RegexDSL/Legivel.RegexDSL.fs#L176-176" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          
-              <p>CompiledName: <code>op_Addition</code></p>
         </td>
       </tr>
     </tbody>

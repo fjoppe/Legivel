@@ -234,8 +234,8 @@ type ParseState = {
                 Restrictions = ParseRestrictions.Create(); TrackLength = 0
                 IndentLevels = []
                 BreadCrumb = []
-                LoggingFunction = lf
                 EventNodeType = EventNodeKind.Scalar
+                LoggingFunction = lf
             }
 
 #else
@@ -248,6 +248,7 @@ type ParseState = {
                 Restrictions = ParseRestrictions.Create(); TrackLength = 0
                 IndentLevels = []
                 BreadCrumb = []
+                EventNodeType = EventNodeKind.Scalar
             }
 #endif
 
