@@ -493,19 +493,19 @@ type Doc = {
 }
 
 
-open Legivel.Customization
-open Legivel.Customization.Mapping
-open Legivel.Serialization
-open Legivel.TagResolution
+//open Legivel.Customization
+//open Legivel.Customization.Mapping
+//open Legivel.Serialization
+//open Legivel.TagResolution
 
 
-let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : DeserializeResult<'tp> list =
-    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options) YamlScalarToNativeMappings) MapYamlDocumentToNative ParseYamlToNative (Failsafe.Schema) (YamlExtended.NullGlobalTag.Uri) (Failsafe.StringGlobalTag.Uri) yml
-    |>  List.map(fun r ->
-        match r with
-        |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
-        |   WithErrors d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
-    )
+//let DeserializeWithOptions<'tp> (options : ProcessingOption list) yml : DeserializeResult<'tp> list =
+//    CustomDeserializeYaml (BuildInTryFindMappers (ParseOptions options) YamlScalarToNativeMappings) MapYamlDocumentToNative ParseYamlToNative (Failsafe.Schema) (YamlExtended.NullGlobalTag.Uri) (Failsafe.StringGlobalTag.Uri) yml
+//    |>  List.map(fun r ->
+//        match r with
+//        |   Processed d -> Succes (SuccessInfo<'tp>.Create d.Data d.Warn)
+//        |   WithErrors d -> Error  (ErrorInfo.Create d.Error d.Warn d.StopLocation)
+//    )
 
 
 [<Test>]

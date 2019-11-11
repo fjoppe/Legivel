@@ -656,7 +656,7 @@ let BuildInTryFindMappers (po : ProcessingOptions) (primitives: ScalarToNativeMa
         DiscriminatedUnionMappingInfo.TryFindMapper po
     ]
 
-let TagAssigner (nl:Node list) (n:Node) (nt:EventNodeKind) = 
+let TagAssigner (foundMappers:AllTryFindIdiomaticMappers) (nl:Node list) (n:Node) (nt:EventNodeKind) = 
     None
 
 
@@ -703,10 +703,10 @@ let MapYamlDocumentToNative (msgList:ProcessMessages) (mappers:AllTryFindIdiomat
         |   _ -> failwith "Illegal value for mapper"
 
 /// Parses a yaml string, for the given yaml-schema and maps it to a native type instance
-let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema yml =
+let ParseYamlToNative (foundMappers:AllTryFindIdiomaticMappers) (mapToNative:ParsedDocumentResult -> Result<'tp>) schema yml =
     let parseEvents =
         ParseEvents.Create()
-        |>  ParseEvents.ResolveTagEvent TagAssigner 
+        |>  ParseEvents.ResolveTagEvent (TagAssigner foundMappers)
 
     let yamlParser = Yaml12Parser(schema, parseEvents)
     (yamlParser.``l-yaml-stream`` yml) 
@@ -720,7 +720,7 @@ let ParseYamlToNative (mapToNative:ParsedDocumentResult -> Result<'tp>) schema y
 
 
 /// Customized yaml deserialization, where one can inject everything required
-let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:ProcessMessages->AllTryFindIdiomaticMappers->IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:(ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri stringTagUri yml : Result<'tp> list =
+let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType list) (mapYmlDocToNative:ProcessMessages->AllTryFindIdiomaticMappers->IYamlToNativeMapping->ParsedDocumentResult->Result<'tp>) (parseYmlToNative:AllTryFindIdiomaticMappers -> (ParsedDocumentResult -> Result<'tp>) -> GlobalTagSchema -> string -> Result<'tp> list) schema nullTagUri stringTagUri yml : Result<'tp> list =
     let msgList = ProcessMessages.Create()
     CreateTypeMappings<'tp> msgList tryFindMappers nullTagUri stringTagUri
     |>  fun (typeMapping,pm) ->
@@ -729,7 +729,7 @@ let CustomDeserializeYaml<'tp> (tryFindMappers:TryFindIdiomaticMapperForType lis
         |   FallibleOptionValue.ErrorResult -> [Error.Create (msgList.Errors |> List.ofSeq) (msgList.Warnings |> List.ofSeq) NoDocumentLocation |> WithErrors]
         |   FallibleOptionValue.Value -> 
             let fmp = typeMapping.Data
-            parseYmlToNative (mapYmlDocToNative msgList fmp.Mappers (fmp.Mappers.GetMapper fmp.Ref)) schema yml
+            parseYmlToNative fmp.Mappers (mapYmlDocToNative msgList fmp.Mappers (fmp.Mappers.GetMapper fmp.Ref)) schema yml
         |   _ -> failwith "Illegal value for typeMapping"
 
 
