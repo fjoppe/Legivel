@@ -1,4 +1,4 @@
-﻿module internal NFAValues
+﻿module NFAValues
 
 #nowarn "40"
 

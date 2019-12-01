@@ -20,7 +20,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors />
+    <WarningsAsErrors>FS0025 </WarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>PdbOnly</DebugType>
@@ -93,7 +93,7 @@
     <None Include="..\Legivel.Tests\APIs.guru.Tests.fs">
       <Link>APIs.guru.Tests.fs</Link>
     </None>    
-    <Compile Include="Legivel.Utilities.RegexDSL.fs" />    
+    <None Include="Legivel.Utilities.RegexDSL.fs" />    
     <Compile Include="Legivel.ThompsonParser.fs" />    
     <Compile Include="Test.Legivel.ThompsonParser.fs" />
     <None Include="RegexDSL.fsx" />

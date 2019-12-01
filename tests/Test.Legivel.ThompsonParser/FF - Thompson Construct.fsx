@@ -12,14 +12,29 @@
 open Legivel.Tokenizer
 open System.Drawing
 open System.Diagnostics
-//open NUnit.Framework
 open System.Text.RegularExpressions
 open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
+open NFAValues
+
+
+//let ``ns-yaml-directive with comments`` = HardValues.``ns-yaml-directive`` + HardValues.``s-l-comments`` |> rgxToNFA
+
+//let nfa = ``ns-yaml-directive with comments`` 
+
+//let nfa = 
+//    rgxToNFA <| 
+//            OPT(
+//                OPT(RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
+//            ) +
+//            RGP("C", [Token.``c-printable``]) 
+
 
 
 let nfa = 
-    rgxToNFA <| ``ns-yaml-directive with comments`` 
+    rgxToNFA <| 
+            GRP(ZOM(RGP("CD", [Token.``c-printable``])))
+
 
 PrintIt nfa
 
