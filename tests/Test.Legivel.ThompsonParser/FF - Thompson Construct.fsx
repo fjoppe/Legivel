@@ -22,18 +22,12 @@ open NFAValues
 
 //let nfa = ``ns-yaml-directive with comments`` 
 
-//let nfa = 
-//    rgxToNFA <| 
-//            OPT(
-//                OPT(RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
-//            ) +
-//            RGP("C", [Token.``c-printable``]) 
-
-
-
 let nfa = 
     rgxToNFA <| 
-            GRP(ZOM(RGP("CD", [Token.``c-printable``])))
+            OPT(
+                OPT(RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
+            ) +
+            RGP("A", [Token.``c-printable``]) 
 
 
 PrintIt nfa

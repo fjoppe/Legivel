@@ -1004,8 +1004,8 @@ let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:Stat
                 if d.NextState.Id = 0u then
                     MT.setNextState concatPtr current
                 else
-                    traverse d.NextState   (passedNodes(*.Add (d.Id)*)) concatPtr |> ignore
-                    traverse d.ReturnState (passedNodes(*.Add (d.Id)*)) concatPtr 
+                    traverse d.NextState   (passedNodes.Add (d.Id)) concatPtr |> ignore
+                    traverse d.ReturnState (passedNodes.Add (d.Id)) concatPtr 
                     |>  setNextState current
             |   ReturnSub d -> current
             |   NoMatch _ -> current
@@ -1390,7 +1390,7 @@ let PrintIt (nfa:NFAMachine) =
             )
 
         printPrefix hist
-        let rec printLineRest (hist : LevelType list) (current: StatePointer) (passedNodes:Set<StateId>) =
+        let rec printLineRest (hist : LevelType list) (current: StatePointer) (passedNodes:Set<StateId>) (passedGosub:Set<GosubId>) =
             if current.Id = 0u then
                 printf "-*\n"
             else
@@ -1398,59 +1398,65 @@ let PrintIt (nfa:NFAMachine) =
                     match stMap.[current.Id] with
                     |   EmptyPath  ep   ->  
                         printf "~(%2d)" ep.Id
-                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id)
+                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id) passedGosub
                     |   StartLinePath  ep   ->  
                         printf "^(%2d)" ep.Id
-                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id)
+                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id) passedGosub
                     |   SinglePath sp   -> 
                         match sp.State with
                         |   ExactMatch c    -> printf "-(%2d:\"%s\")" sp.Id (Regex.Escape(c.Char.ToString()))
                         |   OneInSetMatch o -> printf "-(%2d:[@])" sp.Id
-                        printLineRest (LevelType.Concat :: hist) sp.NextState (passedNodes.Add sp.Id)
+                        printLineRest (LevelType.Concat :: hist) sp.NextState (passedNodes.Add sp.Id) passedGosub
                     |   MultiPath mp    ->
                         match mp.States with
                         |   h::t -> 
                             printf "|(%2d)" mp.Id
-                            printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id)
+                            printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id) passedGosub
                             t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer (passedNodes.Add mp.Id) passedGosub) 
                         |   [] -> ()
                     |   RepeatInit rs ->
                         let rt = rsMap.[rs.RepeatId]
                         printf "->>(%2d:<%2d,%2d>)" rs.Id rt.Min rt.Max
-                        printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id)
+                        printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id) passedGosub
                     |   RepeatStart rs ->
                         printf "L(%2d)" rs.Id
-                        printLineRest (LevelType.Empty :: hist) rs.NextState (passedNodes.Add rs.Id)
+                        printLineRest (LevelType.Empty :: hist) rs.NextState (passedNodes.Add rs.Id) passedGosub
                     |   RepeatIterOrExit ri ->
                         printf "-|I(%2d)" ri.Id
-                        printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id)
+                        printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id) passedGosub
 
                         if ri.IterateState.Id <> ri.NextState.Id then
                             printPrefix hist
                             printf "-|X(%2d)" ri.Id
-                            printLineRest (LevelType.RepeatExit :: hist) ri.NextState (passedNodes.Add ri.Id)
+                            printLineRest (LevelType.RepeatExit :: hist) ri.NextState (passedNodes.Add ri.Id) passedGosub
                         else
                             printPrefix hist
                             printf "|X(%2d) :::^^^\n" ri.NextState.Id
                     |   GroupStart gp ->
                         printf "-%2d, (%2d){" gp.GroupId.Id gp.Id 
-                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id)
+                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id) passedGosub
                     |   GroupEnd gp ->
                         printf "}(%2d)     " gp.Id 
-                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id)
+                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id) passedGosub
                     |   NoMatch d -> printf "-NoMatch(%2d)\n" d
                     |   ReturnSub d -> printfn "-Ret(%d,%d)" d.Id d.GosubId.Id
                     |   GoSub     d -> 
-                        printf "|GS(%d, %d)" d.Id d.GosubId.Id
-                        printLineRest (LevelType.Gosub :: hist) d.NextState (passedNodes.Add d.Id)
-                        printPrefix (hist)
-                        printf "|GS-Ret   "
-                        printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedNodes.Add d.Id)
-                        //printLine (LevelType.Gosub :: hist) d.ReturnState.StatePointer (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
+                        if passedGosub.Contains d.GosubId then
+                            printf "|GS(%d, %d) (repeat)\n" d.Id d.GosubId.Id
+                            printPrefix (hist)
+                            printf "|GS-Ret   "
+                            printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedNodes.Add d.Id) passedGosub
+                        else
+                            printf "|GS(%d, %d)" d.Id d.GosubId.Id
+                            printLineRest (LevelType.Gosub :: hist) d.NextState (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
+                            printPrefix (hist)
+                            printf "|GS-Ret   "
+                            printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
+                            //printLine (LevelType.Gosub :: hist) d.ReturnState.StatePointer (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
                 else
                     printf "-Loop(%2d)\n" current.Id
 
-        printLineRest hist current passedNodes
+        printLineRest hist current passedNodes passedGosub
     printLine [] nfa.Start passedNodes passedGosub
 
 
