@@ -18,18 +18,59 @@ open Legivel.ThompsonParser
 open NFAValues
 
 
-//let ``ns-yaml-directive with comments`` = HardValues.``ns-yaml-directive`` + HardValues.``s-l-comments`` |> rgxToNFA
+let ``ns-yaml-directive with comments`` = HardValues.``ns-yaml-directive`` + HardValues.``s-l-comments`` |> rgxToNFA
 
-//let nfa = ``ns-yaml-directive with comments`` 
+let nfa = ``ns-yaml-directive with comments`` 
 
-let nfa = 
-    rgxToNFA <| 
-            OPT(
-                OPT(RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
-            ) +
-            RGP("A", [Token.``c-printable``]) 
+//let nfa = 
+//    rgxToNFA <| 
+//            OPT(
+//                OPT(RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
+//            ) +
+//            RGP("A", [Token.``c-printable``]) 
 
 
 PrintIt nfa
 
+
+
+HardValues.``s-l-comments`` 
+|>  rgxToNFA
+|>  PrintIt 
+
+(HardValues.``s-b-comment`` ||| HardValues.``start-of-line``) + ZOM(HardValues.``l-comment``)
+|>  rgxToNFA
+|>  PrintIt 
+
+
+ZOM(HardValues.``l-comment``)
+|>  rgxToNFA
+|>  PrintIt 
+
+
+HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``) + HardValues.``b-comment``
+|>  rgxToNFA
+|>  PrintIt 
+
+
+OPT(HardValues.``c-nb-comment-text``) + HardValues.``b-comment``
+|>  rgxToNFA
+|>  PrintIt 
+
+OPT(HardValues.``c-nb-comment-text``) 
+|>  rgxToNFA
+|>  PrintIt 
+
+OPT(RGP("#", [Token.``t-hash``]) + ZOM(HardValues.``nb-char``))
+|>  rgxToNFA
+|>  PrintIt 
+
+OPT(ZOM(HardValues.``nb-char``))
+|>  rgxToNFA
+|>  PrintIt 
+
+
+OPT(ZOM(RGP("A", [Token.``c-printable``])))
+|>  rgxToNFA
+|>  PrintIt 
 

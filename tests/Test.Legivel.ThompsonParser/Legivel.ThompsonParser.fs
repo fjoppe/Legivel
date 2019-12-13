@@ -701,61 +701,130 @@ let getRefactoringCanditates (lst:NormalizedForSPRefactoring list) =
     l1 @ l2 @ l3
 
 
-let duplicateStructureAndLinkToNext (passed:StatePointer list) (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
-    let passedNodes = 
-        passed
-        |>  List.map(fun i -> i.Id)
-        |>  List.distinct
-        |>  Set.ofList
+module Duplication = 
+    type private DuplicateParam = {
+        Current:        StatePointer
+        PassedNodes:    Set<StateId>
+        PreMapped:      Map<StatePointer, StatePointer>
+        SourceToTarget : Map<StatePointer, StatePointer>
+    }
+    with    
+        static member Create c pn pm st = { Current = c; PassedNodes = pn; PreMapped = pm; SourceToTarget = st }
+
+    type private DuplicateReturn = {
+        Link           : StatePointer
+        SourceToTarget : Map<StatePointer, StatePointer>
+    }
+    with
+        static member Create st l = { Link = l; SourceToTarget = st}
+
+    module private DuplicateParam =
+        let SetCurrent c (p:DuplicateParam)  = { p with Current = c }
+        let SetStT     st (p:DuplicateParam) = { p with SourceToTarget = st}
+        let AddPassedNode n (p:DuplicateParam) = { p with PassedNodes = p.PassedNodes |> Set.add n}
+        let AddPreMapped  k m (p:DuplicateParam) = { p with PreMapped = p.PreMapped |> Map.add k m}
+
+    module private DuplicateReturn =
+        let LinkTargetToSource s (r:DuplicateReturn) = 
+            if r.SourceToTarget.ContainsKey s then r 
+            else { r with SourceToTarget = r.SourceToTarget |> Map.add s r.Link}
+
+    let duplicateStructureAndLinkToNext (passed:StatePointer list) (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
+        let passedNodes = 
+            passed
+            |>  List.map(fun i -> i.Id)
+            |>  List.distinct
+            |>  Set.ofList
         
-    let preMappedNodes = Map.ofList premapped
+        let preMappedNodes = Map.ofList premapped
 
-    let dup (pm:Map<StatePointer, StatePointer>) c n = 
-        let tr = 
-            if pm.ContainsKey n then pm.[n]
-            else n
-        MT.duplicateAndLinkToNext tr c
+        let dup (p:DuplicateParam) (r:DuplicateReturn) = 
+            let tr = 
+                if p.PreMapped.ContainsKey r.Link then p.PreMapped.[r.Link]
+                else r.Link
+            MT.duplicateAndLinkToNext tr p.Current
+            |>  DuplicateReturn.Create p.SourceToTarget
+            |>  DuplicateReturn.LinkTargetToSource p.Current
 
-    let rec traverse (current:StatePointer) (passedNodes:Set<StateId>) (pm:Map<StatePointer, StatePointer>)=
-        if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then 
-            if pm.ContainsKey current then pm.[current] else current
-        else
-            let node = MT.lookup current
-            match node with
-            |   MultiPath d -> 
-                d.States 
-                |> List.fold(fun npt stid -> (traverse (stid.StatePointer) (passedNodes) pm) ::  npt) []
-                |>  MT.createAndSimplifyMultiPath
-            |   EmptyPath d  when d.NextState.Id = PointerToStateFinal.Id -> 
-                MT.duplicateAndLinkToNext concatPtr current
-            |   EmptyPath       d -> traverse (d.NextState) (passedNodes) pm |> dup pm current
-            |   StartLinePath   d -> traverse (d.NextState) (passedNodes) pm |> dup pm current
-            |   RepeatIterOrExit d -> traverse (d.NextState) (passedNodes) pm |> dup pm current
-            |   RepeatInit d -> 
-                traverse (d.NextState.StatePointer) (passedNodes) pm |> dup pm current
-            |   RepeatStart d -> 
-                let dp = dup pm current PointerToStateFinal
-                let nx = traverse (d.NextState) (passedNodes.Add (d.Id)) (pm.Add(current, dp))
-                MT.setNextState nx dp
-            |   GroupStart d -> traverse (d.NextState.StatePointer) (passedNodes) pm |> dup pm current
-            |   GroupEnd   d -> traverse (d.NextState.StatePointer) (passedNodes) pm |> dup pm current
-            |   SinglePath d ->
-                if d.NextState.Id = 0u then
-                    MT.setNextState concatPtr current
-                else
-                    traverse (d.NextState) (passedNodes) pm |> dup pm current
-            |   NoMatch _ -> current
-            |   ReturnSub _ -> current |> dup pm current
-            |   GoSub d ->
-                let nwNext = traverse (d.NextState) (passedNodes.Add (d.Id)) pm
-                let nwRet  = traverse (d.ReturnState) (passedNodes.Add (d.Id)) pm
-                MT.createGoSub nwNext nwRet d.GosubId
-                //if d.NextState.Id = 0u then
-                //    MT.setNextState concatPtr current
-                //else
-                //    traverse (d.NextState) (passedNodes.Add (d.Id)) pm |> dup pm current
 
-    traverse entryStartId passedNodes preMappedNodes
+        let rec traverse (p:DuplicateParam) : DuplicateReturn =
+            let inline passthrough (d:^A) =
+                p
+                |>  DuplicateParam.SetCurrent (^A : (member NextState : StatePointer) d)
+                |>  traverse 
+                |>  dup p
+
+            if  p.Current.Id = 0u || p.Current.Id = concatPtr.Id || p.PassedNodes.Contains (p.Current.Id) then 
+                if p.PreMapped.ContainsKey p.Current then p.PreMapped.[p.Current] else p.Current
+                |>  DuplicateReturn.Create p.SourceToTarget
+            else
+                let node = MT.lookup p.Current
+                match node with
+                |   MultiPath d -> 
+                    d.States 
+                    |> List.fold(fun (npt,st) stid -> 
+                        p
+                        |>  DuplicateParam.SetCurrent stid.StatePointer
+                        |>  DuplicateParam.SetStT st
+                        |>  traverse
+                        |>  fun rt -> (rt.Link :: npt, rt.SourceToTarget)
+                        ) ([], p.SourceToTarget)
+                    |>  fun (llst, st) ->
+                        MT.createAndSimplifyMultiPath llst
+                        |>  DuplicateReturn.Create st
+
+                |   EmptyPath d  when d.NextState.Id = PointerToStateFinal.Id -> 
+                    MT.duplicateAndLinkToNext concatPtr p.Current
+                    |>  DuplicateReturn.Create p.SourceToTarget
+                    |>  DuplicateReturn.LinkTargetToSource p.Current
+                |   EmptyPath       d -> passthrough d
+                |   StartLinePath   d -> passthrough d
+                |   RepeatIterOrExit d -> passthrough d
+                |   RepeatInit d -> passthrough d
+                |   RepeatStart d -> 
+                    let rt = DuplicateReturn.Create p.SourceToTarget PointerToStateFinal
+                    let dp = dup p rt
+                    let nx = 
+                        p
+                        |>  DuplicateParam.SetCurrent d.NextState
+                        |>  DuplicateParam.AddPassedNode d.Id
+                        |>  DuplicateParam.AddPreMapped p.Current dp.Link
+                        |>  traverse
+                    MT.setNextState nx.Link dp.Link
+                    |>  DuplicateReturn.Create nx.SourceToTarget
+
+                |   GroupStart d -> passthrough d
+                |   GroupEnd   d -> passthrough d
+                |   SinglePath d ->
+                    if d.NextState.Id = 0u then
+                        MT.setNextState concatPtr p.Current
+                        |>  DuplicateReturn.Create p.SourceToTarget
+                        |>  DuplicateReturn.LinkTargetToSource p.Current
+                    else
+                        passthrough d
+                |   NoMatch _ -> DuplicateReturn.Create p.SourceToTarget p.Current
+                |   ReturnSub _ -> DuplicateReturn.Create p.SourceToTarget p.Current |> dup p
+                |   GoSub d ->
+                    let nwNext = 
+                        p
+                        |>  DuplicateParam.SetCurrent d.NextState
+                        |>  DuplicateParam.AddPassedNode d.Id
+                        |>  traverse
+                    let gsn = MT.createGoSub nwNext.Link PointerToStateFinal d.GosubId
+                    let nwRet  = 
+                        p
+                        |>  DuplicateParam.SetCurrent d.ReturnState
+                        |>  DuplicateParam.AddPassedNode d.Id
+                        |>  DuplicateParam.AddPreMapped d.StatePointer gsn.StatePointer
+                        |>  DuplicateParam.SetStT nwNext.SourceToTarget
+                        |>  traverse
+                    MT.setNextState nwRet.Link gsn
+                    |>  DuplicateReturn.Create nwRet.SourceToTarget
+                    |>  DuplicateReturn.LinkTargetToSource gsn
+
+        DuplicateParam.Create entryStartId passedNodes preMappedNodes Map.empty
+        |>  traverse
+        |>  fun r -> r.Link
 
 
 let rec refactorCommonPlains (sil:SinglePathPointer list) =
@@ -1020,7 +1089,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
 
-            let mandatoryPath = duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
             let optionalPath =
                 (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
                 |>  refactorMultiPathStatesSp
@@ -1037,7 +1106,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
 
-            let mandatoryPath = duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
             let optionalPath =
                 (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
                 |>  refactorMultiPathStatesSp
@@ -1049,20 +1118,9 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             let infiniteLoop =
                 MT.setNextState (infiniteLoop.StatePointer) infiniteLoop
 
-
-            //let finalPath =
-            //    let loopStart = MT.createRepeatStart rs.RepeatId PointerToStateFinal
-            //    let iterDup = duplicateStructureAndLinkToNext [rs.StatePointer] [(rs.StatePointer, loopStart)] rioe.IterateState loopStart
-            //    let mpo =
-            //        MT.getSinglePathPointers iterDup @ MT.getSinglePathPointers rioe.NextState
-            //        |>  refactorMultiPathStatesSp
-            //        |>  MT.createAndSimplifyMultiPathSp
-            //    MT.setNextState mpo loopStart
-
             [rt.Min .. -1 .. 1]
             |>  List.fold(fun nxt _ ->
                 MT.createGoSub mandatoryPath nxt gosubId
-                //duplicateStructureAndLinkToNext [rs.StatePointer] [(rs.StatePointer, nxt)] rioe.IterateState nxt
             ) infiniteLoop
         
 
@@ -1127,7 +1185,7 @@ let rgxToNFA rgx =
 
         let createRepeat o min max =
             let linkState = MT.createEmptyPath PointerToStateFinal
-            let repPath = convert o
+            let repPath = o |> convert |>  convertRepeaterToExplicitGraph
             let repState = MT.createRepeatState min max
             let repExit = MT.createRepeatIterOrExit repPath repState.RepeatId linkState
             let repeatLoopStart = MT.createRepeatStart repState.RepeatId repExit
@@ -1379,14 +1437,14 @@ let PrintIt (nfa:NFAMachine) =
             |>  List.rev
             |>  List.iter(fun i ->
                 match i with
-                |   LevelType.Concat    -> printf "         "
-                |   LevelType.Group     -> printf "          "
-                |   LevelType.Empty     -> printf "     "
-                |   LevelType.Multi     -> printf "|    "
-                |   LevelType.RepeatExit-> printf " |X    "
-                |   LevelType.RepeatIter-> printf " |I    "
-                |   LevelType.LoopStart -> printf "               "
-                |   LevelType.Gosub     -> printf "|         "
+                |   LevelType.Concat    -> printf "          "
+                |   LevelType.Group     -> printf "           "
+                |   LevelType.Empty     -> printf "      "
+                |   LevelType.Multi     -> printf "|      "
+                |   LevelType.RepeatExit-> printf " |X     "
+                |   LevelType.RepeatIter-> printf " |I     "
+                |   LevelType.LoopStart -> printf "                "
+                |   LevelType.Gosub     -> printf "|          "
             )
 
         printPrefix hist
@@ -1397,64 +1455,64 @@ let PrintIt (nfa:NFAMachine) =
                 if not(passedNodes.Contains current.Id) then
                     match stMap.[current.Id] with
                     |   EmptyPath  ep   ->  
-                        printf "~(%2d)" ep.Id
+                        printf "~(%3d)" ep.Id
                         printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id) passedGosub
                     |   StartLinePath  ep   ->  
-                        printf "^(%2d)" ep.Id
+                        printf "^(%3d)" ep.Id
                         printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id) passedGosub
                     |   SinglePath sp   -> 
                         match sp.State with
-                        |   ExactMatch c    -> printf "-(%2d:\"%s\")" sp.Id (Regex.Escape(c.Char.ToString()))
-                        |   OneInSetMatch o -> printf "-(%2d:[@])" sp.Id
+                        |   ExactMatch c    -> printf "-(%3d:\"%s\")" sp.Id (Regex.Escape(c.Char.ToString()))
+                        |   OneInSetMatch o -> printf "-(%3d:[@])" sp.Id
                         printLineRest (LevelType.Concat :: hist) sp.NextState (passedNodes.Add sp.Id) passedGosub
                     |   MultiPath mp    ->
                         match mp.States with
                         |   h::t -> 
-                            printf "|(%2d)" mp.Id
+                            printf "|(%3d)" mp.Id
                             printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id) passedGosub
                             t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer (passedNodes.Add mp.Id) passedGosub) 
                         |   [] -> ()
                     |   RepeatInit rs ->
                         let rt = rsMap.[rs.RepeatId]
-                        printf "->>(%2d:<%2d,%2d>)" rs.Id rt.Min rt.Max
+                        printf "->>(%3d:<%2d,%2d>)" rs.Id rt.Min rt.Max
                         printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id) passedGosub
                     |   RepeatStart rs ->
-                        printf "L(%2d)" rs.Id
+                        printf "L(%3d)" rs.Id
                         printLineRest (LevelType.Empty :: hist) rs.NextState (passedNodes.Add rs.Id) passedGosub
                     |   RepeatIterOrExit ri ->
-                        printf "-|I(%2d)" ri.Id
+                        printf "-|I(%3d)" ri.Id
                         printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id) passedGosub
 
                         if ri.IterateState.Id <> ri.NextState.Id then
                             printPrefix hist
-                            printf "-|X(%2d)" ri.Id
+                            printf "-|X(%3d)" ri.Id
                             printLineRest (LevelType.RepeatExit :: hist) ri.NextState (passedNodes.Add ri.Id) passedGosub
                         else
                             printPrefix hist
-                            printf "|X(%2d) :::^^^\n" ri.NextState.Id
+                            printf "|X(%3d) :::^^^\n" ri.NextState.Id
                     |   GroupStart gp ->
-                        printf "-%2d, (%2d){" gp.GroupId.Id gp.Id 
+                        printf "-%2d, (%3d){" gp.GroupId.Id gp.Id 
                         printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id) passedGosub
                     |   GroupEnd gp ->
-                        printf "}(%2d)     " gp.Id 
+                        printf "}(%3d)     " gp.Id 
                         printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id) passedGosub
-                    |   NoMatch d -> printf "-NoMatch(%2d)\n" d
-                    |   ReturnSub d -> printfn "-Ret(%d,%d)" d.Id d.GosubId.Id
+                    |   NoMatch d -> printf "-NoMatch(%3d)\n" d
+                    |   ReturnSub d -> printfn "-Ret(%3d,%d)" d.Id d.GosubId.Id
                     |   GoSub     d -> 
-                        if passedGosub.Contains d.GosubId then
-                            printf "|GS(%d, %d) (repeat)\n" d.Id d.GosubId.Id
+                        if passedNodes.Contains d.NextState.Id then
+                            printf "|GS(%3d, %d) (repeat)\n" d.Id d.GosubId.Id
                             printPrefix (hist)
-                            printf "|GS-Ret   "
+                            printf "|GS-Ret    "
                             printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedNodes.Add d.Id) passedGosub
                         else
-                            printf "|GS(%d, %d)" d.Id d.GosubId.Id
+                            printf "|GS(%3d, %d)" d.Id d.GosubId.Id
                             printLineRest (LevelType.Gosub :: hist) d.NextState (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
                             printPrefix (hist)
-                            printf "|GS-Ret   "
+                            printf "|GS-Ret    "
                             printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
                             //printLine (LevelType.Gosub :: hist) d.ReturnState.StatePointer (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
                 else
-                    printf "-Loop(%2d)\n" current.Id
+                    printf "-Loop(%3d)\n" current.Id
 
         printLineRest hist current passedNodes passedGosub
     printLine [] nfa.Start passedNodes passedGosub
