@@ -705,11 +705,10 @@ module Duplication =
     type private DuplicateParam = {
         Current:        StatePointer
         PassedNodes:    Set<StateId>
-        PreMapped:      Map<StatePointer, StatePointer>
         SourceToTarget : Map<StatePointer, StatePointer>
     }
     with    
-        static member Create c pn pm st = { Current = c; PassedNodes = pn; PreMapped = pm; SourceToTarget = st }
+        static member Create c pn st = { Current = c; PassedNodes = pn; SourceToTarget = st }
 
     type private DuplicateReturn = {
         Link           : StatePointer
@@ -722,7 +721,7 @@ module Duplication =
         let SetCurrent c (p:DuplicateParam)  = { p with Current = c }
         let SetStT     st (p:DuplicateParam) = { p with SourceToTarget = st}
         let AddPassedNode n (p:DuplicateParam) = { p with PassedNodes = p.PassedNodes |> Set.add n}
-        let AddPreMapped  k m (p:DuplicateParam) = { p with PreMapped = p.PreMapped |> Map.add k m}
+        let AddMapped  k m (p:DuplicateParam) = { p with SourceToTarget = p.SourceToTarget |> Map.add k m}
 
     module private DuplicateReturn =
         let LinkTargetToSource s (r:DuplicateReturn) = 
@@ -740,7 +739,7 @@ module Duplication =
 
         let dup (p:DuplicateParam) (r:DuplicateReturn) = 
             let tr = 
-                if p.PreMapped.ContainsKey r.Link then p.PreMapped.[r.Link]
+                if p.SourceToTarget.ContainsKey r.Link then p.SourceToTarget.[r.Link]
                 else r.Link
             MT.duplicateAndLinkToNext tr p.Current
             |>  DuplicateReturn.Create p.SourceToTarget
@@ -755,7 +754,7 @@ module Duplication =
                 |>  dup p
 
             if  p.Current.Id = 0u || p.Current.Id = concatPtr.Id || p.PassedNodes.Contains (p.Current.Id) then 
-                if p.PreMapped.ContainsKey p.Current then p.PreMapped.[p.Current] else p.Current
+                if p.SourceToTarget.ContainsKey p.Current then p.SourceToTarget.[p.Current] else p.Current
                 |>  DuplicateReturn.Create p.SourceToTarget
             else
                 let node = MT.lookup p.Current
@@ -788,10 +787,11 @@ module Duplication =
                         p
                         |>  DuplicateParam.SetCurrent d.NextState
                         |>  DuplicateParam.AddPassedNode d.Id
-                        |>  DuplicateParam.AddPreMapped p.Current dp.Link
+                        |>  DuplicateParam.AddMapped p.Current dp.Link
                         |>  traverse
                     MT.setNextState nx.Link dp.Link
                     |>  DuplicateReturn.Create nx.SourceToTarget
+                    |>  DuplicateReturn.LinkTargetToSource p.Current 
 
                 |   GroupStart d -> passthrough d
                 |   GroupEnd   d -> passthrough d
@@ -814,15 +814,15 @@ module Duplication =
                     let nwRet  = 
                         p
                         |>  DuplicateParam.SetCurrent d.ReturnState
-                        |>  DuplicateParam.AddPassedNode d.Id
-                        |>  DuplicateParam.AddPreMapped d.StatePointer gsn.StatePointer
                         |>  DuplicateParam.SetStT nwNext.SourceToTarget
+                        |>  DuplicateParam.AddPassedNode d.Id
+                        |>  DuplicateParam.AddMapped d.StatePointer gsn.StatePointer
                         |>  traverse
                     MT.setNextState nwRet.Link gsn
                     |>  DuplicateReturn.Create nwRet.SourceToTarget
                     |>  DuplicateReturn.LinkTargetToSource gsn
 
-        DuplicateParam.Create entryStartId passedNodes preMappedNodes Map.empty
+        DuplicateParam.Create entryStartId passedNodes preMappedNodes
         |>  traverse
         |>  fun r -> r.Link
 
@@ -1440,7 +1440,7 @@ let PrintIt (nfa:NFAMachine) =
                 |   LevelType.Concat    -> printf "          "
                 |   LevelType.Group     -> printf "           "
                 |   LevelType.Empty     -> printf "      "
-                |   LevelType.Multi     -> printf "|      "
+                |   LevelType.Multi     -> printf "|     "
                 |   LevelType.RepeatExit-> printf " |X     "
                 |   LevelType.RepeatIter-> printf " |I     "
                 |   LevelType.LoopStart -> printf "                "
