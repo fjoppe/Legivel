@@ -1,15 +1,8 @@
 ﻿module Legivel.ThompsonParser
 
 open Legivel.Utilities.RegexDSL
-
 open Legivel.Tokenizer
-open System.Drawing
-open System.Diagnostics
-open NUnit.Framework
-open FsUnitTyped
-open TestUtils
 open System.Text.RegularExpressions
-open System.Text
 
 
 type ExactChar = {
@@ -903,7 +896,7 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list) =
         sil
     else
         //  Combine duplicate tokens
-        let rec refactorCharacterSets (sil:SinglePathPointer list) (stnl:(Token*(NormalizedSPOneInSet list)) list) =
+        let rec refactorCharacterSets (sil:SinglePathPointer list) (stnl:(Token*(NormalizedSPOneInSet list)) list) (premaps:Map<StateId list, StatePointer>) =
             match stnl with
             |   []  -> sil
             |   (cht, lst) :: tail ->
@@ -922,21 +915,31 @@ let refactorConflictingCharacterSets (sil:SinglePathPointer list) =
                         t, nois |> List.map(fun ns -> { ns with IdSp = mapOrOld ns.IdSp })
                     )
 
-                let bundle = 
-                    (allNextIds |> List.collect id |> List.map(fun e -> e.StatePointer))
-                    |>  MT.simplifyMultiPathStates
-                    |>  List.map MT.cleanupEmptyPaths
-                    |>  List.map MT.getSinglePathPointers
-                    |>  List.collect id
-                    |>  MT.createAndSimplifyMultiPathSp 
+
+                let nxtlist = lst |> List.map(fun e -> e.Next.Id) |> List.distinct |> List.sort
+                let (bundle, newPremapped) =
+                    if premaps.ContainsKey nxtlist then
+                       premaps.[nxtlist],premaps
+                    else
+                        let mt = MT.createEmptyPath PointerToStateFinal
+                        allNextIds 
+                        |>  List.collect id 
+                        |>  List.map(fun e -> e.StatePointer)
+                        |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then mt else e)
+                        |>  MT.simplifyMultiPathStates
+                        |>  List.map MT.cleanupEmptyPaths
+                        |>  List.map MT.getSinglePathPointers
+                        |>  List.collect id
+                        |>  MT.createAndSimplifyMultiPathSp
+                        |>  fun e -> e, premaps |> Map.add nxtlist e
                 let sp = MT.createSinglePath (OneInSetMatch({ ListCheck = [cht]; QuickCheck = uint32(cht)})) bundle
 
                 let silNew = 
                     sil 
                     |>  List.filter(fun i -> toRemove |> List.contains(i.Id) |> not)
                     |>  List.append (allRefactoredOneInSet |> List.map snd |> List.map(fun i -> i.SinglePathPointerValue))
-                refactorCharacterSets (sp.SinglePathPointerValue :: silNew) tailNew
-        refactorCharacterSets sil stnl
+                refactorCharacterSets (sp.SinglePathPointerValue :: silNew) tailNew newPremapped
+        refactorCharacterSets sil stnl Map.empty
 
 
 let refacorConflictingPlainWithCharacterSets (sil:SinglePathPointer list) =
@@ -1030,6 +1033,7 @@ let refactorMultiPathStates (lst : StatePointer list) =
     |>  refactorConflictingCharacterSets
     |>  refacorConflictingPlainWithCharacterSets
     |>  refactorCommonPlains
+    |>  mergeCompatibleOneInSet
 
     
 
@@ -1263,9 +1267,6 @@ let rgxToNFA rgx =
                     sil @ mpl
             ) []
             |>  refactorMultiPathStatesSp
-            //|>  refactorConflictingCharacterSets
-            //|>  refacorConflictingPlainWithCharacterSets
-            //|>  refactorCommonPlains
             |>  MT.createAndSimplifyMultiPathSp
         |   Optional    r -> createRepeat r 0 1
         |   ZeroOrMore  r -> createRepeat r 0 0

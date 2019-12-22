@@ -31,8 +31,8 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let engine = Yaml12Parser(Failsafe.Schema)
-engine.SetLogFunc (logger.Trace)
+let engine = Yaml12Parser(Failsafe.Schema, logger.Trace)
+//engine.SetLogFunc (logger.Trace)
 
 let WarnMsg (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
 let ErrMsg  (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -91,9 +91,14 @@ let YamlParseWithErrors s =
     with
     | e -> printfn "%A" e; raise e
 
-let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
+//let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-YamlParse s
+let yaml = "
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey"
+
+YamlParse yaml
 
 

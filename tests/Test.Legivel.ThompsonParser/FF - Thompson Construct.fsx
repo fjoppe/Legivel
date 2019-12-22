@@ -18,8 +18,6 @@ open Legivel.ThompsonParser
 open NFAValues
 
 
-
-
 //HardValues.``s-l-comments``
 //|>  rgxToNFA
 //|>  PrintIt 
@@ -73,7 +71,8 @@ let ``ns-plain-safe`` = ``ns-plain-safe-out``
 let ``ns-plain-char`` = (HardValues.``ns-char`` + HardValues.``c-comment``) ||| ((``ns-plain-safe``) - (RGO (":#", [Token.``t-colon``; Token.``t-hash``]))) ||| (HardValues.``c-mapping-value`` + (``ns-plain-safe``))
 let ``ns-plain-first`` = (HardValues.``ns-char`` - HardValues.``c-indicator``) ||| (HardValues.``c-mapping-key`` ||| HardValues.``c-mapping-value`` ||| HardValues.``c-sequence-entry``) + (``ns-plain-safe``)
 let ``nb-ns-plain-in-line`` = ZOM(ZOM(HardValues.``s-white``) + (``ns-plain-char``))
-let ``ns-plain-one-line`` = (``ns-plain-first``) + (``nb-ns-plain-in-line``)
+let ``ns-plain-one-line`` = ``ns-plain-first`` + ``nb-ns-plain-in-line``
+
 let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 2)
 let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 1) (* Where m < n *)
 let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
@@ -86,16 +85,19 @@ let ``s-flow-folded`` =
 
 let ``s-ns-plain-next-line`` = (``s-flow-folded``) + (``ns-plain-char``) + (``nb-ns-plain-in-line``)
 
-//(``ns-plain-one-line``) + OOM(``s-ns-plain-next-line``)
-//|>  rgxToNFA
+let ``ns-plain`` = ``ns-plain-one-line``
+
+//let yaml = "Mark McGwire\n"
+//let rgx = ``ns-plain`` |>  rgxToNFA
+//let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+
+//parseIt rgx stream 
 
 
 
-//(``ns-plain-one-line``) 
-//|>  rgxToNFA
-
-
-OOM((``s-flow-folded``) + (``ns-plain-char``) + (``nb-ns-plain-in-line``))
+(ZOM(HardValues.``l-document-prefix``))
 |>  rgxToNFA
+//|>  PrintIt
+
 
 
