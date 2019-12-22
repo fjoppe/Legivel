@@ -18,59 +18,84 @@ open Legivel.ThompsonParser
 open NFAValues
 
 
-let ``ns-yaml-directive with comments`` = HardValues.``ns-yaml-directive`` + HardValues.``s-l-comments`` |> rgxToNFA
-
-let nfa = ``ns-yaml-directive with comments`` 
-
-//let nfa = 
-//    rgxToNFA <| 
-//            OPT(
-//                OPT(RGP("A", [Token.``c-printable``]))+ RGP("B", [Token.``c-printable``])
-//            ) +
-//            RGP("A", [Token.``c-printable``]) 
 
 
-PrintIt nfa
+//HardValues.``s-l-comments``
+//|>  rgxToNFA
+//|>  PrintIt 
+
+//ZOM(HardValues.``l-comment``)
+//|>  rgxToNFA
+//|>  PrintIt 
+
+//HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``) + HardValues.``b-comment``
+//|>  rgxToNFA
+//|>  PrintIt 
+
+
+//ZOM (HardValues.``l-document-prefix``)
+//|>  rgxToNFA
+//|>  PrintIt
+
+//HardValues.``c-byte-order-mark``
+//|>  rgxToNFA
+//|>  PrintIt
+
+
+//OPT(RGP("A", [Token.``c-printable``])) + ZOM(RGP("B", [Token.``c-printable``]))
+//|>  rgxToNFA
+//|>  PrintIt
+
+
+//ZOM (OPT(RGP("A", [Token.``c-printable``])) + ZOM(RGP("B", [Token.``c-printable``])))
+//|>  rgxToNFA
+//|>  PrintIt
 
 
 
-HardValues.``s-l-comments`` 
+//let yaml = "
+//- Mark McGwire
+//- Sammy Sosa
+//- Ken Griffey"
+//let rgx = (ZOM(HardValues.``l-document-prefix``)) |> rgxToNFA
+//let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+//parseIt rgx stream 
+
+
+
+//HardValues.``ns-yaml-directive`` + HardValues.``s-l-comments`` 
+//|>  rgxToNFA
+//|>  PrintIt
+
+
+let ``ns-plain-safe-out`` = HardValues.``ns-plain-safe-out``
+let ``ns-plain-safe`` = ``ns-plain-safe-out``
+let ``ns-plain-char`` = (HardValues.``ns-char`` + HardValues.``c-comment``) ||| ((``ns-plain-safe``) - (RGO (":#", [Token.``t-colon``; Token.``t-hash``]))) ||| (HardValues.``c-mapping-value`` + (``ns-plain-safe``))
+let ``ns-plain-first`` = (HardValues.``ns-char`` - HardValues.``c-indicator``) ||| (HardValues.``c-mapping-key`` ||| HardValues.``c-mapping-value`` ||| HardValues.``c-sequence-entry``) + (``ns-plain-safe``)
+let ``nb-ns-plain-in-line`` = ZOM(ZOM(HardValues.``s-white``) + (``ns-plain-char``))
+let ``ns-plain-one-line`` = (``ns-plain-first``) + (``nb-ns-plain-in-line``)
+let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 2)
+let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 1) (* Where m < n *)
+let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
+let ``s-line-prefix`` = ``s-flow-line-prefix``
+let ``l-empty``  = ((``s-line-prefix``) ||| (``s-indent(<n)``)) + HardValues.``b-as-line-feed``
+let ``b-l-trimmed`` = HardValues.``b-non-content`` + OOM(``l-empty``)
+let ``b-l-folded`` = (``b-l-trimmed``) ||| HardValues.``b-as-space``
+let ``s-flow-folded`` =
+        OPT(HardValues.``s-separate-in-line``) + (``b-l-folded``) + (``s-flow-line-prefix``)
+
+let ``s-ns-plain-next-line`` = (``s-flow-folded``) + (``ns-plain-char``) + (``nb-ns-plain-in-line``)
+
+//(``ns-plain-one-line``) + OOM(``s-ns-plain-next-line``)
+//|>  rgxToNFA
+
+
+
+//(``ns-plain-one-line``) 
+//|>  rgxToNFA
+
+
+OOM((``s-flow-folded``) + (``ns-plain-char``) + (``nb-ns-plain-in-line``))
 |>  rgxToNFA
-|>  PrintIt 
 
-(HardValues.``s-b-comment`` ||| HardValues.``start-of-line``) + ZOM(HardValues.``l-comment``)
-|>  rgxToNFA
-|>  PrintIt 
-
-
-ZOM(HardValues.``l-comment``)
-|>  rgxToNFA
-|>  PrintIt 
-
-
-HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``) + HardValues.``b-comment``
-|>  rgxToNFA
-|>  PrintIt 
-
-
-OPT(HardValues.``c-nb-comment-text``) + HardValues.``b-comment``
-|>  rgxToNFA
-|>  PrintIt 
-
-OPT(HardValues.``c-nb-comment-text``) 
-|>  rgxToNFA
-|>  PrintIt 
-
-OPT(RGP("#", [Token.``t-hash``]) + ZOM(HardValues.``nb-char``))
-|>  rgxToNFA
-|>  PrintIt 
-
-OPT(ZOM(HardValues.``nb-char``))
-|>  rgxToNFA
-|>  PrintIt 
-
-
-OPT(ZOM(RGP("A", [Token.``c-printable``])))
-|>  rgxToNFA
-|>  PrintIt 
 
