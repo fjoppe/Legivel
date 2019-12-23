@@ -387,56 +387,15 @@ s-line-prefix	 loc:(4,14) i:1 c:Flow-out &a:0 e:0 w:0 sp:42
 /ns-flow-yaml-content (Value) loc:(4,14) i:1 c:Flow-out &a:0 e:0 w:0 sp:42
 /ns-flow-content (Value) loc:(4,14) i:1 c:Flow-out &a:0 e:0 w:0 sp:42
 /ns-flow-node (Value) loc:(4,14) i:1 c:Flow-out &a:0 e:0 w:0 sp:42
-System.IndexOutOfRangeException:"Index was outside the bounds of the array."
-"   at System.String.get_Chars(Int32 index)
-   at Legivel.Utilities.RegexDSL.processStr@1593D.Invoke(Boolean startOfLine) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.RegexDSL\Legivel.RegexDSL.fs:line 1614
-   at Legivel.Utilities.RegexDSL.parseMultiPath@1624.Invoke(FSharpList`1 sptrLst) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.RegexDSL\Legivel.RegexDSL.fs:line 1627
-   at Legivel.Utilities.RegexDSL.processStr@1593D.Invoke(Boolean startOfLine) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.RegexDSL\Legivel.RegexDSL.fs:line 1634
-   at Legivel.Utilities.RegexDSL.parseIt(NFAMachine nfa, RollingStream`1 stream) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.RegexDSL\Legivel.RegexDSL.fs:line 1672
-   at Legivel.Utilities.Regex.PatternMatch.AssesInput(RollingStream`1 rs, NFAMachine nfa) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser.Merged\Legivel.Regex.PatternMatch.fs:line 12
-   at Legivel.Utilities.Regex.PatternMatch.HasMatches(RollingStream`1 s, NFAMachine p) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser.Merged\Legivel.Regex.PatternMatch.fs:line 47
-   at Legivel.Parser.ParseState.SkipIfMatch(NFAMachine p) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 184
-   at Legivel.Parser.s-l-flow-in-block@2817.Invoke(ParseState prs) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2822
-   at Legivel.Parser.ParseStateModule.Match and Advance[a](NFAMachine patt, FSharpFunc`2 postAdvanceFunc, ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 325
-   at Legivel.Parser.Yaml12Parser.s-l+flow-in-block(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2817
-   at Legivel.Parser.s-l-block-node@2806-4.Invoke(ParseState arg00) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2806
-   at Legivel.Internals.ParserMonads.EitherBuilder`3.Either[a](EitherResult`2 pv, FSharpFunc`2 nw) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\Internals.fs:line 37
-   at Legivel.Parser.Yaml12Parser.s-l+block-node(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2804
-   at Legivel.Parser.s-l-block-indented@2546-3.Invoke(ParseState arg00) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2546
-   at Legivel.Internals.ParserMonads.EitherBuilder`3.Either[a](EitherResult`2 pv, FSharpFunc`2 nw) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\Internals.fs:line 37
-   at Legivel.Parser.Yaml12Parser.s-l+block-indented(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2544
-   at Legivel.Parser.c-l-block-seq-entry@2512.Invoke(ParseState prs) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2518
-   at Legivel.Parser.ParseStateModule.Match and Advance[a](NFAMachine patt, FSharpFunc`2 postAdvanceFunc, ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 325
-   at Legivel.Parser.Yaml12Parser.c-l-block-seq-entry(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2512
-   at Legivel.Parser.l-block-sequence@2492-1.Invoke(ParseState arg00) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2492
-   at Legivel.Parser.ParseStateModule.Match and Advance[a](NFAMachine patt, FSharpFunc`2 postAdvanceFunc, ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 325
-   at Legivel.Parser.l-block-sequence@2480.Invoke(ParseState psp, FSharpList`1 acc) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2492
-   at Legivel.Parser.processFunc@2472-24.Invoke(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2501
-   at Legivel.Parser.parseAndCache@483.Invoke(Unit unitVar0) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 484
-   at Legivel.Parser.ParsedCache.GetOrParse(Int32 p, NodeKind t, Context c, ParseState ps, FSharpFunc`2 parseFunc) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 524
-   at Legivel.Parser.ParsedCache.GetOrParse(Int32 p, NodeKind t, ParseState ps, FSharpFunc`2 parseFunc) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 527
-   at Legivel.Parser.Yaml12Parser.l+block-sequence(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2503
-   at Legivel.Parser.seq or map@2884-4.Invoke(ParseState arg00) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2884
-   at Legivel.Parser.omit@2878TTT.Invoke(FSharpFunc`2 f, d d1, f _arg9) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2878
-   at Legivel.Internals.ParserMonads.EitherBuilder`3.Either[a](EitherResult`2 pv, FSharpFunc`2 nw) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\Internals.fs:line 37
-   at Legivel.Parser.seq or map@2881.Invoke(ParseState pls) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2883
-   at Legivel.Internals.ParserMonads.EitherBuilder`3.Either[a](EitherResult`2 pv, FSharpFunc`2 nw) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\Internals.fs:line 37
-   at Legivel.Parser.Yaml12Parser.s-l+block-collection(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2893
-   at Legivel.Parser.s-l-block-in-block@2836-4.Invoke(ParseState arg00) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2836
-   at Legivel.Internals.ParserMonads.EitherBuilder`3.Either[a](EitherResult`2 pv, FSharpFunc`2 nw) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\Internals.fs:line 37
-   at Legivel.Parser.Yaml12Parser.s-l+block-in-block(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2834
-   at Legivel.Parser.s-l-block-node@2805-3.Invoke(ParseState arg00) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2805
-   at Legivel.Internals.ParserMonads.EitherBuilder`3.Either[a](EitherResult`2 pv, FSharpFunc`2 nw) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\Internals.fs:line 37
-   at Legivel.Parser.Yaml12Parser.s-l+block-node(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2804
-   at Legivel.Parser.Yaml12Parser.l-bare-document(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2942
-   at Legivel.Parser.l-any-document@2996-5.Invoke(ParseState arg00) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2996
-   at Legivel.Internals.ParserMonads.EitherBuilder`3.Either[a](EitherResult`2 pv, FSharpFunc`2 nw) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\Internals.fs:line 37
-   at Legivel.Parser.Yaml12Parser.l-any-document(ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 2993
-   at Legivel.Parser.l-yaml-stream@3023.Invoke(ParseState psr) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 3069
-   at Legivel.Parser.ParseStateModule.Match and Advance[a](NFAMachine patt, FSharpFunc`2 postAdvanceFunc, ParseState ps) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 325
-   at Legivel.Parser.Yaml12Parser.l-yaml-stream(String input) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\src\Legivel.Parser\YamlParser.fs:line 3022
-   at FSI_0004.YamlParse(String s) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\tests\Test.Legivel.Merged\FailFast YamlParserTest 5.fsx:line 64"
-> System.IndexOutOfRangeException: Index was outside the bounds of the array.
-   at FSI_0004.YamlParse(String s) in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\tests\Test.Legivel.Merged\FailFast YamlParserTest 5.fsx:line 69
-   at <StartupCode$FSI_0005>.$FSI_0005.main@() in C:\Users\frank\Desktop\Projecten\YamlParserRenewed\tests\Test.Legivel.Merged\FailFast YamlParserTest 5.fsx:line 97
-Stopped due to error
+/s-l+flow-in-block (Value) loc:(4,15) i:0 c:Block-in &a:0 e:0 w:0 sp:43
+/s-l+block-node (Value) loc:(4,15) i:0 c:Block-in &a:0 e:0 w:0 sp:43
+/s-l+block-indented (Value) loc:(4,15) i:0 c:Block-in &a:0 e:0 w:0 sp:43
+/c-l-block-seq-entry (Value) loc:(4,15) i:0 c:Block-in &a:0 e:0 w:0 sp:43
+c-l-block-seq-entry	 loc:(4,15) i:0 c:Block-in &a:0 e:0 w:0 sp:43
+/c-l-block-seq-entry (NoResult) loc:(4,15) i:0 c:Block-in &a:0 e:0 w:0 sp:43
+/l+block-sequence (Value) loc:(4,15) i:-1 c:Block-in &a:0 e:0 w:0 sp:43
+/s-l+block-collection (Value) loc:(4,15) i:-1 c:Block-in &a:0 e:0 w:0 sp:43
+/s-l+block-in-block (Value) loc:(4,15) i:-1 c:Block-in &a:0 e:0 w:0 sp:43
+/s-l+block-node (Value) loc:(4,15) i:-1 c:Block-in &a:0 e:0 w:0 sp:43
+/l-bare-document (Value) loc:(4,15) i:-1 c:Block-in &a:0 e:0 w:0 sp:43
+/l-any-document (Value) loc:(4,15) i:-1 c:Block-in &a:0 e:0 w:0 sp:43

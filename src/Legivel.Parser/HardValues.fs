@@ -17,7 +17,7 @@ open System.IO
 open System.Collections.Generic
 
 let ``start-of-line`` = RGP ("^", [Token.NoToken])
-let ``end-of-file`` =   RGP("\\z", [Token.EOF])
+let ``end-of-file`` =   RGO("\\z", [Token.EOF])
 
 
 //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
@@ -300,7 +300,7 @@ let ``b-as-space`` = ``b-break``
 let ``c-nb-comment-text`` = RGP("#", [Token.``t-hash``]) + ZOM(``nb-char``)
 
 //  [76]    http://www.yaml.org/spec/1.2/spec.html#b-comment
-let ``b-comment`` = ``b-non-content`` ||| RGP("\\z", [Token.EOF]) // EOF..
+let ``b-comment`` = ``b-non-content`` ||| RGO("\\z", [Token.EOF]) // EOF..
 
 //  [77]    http://www.yaml.org/spec/1.2/spec.html#s-b-comment
 let ``s-b-comment`` = OPT(``s-separate-in-line`` + OPT(``c-nb-comment-text``)) + ``b-comment`` 

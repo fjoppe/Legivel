@@ -1,6 +1,7 @@
 ﻿module Legivel.Utilities.RegexDSL 
 
 open System.Text.RegularExpressions
+open System.Collections.Generic
 
 #nowarn "52" // "value has been copied to ensure the original is not mutated"
 
@@ -232,6 +233,7 @@ let GRP p = Group(p)
 
 /// Returns rest-string, where match 'm' is removed from source 's'
 let Advance(m : string, s : string) =  s.Substring(m.Length)
+
 
 
 
@@ -635,7 +637,7 @@ module MT = //    Match Tree
         currentGosubId <- (currentGosubId + 1u)
         GosubId currentGosubId
 
-    let mutable private allNodes = Map.empty<StateId, StateNode>
+    let private allNodes = Dictionary<StateId, StateNode>()
     let mutable private allRepeats = new System.Collections.Generic.List<RepeatState>()
 
     let Init() =
@@ -643,15 +645,16 @@ module MT = //    Match Tree
         currentRepeatId <- 0u
         currentGroupId  <- 0u
         currentGosubId  <- 0u
-        allNodes        <- Map.empty<StateId, StateNode>
+        allNodes.Clear()
         allRepeats      <- new System.Collections.Generic.List<RepeatState>()
 
     let addAndReturn (nd:StateNode) =
-        allNodes <- allNodes.Add(nd.Id, nd)
+        allNodes.Add(nd.Id, nd)
         nd.StatePointer
 
     let updateAndReturn (nd:StateNode) =
-        allNodes <- allNodes.Remove(nd.Id).Add(nd.Id, nd)
+        allNodes.Remove(nd.Id) |> ignore
+        allNodes.Add(nd.Id, nd)
         nd.StatePointer
 
     let createRepeatState min max = 
@@ -687,7 +690,7 @@ module MT = //    Match Tree
 
     let updateNode nd = nd |> updateAndReturn
     
-    let ToNFAMachine st = NFAMachine.Create (st, (allNodes |> Map.toList |> List.map(snd)), (allRepeats |> Seq.toList))
+    let ToNFAMachine st = NFAMachine.Create (st, (allNodes.Values |> Seq.toList), (allRepeats |> Seq.toList))
 
     let duplicate (currPtr : StatePointer) =
         match lookup currPtr with
@@ -1404,7 +1407,9 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
 
 
 let removeUnused (nfa:NFAMachine) =
-    let stMap = nfa.States |> List.map(fun e -> e.Id, e) |> Map.ofList
+    let stMap = Dictionary<StateId, StateNode>()
+
+    nfa.States |> List.iter(fun e -> stMap.Add(e.Id, e))
 
     let rec traverse (current:StatePointer) (passedNodes:Set<StateId>) =
         if  current.Id = 0u || passedNodes.Contains (current.Id) then passedNodes
@@ -1577,7 +1582,10 @@ with
 
 
 let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
-    let stMap = nfa.States |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.Id, i)) Map.empty<StateId, StateNode>
+    let stMap = Dictionary<StateId, StateNode>()
+   
+    nfa.States |> List.iter(fun e -> stMap.Add(e.Id, e))
+
     let stRepeat = nfa.Repeats |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.RepeatId, i)) Map.empty<RepeatId, RepeatState>
 
     let NoMatch = { IsMatch = false ; FullMatch = []; Groups = [] }
@@ -1782,4 +1790,5 @@ let clts (cl:char list) = System.String.Concat(cl)
 module ParseResult =
     let IsMatch pr = pr.IsMatch
     let FullMatch pr = pr.FullMatch
+
 
