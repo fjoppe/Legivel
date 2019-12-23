@@ -920,14 +920,14 @@ module Duplication =
     type private DuplicateParam = {
         Current:        StatePointer
         PassedNodes:    Set<StateId>
-        SourceToTarget : Map<StatePointer, StatePointer>
+        SourceToTarget : Dictionary<StatePointer, StatePointer>
     }
     with    
         static member Create c pn st = { Current = c; PassedNodes = pn; SourceToTarget = st }
 
     type private DuplicateReturn = {
         Link           : StatePointer
-        SourceToTarget : Map<StatePointer, StatePointer>
+        SourceToTarget : Dictionary<StatePointer, StatePointer>
     }
     with
         static member Create st l = { Link = l; SourceToTarget = st}
@@ -936,12 +936,19 @@ module Duplication =
         let SetCurrent c (p:DuplicateParam)  = { p with Current = c }
         let SetStT     st (p:DuplicateParam) = { p with SourceToTarget = st}
         let AddPassedNode n (p:DuplicateParam) = { p with PassedNodes = p.PassedNodes |> Set.add n}
-        let AddMapped  k m (p:DuplicateParam) = { p with SourceToTarget = p.SourceToTarget |> Map.add k m}
+        let AddMapped  k m (p:DuplicateParam) = 
+            let dict = p.SourceToTarget
+            dict.Remove(k) |> ignore
+            dict.Add(k, m)
+            { p with SourceToTarget = dict}
 
     module private DuplicateReturn =
         let LinkTargetToSource s (r:DuplicateReturn) = 
             if r.SourceToTarget.ContainsKey s then r 
-            else { r with SourceToTarget = r.SourceToTarget |> Map.add s r.Link}
+            else
+                let dict = r.SourceToTarget 
+                dict.Add(s, r.Link)
+                { r with SourceToTarget = dict}
 
     let duplicateStructureAndLinkToNext (passed:StatePointer list) (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
         let passedNodes = 
@@ -950,7 +957,10 @@ module Duplication =
             |>  List.distinct
             |>  Set.ofList
         
-        let preMappedNodes = Map.ofList premapped
+        let preMappedNodes =
+            let dict = Dictionary<StatePointer,StatePointer>()
+            premapped |> List.iter(fun (k,v) -> dict.Add(k,v))
+            dict
 
         let dup (p:DuplicateParam) (r:DuplicateReturn) = 
             let tr = 
@@ -1411,31 +1421,42 @@ let removeUnused (nfa:NFAMachine) =
 
     nfa.States |> List.iter(fun e -> stMap.Add(e.Id, e))
 
-    let rec traverse (current:StatePointer) (passedNodes:Set<StateId>) =
+    let passedNodes = HashSet<StateId>()
+
+    let rec traverse (current:StatePointer) addToHash =
+        match addToHash with
+        |   Some v -> passedNodes.Add(v) |> ignore
+        |   None -> ()
+
         if  current.Id = 0u || passedNodes.Contains (current.Id) then passedNodes
         else
             let node = stMap.[current.Id]
             match node with
-            |   SinglePath sp -> traverse (sp.NextState) (passedNodes.Add current.Id)
-            |   StartLinePath ep -> traverse (ep.NextState) (passedNodes.Add current.Id)
+            |   SinglePath sp -> traverse (sp.NextState) (Some current.Id)
+            |   StartLinePath ep -> traverse (ep.NextState) (Some current.Id)
             |   MultiPath  mp -> 
-                let newPassed = passedNodes.Add current.Id
+                passedNodes.Add(current.Id) |> ignore
                 mp.States 
-                |> List.fold(fun passed stid -> traverse stid.StatePointer passed) newPassed
-            |   EmptyPath  ep -> traverse (ep.NextState) (passedNodes.Add current.Id)
-            |   RepeatInit rs -> traverse (rs.NextState.StatePointer) (passedNodes.Add current.Id)
+                |> List.fold(fun _ stid -> traverse stid.StatePointer None) passedNodes
+            |   EmptyPath  ep -> traverse (ep.NextState) (Some current.Id)
+            |   RepeatInit rs -> traverse (rs.NextState.StatePointer) (Some current.Id)
             |   RepeatIterOrExit   re  -> 
-                let passed = traverse (re.IterateState) (passedNodes.Add current.Id)
-                traverse (re.NextState) passed
-            |   RepeatStart ep -> traverse (ep.NextState) (passedNodes.Add current.Id) 
-            |   GroupStart  ep  -> traverse (ep.NextState) (passedNodes.Add current.Id) 
-            |   GroupEnd ep  -> traverse (ep.NextState) (passedNodes.Add current.Id) 
-            |   NoMatch _ -> (passedNodes.Add current.Id) 
+                traverse (re.IterateState) (Some current.Id) |> ignore
+                traverse (re.NextState) None
+            |   RepeatStart ep -> traverse (ep.NextState) (Some current.Id) 
+            |   GroupStart  ep  -> traverse (ep.NextState) (Some current.Id) 
+            |   GroupEnd ep  -> traverse (ep.NextState) (Some current.Id) 
+            |   NoMatch _ -> 
+                passedNodes.Add current.Id |> ignore
+                passedNodes
             |   GoSub    gs  -> 
-                let passed = traverse (gs.NextState) (passedNodes.Add current.Id)
-                traverse (gs.ReturnState) passed
-            |   ReturnSub _ -> (passedNodes.Add current.Id) 
-    let usedLst = traverse nfa.Start Set.empty
+                traverse (gs.NextState) (Some current.Id) |> ignore
+                traverse (gs.ReturnState) None
+            |   ReturnSub _ -> 
+                passedNodes.Add current.Id |> ignore
+                passedNodes
+
+    let usedLst = traverse nfa.Start None
     let nodes = nfa.States |> List.filter(fun n -> usedLst.Contains n.Id)
     {nfa with States = nodes}
 
@@ -1790,5 +1811,6 @@ let clts (cl:char list) = System.String.Concat(cl)
 module ParseResult =
     let IsMatch pr = pr.IsMatch
     let FullMatch pr = pr.FullMatch
+
 
 

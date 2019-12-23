@@ -99,8 +99,23 @@ let yaml = "
 - Sammy Sosa
 - Ken Griffey"
 
+
+
 YamlParse yaml
 
 
 
+
+let y = "
+---
+hr:
+  - Mark McGwire
+  # Following node labeled SS
+  - &SS Sammy Sosa
+rbi:
+  - *SS # Subsequent occurrence
+  - Ken Griffey
+"
+
+YamlParse y
 
