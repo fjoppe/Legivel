@@ -6,6 +6,11 @@ open System.Text.RegularExpressions
 open System.Collections.Generic
 
 
+open NLog
+
+let logger = LogManager.GetLogger("*")
+
+
 type ExactChar = {
         Char       : char
         ListCheck  : Token list
@@ -526,15 +531,14 @@ module MT = //    Match Tree
 
     let simplifyMultiPathStates (lst:StatePointer list) =
         lst 
-        |> List.groupBy id 
-        |> List.map fst
+        |> List.distinct
         |> List.filter(fun e -> e.Id <> PointerToStateFinal.Id)
 
 
     let getSinglePathPointers pt =
         match pt with 
-        |   SinglePathPointer p -> [pt.SinglePathPointerValue]
-        |   MultiPathPointer  p -> 
+        |   SinglePathPointer _ -> [pt.SinglePathPointerValue]
+        |   MultiPathPointer  _ -> 
             match lookup pt with
             |   MultiPath mp -> mp.States
             |   _ -> failwith "Expected MultiPath"
@@ -688,11 +692,10 @@ let getRefactoringCanditates (lst:NormalizedForSPRefactoring list) =
 module Duplication = 
     type private DuplicateParam = {
         Current:        StatePointer
-        PassedNodes:    Set<StateId>
         SourceToTarget : Dictionary<StatePointer, StatePointer>
     }
     with    
-        static member Create c pn st = { Current = c; PassedNodes = pn; SourceToTarget = st }
+        static member Create c st = { Current = c; SourceToTarget = st }
 
     type private DuplicateReturn = {
         Link           : StatePointer
@@ -704,7 +707,6 @@ module Duplication =
     module private DuplicateParam =
         let SetCurrent c (p:DuplicateParam)  = { p with Current = c }
         let SetStT     st (p:DuplicateParam) = { p with SourceToTarget = st}
-        let AddPassedNode n (p:DuplicateParam) = { p with PassedNodes = p.PassedNodes |> Set.add n}
         let AddMapped  k m (p:DuplicateParam) = 
             let dict = p.SourceToTarget
             dict.Remove(k) |> ignore
@@ -719,12 +721,16 @@ module Duplication =
                 dict.Add(s, r.Link)
                 { r with SourceToTarget = dict}
 
-    let duplicateStructureAndLinkToNext (passed:StatePointer list) (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
-        let passedNodes = 
-            passed
-            |>  List.map(fun i -> i.Id)
-            |>  List.distinct
-            |>  Set.ofList
+    let duplicateStructureAndLinkToNext (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
+        logger.Trace("duplicateStructureAndLinkToNext")
+
+        let logMapping (o:StatePointer) (n:StatePointer) =
+            logger.Trace(sprintf "%d -> %d" o.Id n.Id)
+            n
+
+        let logNextState (nx:StatePointer) (tg:StatePointer) =
+            logger.Trace(sprintf "Set Next: %d.Next = %d" tg.Id nx.Id) |> ignore
+
         
         let preMappedNodes =
             let dict = Dictionary<StatePointer,StatePointer>()
@@ -736,6 +742,7 @@ module Duplication =
                 if p.SourceToTarget.ContainsKey r.Link then p.SourceToTarget.[r.Link]
                 else r.Link
             MT.duplicateAndLinkToNext tr p.Current
+            |>  logMapping p.Current
             |>  DuplicateReturn.Create p.SourceToTarget
             |>  DuplicateReturn.LinkTargetToSource p.Current
 
@@ -747,7 +754,7 @@ module Duplication =
                 |>  traverse 
                 |>  dup p
 
-            if  p.Current.Id = 0u || p.Current.Id = concatPtr.Id || p.PassedNodes.Contains (p.Current.Id) then 
+            if  p.Current.Id = 0u || p.Current.Id = concatPtr.Id || p.SourceToTarget.ContainsKey p.Current then 
                 if p.SourceToTarget.ContainsKey p.Current then p.SourceToTarget.[p.Current] else p.Current
                 |>  DuplicateReturn.Create p.SourceToTarget
             else
@@ -764,10 +771,12 @@ module Duplication =
                         ) ([], p.SourceToTarget)
                     |>  fun (llst, st) ->
                         MT.createAndSimplifyMultiPath llst
+                        |>  logMapping p.Current
                         |>  DuplicateReturn.Create st
 
                 |   EmptyPath d  when d.NextState.Id = PointerToStateFinal.Id -> 
                     MT.duplicateAndLinkToNext concatPtr p.Current
+                    |>  logMapping p.Current
                     |>  DuplicateReturn.Create p.SourceToTarget
                     |>  DuplicateReturn.LinkTargetToSource p.Current
                 |   EmptyPath       d -> passthrough d
@@ -780,9 +789,10 @@ module Duplication =
                     let nx = 
                         p
                         |>  DuplicateParam.SetCurrent d.NextState
-                        |>  DuplicateParam.AddPassedNode d.Id
                         |>  DuplicateParam.AddMapped p.Current dp.Link
                         |>  traverse
+                    
+                    logNextState nx.Link dp.Link
                     MT.setNextState nx.Link dp.Link
                     |>  DuplicateReturn.Create nx.SourceToTarget
                     |>  DuplicateReturn.LinkTargetToSource p.Current 
@@ -791,6 +801,7 @@ module Duplication =
                 |   GroupEnd   d -> passthrough d
                 |   SinglePath d ->
                     if d.NextState.Id = 0u then
+                        logNextState concatPtr p.Current
                         MT.setNextState concatPtr p.Current
                         |>  DuplicateReturn.Create p.SourceToTarget
                         |>  DuplicateReturn.LinkTargetToSource p.Current
@@ -802,21 +813,23 @@ module Duplication =
                     let nwNext = 
                         p
                         |>  DuplicateParam.SetCurrent d.NextState
-                        |>  DuplicateParam.AddPassedNode d.Id
+                        |>  DuplicateParam.AddMapped d.StatePointer PointerToStateFinal
                         |>  traverse
-                    let gsn = MT.createGoSub nwNext.Link PointerToStateFinal d.GosubId
+                    let gsn = 
+                        MT.createGoSub nwNext.Link PointerToStateFinal d.GosubId
+                        |>  logMapping p.Current
                     let nwRet  = 
                         p
                         |>  DuplicateParam.SetCurrent d.ReturnState
-                        |>  DuplicateParam.SetStT nwNext.SourceToTarget
-                        |>  DuplicateParam.AddPassedNode d.Id
                         |>  DuplicateParam.AddMapped d.StatePointer gsn.StatePointer
+                        |>  DuplicateParam.SetStT nwNext.SourceToTarget
                         |>  traverse
+                    logNextState nwRet.Link gsn
                     MT.setNextState nwRet.Link gsn
                     |>  DuplicateReturn.Create nwRet.SourceToTarget
                     |>  DuplicateReturn.LinkTargetToSource gsn
 
-        DuplicateParam.Create entryStartId passedNodes preMappedNodes
+        DuplicateParam.Create entryStartId preMappedNodes
         |>  traverse
         |>  fun r -> r.Link
 
@@ -1056,12 +1069,83 @@ let refactorMultiPathStatesSp (lst : SinglePathPointer list) =
 
 
 
+//let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
+//    logger.Trace(sprintf "appendStateIdToAllFinalPathNodes - new")
+
+//    let inline setNextState obj nx = MT.setNextState nx obj
+    
+//    let passedNodes = HashSet<StateId>()
+
+//    let rec traverse (current:StatePointer) (concatPtr:StatePointer) =
+//        logger.Trace (sprintf "Current: %d, already passed: %b" current.Id (passedNodes.Contains (current.Id)))
+//        if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then current 
+//        else
+//            passedNodes.Add current.Id |> ignore
+
+//            let node = MT.lookup current
+//            match node with
+//            |   MultiPath  d -> 
+//                d.States 
+//                |>  List.map(fun stid -> traverse stid.StatePointer concatPtr)
+//                |>  refactorMultiPathStates
+//                |>  MT.createAndSimplifyMultiPathSp
+//            |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
+//                MT.setNextState concatPtr node 
+//            |   EmptyPath     d -> 
+//                traverse d.NextState concatPtr
+//                |>  setNextState current
+//                |>  MT.cleanupEmptyPaths
+//            |   RepeatIterOrExit    d -> 
+//                traverse d.NextState concatPtr
+//                |>  MT.cleanupEmptyPaths
+//                |>  setNextState current
+//            |   RepeatInit  d -> 
+//                traverse d.NextState.StatePointer concatPtr 
+//                |>  setNextState current
+//            |   RepeatStart d -> 
+//                traverse d.NextState concatPtr
+//                |>  setNextState current
+//            |   GroupStart  d -> 
+//                traverse d.NextState concatPtr
+//                |>  setNextState current
+//            |   GroupEnd    d -> 
+//                traverse d.NextState concatPtr
+//                |>  setNextState current
+//            |   SinglePath  d ->
+//                if d.NextState.Id = PointerToStateFinal.Id then
+//                    MT.setNextState concatPtr current
+//                else
+//                    traverse d.NextState concatPtr 
+//                    |>  setNextState current
+//            |   StartLinePath d -> 
+//                if d.NextState.Id = 0u then
+//                    MT.setNextState concatPtr current
+//                else
+//                    traverse d.NextState concatPtr 
+//                    |>  setNextState current
+//            |   GoSub d ->
+//                if d.NextState.Id = 0u then
+//                    MT.setNextState concatPtr current
+//                else
+//                    traverse d.NextState   concatPtr |> ignore
+//                    traverse d.ReturnState concatPtr 
+//                    |>  setNextState current
+//            |   ReturnSub d -> 
+//                current
+//            |   NoMatch _ -> 
+//                current
+//    traverse entryStartId concatPtr
+
+
 let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
+    //logger.Trace(sprintf "appendStateIdToAllFinalPathNodes - old")
+
     let passedNodes = Set.empty<StateId>
     
     let inline setNextState obj nx = MT.setNextState nx obj
 
     let rec traverse (current:StatePointer) (passedNodes:Set<StateId>) (concatPtr:StatePointer) =
+        //logger.Trace (sprintf "Current: %d, already passed: %b" current.Id (passedNodes.Contains (current.Id)))
         if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then current 
         else
             let node = MT.lookup current
@@ -1122,7 +1206,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
 
     let convertRepeaterToExplicitTree (ri:RepeatStateRef) (rs:RepeatStateRef) (rioe:RepeatIterateOrExit) (rt:RepeatState) =
         let finalPath nx =
-            let iterPath =  Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, nx);(rs.StatePointer, nx)] rioe.IterateState nx
+            let iterPath =  Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, nx);(rs.StatePointer, nx)] rioe.IterateState nx
             if rt.Min > 0 then
                 iterPath
             else
@@ -1134,7 +1218,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
 
-            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
             let optionalPath =
                 (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
                 |>  refactorMultiPathStatesSp
@@ -1152,7 +1236,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
 
-            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
             let optionalPath =
                 (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
                 |>  refactorMultiPathStatesSp
@@ -1186,9 +1270,10 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
 
 
 let removeUnused (nfa:NFAMachine) =
-    let stMap = Dictionary<StateId, StateNode>()
-
-    nfa.States |> List.iter(fun e -> stMap.Add(e.Id, e))
+    let stMap = 
+        let d = Dictionary<StateId, StateNode>()
+        nfa.States |> List.iter(fun e -> d.Add(e.Id, e))
+        d
 
     let passedNodes = HashSet<StateId>()
 

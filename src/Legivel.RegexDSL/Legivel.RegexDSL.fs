@@ -919,11 +919,10 @@ let getRefactoringCanditates (lst:NormalizedForSPRefactoring list) =
 module Duplication = 
     type private DuplicateParam = {
         Current:        StatePointer
-        PassedNodes:    Set<StateId>
         SourceToTarget : Dictionary<StatePointer, StatePointer>
     }
     with    
-        static member Create c pn st = { Current = c; PassedNodes = pn; SourceToTarget = st }
+        static member Create c st = { Current = c; SourceToTarget = st }
 
     type private DuplicateReturn = {
         Link           : StatePointer
@@ -935,7 +934,6 @@ module Duplication =
     module private DuplicateParam =
         let SetCurrent c (p:DuplicateParam)  = { p with Current = c }
         let SetStT     st (p:DuplicateParam) = { p with SourceToTarget = st}
-        let AddPassedNode n (p:DuplicateParam) = { p with PassedNodes = p.PassedNodes |> Set.add n}
         let AddMapped  k m (p:DuplicateParam) = 
             let dict = p.SourceToTarget
             dict.Remove(k) |> ignore
@@ -950,12 +948,7 @@ module Duplication =
                 dict.Add(s, r.Link)
                 { r with SourceToTarget = dict}
 
-    let duplicateStructureAndLinkToNext (passed:StatePointer list) (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
-        let passedNodes = 
-            passed
-            |>  List.map(fun i -> i.Id)
-            |>  List.distinct
-            |>  Set.ofList
+    let duplicateStructureAndLinkToNext (premapped:(StatePointer*StatePointer) list) (entryStartId:StatePointer) (concatPtr:StatePointer) =
         
         let preMappedNodes =
             let dict = Dictionary<StatePointer,StatePointer>()
@@ -978,7 +971,7 @@ module Duplication =
                 |>  traverse 
                 |>  dup p
 
-            if  p.Current.Id = 0u || p.Current.Id = concatPtr.Id || p.PassedNodes.Contains (p.Current.Id) then 
+            if  p.Current.Id = 0u || p.Current.Id = concatPtr.Id || p.SourceToTarget.ContainsKey p.Current then 
                 if p.SourceToTarget.ContainsKey p.Current then p.SourceToTarget.[p.Current] else p.Current
                 |>  DuplicateReturn.Create p.SourceToTarget
             else
@@ -1011,9 +1004,9 @@ module Duplication =
                     let nx = 
                         p
                         |>  DuplicateParam.SetCurrent d.NextState
-                        |>  DuplicateParam.AddPassedNode d.Id
                         |>  DuplicateParam.AddMapped p.Current dp.Link
                         |>  traverse
+                    
                     MT.setNextState nx.Link dp.Link
                     |>  DuplicateReturn.Create nx.SourceToTarget
                     |>  DuplicateReturn.LinkTargetToSource p.Current 
@@ -1033,21 +1026,21 @@ module Duplication =
                     let nwNext = 
                         p
                         |>  DuplicateParam.SetCurrent d.NextState
-                        |>  DuplicateParam.AddPassedNode d.Id
+                        |>  DuplicateParam.AddMapped d.StatePointer PointerToStateFinal
                         |>  traverse
-                    let gsn = MT.createGoSub nwNext.Link PointerToStateFinal d.GosubId
+                    let gsn = 
+                        MT.createGoSub nwNext.Link PointerToStateFinal d.GosubId
                     let nwRet  = 
                         p
                         |>  DuplicateParam.SetCurrent d.ReturnState
-                        |>  DuplicateParam.SetStT nwNext.SourceToTarget
-                        |>  DuplicateParam.AddPassedNode d.Id
                         |>  DuplicateParam.AddMapped d.StatePointer gsn.StatePointer
+                        |>  DuplicateParam.SetStT nwNext.SourceToTarget
                         |>  traverse
                     MT.setNextState nwRet.Link gsn
                     |>  DuplicateReturn.Create nwRet.SourceToTarget
                     |>  DuplicateReturn.LinkTargetToSource gsn
 
-        DuplicateParam.Create entryStartId passedNodes preMappedNodes
+        DuplicateParam.Create entryStartId preMappedNodes
         |>  traverse
         |>  fun r -> r.Link
 
@@ -1353,7 +1346,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
 
     let convertRepeaterToExplicitTree (ri:RepeatStateRef) (rs:RepeatStateRef) (rioe:RepeatIterateOrExit) (rt:RepeatState) =
         let finalPath nx =
-            let iterPath =  Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, nx);(rs.StatePointer, nx)] rioe.IterateState nx
+            let iterPath =  Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, nx);(rs.StatePointer, nx)] rioe.IterateState nx
             if rt.Min > 0 then
                 iterPath
             else
@@ -1365,7 +1358,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
 
-            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
             let optionalPath =
                 (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
                 |>  refactorMultiPathStatesSp
@@ -1383,7 +1376,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
 
-            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [rioe.StatePointer; rs.StatePointer] [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
             let optionalPath =
                 (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
                 |>  refactorMultiPathStatesSp
@@ -1413,7 +1406,6 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
             | _ -> start
         |   _ -> start
     |   _ -> start
-
 
 
 let removeUnused (nfa:NFAMachine) =
