@@ -34,7 +34,6 @@ OPT(
     OPT(RGP("B", [Token.``c-printable``]))+ RGP("A", [Token.``c-printable``])
 ) +
 RGP("A", [Token.``c-printable``]) 
-|>  rgxToNFA 
-|>  PrintIt
+|>  rgxToNFA |> ignore
 
 

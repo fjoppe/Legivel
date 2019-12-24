@@ -1,0 +1,110 @@
+convertRepeaterToExplicitGraph..
+appendStateIdToAllFinalPathNodes - old
+Current: 7, already passed: false
+Optional:
+->>(  10:< 0, 1>)L(   9)-|I(   8)-(   7: "B")-Loop(   9)
+                        -|X(   8)~(   6)-*
+
+appendStateIdToAllFinalPathNodes - old
+Current: 5, already passed: false
+convertRepeaterToExplicitGraph..
+Concatting..:
+-(   5: "A")~(   4)-*
+
+appendStateIdToAllFinalPathNodes - old
+Current: 10, already passed: false
+Current: 9, already passed: false
+Current: 8, already passed: false
+Current: 6, already passed: false
+convertRepeaterToExplicitGraph..
+duplicateStructureAndLinkToNext
+7 -> 12
+post duplicateStructureAndLinkToNext:
+-(  12: "B")-Ret(  11,1)
+
+createAndSimplifyMultiPath (lst:2)
+convertRepeaterToExplicitGraph.finalPath..
+duplicateStructureAndLinkToNext
+7 -> 14
+post duplicateStructureAndLinkToNext:
+-(  14: "B")-(   5: "A")~(   4)-*
+
+createAndSimplifyMultiPath (lst:2)
+post convertRepeaterToExplicitGraph:
+|(  15)-(  14: "B")-(   5: "A")~(   4)-*
+|      -(   5: "A")~(   4)-*
+
+Concatting..:
+|(  15)-(  14: "B")-(   5: "A")~(   4)-*
+|      -(   5: "A")~(   4)-*
+
+Concat:
+|(  15)-(  14: "B")-(   5: "A")~(   4)-*
+|      -(   5: "A")~(   4)-*
+
+convertRepeaterToExplicitGraph..
+appendStateIdToAllFinalPathNodes - old
+Current: 15, already passed: false
+Current: 14, already passed: false
+Current: 5, already passed: false
+Current: 4, already passed: false
+Current: 5, already passed: false
+Current: 4, already passed: false
+Current: 17, already passed: false
+createAndSimplifyMultiPath (lst:2)
+Optional:
+->>(  19:< 0, 1>)L(  17)-|I(  16)|(  18)-(  14: "B")-(   5: "A")-Loop(  17)
+                         |I      |      -(   5: "A")-Loop(  17)
+                        -|X(  16)~(   3)-*
+
+appendStateIdToAllFinalPathNodes - old
+Current: 2, already passed: false
+convertRepeaterToExplicitGraph..
+Concatting..:
+-(   2: "A")~(   1)-*
+
+appendStateIdToAllFinalPathNodes - old
+Current: 19, already passed: false
+Current: 17, already passed: false
+Current: 16, already passed: false
+Current: 3, already passed: false
+convertRepeaterToExplicitGraph..
+duplicateStructureAndLinkToNext
+5 -> 21
+14 -> 22
+createAndSimplifyMultiPath (lst:2)
+18 -> 23
+post duplicateStructureAndLinkToNext:
+|(  23)-(  21: "A")-Ret(  20,2)
+|      -(  22: "B")-(  21: "A")-Ret(  20,2)
+
+createAndSimplifyMultiPath (lst:2)
+createAndSimplifyMultiPath (lst:2)
+convertRepeaterToExplicitGraph.finalPath..
+duplicateStructureAndLinkToNext
+5 -> 27
+14 -> 28
+createAndSimplifyMultiPath (lst:2)
+18 -> 29
+post duplicateStructureAndLinkToNext:
+|(  29)-(  27: "A")-(   2: "A")~(   1)-*
+|      -(  28: "B")-(  27: "A")-(   2: "A")~(   1)-*
+
+createAndSimplifyMultiPath (lst:2)
+createAndSimplifyMultiPath (lst:2)
+post convertRepeaterToExplicitGraph:
+|(  32)-(  30: "A")|(  31)-(   2: "A")~(   1)-*
+|                  |      ~(   1)-*
+|      -(  28: "B")-(  27: "A")-(   2: "A")~(   1)-*
+
+Concatting..:
+|(  32)-(  30: "A")|(  31)-(   2: "A")~(   1)-*
+|                  |      ~(   1)-*
+|      -(  28: "B")-(  27: "A")-(   2: "A")~(   1)-*
+
+Concat:
+|(  32)-(  30: "A")|(  31)-(   2: "A")~(   1)-*
+|                  |      ~(   1)-*
+|      -(  28: "B")-(  27: "A")-(   2: "A")~(   1)-*
+
+convertRepeaterToExplicitGraph..
