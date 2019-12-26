@@ -404,10 +404,10 @@ let SPrintIt (nfa:NFAMachine) =
 
     let stMap = nfa.States |> List.map(fun e -> e.Id,e) |> Map.ofList
     let rsMap = nfa.Repeats |> List.map(fun e -> e.RepeatId,e) |> Map.ofList
-    let passedNodes = Set.empty<StateId>
+    let passedNodes = HashSet<StateId>()
     let passedGosub = Set.empty<GosubId>
 
-    let rec printLine (hist : LevelType list) (current: StatePointer) (passedNodes:Set<StateId>) (passedGosub:Set<GosubId>) =
+    let rec printLine (hist : LevelType list) (current: StatePointer) (passedGosub:Set<GosubId>) =
         let printPrefix hist =
             hist
             |>  List.rev
@@ -424,54 +424,56 @@ let SPrintIt (nfa:NFAMachine) =
             )
 
         printPrefix hist
-        let rec printLineRest (hist : LevelType list) (current: StatePointer) (passedNodes:Set<StateId>) (passedGosub:Set<GosubId>) =
+        let rec printLineRest (hist : LevelType list) (current: StatePointer) (passedGosub:Set<GosubId>) =
             if current.Id = 0u then
                 sb.Append "-*\n" |> ignore
             else
                 if not(passedNodes.Contains current.Id) then
+                    passedNodes.Add current.Id |> ignore
+
                     match stMap.[current.Id] with
                     |   EmptyPath  ep   ->  
                         sprintf "~(%4d)" ep.Id |> sb.Append |> ignore
-                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id) passedGosub
+                        printLineRest (LevelType.Empty :: hist) ep.NextState passedGosub
                     |   StartLinePath  ep   ->  
                         sprintf "^(%4d)" ep.Id |> sb.Append |> ignore
-                        printLineRest (LevelType.Empty :: hist) ep.NextState (passedNodes.Add ep.Id) passedGosub
+                        printLineRest (LevelType.Empty :: hist) ep.NextState passedGosub
                     |   SinglePath sp   -> 
                         match sp.State with
                         |   ExactMatch c    -> sprintf "-(%4d:%4s)" sp.Id (sprintf "\"%s\"" (Regex.Escape(c.Char.ToString()))) |> sb.Append |> ignore
                         |   OneInSetMatch o -> sprintf "-(%4d: [@])" sp.Id |> sb.Append |> ignore
-                        printLineRest (LevelType.Concat :: hist) sp.NextState (passedNodes.Add sp.Id) passedGosub
+                        printLineRest (LevelType.Concat :: hist) sp.NextState passedGosub
                     |   MultiPath mp    ->
                         match mp.States with
                         |   h::t -> 
                             sprintf "|(%4d)" mp.Id |> sb.Append |> ignore
-                            printLineRest (LevelType.Multi :: hist) h.StatePointer (passedNodes.Add mp.Id) passedGosub
-                            t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer (passedNodes.Add mp.Id) passedGosub) 
+                            printLineRest (LevelType.Multi :: hist) h.StatePointer passedGosub
+                            t |> List.iter(fun e -> printLine (LevelType.Multi :: hist) e.StatePointer passedGosub) 
                         |   [] -> ()
                     |   RepeatInit rs ->
                         let rt = rsMap.[rs.RepeatId]
                         sprintf "->>(%4d:<%2d,%2d>)" rs.Id rt.Min rt.Max |> sb.Append |> ignore
-                        printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) (passedNodes.Add rs.Id) passedGosub
+                        printLineRest (LevelType.LoopStart :: hist) (rs.NextState.StatePointer) passedGosub
                     |   RepeatStart rs ->
                         sprintf "L(%4d)" rs.Id |> sb.Append |> ignore
-                        printLineRest (LevelType.Empty :: hist) rs.NextState (passedNodes.Add rs.Id) passedGosub
+                        printLineRest (LevelType.Empty :: hist) rs.NextState passedGosub
                     |   RepeatIterOrExit ri ->
                         sprintf "-|I(%4d)" ri.Id |> sb.Append |> ignore
-                        printLineRest (LevelType.RepeatIter :: hist) ri.IterateState (passedNodes.Add ri.Id) passedGosub
+                        printLineRest (LevelType.RepeatIter :: hist) ri.IterateState passedGosub
 
                         if ri.IterateState.Id <> ri.NextState.Id then
                             printPrefix hist
                             sprintf "-|X(%4d)" ri.Id |> sb.Append |> ignore
-                            printLineRest (LevelType.RepeatExit :: hist) ri.NextState (passedNodes.Add ri.Id) passedGosub
+                            printLineRest (LevelType.RepeatExit :: hist) ri.NextState passedGosub
                         else
                             printPrefix hist
                             sprintf "|X(%4d) :::^^^\n" ri.NextState.Id |> sb.Append |> ignore
                     |   GroupStart gp ->
                         sprintf "-%2d, (%4d){" gp.GroupId.Id gp.Id |> sb.Append |> ignore
-                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id) passedGosub
+                        printLineRest (LevelType.Group :: hist) gp.NextState passedGosub
                     |   GroupEnd gp ->
                         sprintf "}(%4d)     " gp.Id |> sb.Append |> ignore
-                        printLineRest (LevelType.Group :: hist) gp.NextState (passedNodes.Add gp.Id) passedGosub
+                        printLineRest (LevelType.Group :: hist) gp.NextState passedGosub
                     |   NoMatch d -> sprintf "-NoMatch(%4d)\n" d |> sb.Append |> ignore
                     |   ReturnSub d -> sprintf "-Ret(%4d,%d)" d.Id d.GosubId.Id |> sb.AppendLine |> ignore
                     |   GoSub     d -> 
@@ -479,18 +481,18 @@ let SPrintIt (nfa:NFAMachine) =
                             sprintf "|GS(%4d, %d) (repeat)\n" d.Id d.GosubId.Id |> sb.Append |> ignore
                             printPrefix (hist)
                             sprintf "|GS-Ret    " |> sb.Append |> ignore
-                            printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedNodes.Add d.Id) passedGosub
+                            printLineRest (LevelType.Gosub :: hist) d.ReturnState passedGosub
                         else
                             sprintf "|GS(%4d, %d)" d.Id d.GosubId.Id |> sb.Append |> ignore
-                            printLineRest (LevelType.Gosub :: hist) d.NextState (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
+                            printLineRest (LevelType.Gosub :: hist) d.NextState (passedGosub.Add d.GosubId)
                             printPrefix (hist)
                             sprintf "|GS-Ret    " |> sb.Append |> ignore
-                            printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedNodes.Add d.Id) (passedGosub.Add d.GosubId)
+                            printLineRest (LevelType.Gosub :: hist) d.ReturnState (passedGosub.Add d.GosubId)
                 else
-                    sprintf "-Loop(%4d)\n" current.Id |> sb.Append |> ignore
+                    sprintf "-Goto(%4d) - see above\n" current.Id |> sb.Append |> ignore
 
-        printLineRest hist current passedNodes passedGosub
-    printLine [] nfa.Start passedNodes passedGosub
+        printLineRest hist current passedGosub
+    printLine [] nfa.Start passedGosub
     sb.ToString()
 
 
@@ -1515,9 +1517,9 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                 |>  Map.toList
                 |>  List.sortBy(fun (i, _) -> i)
                 |>  List.map snd
-                |>  List.map(fun g -> g |> List.rev)
+                |>  List.map(fun g -> g |> List.skipWhile(fun c -> c = '\x00' ) |> List.rev)
                 |>  List.rev
-            { IsMatch = true; FullMatch = acc |> List.rev; Groups = gs }
+            { IsMatch = true; FullMatch = acc |> List.skipWhile(fun c -> c = '\x00' ) |> List.rev; Groups = gs }
         else
             let st = stMap.[cs.Id]
             match st with

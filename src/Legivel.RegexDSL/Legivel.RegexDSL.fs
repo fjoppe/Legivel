@@ -1745,9 +1745,9 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                 |>  Map.toList
                 |>  List.sortBy(fun (i, _) -> i)
                 |>  List.map snd
-                |>  List.map(fun g -> g |> List.rev)
+                |>  List.map(fun g -> g |> List.skipWhile(fun c -> c = '\x00' ) |> List.rev)
                 |>  List.rev
-            { IsMatch = true; FullMatch = acc |> List.rev; Groups = gs }
+            { IsMatch = true; FullMatch = acc |> List.skipWhile(fun c -> c = '\x00' ) |> List.rev; Groups = gs }
         else
             let st = stMap.[cs.Id]
             match st with

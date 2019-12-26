@@ -126,7 +126,7 @@ let tokenizer str =
     let reader() = 
         let chri = strm.Read()
         if chri < 0 then 
-            (TokenData.Create Token.EOF "\0")
+            (TokenData.Create Token.EOF "\x00")
         else
             let chr = char(chri)
             [

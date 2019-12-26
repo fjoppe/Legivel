@@ -157,9 +157,9 @@ type ParseState = {
 
         member this.SetPositionDelta sl lc lcc =
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
-#if DEBUG
-            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
-#endif
+//#if DEBUG
+//            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
+//#endif
             { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + sl }
 
         member this.TrackPosition s =
@@ -654,13 +654,17 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         let ``match indented content`` s = 
             let icp = GRP(OOM(RGP (this.``s-space``, [Token.``t-space``]))) + OOM(this.``ns-char``)
 
-            let m = Regex.Match(s, RGS(icp), RegexOptions.Multiline)
+            let patt = RGS(icp)
+            let m = Regex.Match(s, patt, RegexOptions.Multiline)
             if m.Success then 
                 let lst = [ for g in m.Groups -> g.Value ]
-                let fullMatch = lst |> List.head
-                let groups = lst |> List.tail
-                let mt =MatchResult.Create fullMatch groups
-                Some(mt.ge1.Length - n)
+                //let fullMatch = lst |> List.head
+                //let groups = lst |> List.tail
+                //let mt =MatchResult.Create fullMatch groups
+                //let r = Some(mt.ge1.Length - n)
+                //r
+                let l = lst |> List.last
+                Some(l.Length - n)
             else None
 
         slst

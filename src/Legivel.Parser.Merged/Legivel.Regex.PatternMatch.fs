@@ -24,10 +24,10 @@ type MatchResult = {
     }
     with
         static member Create f g = { FullMatch = f; Groups = g }
-        member this.ge1 with get() = (this.Groups.[1])
-        member this.ge2 with get() = (this.Groups.[1], this.Groups.[2])
-        member this.ge3 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3])
-        member this.ge4 with get() = (this.Groups.[1], this.Groups.[2], this.Groups.[3], this.Groups.[4])
+        member this.ge1 with get() = (this.Groups.[0])
+        member this.ge2 with get() = (this.Groups.[0], this.Groups.[1])
+        member this.ge3 with get() = (this.Groups.[0], this.Groups.[1], this.Groups.[2])
+        member this.ge4 with get() = (this.Groups.[0], this.Groups.[1], this.Groups.[2], this.Groups.[3])
 
 
 /// Returns whether pattern p matches on string s
