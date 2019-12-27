@@ -615,11 +615,11 @@ module MT = //    Match Tree
             |   RepeatInit     _ -> 25
             |   RepeatIterOrExit _ -> 26
             |   SinglePath     _ -> 45
-            |   EmptyPath      _ -> 47
             |   GroupStart     gs -> sortOrder (gs.NextState |> lookup)
             |   GroupEnd       _ -> 50
             |   ReturnSub      _ -> 55
             |   GoSub          _ -> 60
+            |   EmptyPath      _ -> 70
             |   NoMatch        _ -> 100
         let rec sortOrderCompare c1 c2 =
             (sortOrder c1).CompareTo(sortOrder c2)
@@ -944,7 +944,8 @@ let rec refactorCommonPlains (sil:SinglePathPointer list) =
                 let primary = fst target.Head |> MT.duplicate
                 let (filterIds, nextIds) = target |> List.unzip
                 let silNew = 
-                    let siln = refactorCommonPlains (nextIds |> List.filter(fun e -> e.Id <> PointerToStateFinal.Id) |> List.map(MT.getSinglePathPointers) |> List.collect id)
+                    let empty = MT.createEmptyPath PointerToStateFinal
+                    let siln = refactorCommonPlains (nextIds |> List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e) |> List.map(MT.getSinglePathPointers) |> List.collect id)
                     let filtIdSet = filterIds |> List.map(fun e -> e.Id) |> Set.ofList
 
                     let silNew = primary.SinglePathPointerValue :: (sil |> List.filter(fun e -> not(filtIdSet.Contains e.Id)))

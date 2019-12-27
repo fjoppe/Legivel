@@ -92,6 +92,19 @@ let ``Simple Or with concat after``() =
 
 
 [<Test>]
+let ``Simple Or with conflicting start characters``() =
+    let nfa = rgxToNFA <|  (RGP("AB", [Token.``nb-json``]) ||| RGP("A", [Token.``nb-json``]))
+
+    assertFullMatch nfa "AB"
+    assertFullMatch nfa "A"
+    
+    assertNoMatch nfa "C"
+    
+    assertPartialMatch nfa "ABA" "AB"
+    assertPartialMatch nfa "ACA" "A"
+
+
+[<Test>]
 let ``Complex Or with various nested concats``() =
     let nfa = 
         rgxToNFA <| 
