@@ -981,3 +981,28 @@ let ``Start of Line optional match``() =
     assertNoMatch nfa "-CDEF"
 
 
+[<Test>]
+let ``Nested loops - test infinite parsing``() =
+    let nfa = 
+        rgxToNFA <|
+            ZOM(OPT(RGP("A", [Token.``nb-json``])) + ZOM(RGP("C", [Token.``nb-json``])))
+
+
+    assertFullMatch nfa "A"
+    assertFullMatch nfa "AC"
+    assertFullMatch nfa "C"
+
+    assertFullMatch nfa "CC"
+    assertFullMatch nfa "CA"
+    assertPartialMatch nfa "CD" "C"
+
+
+[<Test>]
+let ``Nested option in ZOM loop - test infinite parsing``() =
+    let nfa = 
+        rgxToNFA <|
+            ZOM(OPT(RGP("A", [Token.``nb-json``])))
+
+    assertFullMatch nfa "A"
+    assertPartialMatch nfa "AB" "A"
+
