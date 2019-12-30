@@ -473,9 +473,12 @@ let SPrintIt (nfa:NFAMachine) =
 
 
 module MT = //    Match Tree
+    [<Literal>]
+    let fullmatchGroup = 0u //  groupId '0' will be full match
+
     let mutable private currentId = 0u
     let mutable private currentRepeatId = 0u
-    let mutable private currentGroupId = 0u
+    let mutable private currentGroupId = (fullmatchGroup + 1u) 
     let mutable private currentGosubId = 0u
 
     let private CreateNewId() =
@@ -500,7 +503,7 @@ module MT = //    Match Tree
     let Init() =
         currentId       <- 0u
         currentRepeatId <- 0u
-        currentGroupId  <- 0u
+        currentGroupId  <- (fullmatchGroup + 1u)
         currentGosubId  <- 0u
         allNodes.Clear()
         allRepeats      <- new System.Collections.Generic.List<RepeatState>()
@@ -1418,7 +1421,11 @@ type GroupParse = {
     GroupMatches  : Dictionary<GroupId, char list>
 }
 with
-    static member Create() = { RunningGroups = []; GroupMatches = Dictionary<GroupId, char list>()}
+    static member Create() = 
+        let fullMatchId = GroupId MT.fullmatchGroup
+        let dict = Dictionary<GroupId, char list>()
+        dict.Add(fullMatchId, [])
+        { RunningGroups = [fullMatchId]; GroupMatches = dict}
 
     member this.AddChar c =
         let dict = this.GroupMatches
@@ -1427,9 +1434,6 @@ with
             let org = dict.[gi]
             dict.Remove gi |> ignore
             dict.Add(gi, c :: org)
-            //gm
-            //|>  Map.remove gi
-            //|>  Map.add gi (c :: gm.[gi])
         ) 
         {this with GroupMatches = dict}
 
@@ -1441,9 +1445,16 @@ with
     member this.Stop gi =
         { this with RunningGroups = this.RunningGroups |> List.filter(fun i -> i<>gi)}
 
-    //member this.Rollback pos =
-        
-//type ParsePosition {}
+    member this.Rollback n =
+        let dict = this.GroupMatches
+        this.RunningGroups
+        |>  List.iter(fun gi ->
+            let org = dict.[gi]
+            let rb = org |> List.skip n
+            dict.Remove gi |> ignore
+            dict.Add(gi, rb)
+        ) 
+        {this with GroupMatches = dict}
 
 
 type RunningState = {
@@ -1452,9 +1463,11 @@ type RunningState = {
     GosubMapping    : Map<GosubId, StatePointer>
     LoopToPos       : Map<RepeatId, int>
     CurrentChar     : TokenData
+    Stack           : (StatePointer * (int option)) list
 }
 with
-    static member Create cc = {RunningLoops = Map.empty<_,_>; GroupParse = GroupParse.Create(); GosubMapping = Map.empty<_,_>; LoopToPos = Map.empty<_,_>; CurrentChar = cc}
+    static member Create cc st = {RunningLoops = Map.empty<_,_>; GroupParse = GroupParse.Create(); GosubMapping = Map.empty<_,_>; LoopToPos = Map.empty<_,_>; CurrentChar = cc;Stack = [(st,None)]}
+
     member this.AddChar ch = {this with GroupParse = this.GroupParse.AddChar ch}
     member this.SetLoop ri rs =
         let lp =
@@ -1469,7 +1482,7 @@ with
             |>  Map.remove ri
         { this with RunningLoops = lp }
 
-    member this.SetGosub gi sp=
+    member this.SetGosub gi sp =
         let gs =
             this.GosubMapping
             |>  Map.remove gi
@@ -1493,15 +1506,30 @@ with
             |>  Map.remove ri
         { this with LoopToPos = lp }
 
-
     member this.SetCurrentChar cc = { this with CurrentChar = cc}
+
+    member this.Push st = { this with Stack = st :: this.Stack }
+    member this.Pop()   = 
+        match this.Stack with
+        |   [] ->     None, this
+        |   h :: t -> Some(h), { this with Stack = t } 
+
+    member this.Rollback r = { this with GroupParse = this.GroupParse.Rollback r}
+
+module RunningState =
+    let AddChar ch (rs:RunningState) = rs.AddChar ch
+    let Push st (rs:RunningState) = rs.Push st
+    let StartGroup gi (rs:RunningState) = rs.StartGroup gi
+    let StopGroup gi (rs:RunningState) = rs.StopGroup gi
+    let SetGosub gi sp (rs:RunningState) = rs.SetGosub gi sp
+
 
 let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
     let stMap = Dictionary<StateId, StateNode>()
    
     nfa.States |> List.iter(fun e -> stMap.Add(e.Id, e))
 
-    let stRepeat = nfa.Repeats |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.RepeatId, i)) Map.empty<RepeatId, RepeatState>
+    //let stRepeat = nfa.Repeats |> List.fold(fun (m:Map<_,_>) i -> m.Add(i.RepeatId, i)) Map.empty<RepeatId, RepeatState>
 
     let NoMatch = { IsMatch = false ; FullMatch = []; Groups = [] }
 
@@ -1512,88 +1540,116 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
             let ch = stream.Get()
             ch.Token = Token.NewLine
 
-    let rec processStr cs acc rollback (runningState: RunningState) startOfLine =
-        let processCurrentChar = processStr
-        let processNextChar cs acc rollback (runningState: RunningState) = 
-            let chk = (stream.Get())
-            processStr cs acc rollback (runningState.SetCurrentChar chk) 
+    let rec processStr rollback (startOfLine:bool) (runningState: RunningState)  =
+        let (st, runningState) = runningState.Pop()
+        
+        match st with
+        |   None    ->  NoMatch
+        |   Some (cs, pos) ->
+            let runningState = 
+                match pos with
+                |   Some p -> 
+                    let df = stream.Position - p
+                    stream.Position <- p
+                    runningState.Rollback df
+                |   None   -> runningState
 
-        if cs = PointerToStateFinal then
-            stream.Position <- (stream.Position-1)
-            let gs = 
-                runningState.GroupParse.GroupMatches.Keys
-                |>  Seq.toList
-                |>  List.map(fun k -> k, runningState.GroupParse.GroupMatches.[k])
-                |>  List.sortBy(fun (i, _) -> i)
-                |>  List.map snd
-                |>  List.map(fun g -> g |> List.skipWhile(fun c -> c = '\x00' ) |> List.rev)
-                |>  List.rev
-            { IsMatch = true; FullMatch = acc |> List.skipWhile(fun c -> c = '\x00' ) |> List.rev; Groups = gs }
-        else
-            let st = stMap.[cs.Id]
-            match st with
-            |   SinglePath p ->
-                let nxt = p.NextState
-                if (p.State.Match  runningState.CurrentChar) then
-                    let ch = runningState.CurrentChar.Source.[0]
-                    processNextChar nxt (ch :: acc) rollback (runningState.AddChar ch) (runningState.CurrentChar.Token = Token.NewLine)
-                else 
-                    NoMatch
-            |   StartLinePath st ->
-                if startOfLine then processCurrentChar (st.NextState) acc (rollback+1) runningState startOfLine
-                else NoMatch
-            |   MultiPath p ->
-                let pos = stream.Position
-                let rec parseMultiPath (sptrLst:SinglePathPointer list) =
-                    match sptrLst with 
-                    |   []      -> NoMatch 
-                    |   h::tail ->
-                        processCurrentChar h.StatePointer acc (rollback+1) runningState startOfLine
-                        |>  fun res -> 
-                            if not(res.IsMatch) then
-                                stream.Position <- pos
-                                parseMultiPath tail
-                            else res
+            let inline backtoupperlevel() = processStr rollback startOfLine runningState 
+            let processNextChar rollback startOfLine (runningState: RunningState) = 
+                let chk = (stream.Get())
+                processStr rollback startOfLine (runningState.SetCurrentChar chk) 
 
-                parseMultiPath p.States
-            |   EmptyPath p -> processCurrentChar p.NextState acc rollback runningState startOfLine
-            |   RepeatStart p ->
-                let strPos = stream.Position
+            if cs = PointerToStateFinal then
+                stream.Position <- (stream.Position-1)
 
-                if runningState.LoopToPos.ContainsKey p.RepeatId then
-                    if strPos > runningState.LoopToPos.[p.RepeatId] then
-                        processCurrentChar p.NextState acc rollback (runningState.MapLoopToPos p.RepeatId strPos ) startOfLine
-                    else
-                        NoMatch
-                else
-                    processCurrentChar p.NextState acc rollback (runningState.MapLoopToPos p.RepeatId strPos) startOfLine
-            |   RepeatInit r ->
-                let rlnew = runningState.SetLoop r.RepeatId stRepeat.[r.RepeatId]
-                processCurrentChar r.NextState.StatePointer acc rollback rlnew startOfLine
-            |   RepeatIterOrExit r ->
-                let rs = runningState.RunningLoops.[r.RepeatId]
-                if rs.MustExit() then
-                    processCurrentChar r.NextState acc rollback runningState startOfLine
-                else
+                let postProcessGroup (chlst: char list) =
+                    chlst
+                    |>  List.skipWhile(fun c -> c = '\x00' )
+                    |>  List.rev
+
+                let gs = 
+                    runningState.GroupParse.GroupMatches.Keys
+                    |>  Seq.toList
+                    |>  List.filter(fun e -> e.Id <> MT.fullmatchGroup)
+                    |>  List.map(fun k -> k, runningState.GroupParse.GroupMatches.[k])
+                    |>  List.sortBy(fun (i, _) -> i)
+                    |>  List.map snd
+                    |>  List.map postProcessGroup
+                    |>  List.rev
+                { IsMatch = true; FullMatch = runningState.GroupParse.GroupMatches.[GroupId MT.fullmatchGroup] |> postProcessGroup; Groups = gs }
+            else
+                let st = stMap.[cs.Id]
+                match st with
+                |   SinglePath p ->
+                    if (p.State.Match runningState.CurrentChar) then
+                        runningState
+                        |>  RunningState.AddChar (runningState.CurrentChar.Source.[0])
+                        |>  RunningState.Push(p.NextState, None)
+                        |>  processNextChar rollback (runningState.CurrentChar.Token = Token.NewLine)
+                    else 
+                        backtoupperlevel()
+                |   StartLinePath st ->
+                    if startOfLine then 
+                        processStr (rollback+1) startOfLine (runningState.Push (st.NextState, None)) 
+                    else 
+                        backtoupperlevel()
+                |   MultiPath p ->
                     let pos = stream.Position
-                    let rlNew = runningState.SetLoop r.RepeatId (rs.Iterate())
-                    let tryIterate = processCurrentChar r.IterateState acc rollback rlNew startOfLine
-                    if tryIterate.IsMatch then
-                        tryIterate
-                    else
-                        if stream.Position = pos && rs.CanExit() && r.IterateState<>r.NextState then
-                            processCurrentChar r.NextState acc rollback (rlNew.RmLoop rs.RepeatId) startOfLine // end loop by removing it from running loops
-                        else
-                            NoMatch
-            |   GroupStart gp -> processCurrentChar gp.NextState acc rollback (runningState.StartGroup gp.GroupId) startOfLine
-            |   GroupEnd   gp -> processCurrentChar gp.NextState acc rollback (runningState.StopGroup gp.GroupId) startOfLine
-            |   NoMatch _ -> NoMatch
-            |   GoSub gs -> processCurrentChar gs.NextState acc rollback (runningState.SetGosub gs.GosubId gs.ReturnState) startOfLine
-            |   ReturnSub rs -> 
-                let nx = runningState.GosubMapping.[rs.GosubId]
-                processCurrentChar nx acc rollback runningState startOfLine
+                    p.States
+                    |>  List.rev
+                    |>  List.fold(fun (st:RunningState) i -> st.Push(i.StatePointer, Some pos)) runningState
+                    |>  processStr rollback startOfLine
+                |   EmptyPath p -> processStr rollback startOfLine (runningState.Push (p.NextState, None)) 
+                |   RepeatStart _ 
+                    //let strPos = stream.Position
 
-    processStr nfa.Start [] 0 (RunningState.Create (stream.Get())) startOfLine
+                    //if runningState.LoopToPos.ContainsKey p.RepeatId then
+                    //    if strPos > runningState.LoopToPos.[p.RepeatId] then
+                    //        processCurrentChar p.NextState acc rollback startOfLine (runningState.MapLoopToPos p.RepeatId strPos ) 
+                    //    else
+                    //        backtoupperlevel()
+                    //else
+                    //    processCurrentChar p.NextState acc rollback startOfLine (runningState.MapLoopToPos p.RepeatId strPos) 
+                |   RepeatInit _ 
+                    //let rlnew = runningState.SetLoop r.RepeatId stRepeat.[r.RepeatId]
+                    //processCurrentChar r.NextState.StatePointer acc rollback startOfLine rlnew 
+                |   RepeatIterOrExit _ ->
+                    //let rs = runningState.RunningLoops.[r.RepeatId]
+                    //if rs.MustExit() then
+                    //    processCurrentChar r.NextState acc rollback startOfLine runningState
+                    //else
+                    //    let pos = stream.Position
+                    //    let rlNew = runningState.SetLoop r.RepeatId (rs.Iterate())
+                    //    let tryIterate = processCurrentChar r.IterateState acc rollback startOfLine rlNew 
+                    //    if tryIterate.IsMatch then
+                    //        tryIterate
+                    //    else
+                    //        if stream.Position = pos && rs.CanExit() && r.IterateState<>r.NextState then
+                    //            processCurrentChar r.NextState acc rollback startOfLine (rlNew.RmLoop rs.RepeatId)  // end loop by removing it from running loops
+                    //        else
+                    //            NoMatch
+                    failwith "These should have been refactored away.."
+                |   GroupStart gp -> 
+                    runningState
+                    |>  RunningState.StartGroup gp.GroupId
+                    |>  RunningState.Push (gp.NextState , None)
+                    |>  processStr rollback startOfLine 
+                |   GroupEnd   gp -> 
+                    runningState
+                    |>  RunningState.StopGroup gp.GroupId
+                    |>  RunningState.Push (gp.NextState , None)
+                    |>  processStr rollback startOfLine 
+                |   NoMatch _ -> backtoupperlevel()
+                |   GoSub gs -> 
+                    runningState
+                    |>  RunningState.SetGosub gs.GosubId gs.ReturnState
+                    |>  RunningState.Push (gs.NextState , None)
+                    |>  processStr rollback startOfLine 
+                |   ReturnSub rs -> 
+                    runningState
+                    |>  RunningState.Push (runningState.GosubMapping.[rs.GosubId], None)
+                    |>  processStr rollback startOfLine
+    processStr 0 startOfLine (RunningState.Create (stream.Get()) nfa.Start) 
 
 
 

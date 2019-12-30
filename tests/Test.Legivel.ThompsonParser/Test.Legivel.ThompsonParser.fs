@@ -790,7 +790,7 @@ let ``Colliding Plain/OiS in nested Repeater I-path with two states deep``() =
 
 
 [<Test>]
-let ``1Colliding plains in nested Repeater X-path with one state deep``() =
+let ``Colliding plains in nested Repeater X-path with one state deep``() =
     let nfa = 
         rgxToNFA <| 
                 OPT(
