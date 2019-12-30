@@ -361,31 +361,6 @@ with
     static member Create (i, s, r) = { States = s; Start = i; Repeats = r}
 
 
-type GroupParse = {
-    RunningGroups : GroupId list
-    GroupMatches  : Map<GroupId, char list>
-}
-with
-    static member Create() = { RunningGroups = []; GroupMatches = Map.empty}
-
-    member this.AddChar c =
-        let ng =
-            this.RunningGroups
-            |>  List.fold(fun gm gi ->
-                gm
-                |>  Map.remove gi
-                |>  Map.add gi (c :: gm.[gi])
-            ) this.GroupMatches
-        {this with GroupMatches = ng}
-
-    member this.Start gi =
-        { this with RunningGroups = gi :: this.RunningGroups; GroupMatches = this.GroupMatches |> Map.add gi []}
-
-    member this.Stop gi =
-        { this with RunningGroups = this.RunningGroups |> List.filter(fun i -> i<>gi)}
-
-
-
 type LevelType = 
     |   Concat = 0
     |   Multi   = 1
@@ -1345,8 +1320,6 @@ let PrintIt (nfa:NFAMachine) =
 
 
 
-
-
 let rgxToNFA rgx =
     MT.Init()
 
@@ -1440,6 +1413,37 @@ type ParseResult = {
     Groups      : (char list) list
 }
 
+type GroupParse = {
+    RunningGroups : GroupId list
+    GroupMatches  : Dictionary<GroupId, char list>
+}
+with
+    static member Create() = { RunningGroups = []; GroupMatches = Dictionary<GroupId, char list>()}
+
+    member this.AddChar c =
+        let dict = this.GroupMatches
+        this.RunningGroups
+        |>  List.iter(fun gi ->
+            let org = dict.[gi]
+            dict.Remove gi |> ignore
+            dict.Add(gi, c :: org)
+            //gm
+            //|>  Map.remove gi
+            //|>  Map.add gi (c :: gm.[gi])
+        ) 
+        {this with GroupMatches = dict}
+
+    member this.Start gi =
+        let dict = this.GroupMatches
+        dict.Add (gi,[])
+        { this with RunningGroups = gi :: this.RunningGroups; GroupMatches = dict}
+
+    member this.Stop gi =
+        { this with RunningGroups = this.RunningGroups |> List.filter(fun i -> i<>gi)}
+
+    //member this.Rollback pos =
+        
+//type ParsePosition {}
 
 
 type RunningState = {
@@ -1447,9 +1451,10 @@ type RunningState = {
     GroupParse      : GroupParse
     GosubMapping    : Map<GosubId, StatePointer>
     LoopToPos       : Map<RepeatId, int>
+    CurrentChar     : TokenData
 }
 with
-    static member Create() = {RunningLoops = Map.empty<_,_>; GroupParse = GroupParse.Create(); GosubMapping = Map.empty<_,_>; LoopToPos = Map.empty<_,_>}
+    static member Create cc = {RunningLoops = Map.empty<_,_>; GroupParse = GroupParse.Create(); GosubMapping = Map.empty<_,_>; LoopToPos = Map.empty<_,_>; CurrentChar = cc}
     member this.AddChar ch = {this with GroupParse = this.GroupParse.AddChar ch}
     member this.SetLoop ri rs =
         let lp =
@@ -1489,6 +1494,8 @@ with
         { this with LoopToPos = lp }
 
 
+    member this.SetCurrentChar cc = { this with CurrentChar = cc}
+
 let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
     let stMap = Dictionary<StateId, StateNode>()
    
@@ -1505,17 +1512,18 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
             let ch = stream.Get()
             ch.Token = Token.NewLine
 
-    let rec processStr currentChar cs acc rollback (runningState: RunningState) startOfLine =
-        let processCurrentChar = processStr currentChar
+    let rec processStr cs acc rollback (runningState: RunningState) startOfLine =
+        let processCurrentChar = processStr
         let processNextChar cs acc rollback (runningState: RunningState) = 
             let chk = (stream.Get())
-            processStr chk cs acc rollback runningState 
+            processStr cs acc rollback (runningState.SetCurrentChar chk) 
 
         if cs = PointerToStateFinal then
             stream.Position <- (stream.Position-1)
             let gs = 
-                runningState.GroupParse.GroupMatches
-                |>  Map.toList
+                runningState.GroupParse.GroupMatches.Keys
+                |>  Seq.toList
+                |>  List.map(fun k -> k, runningState.GroupParse.GroupMatches.[k])
                 |>  List.sortBy(fun (i, _) -> i)
                 |>  List.map snd
                 |>  List.map(fun g -> g |> List.skipWhile(fun c -> c = '\x00' ) |> List.rev)
@@ -1526,9 +1534,9 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
             match st with
             |   SinglePath p ->
                 let nxt = p.NextState
-                if (p.State.Match currentChar) then
-                    let ch = currentChar.Source.[0]
-                    processNextChar nxt (ch :: acc) rollback (runningState.AddChar ch) (currentChar.Token = Token.NewLine)
+                if (p.State.Match  runningState.CurrentChar) then
+                    let ch = runningState.CurrentChar.Source.[0]
+                    processNextChar nxt (ch :: acc) rollback (runningState.AddChar ch) (runningState.CurrentChar.Token = Token.NewLine)
                 else 
                     NoMatch
             |   StartLinePath st ->
@@ -1585,7 +1593,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                 let nx = runningState.GosubMapping.[rs.GosubId]
                 processCurrentChar nx acc rollback runningState startOfLine
 
-    processStr (stream.Get()) nfa.Start [] 0 (RunningState.Create()) startOfLine
+    processStr nfa.Start [] 0 (RunningState.Create (stream.Get())) startOfLine
 
 
 
