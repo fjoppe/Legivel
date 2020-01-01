@@ -93,18 +93,16 @@ let YamlParseWithErrors s =
 
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761268")>]
-//let ``Example 2.18. Multi-line Flow Scalars``() =
-let yaml = "
-plain:
-  This unquoted scalar
-  spans many lines.
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760118")>]
+//let ``Example 2.1.  Sequence of Scalars``() =
 
-quoted: \"So does this
-  quoted scalar.\\n\"
-"
+let yaml = "
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey"
+
 
 YamlParse yaml
 
-yaml.Substring(10)
+
 

@@ -1,7 +1,7 @@
 ﻿module NlogInit
 
 #I __SOURCE_DIRECTORY__
-#r @"bin/Release/net45/NLog.dll"
+#r @"bin/Debug/net45/NLog.dll"
 
 open NLog
 open System.IO

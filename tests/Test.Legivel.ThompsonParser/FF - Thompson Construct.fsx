@@ -2,126 +2,64 @@
 
 #time
 
-//#r @"bin/Debug/net45/FSharp.Core.dll"
-//#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
 #r @"bin/Debug/net45/Legivel.Parser.dll"
-//#r @"bin/Debug/net45/NLog.dll"
-//#r @"bin/Debug/net45/nunit.framework.dll"
 #r @"bin/Debug/net45/Test.Legivel.ThompsonParser.dll"
 #r @"bin/Debug/net45/NLog.dll"
 
 open Legivel.Tokenizer
-open System.Drawing
-open System.Diagnostics
-open System.Text.RegularExpressions
 open Legivel.Utilities.RegexDSL
 open Legivel.ThompsonParser
-open NFAValues
 open NLog
 
 #load "nlog.fsx"
 
-open System
-open System.Globalization
 
 NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-//let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 2)
-//let ``s-indent(<n)``  = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 1) (* Where m < n *)
 
-//let ``ns-plain-char`` = RGP("B", [Token.``nb-json``]) 
-
-//let ``ns-plain-one-line`` = RGP("A", [Token.``nb-json``]) 
-
-//let ``s-flow-line-prefix`` = ``s-indent(n)``
-
-//let ``s-line-prefix`` = ``s-flow-line-prefix``
-
-//let ``l-empty`` = (``s-line-prefix`` ||| ``s-indent(<n)``) + HardValues.``b-line-feed``
-
-//let ``b-l-trimmed`` = HardValues.``b-line-feed`` + OOM(``l-empty``)
-
-//let ``b-l-folded`` = ``b-l-trimmed`` ||| HardValues.``b-line-feed``
-////let ``b-l-folded`` = (*(``b-l-trimmed``) |||*) HardValues.``b-line-feed``
-
-//let ``s-flow-folded`` = ``b-l-folded`` +  ``s-flow-line-prefix``
-
-//let ``s-ns-plain-next-line`` = ``s-flow-folded`` + ``ns-plain-char`` 
-
-
-////``b-l-folded`` + RGP("A", [Token.``nb-json``]) 
-////|>  rgxToNFA
-////|>  PrintIt
-
-
-//``b-l-trimmed`` ||| HardValues.``b-line-feed``
-//|>  rgxToNFA
-//|>  PrintIt
-
-
-//(HardValues.``b-line-feed`` + RGP("A", [Token.``nb-json``])) ||| HardValues.``b-line-feed``
-//|>  rgxToNFA
-//|>  PrintIt
-
-
-//RGP("AB", [Token.``nb-json``]) ||| RGP("A", [Token.``nb-json``])
-//|>  rgxToNFA
-//|>  PrintIt
+let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
+let ``s-indent(<n)``= Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) 
+let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
+let ``s-line-prefix`` = ``s-flow-line-prefix``
+let ``l-empty`` = ((``s-line-prefix``) ||| (``s-indent(<n)``)) + HardValues.``b-as-line-feed``
+let ``b-l-trimmed`` = HardValues.``b-non-content`` + OOM(``l-empty``)
+let ``b-l-folded`` = ``b-l-trimmed`` ||| HardValues.``b-as-space``
+let ``s-flow-folded`` = OPT(HardValues.``s-separate-in-line``) + ``b-l-folded`` + ``s-flow-line-prefix``
+let ``ns-plain-safe-out`` = HardValues.``ns-plain-safe-out``
+let ``ns-plain-safe`` = ``ns-plain-safe-out``
+let ``ns-plain-char`` = (HardValues.``ns-char`` + HardValues.``c-comment``) ||| ((``ns-plain-safe``) - (RGO (":#", [Token.``t-colon``; Token.``t-hash``]))) ||| (HardValues.``c-mapping-value`` + ``ns-plain-safe``)
+let ``nb-ns-plain-in-line`` = ZOM(ZOM(HardValues.``s-white``) + ``ns-plain-char``)
+let ``s-ns-plain-next-line`` = ``s-flow-folded`` + ``ns-plain-char`` + ``nb-ns-plain-in-line``
+let ``ns-plain-first`` = (HardValues.``ns-char`` - HardValues.``c-indicator``) ||| (HardValues.``c-mapping-key`` ||| HardValues.``c-mapping-value`` ||| HardValues.``c-sequence-entry``) + ``ns-plain-safe``
+let ``ns-plain-one-line`` = ``ns-plain-first`` + ``nb-ns-plain-in-line``
+let ``ns-plain-multi-line`` = (``ns-plain-one-line``) + ZOM(``s-ns-plain-next-line``)
 
 
 
-////``l-empty``
-////|>  rgxToNFA
-////|>  PrintIt
-
-////(``s-line-prefix`` ||| ``s-indent(<n)``)
-////|>  rgxToNFA
-////|>  PrintIt
+//c	Flow-out	Legivel.Parser.Context
+//m	1	int
+//n	1	int
+//t	Clip	Legivel.Parser.Chomping
 
 
+let ``ns-plain`` = ``ns-plain-multi-line``
 
-////``s-line-prefix`` 
-////|>  rgxToNFA
-////|>  PrintIt
+let nfa = rgxToNFA <| ``ns-plain``
 
-////``s-indent(<n)``
-////|>  rgxToNFA
-////|>  PrintIt
-
-
-
-////  c	Block-key	Legivel.Parser.Context
-////  m	0	int
-////  n	2	int
-////  t	Clip	Legivel.Parser.Chomping
-
-//let ``illegl multiline`` = ``s-ns-plain-next-line``
+let y = "
+- Me
+- Sammy Sosa
+- Ken Griffey"
 
 
-//let yaml = "\n  B"
+let yaml = y.Substring(3)
+
+let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+
+PrintIt nfa
 
 
-//let nfa = ``illegl multiline`` |> rgxToNFA
+parseIt nfa stream
 
-let nfa = (ZOM(HardValues.``l-document-prefix``)) |> rgxToNFA
-
-//let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
-
-
-//parseIt nfa stream
-HardValues.``l-document-prefix``
-//(ZOM(HardValues.``l-document-prefix``)) 
-//|>  rgxToNFA
-//|>  PrintIt 
-
-
-ZOM(OPT(RGP("C", [Token.``nb-json``])))
-|>  rgxToNFA
-|>  PrintIt 
-
-
-OPT(RGP("C", [Token.``nb-json``]))
-|>  rgxToNFA
-|>  PrintIt 
