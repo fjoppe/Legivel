@@ -434,8 +434,6 @@ let ``Example 7.21. Single Pair Implicit Entries``() =
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2792902")>]
 let ``Example 7.22. Invalid Implicit Keys``() =
-    failwith "Implement continuations for this test"
-
     let plus1Kchars = [0 .. 1025] |> List.fold(fun s e -> s+"A") ""
 
     let input = "[ foo\n bar: invalid ]" 

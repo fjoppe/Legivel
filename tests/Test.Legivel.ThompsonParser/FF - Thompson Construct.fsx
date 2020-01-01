@@ -8,7 +8,7 @@
 
 open Legivel.Tokenizer
 open Legivel.Utilities.RegexDSL
-open Legivel.ThompsonParser
+open Legivel.ThompsonParser_old
 open NLog
 
 #load "nlog.fsx"
@@ -57,6 +57,7 @@ let y = "
 let yaml = y.Substring(3)
 
 let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+
 
 PrintIt nfa
 

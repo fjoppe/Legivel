@@ -1694,10 +1694,10 @@ type RunningState = {
     GosubMapping    : Map<GosubId, StatePointer>
     LoopToPos       : Map<RepeatId, int>
     CurrentChar     : TokenData
-    Stack           : (StatePointer * (int option)) list
+    Stack           : (StatePointer * (int * TokenData) option) list
 }
 with
-    static member Create cc st = {RunningLoops = Map.empty<_,_>; GroupParse = GroupParse.Create(); GosubMapping = Map.empty<_,_>; LoopToPos = Map.empty<_,_>; CurrentChar = cc;Stack = [(st,None)]}
+    static member Create cc st = {RunningLoops = Map.empty<_,_>; GroupParse = GroupParse.Create(); GosubMapping = Map.empty<_,_>; LoopToPos = Map.empty<_,_>; CurrentChar = cc;Stack = [(st, None)]}
 
     member this.AddChar ch = {this with GroupParse = this.GroupParse.AddChar ch}
     member this.SetLoop ri rs =
@@ -1753,6 +1753,7 @@ module RunningState =
     let StartGroup gi (rs:RunningState) = rs.StartGroup gi
     let StopGroup gi (rs:RunningState) = rs.StopGroup gi
     let SetGosub gi sp (rs:RunningState) = rs.SetGosub gi sp
+    let SetCurrentChar cc (rs:RunningState) = rs.SetCurrentChar cc
 
 
 let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
@@ -1779,14 +1780,15 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
         |   Some (cs, pos) ->
             let runningState = 
                 match pos with
-                |   Some p -> 
+                |   Some (p, td) -> 
                     let df = stream.Position - p
                     stream.Position <- p
                     runningState.Rollback df
+                    |>  RunningState.SetCurrentChar td
                 |   None   -> runningState
 
             let inline backtoupperlevel() = processStr rollback startOfLine runningState 
-            let processNextChar rollback startOfLine (runningState: RunningState) = 
+            let inline processNextChar rollback startOfLine (runningState: RunningState) = 
                 let chk = (stream.Get())
                 processStr rollback startOfLine (runningState.SetCurrentChar chk) 
 
@@ -1809,6 +1811,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     |>  List.rev
                 { IsMatch = true; FullMatch = runningState.GroupParse.GroupMatches.[GroupId MT.fullmatchGroup] |> postProcessGroup; Groups = gs }
             else
+                //logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s'" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)))
                 let st = stMap.[cs.Id]
                 match st with
                 |   SinglePath p ->
@@ -1828,7 +1831,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     let pos = stream.Position
                     p.States
                     |>  List.rev
-                    |>  List.fold(fun (st:RunningState) i -> st.Push(i.StatePointer, Some pos)) runningState
+                    |>  List.fold(fun (st:RunningState) i -> st.Push(i.StatePointer, Some(pos, runningState.CurrentChar))) runningState
                     |>  processStr rollback startOfLine
                 |   EmptyPath p -> processStr rollback startOfLine (runningState.Push (p.NextState, None)) 
                 |   RepeatStart _ 
