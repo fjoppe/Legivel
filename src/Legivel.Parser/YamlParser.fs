@@ -2632,7 +2632,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                             FallibleOption.ErrorResult(), psr.Messages
 
                     let pfi = psp.FullIndented
-                    let (nslblockmapentry, pm) = (psp.FullIndented) |> ParseState.``Match and Advance`` (this.``s-indent(n)`` pfi |> nfaCache.GetOrConvert "s-indent(n)" pfi) (this.``ns-l-block-map-entry``)
+                    let (nslblockmapentry, pm) = 
+                        let patt =
+                            this.``s-indent(n)`` pfi 
+                            |> nfaCache.GetOrConvert "s-indent(n)" pfi
+                        psp.FullIndented
+                        |> ParseState.``Match and Advance`` patt (this.``ns-l-block-map-entry``)
                     match nslblockmapentry.Result with
                     |   FallibleOptionValue.Value  -> 
                         let ((ck, cv), prs) = nslblockmapentry.Data

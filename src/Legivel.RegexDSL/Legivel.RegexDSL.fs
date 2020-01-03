@@ -239,6 +239,7 @@ let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
 
+
 type ExactChar = {
         Char       : char
         ListCheck  : Token list
@@ -852,6 +853,22 @@ module MT = //    Match Tree
         |> List.distinct
         |> List.filter(fun e -> e.Id <> PointerToStateFinal.Id)
 
+    let distinctEmptyPathToFinal (lst:StatePointer list) =
+        let toReduce =
+            lst
+            |>  List.groupBy(fun e -> 
+                let nd = lookup e
+                nd.IsEmptyPathToFinal
+            )
+            |>  List.filter(fun (k, lst) -> lst.Length > 1)
+            |>  List.map(fun (k,lst) -> lst)
+            |>  List.collect id
+
+        if toReduce.Length > 0 then
+            let toRemove = toReduce |> Set.ofList
+            toReduce.Head :: (lst |> List.filter(fun e -> not(toRemove.Contains e)))
+        else
+            lst
 
     let getSinglePathPointers pt =
         match pt with 
@@ -1153,7 +1170,9 @@ module Refactoring =
                     let (filterIds, nextIds) = target |> List.unzip
                     let silNew = 
                         let empty = MT.createEmptyPath PointerToStateFinal
-                        let siln = refactorCommonPlains (nextIds |> List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e) |> List.map(MT.getSinglePathPointers) |> List.collect id)
+                        let siln = 
+                            refactorCommonPlains (nextIds |> List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e) 
+                            |>  List.map(MT.getSinglePathPointers) |> List.collect id)
                         let filtIdSet = filterIds |> List.map(fun e -> e.Id) |> Set.ofList
 
                         let silNew = primary.SinglePathPointerValue :: (sil |> List.filter(fun e -> not(filtIdSet.Contains e.Id)))
@@ -1176,7 +1195,7 @@ module Refactoring =
                                     siln
                                     |>  List.map(fun sp -> MT.lookup sp.StatePointer)
                                     |>  MT.SortStateNodes
-                                    |>List.map(fun sn -> sn.SinglePathPointer)
+                                    |>  List.map(fun sn -> sn.SinglePathPointer)
 
                                 let bundle = MT.createAndSimplifyMultiPathSp (silnSorted)
                                 MT.setNextState bundle primary |> ignore
@@ -1245,11 +1264,11 @@ module Refactoring =
                         if premaps.ContainsKey nxtlist then
                            premaps.[nxtlist],premaps
                         else
-                            let mt = MT.createEmptyPath PointerToStateFinal
+                            let empty = MT.createEmptyPath PointerToStateFinal
                             allNextIds 
                             |>  List.collect id 
                             |>  List.map(fun e -> e.StatePointer)
-                            |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then mt else e)
+                            |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e)
                             |>  MT.simplifyMultiPathStates
                             |>  List.map MT.cleanupEmptyPaths
                             |>  List.map MT.getSinglePathPointers
@@ -1299,10 +1318,14 @@ module Refactoring =
                             t,ne, nois |> List.map(fun ns -> { ns with IdSp = mapOrOld ns.IdSp })
                         )
 
+
                     let bundle = 
+                        let empty = MT.createEmptyPath PointerToStateFinal
                         allNextIds
+                        |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e)
                         |>  MT.simplifyMultiPathStates
                         |>  List.map MT.cleanupEmptyPaths
+                        |>  MT.distinctEmptyPathToFinal
                         |>  List.map MT.getSinglePathPointers
                         |>  List.collect id
                         |>  MT.createAndSimplifyMultiPathSp 
@@ -1875,6 +1898,8 @@ let clts (cl:char list) = System.String.Concat(cl)
 module ParseResult =
     let IsMatch pr = pr.IsMatch
     let FullMatch pr = pr.FullMatch
+
+
 
 
 

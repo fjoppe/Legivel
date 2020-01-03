@@ -138,10 +138,10 @@ let ``b-char`` = ``b-line-feed`` ||| ``b-carriage-return``
 let ``nb-char``  = ``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) // ``b-char``
 
 //  [28]    http://www.yaml.org/spec/1.2/spec.html#b-break
-let ``b-break`` = 
-        (``b-carriage-return`` + ``b-line-feed``) |||  //  DOS, Windows
-        ``b-carriage-return``                     |||  //  MacOS upto 9.x
-        ``b-line-feed``                                //  UNIX, MacOS X
+let ``b-break`` = ``b-line-feed``
+        //(``b-carriage-return`` + ``b-line-feed``) |||  //  DOS, Windows
+        //``b-carriage-return``                     |||  //  MacOS upto 9.x
+        //``b-line-feed``                                //  UNIX, MacOS X
 
 //  [29]    http://www.yaml.org/spec/1.2/spec.html#b-as-line-feed
 let ``b-as-line-feed`` = ``b-break``

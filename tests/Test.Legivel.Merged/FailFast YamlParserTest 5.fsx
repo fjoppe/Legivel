@@ -93,16 +93,17 @@ let YamlParseWithErrors s =
 
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760118")>]
-//let ``Example 2.1.  Sequence of Scalars``() =
 
-let yaml = "
-- Mark McGwire
-- Sammy Sosa
-- Ken Griffey"
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2777449")>]
+//let ``Example 5.14. Invalid Escaped Characters``() =
 
+let yaml ="
+Bad escapes:
+  \"\\c
+  \\xq-\"
+"
 
-YamlParse yaml
+YamlParseWithErrors yaml
 
 
 
