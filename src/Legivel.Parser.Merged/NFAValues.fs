@@ -32,7 +32,7 @@ let ``NFA Illegal Shorthand Secondary`` = HardValues.``c-secondary-tag-handle`` 
 let ``NFA Shorthand Primary`` = HardValues.``c-primary-tag-handle``+ GRP(OOM(HardValues.``ns-tag-char``)) |> rgxToNFA
 let ``NFA c-non-specific-tag`` =  HardValues.``c-non-specific-tag`` |> rgxToNFA
 
-let ``NFA tagged uri`` = HardValues.``c-primary-tag-handle`` + OOM(HardValues.``ns-tag-char``) |> rgxToNFA
+let ``NFA tagged uri`` = HardValues.``c-primary-tag-handle`` + OOM(HardValues.``ns-tag-char``) // |> rgxToNFA
 
 let ``NFA Asterisk`` = (RGP ("\\*", [Token.``t-asterisk``])) |> rgxToNFA
 

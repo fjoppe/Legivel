@@ -364,7 +364,6 @@ let ``Example 6.23. Node Properties``() =
         yml |> p.Select |> ToScalar |> shouldEqual v
     )
 
-//[<Ignore "Check tags">]
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2784370")>]
 let ``Example 6.24. Verbatim Tags``() =
     let yml = YamlParseList "

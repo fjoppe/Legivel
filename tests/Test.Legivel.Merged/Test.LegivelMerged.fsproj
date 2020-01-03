@@ -157,7 +157,6 @@
       <Link>TestTokenizer.fs</Link>
     </Compile>
     <None Include="FailFast YamlParserTest 5.fsx" />
-    <None Include="FF - Thompson Construct.fsx" />
     <None Include="RegexDSL.fsx" />
     <None Include="Failfast Mapping.fsx" />
     <None Include="QuotationTest.fsx" />

@@ -658,11 +658,6 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             let m = Regex.Match(s, patt, RegexOptions.Multiline)
             if m.Success then 
                 let lst = [ for g in m.Groups -> g.Value ]
-                //let fullMatch = lst |> List.head
-                //let groups = lst |> List.tail
-                //let mt =MatchResult.Create fullMatch groups
-                //let r = Some(mt.ge1.Length - n)
-                //r
                 let l = lst |> List.last
                 Some(l.Length - n)
             else None

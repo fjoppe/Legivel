@@ -190,16 +190,17 @@ module FallibleOption =
 
 
 ///// Returns list of match groups, for pattern p on string s
-[<DebuggerStepThrough>]
+//[<DebuggerStepThrough>]
 let Match(s, p) = 
-    let mt = Regex.Matches(s, RGS(p), RegexOptions.Multiline)
+    let patt = RGS(p)
+    let mt = Regex.Matches(s, patt, RegexOptions.Multiline)
     if mt.Count = 0 then 
         []
     else
         [ for g in mt -> g.Value ]
 
 /// Returns whether pattern p matches on string s
-[<DebuggerStepThrough>]
+//[<DebuggerStepThrough>]
 let IsMatchStr(s, p) = 
     let ml = Match(s, p)
     ml.Length > 0
