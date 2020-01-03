@@ -626,13 +626,11 @@ module MT = //    Match Tree
     let distinctEmptyPathToFinal (lst:StatePointer list) =
         let toReduce =
             lst
-            |>  List.groupBy(fun e -> 
+            |>  List.filter(fun e -> 
                 let nd = lookup e
                 nd.IsEmptyPathToFinal
             )
-            |>  List.filter(fun (k, lst) -> lst.Length > 1)
-            |>  List.map(fun (k,lst) -> lst)
-            |>  List.collect id
+            |>  List.distinct
 
         if toReduce.Length > 0 then
             let toRemove = toReduce |> Set.ofList
@@ -1095,7 +1093,7 @@ module Refactoring =
                         |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e)
                         |>  MT.simplifyMultiPathStates
                         |>  List.map MT.cleanupEmptyPaths
-                        //|>  MT.distinctEmptyPathToFinal
+                        |>  MT.distinctEmptyPathToFinal
                         |>  List.map MT.getSinglePathPointers
                         |>  List.collect id
                         |>  MT.createAndSimplifyMultiPathSp 

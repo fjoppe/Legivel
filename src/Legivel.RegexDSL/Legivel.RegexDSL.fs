@@ -240,6 +240,7 @@ let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
 
+
 type ExactChar = {
         Char       : char
         ListCheck  : Token list
@@ -856,13 +857,11 @@ module MT = //    Match Tree
     let distinctEmptyPathToFinal (lst:StatePointer list) =
         let toReduce =
             lst
-            |>  List.groupBy(fun e -> 
+            |>  List.filter(fun e -> 
                 let nd = lookup e
                 nd.IsEmptyPathToFinal
             )
-            |>  List.filter(fun (k, lst) -> lst.Length > 1)
-            |>  List.map(fun (k,lst) -> lst)
-            |>  List.collect id
+            |>  List.distinct
 
         if toReduce.Length > 0 then
             let toRemove = toReduce |> Set.ofList
@@ -1489,6 +1488,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
                     MT.createGoSub mandatoryPath nxt gosubId
             ) rioe.NextState
             |>  finalPath
+        else if rt.Max = 0 then MT.createEmptyPath rioe.NextState
         else
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
@@ -1510,7 +1510,7 @@ let convertRepeaterToExplicitGraph (start:StatePointer) =
                 MT.createGoSub mandatoryPath nxt gosubId
             ) infiniteLoop
             |>  finalPath
-        
+
 
     match MT.lookup start with
     |   RepeatInit repInit -> 
@@ -1643,10 +1643,10 @@ let rgxToNFA rgx =
             |>  Refactoring.refactorMultiPathStatesSp
             |>  MT.createAndSimplifyMultiPathSp
         |   Optional    r -> createRepeat r 0 1
-        |   ZeroOrMore  r -> createRepeat r 0 0
-        |   ZeroOrMoreNonGreedy  r -> createRepeat r 0 0
-        |   OneOrMore   r -> createRepeat r 1 0
-        |   OneOrMoreNonGreedy r -> createRepeat r 1 0
+        |   ZeroOrMore  r -> createRepeat r 0 -1
+        |   ZeroOrMoreNonGreedy  r -> createRepeat r 0 -1
+        |   OneOrMore   r -> createRepeat r 1 -1
+        |   OneOrMoreNonGreedy r -> createRepeat r 1 -1
         |   Group       r ->
             let ep = MT.createEmptyPath PointerToStateFinal
             let gp = convert r |> convertRepeaterToExplicitGraph
@@ -1898,8 +1898,6 @@ let clts (cl:char list) = System.String.Concat(cl)
 module ParseResult =
     let IsMatch pr = pr.IsMatch
     let FullMatch pr = pr.FullMatch
-
-
 
 
 
