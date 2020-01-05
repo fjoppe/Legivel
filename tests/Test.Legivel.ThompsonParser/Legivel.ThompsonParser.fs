@@ -827,7 +827,7 @@ module Duplication =
         |>  traverse
         |>  fun r -> r.Link
 
-module Refactoring =
+module rec Refactoring =
     type NormalizedSPExactChar = { Token : Token; IdSp : StatePointer; Next : StatePointer ; ExactChar : char }
     type NormalizedSPOneInSet  = { Token : Token; IdSp : StatePointer; Next : StatePointer }
     
@@ -955,7 +955,6 @@ module Refactoring =
                                     nd.IsEmptyPathToFinal
                                 )
                             if isAllEmpty then
-                                let link = siln.Head
                                 MT.setNextState siln.Head.StatePointer primary |> ignore
                                 silNew
                             else
@@ -1138,12 +1137,51 @@ module Refactoring =
             mergeCompatibleInOneSet (sil |> Set.ofList) stnl
 
 
+    let mergeStartOfLine (sil:SinglePathPointer list) =
+        let stnl =
+            sil 
+            |>  List.map(fun i -> MT.lookup i)
+            |>  List.fold(fun st ->
+                function
+                |   StartLinePath p -> p :: st
+                |   _ -> st
+            ) []
+
+        if stnl.Length = 0 then
+            sil
+        else
+            let allNextIds =
+                let empty = MT.createEmptyPath PointerToStateFinal
+                stnl
+                |>  List.map(fun e -> 
+                    if e.NextState.Id = PointerToStateFinal.Id then empty else e.NextState 
+                    |>  MT.getSinglePathPointers
+                )
+                |>  List.collect id
+                |>  List.map(fun e -> e.StatePointer)
+
+            let bundle = 
+                allNextIds
+                |>  refactorMultiPathStates
+                |>  MT.createAndSimplifyMultiPathSp 
+
+            let newSl = stnl.Head.StatePointer |> MT.duplicateAndLinkToNext bundle
+            let stMap = stnl |> List.map(fun e -> e.Id) |> Set.ofList
+
+            newSl.SinglePathPointerValue :: (sil |> List.filter(fun e -> stMap.Contains e.Id |> not))
+
+
+    //let mergeInfiniteGosubs (lst : StatePointer list) =
+
+
+
     let refactorMultiPathStates (lst : StatePointer list) =
         lst
         |>  MT.simplifyMultiPathStates
         |>  List.map MT.cleanupEmptyPaths
         |>  List.map MT.getSinglePathPointers
         |>  List.collect id
+        |>  mergeStartOfLine
         |>  mergeCompatibleOneInSet
         |>  refactorConflictingCharacterSets
         |>  refacorConflictingPlainWithCharacterSets
@@ -1158,187 +1196,187 @@ module Refactoring =
         |>  refactorMultiPathStates
 
 
-let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
+    let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
 
-    let inline setNextState obj nx = MT.setNextState nx obj
+        let inline setNextState obj nx = MT.setNextState nx obj
     
-    let passedNodes = HashSet<StateId>()
+        let passedNodes = HashSet<StateId>()
 
-    let rec traverse (current:StatePointer) (concatPtr:StatePointer) =
-        if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then current 
-        else
-            passedNodes.Add current.Id |> ignore
-
-            let node = MT.lookup current
-            match node with
-            |   MultiPath  d -> 
-                d.States 
-                |>  List.map(fun stid -> traverse stid.StatePointer concatPtr)
-                |>  List.map MT.lookup
-                |>  MT.SortStateNodes
-                |>  List.map(fun e -> e.StatePointer)
-                |>  Refactoring.refactorMultiPathStates
-                |>  MT.createAndSimplifyMultiPathSp
-            |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
-                MT.setNextState concatPtr node 
-            |   EmptyPath     d -> 
-                traverse d.NextState concatPtr
-                |>  setNextState current
-                |>  MT.cleanupEmptyPaths
-            |   RepeatIterOrExit    d -> 
-                traverse d.NextState concatPtr
-                |>  MT.cleanupEmptyPaths
-                |>  setNextState current
-            |   RepeatInit  d -> 
-                traverse d.NextState.StatePointer concatPtr 
-                |>  setNextState current
-            |   RepeatStart d -> 
-                traverse d.NextState concatPtr
-                |>  setNextState current
-            |   GroupStart  d -> 
-                traverse d.NextState concatPtr
-                |>  setNextState current
-            |   GroupEnd    d -> 
-                traverse d.NextState concatPtr
-                |>  setNextState current
-            |   SinglePath  d ->
-                if d.NextState.Id = PointerToStateFinal.Id then
-                    MT.setNextState concatPtr current
-                else
-                    traverse d.NextState concatPtr 
-                    |>  setNextState current
-            |   StartLinePath d -> 
-                if d.NextState.Id = 0u then
-                    MT.setNextState concatPtr current
-                else
-                    traverse d.NextState concatPtr 
-                    |>  setNextState current
-            |   GoSub d ->
-                if d.NextState.Id = 0u then
-                    MT.setNextState concatPtr current
-                else
-                    traverse d.NextState   concatPtr |> ignore
-                    traverse d.ReturnState concatPtr 
-                    |>  setNextState current
-            |   ReturnSub d -> 
-                current
-            |   NoMatch _ -> 
-                current
-    traverse entryStartId concatPtr
-
-
-
-let convertRepeaterToExplicitGraph (start:StatePointer) =
-    let convertRepeaterToExplicitTree (ri:RepeatStateRef) (rs:RepeatStateRef) (rioe:RepeatIterateOrExit) (rt:RepeatState) =
-        let finalPath nx =
-            let iterPath =  Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, nx);(rs.StatePointer, nx)] rioe.IterateState nx
-            if rt.Min > 0 then
-                iterPath
+        let rec traverse (current:StatePointer) (concatPtr:StatePointer) =
+            if  current.Id = 0u || current.Id = concatPtr.Id || passedNodes.Contains (current.Id) then current 
             else
-                (MT.getSinglePathPointers iterPath) @ (MT.getSinglePathPointers rioe.NextState)
-                |>  Refactoring.refactorMultiPathStatesSp
-                |>  MT.createAndSimplifyMultiPathSp
+                passedNodes.Add current.Id |> ignore
 
-        if rt.Max > 0 then
-            let gosubId = MT.CreateGosubId()
-            let rtNode = MT.createRetSub gosubId
+                let node = MT.lookup current
+                match node with
+                |   MultiPath  d -> 
+                    d.States 
+                    |>  List.map(fun stid -> traverse stid.StatePointer concatPtr)
+                    |>  List.map MT.lookup
+                    |>  MT.SortStateNodes
+                    |>  List.map(fun e -> e.StatePointer)
+                    |>  Refactoring.refactorMultiPathStates
+                    |>  MT.createAndSimplifyMultiPathSp
+                |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
+                    MT.setNextState concatPtr node 
+                |   EmptyPath     d -> 
+                    traverse d.NextState concatPtr
+                    |>  setNextState current
+                    |>  MT.cleanupEmptyPaths
+                |   RepeatIterOrExit    d -> 
+                    traverse d.NextState concatPtr
+                    |>  MT.cleanupEmptyPaths
+                    |>  setNextState current
+                |   RepeatInit  d -> 
+                    traverse d.NextState.StatePointer concatPtr 
+                    |>  setNextState current
+                |   RepeatStart d -> 
+                    traverse d.NextState concatPtr
+                    |>  setNextState current
+                |   GroupStart  d -> 
+                    traverse d.NextState concatPtr
+                    |>  setNextState current
+                |   GroupEnd    d -> 
+                    traverse d.NextState concatPtr
+                    |>  setNextState current
+                |   SinglePath  d ->
+                    if d.NextState.Id = PointerToStateFinal.Id then
+                        MT.setNextState concatPtr current
+                    else
+                        traverse d.NextState concatPtr 
+                        |>  setNextState current
+                |   StartLinePath d -> 
+                    if d.NextState.Id = 0u then
+                        MT.setNextState concatPtr current
+                    else
+                        traverse d.NextState concatPtr 
+                        |>  setNextState current
+                |   GoSub d ->
+                    if d.NextState.Id = 0u then
+                        MT.setNextState concatPtr current
+                    else
+                        traverse d.NextState   concatPtr |> ignore
+                        traverse d.ReturnState concatPtr 
+                        |>  setNextState current
+                |   ReturnSub d -> 
+                    current
+                |   NoMatch _ -> 
+                    current
+        traverse entryStartId concatPtr
 
-            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
-            let optionalPath =
-                (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
-                |>  Refactoring.refactorMultiPathStatesSp
-                |>  MT.createAndSimplifyMultiPathSp
 
-            [rt.Max .. -1 .. 2]
-            |>  List.fold(fun nxt cur ->
-                if cur > rt.Min then
-                    MT.createGoSub optionalPath nxt gosubId
+
+    let convertRepeaterToExplicitGraph (start:StatePointer) =
+        let convertRepeaterToExplicitTree (ri:RepeatStateRef) (rs:RepeatStateRef) (rioe:RepeatIterateOrExit) (rt:RepeatState) =
+            let finalPath nx =
+                let iterPath =  Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, nx);(rs.StatePointer, nx)] rioe.IterateState nx
+                if rt.Min > 0 then
+                    iterPath
                 else
+                    (MT.getSinglePathPointers iterPath) @ (MT.getSinglePathPointers rioe.NextState)
+                    |>  Refactoring.refactorMultiPathStatesSp
+                    |>  MT.createAndSimplifyMultiPathSp
+
+            if rt.Max > 0 then
+                let gosubId = MT.CreateGosubId()
+                let rtNode = MT.createRetSub gosubId
+
+                let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+                let optionalPath =
+                    (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
+                    |>  Refactoring.refactorMultiPathStatesSp
+                    |>  MT.createAndSimplifyMultiPathSp
+
+                [rt.Max .. -1 .. 2]
+                |>  List.fold(fun nxt cur ->
+                    if cur > rt.Min then
+                        MT.createGoSub optionalPath nxt gosubId
+                    else
+                        MT.createGoSub mandatoryPath nxt gosubId
+                ) rioe.NextState
+                |>  finalPath
+            else if rt.Max = 0 then MT.createEmptyPath rioe.NextState
+            else
+                let gosubId = MT.CreateGosubId()
+                let rtNode = MT.createRetSub gosubId
+
+                let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
+                let optionalPath =
+                    (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
+                    |>  Refactoring.refactorMultiPathStatesSp
+                    |>  MT.createAndSimplifyMultiPathSp
+
+                let infiniteLoop =
+                    MT.createGoSub optionalPath PointerToStateFinal gosubId
+
+                let infiniteLoop =
+                    MT.setNextState (infiniteLoop.StatePointer) infiniteLoop
+
+                [rt.Min .. -1 .. 2]
+                |>  List.fold(fun nxt _ ->
                     MT.createGoSub mandatoryPath nxt gosubId
-            ) rioe.NextState
-            |>  finalPath
-        else if rt.Max = 0 then MT.createEmptyPath rioe.NextState
-        else
-            let gosubId = MT.CreateGosubId()
-            let rtNode = MT.createRetSub gosubId
-
-            let mandatoryPath = Duplication.duplicateStructureAndLinkToNext [(rioe.StatePointer, rtNode);(rs.StatePointer, rtNode)] rioe.IterateState rtNode
-            let optionalPath =
-                (MT.getSinglePathPointers mandatoryPath) @ (MT.getSinglePathPointers rioe.NextState)
-                |>  Refactoring.refactorMultiPathStatesSp
-                |>  MT.createAndSimplifyMultiPathSp
-
-            let infiniteLoop =
-                MT.createGoSub optionalPath PointerToStateFinal gosubId
-
-            let infiniteLoop =
-                MT.setNextState (infiniteLoop.StatePointer) infiniteLoop
-
-            [rt.Min .. -1 .. 2]
-            |>  List.fold(fun nxt _ ->
-                MT.createGoSub mandatoryPath nxt gosubId
-            ) infiniteLoop
-            |>  finalPath
+                ) infiniteLoop
+                |>  finalPath
 
 
-    match MT.lookup start with
-    |   RepeatInit repInit -> 
-        match MT.lookup repInit.NextState with
-        |   RepeatStart ep -> 
-            match MT.lookup ep.NextState with
-            |   RepeatIterOrExit re -> 
-                let nxt = convertRepeaterToExplicitTree repInit ep re (MT.getRepeatState repInit.RepeatId)
-                nxt
-            | _ -> start
+        match MT.lookup start with
+        |   RepeatInit repInit -> 
+            match MT.lookup repInit.NextState with
+            |   RepeatStart ep -> 
+                match MT.lookup ep.NextState with
+                |   RepeatIterOrExit re -> 
+                    let nxt = convertRepeaterToExplicitTree repInit ep re (MT.getRepeatState repInit.RepeatId)
+                    nxt
+                | _ -> start
+            |   _ -> start
         |   _ -> start
-    |   _ -> start
 
 
 
-let removeUnused (nfa:NFAMachine) =
-    let stMap = 
-        let d = Dictionary<StateId, StateNode>()
-        nfa.States |> List.iter(fun e -> d.Add(e.Id, e))
-        d
+    let removeUnused (nfa:NFAMachine) =
+        let stMap = 
+            let d = Dictionary<StateId, StateNode>()
+            nfa.States |> List.iter(fun e -> d.Add(e.Id, e))
+            d
 
-    let passedNodes = HashSet<StateId>()
+        let passedNodes = HashSet<StateId>()
 
-    let rec traverse (current:StatePointer) addToHash =
-        match addToHash with
-        |   Some v -> passedNodes.Add(v) |> ignore
-        |   None -> ()
+        let rec traverse (current:StatePointer) addToHash =
+            match addToHash with
+            |   Some v -> passedNodes.Add(v) |> ignore
+            |   None -> ()
 
-        if  current.Id = 0u || passedNodes.Contains (current.Id) then passedNodes
-        else
-            let node = stMap.[current.Id]
-            match node with
-            |   SinglePath sp -> traverse (sp.NextState) (Some current.Id)
-            |   StartLinePath ep -> traverse (ep.NextState) (Some current.Id)
-            |   MultiPath  mp -> 
-                passedNodes.Add(current.Id) |> ignore
-                mp.States 
-                |> List.fold(fun _ stid -> traverse stid.StatePointer None) passedNodes
-            |   EmptyPath  ep -> traverse (ep.NextState) (Some current.Id)
-            |   RepeatInit rs -> traverse (rs.NextState.StatePointer) (Some current.Id)
-            |   RepeatIterOrExit   re  -> 
-                traverse (re.IterateState) (Some current.Id) |> ignore
-                traverse (re.NextState) None
-            |   RepeatStart ep -> traverse (ep.NextState) (Some current.Id) 
-            |   GroupStart  ep  -> traverse (ep.NextState) (Some current.Id) 
-            |   GroupEnd ep  -> traverse (ep.NextState) (Some current.Id) 
-            |   NoMatch _ -> 
-                passedNodes.Add current.Id |> ignore
-                passedNodes
-            |   GoSub    gs  -> 
-                traverse (gs.NextState) (Some current.Id) |> ignore
-                traverse (gs.ReturnState) None
-            |   ReturnSub _ -> 
-                passedNodes.Add current.Id |> ignore
-                passedNodes
+            if  current.Id = 0u || passedNodes.Contains (current.Id) then passedNodes
+            else
+                let node = stMap.[current.Id]
+                match node with
+                |   SinglePath sp -> traverse (sp.NextState) (Some current.Id)
+                |   StartLinePath ep -> traverse (ep.NextState) (Some current.Id)
+                |   MultiPath  mp -> 
+                    passedNodes.Add(current.Id) |> ignore
+                    mp.States 
+                    |> List.fold(fun _ stid -> traverse stid.StatePointer None) passedNodes
+                |   EmptyPath  ep -> traverse (ep.NextState) (Some current.Id)
+                |   RepeatInit rs -> traverse (rs.NextState.StatePointer) (Some current.Id)
+                |   RepeatIterOrExit   re  -> 
+                    traverse (re.IterateState) (Some current.Id) |> ignore
+                    traverse (re.NextState) None
+                |   RepeatStart ep -> traverse (ep.NextState) (Some current.Id) 
+                |   GroupStart  ep  -> traverse (ep.NextState) (Some current.Id) 
+                |   GroupEnd ep  -> traverse (ep.NextState) (Some current.Id) 
+                |   NoMatch _ -> 
+                    passedNodes.Add current.Id |> ignore
+                    passedNodes
+                |   GoSub    gs  -> 
+                    traverse (gs.NextState) (Some current.Id) |> ignore
+                    traverse (gs.ReturnState) None
+                |   ReturnSub _ -> 
+                    passedNodes.Add current.Id |> ignore
+                    passedNodes
 
-    let usedLst = traverse nfa.Start None
-    let nodes = nfa.States |> List.filter(fun n -> usedLst.Contains n.Id)
-    {nfa with States = nodes}
+        let usedLst = traverse nfa.Start None
+        let nodes = nfa.States |> List.filter(fun n -> usedLst.Contains n.Id)
+        {nfa with States = nodes}
 
 
 
@@ -1360,12 +1398,12 @@ let rgxToNFA rgx =
 
         let createRepeat o min max =
             let linkState = MT.createEmptyPath PointerToStateFinal
-            let repPath = o |> convert |>  convertRepeaterToExplicitGraph
+            let repPath = o |> convert |>  Refactoring.convertRepeaterToExplicitGraph
             let repState = MT.createRepeatState min max
             let repExit = MT.createRepeatIterOrExit repPath repState.RepeatId linkState
             let repeatLoopStart = MT.createRepeatStart repState.RepeatId repExit
             
-            let nx = appendStateIdToAllFinalPathNodes repPath repeatLoopStart
+            let nx = Refactoring.appendStateIdToAllFinalPathNodes repPath repeatLoopStart
 
             match MT.lookup repExit with
             |   RepeatIterOrExit ioe ->
@@ -1394,12 +1432,12 @@ let rgxToNFA rgx =
 
             converts
             |>  List.fold(fun (concatPtr:StatePointer) (entryStart:StatePointer) ->
-                    appendStateIdToAllFinalPathNodes entryStart concatPtr
-                    |>  convertRepeaterToExplicitGraph
+                    Refactoring.appendStateIdToAllFinalPathNodes entryStart concatPtr
+                    |>  Refactoring.convertRepeaterToExplicitGraph
                     ) linkState
         |   Or     l -> 
             l
-            |>  List.map(convert >> MT.cleanupEmptyPaths >> convertRepeaterToExplicitGraph)
+            |>  List.map(convert >> MT.cleanupEmptyPaths >> Refactoring.convertRepeaterToExplicitGraph)
             |>  List.map(fun sp -> sp)
             |>  List.fold(fun sil sp ->
                     let mpl = 
@@ -1418,10 +1456,10 @@ let rgxToNFA rgx =
         |   OneOrMoreNonGreedy r -> createRepeat r 1 -1
         |   Group       r ->
             let ep = MT.createEmptyPath PointerToStateFinal
-            let gp = convert r |> convertRepeaterToExplicitGraph
+            let gp = convert r |> Refactoring.convertRepeaterToExplicitGraph
             let gs = MT.createGroup()
             let ge = MT.createGroupEnd gs ep
-            appendStateIdToAllFinalPathNodes gp ge
+            Refactoring.appendStateIdToAllFinalPathNodes gp ge
             |>  MT.createGroupStart gs
         |   IterRange (irx,mxo,mno) ->
             match mno with
@@ -1429,9 +1467,9 @@ let rgxToNFA rgx =
             |   None        -> createRepeat irx mxo mxo  
         |   _ -> failwith "Not Implemented Yet"
     processConversion rgx
-    |>  convertRepeaterToExplicitGraph
+    |>  Refactoring.convertRepeaterToExplicitGraph
     |>  MT.ToNFAMachine
-    |>  removeUnused
+    |>  Refactoring.removeUnused
 
 
 type ParseResult = {
@@ -1613,7 +1651,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     |>  List.rev
                 { IsMatch = true; FullMatch = runningState.GroupParse.GroupMatches.[GroupId MT.fullmatchGroup] |> postProcessGroup; Groups = gs }
             else
-                //logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s'" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)))
+                logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s'" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)))
                 let st = stMap.[cs.Id]
                 match st with
                 |   SinglePath p ->

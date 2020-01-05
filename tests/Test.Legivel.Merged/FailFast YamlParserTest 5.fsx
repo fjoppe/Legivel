@@ -94,13 +94,15 @@ let YamlParseWithErrors s =
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2784370")>]
-//let ``Example 6.24. Verbatim Tags``() =
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2780696")>]
+//let ``Example 6.11. Multi-Line Comments``() =
 
 
 let yaml = "
-!<tag:yaml.org,2002:str> foo :
-  !<!bar> baz
+key:    # Comment
+        # lines
+  value
+
 "
 
 YamlParse yaml
