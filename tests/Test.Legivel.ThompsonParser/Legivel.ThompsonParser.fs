@@ -456,7 +456,7 @@ let SPrintIt (nfa:NFAMachine) =
                     |   ReturnSub d -> sprintf "-Ret(%4d,%d)" d.Id d.GosubId.Id |> sb.AppendLine |> ignore
                     |   GoSub     d -> 
                         if passedNodes.Contains d.NextState.Id then
-                            sprintf "|GS(%4d, %d) (repeat)\n" d.Id d.GosubId.Id |> sb.Append |> ignore
+                            sprintf "|GS(%4d, %d) -Goto(%4d) - see above\n" d.Id d.GosubId.Id d.NextState.Id |> sb.Append |> ignore
                             printPrefix (hist)
                             sprintf "|GS-Ret    " |> sb.Append |> ignore
                             printLineRest (LevelType.Gosub :: hist) d.ReturnState passedGosub
@@ -1090,11 +1090,12 @@ module rec Refactoring =
                         let empty = MT.createEmptyPath PointerToStateFinal
                         allNextIds
                         |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e)
-                        |>  MT.simplifyMultiPathStates
-                        |>  List.map MT.cleanupEmptyPaths
-                        |>  MT.distinctEmptyPathToFinal
-                        |>  List.map MT.getSinglePathPointers
-                        |>  List.collect id
+                        |>  refactorMultiPathStates
+                        //|>  MT.simplifyMultiPathStates
+                        //|>  List.map MT.cleanupEmptyPaths
+                        //|>  MT.distinctEmptyPathToFinal
+                        //|>  List.map MT.getSinglePathPointers
+                        //|>  List.collect id
                         |>  MT.createAndSimplifyMultiPathSp 
 
                     MT.setNextState bundle.StatePointer primary |> ignore
@@ -1171,17 +1172,54 @@ module rec Refactoring =
             newSl.SinglePathPointerValue :: (sil |> List.filter(fun e -> stMap.Contains e.Id |> not))
 
 
-    //let mergeInfiniteGosubs (lst : StatePointer list) =
+    let mergeInfiniteGosubs (sil : SinglePathPointer list) =
+        let stnl =
+            sil 
+            |>  List.map(fun i -> MT.lookup i)
+            |>  List.fold(fun st ->
+                function
+                |   GoSub p when p.ReturnState.Id = p.Id -> 
+                    if not (p.NextState.IsSinglePath) then
+                        p :: st
+                    else
+                        st
+                |   _ -> st
+            ) []
+        if stnl.Length = 0 then
+            sil
+        else
+            let gosubId = MT.CreateGosubId()
+            let rtNode = MT.createRetSub gosubId
 
+            let replaceRet gid (curr:StatePointer) =
+                MT.lookup curr.StatePointer
+                |>  function
+                    |   ReturnSub rp when rp.GosubId = gid -> rtNode
+                    |   _ -> curr.StatePointer
+
+            let bundle =
+                stnl 
+                |>  List.map(fun gs -> searchAndReplace (replaceRet gs.GosubId) gs.StatePointer)
+                |>  refactorMultiPathStates
+                |>  MT.createAndSimplifyMultiPathSp
+
+            let gs = MT.createGoSub bundle PointerToStateFinal gosubId
+            let gs = MT.setNextState gs gs
+
+            let toRemove = stnl |> List.map(fun e -> e.SinglePathPointer) |> List.distinct |> Set.ofList
+
+            gs.SinglePathPointerValue :: (sil |> List.filter(fun e -> not(toRemove.Contains e)))
 
 
     let refactorMultiPathStates (lst : StatePointer list) =
         lst
         |>  MT.simplifyMultiPathStates
         |>  List.map MT.cleanupEmptyPaths
+        |>  MT.distinctEmptyPathToFinal
         |>  List.map MT.getSinglePathPointers
         |>  List.collect id
         |>  mergeStartOfLine
+        //|>  mergeInfiniteGosubs
         |>  mergeCompatibleOneInSet
         |>  refactorConflictingCharacterSets
         |>  refacorConflictingPlainWithCharacterSets
@@ -1263,6 +1301,50 @@ module rec Refactoring =
                 |   NoMatch _ -> 
                     current
         traverse entryStartId concatPtr
+
+
+    let searchAndReplace (check: StatePointer -> StatePointer) (entryStartId:StatePointer) =
+        let passedNodes = HashSet<StateId>()
+        
+        let inline setNextState obj nx = MT.setNextState nx obj
+
+        let rec traverse (current:StatePointer) =
+            let replaceOrNext nxt  =
+                let ck = check current
+                if ck = current then traverse nxt else ck
+
+            let replace()  = check current
+
+            if  current.Id = 0u || passedNodes.Contains (current.Id) then current 
+            else
+                passedNodes.Add current.Id |> ignore
+        
+                let node = MT.lookup current
+                match node with
+                |   MultiPath  d -> 
+                    d.States 
+                    |>  List.map(fun stid -> traverse stid.StatePointer)
+                    |>  List.map MT.lookup
+                    |>  MT.SortStateNodes
+                    |>  List.map(fun e -> e.StatePointer)
+                    |>  Refactoring.refactorMultiPathStates
+                    |>  MT.createAndSimplifyMultiPathSp
+                |   EmptyPath     d -> replaceOrNext d.NextState |> setNextState current
+                |   RepeatIterOrExit   d ->  replaceOrNext d.NextState |> setNextState current
+                |   RepeatInit  d -> replaceOrNext d.NextState |> setNextState current
+                |   RepeatStart d -> replaceOrNext d.NextState |> setNextState current
+                |   GroupStart  d -> replaceOrNext d.NextState |> setNextState current 
+                |   GroupEnd    d -> replaceOrNext d.NextState |> setNextState current
+                |   SinglePath  d -> replaceOrNext d.NextState |> setNextState current
+                |   StartLinePath d -> replaceOrNext d.NextState |> setNextState current
+                |   GoSub d ->  
+                    let gs = replaceOrNext d.NextState |> setNextState current
+                    let rt = replaceOrNext d.ReturnState |> setNextState current
+                    GoSub { d with NextState = gs; ReturnState = rt}
+                    |>  MT.updateAndReturn
+                |   ReturnSub d -> replace()
+                |   NoMatch _   -> current
+        traverse entryStartId 
 
 
 
