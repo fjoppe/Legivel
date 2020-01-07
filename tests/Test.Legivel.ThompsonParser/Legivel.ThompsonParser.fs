@@ -1012,7 +1012,7 @@ module rec Refactoring =
                 |   (cht, lst) :: tail ->
                     let toRemove, allNextIds =
                         lst
-                        |>  List.map(fun e -> e.IdSp.Id, (MT.getSinglePathPointers e.Next))
+                        |>  List.map(fun e -> e.IdSp.Id, e.Next (*(MT.getSinglePathPointers e.Next)*))
                         |>  List.unzip
 
                     let allRefactoredOneInSet = removeTokenFromOneInSet [cht] (lst |> List.map(fun i ->  i.IdSp)) 
@@ -1033,13 +1033,8 @@ module rec Refactoring =
                         else
                             let empty = MT.createEmptyPath PointerToStateFinal
                             allNextIds 
-                            |>  List.collect id 
-                            |>  List.map(fun e -> e.StatePointer)
                             |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e)
-                            |>  MT.simplifyMultiPathStates
-                            |>  List.map MT.cleanupEmptyPaths
-                            |>  List.map MT.getSinglePathPointers
-                            |>  List.collect id
+                            |>  refactorMultiPathStates
                             |>  MT.createAndSimplifyMultiPathSp
                             |>  fun e -> e, premaps |> Map.add nxtlist e
                     let sp = MT.createSinglePath (OneInSetMatch({ ListCheck = [cht]; QuickCheck = uint32(cht)})) bundle
@@ -1091,11 +1086,6 @@ module rec Refactoring =
                         allNextIds
                         |>  List.map(fun e -> if e.Id = PointerToStateFinal.Id then empty else e)
                         |>  refactorMultiPathStates
-                        //|>  MT.simplifyMultiPathStates
-                        //|>  List.map MT.cleanupEmptyPaths
-                        //|>  MT.distinctEmptyPathToFinal
-                        //|>  List.map MT.getSinglePathPointers
-                        //|>  List.collect id
                         |>  MT.createAndSimplifyMultiPathSp 
 
                     MT.setNextState bundle.StatePointer primary |> ignore
