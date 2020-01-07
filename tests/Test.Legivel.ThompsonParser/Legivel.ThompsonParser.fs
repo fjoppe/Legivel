@@ -1185,7 +1185,7 @@ module rec Refactoring =
                         st
                 |   _ -> st
             ) []
-        if stnl.Length = 0 then
+        if stnl.Length < 2 then
             sil
         else
             let gosubId = MT.CreateGosubId()
@@ -1219,7 +1219,7 @@ module rec Refactoring =
         |>  List.map MT.getSinglePathPointers
         |>  List.collect id
         |>  mergeStartOfLine
-        //|>  mergeInfiniteGosubs
+        |>  mergeInfiniteGosubs
         |>  mergeCompatibleOneInSet
         |>  refactorConflictingCharacterSets
         |>  refacorConflictingPlainWithCharacterSets

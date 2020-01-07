@@ -127,6 +127,4 @@ parse 1 "   #A" ((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash
 
 
 
-ZOM(OPT(RGP("A", [Token.``nb-json``])) + ZOM(RGP("C", [Token.``nb-json``])))
-|>  rgxToNFA
-|>  PrintIt
+
