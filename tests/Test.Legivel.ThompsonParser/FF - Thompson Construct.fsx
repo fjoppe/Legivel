@@ -25,46 +25,48 @@ let ``s-separate-lines`` = (HardValues.``s-l-comments`` + (``s-flow-line-prefix`
 let ``s-separate`` = ``s-separate-lines``
 
 
+//s-separate	 loc:(3,4) i:1 c:Block-out &a:0 e:0 w:0 sp:8
 //////c	Flow-out	Legivel.Parser.Context
 //////m	1	int
 //////n	1	int
 //////t	Clip	Legivel.Parser.Chomping
 
-//let nfa = ``s-separate`` |> rgxToNFA
-
-//let yaml = "
-//key:    # Comment
-//        # lines
-//  value
-
-//"
+let nfa = ``s-separate`` |> rgxToNFA
+PrintIt nfa
 
 
+let yaml = "
+key:    # Comment
+        # lines
+  value
 
-//let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
-//stream.Position <- 5
-
-//PrintIt nfa
-
-//parseIt nfa stream
+"
 
 
-let parse pos yaml rgx =
-    let nfa = rgxToNFA rgx
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
-    stream.Position <- pos
-    parseIt nfa stream
+
+let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+stream.Position <- 5
+
+
+parseIt nfa stream
+
+
+//let parse pos yaml rgx =
+//    let nfa = rgxToNFA rgx
+//    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+//    stream.Position <- pos
+//    parseIt nfa stream
     
 
 
-(HardValues.``s-l-comments`` + (``s-flow-line-prefix``)) ||| HardValues.``s-separate-in-line``
-|>  rgxToNFA
-|>  PrintIt
+//(HardValues.``s-l-comments`` + (``s-flow-line-prefix``)) ||| HardValues.``s-separate-in-line``
+//|>  rgxToNFA
+//|>  PrintIt
 
 
-(HardValues.``s-b-comment`` + ``s-flow-line-prefix``) (*||| HardValues.``s-separate-in-line``*)
-|>  rgxToNFA
-|>  PrintIt
+//(HardValues.``s-b-comment`` + ``s-flow-line-prefix``) (*||| HardValues.``s-separate-in-line``*)
+//|>  rgxToNFA
+//|>  PrintIt
 
 
 
@@ -94,35 +96,35 @@ let parse pos yaml rgx =
 
 
 
-//  werkt goed:
-parse 1 "   #" (OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]))
+////  werkt goed:
+//parse 1 "   #" (OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]))
 
-//  werkt niet goed:
-parse 1 "   #" ((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]) ) ||| (OOM(HardValues.``s-white``))) 
-
-
-
-
-//  werkt goed:
-parse 1 "   #A" (OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``]))
-
-//  werkt niet goed:
-parse 1 "   #A" ((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``))) 
+////  werkt niet goed:
+//parse 1 "   #" ((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]) ) ||| (OOM(HardValues.``s-white``))) 
 
 
 
 
+////  werkt goed:
+//parse 1 "   #A" (OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``]))
 
-//  werkt goed:
-(OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``]))
-|>  rgxToNFA
-|>  PrintIt
+////  werkt niet goed:
+//parse 1 "   #A" ((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``))) 
 
 
-//  werkt niet goed:
-((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``))) 
-|>  rgxToNFA
-|>  PrintIt
+
+
+
+////  werkt goed:
+//(OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``]))
+//|>  rgxToNFA
+//|>  PrintIt
+
+
+////  werkt niet goed:
+//((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``))) 
+//|>  rgxToNFA
+//|>  PrintIt
 
 
 

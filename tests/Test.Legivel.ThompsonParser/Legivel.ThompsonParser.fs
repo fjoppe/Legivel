@@ -1180,6 +1180,7 @@ module rec Refactoring =
         else
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
+            let empty = MT.createEmptyPath PointerToStateFinal
 
             let replaceRet gid (curr:StatePointer) =
                 MT.lookup curr.StatePointer
@@ -1189,7 +1190,11 @@ module rec Refactoring =
 
             let bundle =
                 stnl 
-                |>  List.map(fun gs -> searchAndReplace (replaceRet gs.GosubId) gs.StatePointer)
+                |>  List.map(fun gs -> 
+                    //Duplication.duplicateStructureAndLinkToNext [] gs.NextState empty
+                    //|> 
+                    searchAndReplace (replaceRet gs.GosubId) gs.NextState
+                )
                 |>  refactorMultiPathStates
                 |>  MT.createAndSimplifyMultiPathSp
 
@@ -1328,8 +1333,8 @@ module rec Refactoring =
                 |   SinglePath  d -> replaceOrNext d.NextState |> setNextState current
                 |   StartLinePath d -> replaceOrNext d.NextState |> setNextState current
                 |   GoSub d ->  
-                    let gs = replaceOrNext d.NextState |> setNextState current
-                    let rt = replaceOrNext d.ReturnState |> setNextState current
+                    let gs = replaceOrNext d.NextState
+                    let rt = replaceOrNext d.ReturnState
                     GoSub { d with NextState = gs; ReturnState = rt}
                     |>  MT.updateAndReturn
                 |   ReturnSub d -> replace()
