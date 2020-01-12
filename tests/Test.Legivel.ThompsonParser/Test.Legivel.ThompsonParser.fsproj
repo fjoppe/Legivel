@@ -96,9 +96,11 @@
     <None Include="Legivel.Utilities.RegexDSL.fs" />    
     <Compile Include="Legivel.ThompsonParser.fs" />    
     <Compile Include="Legivel.ThompsonParser.old.fs" />    
-    <Compile Include="Test.Legivel.ThompsonParser.fs" />
+    <Compile Include="Test.Legivel.ThompsonParser.fs" />    
+    <Compile Include="Test.Legivel.Thompson.Specific.fs" />
     <None Include="RegexDSL.fsx" />
     <None Include="FF - Thompson Construct.fsx" />
+    <None Include="FF - Step back.fsx" />
     <Content Include="Refactor Collisions in Repeat.txt" />
     <Content Include="Refactor Nested Repeats.txt" />
   </ItemGroup>

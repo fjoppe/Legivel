@@ -688,15 +688,15 @@ let createSinglePathFromRgx rgx =
 
 
 
-let nonGenericTokens =
+let specificTokens =
+    let hsh = HashSet<Token>()
     [   Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark``; Token.``t-colon``;
         Token.``t-dot``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``; Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``;
         Token.``t-hash``; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``; Token.``t-gt``;
         Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``; Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``;
         Token.``ns-dec-digit``; Token.``c-escape``; Token.``t-comma``]
-    |>   Set.ofList
-
-
+    |>   List.iter(fun i -> hsh.Add i |> ignore)
+    hsh
 
 
 module Duplication = 
@@ -828,13 +828,18 @@ module Duplication =
         |>  fun r -> r.Link
 
 module rec Refactoring =
+
+    type SystemList<'a> = System.Collections.Generic.List<'a>
+
     type NormalizedSPExactChar = { Token : Token; IdSp : StatePointer; Next : StatePointer ; ExactChar : char }
     type NormalizedSPOneInSet  = { Token : Token; IdSp : StatePointer; Next : StatePointer }
-    
+
+    type NormalizedProcessing = { IdSp : StatePointer; Next : StatePointer }
+
     type NormalizedForSPRefactoring =
         |   ExactMatchItem of NormalizedSPExactChar
-        |   OneInSetItem of NormalizedSPOneInSet
-    
+        |   OneInSetItem   of NormalizedSPOneInSet
+
     
     let normalizeForSPRefactoring (stNodes:StateNode list) =
         stNodes
@@ -850,9 +855,191 @@ module rec Refactoring =
             |   _  -> s
         ) []
         |>  List.collect id
+  
+
+
+    let normalizeForSPRefactoring2 (stNodes:StatePointer list) =
+        stNodes
+        |>  List.map MT.lookup
+        |>  List.fold(fun (normList,irrelst) e ->
+            match e with
+            |   SinglePath sp -> 
+                let norm =
+                    match sp.State with
+                    |   ExactMatch ch       ->  [ExactMatchItem { Token = ch.ListCheck.Head; IdSp = sp.StatePointer; Next = sp.NextState ; ExactChar = ch.Char}]
+                    |   OneInSetMatch ois   ->  
+                        ois.ListCheck
+                        |>  List.map(fun t  ->   OneInSetItem { Token = t; IdSp = sp.StatePointer; Next = sp.NextState })
+                (norm :: normList, irrelst)
+            |   _  -> (normList, e.StatePointer :: irrelst)
+        ) ([],[])
+        |>  fun (normList,irrelst) -> (normList |> List.collect id, irrelst)
     
-    
-    
+
+
+
+
+
+    let refactorCommonPlains2 (sil:(char*(NormalizedProcessing list))list) =
+        let empty = lazy(MT.createEmptyPath PointerToStateFinal)
+        sil
+        |>  List.map(fun (c, lst) ->
+            let bundle =
+                lst
+                |>  List.map(fun e -> if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next)
+                |>  List.map(MT.getSinglePathPointers)
+                |>  List.collect id
+                |>  refactorMultiPathStates2
+                |>  MT.createAndSimplifyMultiPathSp
+            lst.Head.IdSp 
+            |>  MT.duplicateAndLinkToNext bundle
+        )
+
+
+    let refactorConflictingCharacterSets2 (sil:(Token*(NormalizedProcessing list))list) =
+        let prvmaps = Dictionary<StateId list, StatePointer>()
+        let empty = lazy(MT.createEmptyPath PointerToStateFinal)
+        sil
+        |>  List.map(fun (t, lst) ->
+            let bundle =
+                let nxtLst = lst |> List.map(fun e -> if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next)
+                let nk = nxtLst |> List.map(fun e -> e.Id) |> List.sort
+                if  prvmaps.ContainsKey nk then
+                    prvmaps.[nk]
+                else
+                    let target =
+                        nxtLst
+                        |>  List.map(MT.getSinglePathPointers)
+                        |>  List.collect id
+                        |>  refactorMultiPathStates2
+                        |>  MT.createAndSimplifyMultiPathSp
+                    prvmaps.Add(nk,target)
+                    target
+
+            MT.createSinglePath (OneInSetMatch({ ListCheck = [t]; QuickCheck = uint32(t)})) bundle
+        )
+ 
+
+    let mergeCompatibleOneInSet2 (sil:(Token*(NormalizedProcessing list))list) =
+        let nextToToken = Dictionary<StatePointer, SystemList<Token> >()
+
+        sil
+        |>  List.iter(fun (t, nl) -> 
+            nl
+            |>  List.iter(fun nm ->
+                if nextToToken.ContainsKey nm.Next then
+                    let l = nextToToken.[nm.Next]
+                    l.Add(t)
+                    //nextToToken.Remove(t)
+                    //nextToToken.Add(t, l)
+                else
+                   let l = SystemList<Token>()
+                   l.Add(t)
+                   nextToToken.Add(nm.Next, l) 
+            )
+        )
+
+        nextToToken.Keys
+        |>  List.ofSeq
+        |>  List.map(fun nx ->
+            let tl  = nextToToken.[nx] |> List.ofSeq
+            let newQC = qcOneInSet tl
+            MT.createSinglePath (OneInSetMatch({ QuickCheck = newQC; ListCheck = tl})) nx
+        )
+
+
+    let refactorSinglePaths (sil:SinglePathPointer list) =
+        let sameCharSPs  = Dictionary<char,  Token option*SystemList<NormalizedProcessing> >()
+        let sameTokenSPs = Dictionary<Token, SystemList<NormalizedProcessing> >()
+
+        let updateExactChar c t p =
+            if not(sameCharSPs.ContainsKey c) then
+                let l = SystemList<NormalizedProcessing>()
+                l.Add(p)
+                sameCharSPs.Add(c, (t,l)) |> ignore
+            else
+                let (_,prv) = sameCharSPs.[c]
+                prv.Add(p)
+                //sameCharSPs.Remove(c)   |> ignore
+                //sameCharSPs.Add(c, (t,prv) |> ignore
+
+        let updateSameTokenSp t p =
+            if not(sameTokenSPs.ContainsKey t) then
+                let l = SystemList<NormalizedProcessing>()
+                l.Add(p)
+                sameTokenSPs.Add(t, l) |> ignore
+            else
+                let prv = sameTokenSPs.[t]
+                prv.Add(p)
+                //sameTokenSPs.Remove(t)   |> ignore
+                //sameTokenSPs.Add(t, prv) |> ignore
+
+
+        let (toProcess,noProcessing) =
+            sil
+            |>  List.map(fun p -> p.StatePointer)
+            |>  normalizeForSPRefactoring2
+
+        toProcess
+        |>  List.iter(fun i ->
+            match i with
+            |   ExactMatchItem ni ->
+                let strc = {IdSp=ni.IdSp; Next = ni.Next}
+                if specificTokens.Contains ni.Token then
+                    updateExactChar   ni.ExactChar (Some ni.Token) strc 
+                    updateSameTokenSp ni.Token strc 
+                else
+                    updateExactChar   ni.ExactChar None strc 
+
+            |   OneInSetItem   oi -> updateSameTokenSp oi.Token {IdSp=oi.IdSp; Next = oi.Next}
+        )
+
+        let (commonPlainRefactoring, noCharProcessing) =
+            sameCharSPs.Keys
+            |>  List.ofSeq
+            |>  List.fold(fun (toRefac, noRefac) c ->
+                let (token,lst) = sameCharSPs.[c]
+
+                if lst.Count > 1 then
+                    let lst =
+                        match token with
+                        |   Some t  -> 
+                            let superset =  sameTokenSPs.[t]
+                            sameTokenSPs.Remove(t)  |> ignore //  prevent double processing
+                            superset
+                        |   None    -> lst
+                    ((c, lst |> List.ofSeq) :: toRefac, noRefac)
+                else
+                    let stp = lst.[0]
+                    (toRefac, stp :: noRefac)
+            ) ([],[])
+            
+
+        let (oisOverlapRefactoring, noTokenProcessing) =
+            sameTokenSPs.Keys
+            |>  List.ofSeq
+            |>  List.fold(fun (toRefac, noRefac) t ->
+                let lst = sameTokenSPs.[t]
+
+                if lst.Count > 1 then
+                    ((t,lst  |> List.ofSeq) :: toRefac, noRefac)
+                else
+                    let stp = (t, [lst.[0]])
+                    (toRefac, stp :: noRefac)
+            ) ([],[])
+
+        let plainsRefactored   = refactorCommonPlains2 commonPlainRefactoring
+        let plainsRest         = noCharProcessing |> List.map(fun e -> e.IdSp)
+        let oneInSetRefactored = refactorConflictingCharacterSets2 oisOverlapRefactoring
+        let oneInSetRest       = mergeCompatibleOneInSet2 noTokenProcessing
+
+        noProcessing
+        |>  List.append plainsRefactored
+        |>  List.append plainsRest 
+        |>  List.append oneInSetRefactored 
+        |>  List.append oneInSetRest
+
+
     type RefactoringCanditate =
         |   PlainMerge          of char  * (NormalizedSPExactChar list)
         |   OneInSetOverlap     of Token * (NormalizedSPOneInSet list)
@@ -886,7 +1073,7 @@ module rec Refactoring =
             |   ExactMatchItem i -> i.Token
             |   OneInSetItem   i -> i.Token
         )
-        |>  List.filter(fun (t, _) -> nonGenericTokens |> Set.contains t)
+        |>  List.filter(fun (t, _) -> specificTokens.Contains t)
         |>  List.fold(fun s (t, nlst) ->
             let (ecl, osl) =
                 nlst
@@ -1099,6 +1286,7 @@ module rec Refactoring =
             refactorPlainsWithCharSets sil stnl
 
     let mergeCompatibleOneInSet  (sil:SinglePathPointer list) =
+        let hsh = HashSet<SinglePathPointer>()
         let stnl =
             sil 
             |>  List.map(fun i -> MT.lookup i)
@@ -1110,9 +1298,9 @@ module rec Refactoring =
         if stnl.Length = 0 then
             sil
         else
-            let rec mergeCompatibleInOneSet (sil:Set<SinglePathPointer>) (stnl:(StatePointer*NormalizedSPOneInSet list) list) =
+            let rec mergeCompatibleInOneSet (stnl:(StatePointer*NormalizedSPOneInSet list) list) =
                 match stnl with
-                |   [] -> sil |> Set.toList
+                |   [] -> List(hsh) |> Seq.toList
                 |   (np, lst) :: tail ->
                     let tl  = lst |> List.map(fun nt -> nt.Token) |> List.distinct
                     let idl = lst |> List.map(fun nt -> nt.IdSp.SinglePathPointerValue)
@@ -1120,12 +1308,13 @@ module rec Refactoring =
                 
                     let newNode = MT.createSinglePath (OneInSetMatch({ QuickCheck = newQC; ListCheck = tl})) np
 
-                    let silNew =
-                        idl 
-                        |>  List.fold(fun st i -> Set.remove i st) sil
-                        |>  Set.add newNode.SinglePathPointerValue
-                    mergeCompatibleInOneSet silNew tail
-            mergeCompatibleInOneSet (sil |> Set.ofList) stnl
+                    idl 
+                    |>  List.iter(fun i -> hsh.Remove i |> ignore)
+                    hsh.Add newNode.SinglePathPointerValue |> ignore
+                    mergeCompatibleInOneSet  tail
+            sil
+            |>  List.iter(fun i -> hsh.Add i |> ignore)
+            mergeCompatibleInOneSet stnl
 
 
     let mergeStartOfLine (sil:SinglePathPointer list) =
@@ -1191,9 +1380,8 @@ module rec Refactoring =
             let bundle =
                 stnl 
                 |>  List.map(fun gs -> 
-                    //Duplication.duplicateStructureAndLinkToNext [] gs.NextState empty
-                    //|> 
-                    searchAndReplace (replaceRet gs.GosubId) gs.NextState
+                    Duplication.duplicateStructureAndLinkToNext [] gs.NextState empty
+                    |> searchAndReplace (replaceRet gs.GosubId) (*gs.NextState*)
                 )
                 |>  refactorMultiPathStates
                 |>  MT.createAndSimplifyMultiPathSp
@@ -1206,6 +1394,12 @@ module rec Refactoring =
             gs.SinglePathPointerValue :: (sil |> List.filter(fun e -> not(toRemove.Contains e)))
 
 
+    let refactorMultiPathStates2 (lst : SinglePathPointer list) =
+        lst
+        |>  refactorSinglePaths
+        |>  List.map(fun p -> p.SinglePathPointerValue)
+
+
     let refactorMultiPathStates (lst : StatePointer list) =
         lst
         |>  MT.simplifyMultiPathStates
@@ -1215,11 +1409,12 @@ module rec Refactoring =
         |>  List.collect id
         |>  mergeStartOfLine
         |>  mergeInfiniteGosubs
-        |>  mergeCompatibleOneInSet
-        |>  refactorConflictingCharacterSets
-        |>  refacorConflictingPlainWithCharacterSets
-        |>  refactorCommonPlains
-        |>  mergeCompatibleOneInSet
+        |>  refactorMultiPathStates2
+        //|>  mergeCompatibleOneInSet
+        //|>  refactorConflictingCharacterSets
+        //|>  refacorConflictingPlainWithCharacterSets
+        //|>  refactorCommonPlains
+        //|>  mergeCompatibleOneInSet
 
     
 
@@ -1248,8 +1443,8 @@ module rec Refactoring =
                     |>  List.map MT.lookup
                     |>  MT.SortStateNodes
                     |>  List.map(fun e -> e.StatePointer)
-                    |>  Refactoring.refactorMultiPathStates
-                    |>  MT.createAndSimplifyMultiPathSp
+                    //|>  Refactoring.refactorMultiPathStates
+                    |>  MT.createAndSimplifyMultiPath
                 |   EmptyPath  d  when d.NextState.Id = PointerToStateFinal.Id -> 
                     MT.setNextState concatPtr node 
                 |   EmptyPath     d -> 
@@ -1306,7 +1501,10 @@ module rec Refactoring =
         let rec traverse (current:StatePointer) =
             let replaceOrNext nxt  =
                 let ck = check current
-                if ck = current then traverse nxt else ck
+                if ck = current then traverse nxt 
+                else 
+                    passedNodes.Add ck.Id |> ignore
+                    ck
 
             let replace()  = check current
 
@@ -1319,11 +1517,9 @@ module rec Refactoring =
                 |   MultiPath  d -> 
                     d.States 
                     |>  List.map(fun stid -> traverse stid.StatePointer)
-                    |>  List.map MT.lookup
-                    |>  MT.SortStateNodes
                     |>  List.map(fun e -> e.StatePointer)
-                    |>  Refactoring.refactorMultiPathStates
-                    |>  MT.createAndSimplifyMultiPathSp
+                    //|>  Refactoring.refactorMultiPathStates
+                    |>  MT.createAndSimplifyMultiPath
                 |   EmptyPath     d -> replaceOrNext d.NextState |> setNextState current
                 |   RepeatIterOrExit   d ->  replaceOrNext d.NextState |> setNextState current
                 |   RepeatInit  d -> replaceOrNext d.NextState |> setNextState current
@@ -1334,7 +1530,11 @@ module rec Refactoring =
                 |   StartLinePath d -> replaceOrNext d.NextState |> setNextState current
                 |   GoSub d ->  
                     let gs = replaceOrNext d.NextState
-                    let rt = replaceOrNext d.ReturnState
+                    let rt = 
+                        if d.ReturnState <> current then
+                            replaceOrNext d.ReturnState
+                        else
+                            gs
                     GoSub { d with NextState = gs; ReturnState = rt}
                     |>  MT.updateAndReturn
                 |   ReturnSub d -> replace()
@@ -1728,7 +1928,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     |>  List.rev
                 { IsMatch = true; FullMatch = runningState.GroupParse.GroupMatches.[GroupId MT.fullmatchGroup] |> postProcessGroup; Groups = gs }
             else
-                logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s'" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)))
+                //logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s'" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)))
                 let st = stMap.[cs.Id]
                 match st with
                 |   SinglePath p ->

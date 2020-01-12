@@ -13,120 +13,72 @@ open NLog
 
 #load "nlog.fsx"
 
+let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
+let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) (* Where m < n *)
+
+let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
+
+let ``s-line-prefix Flow-in`` = ``s-flow-line-prefix``
+
+let ``l-empty Flow-in`` = ((``s-line-prefix Flow-in``) ||| (``s-indent(<n)``)) + HardValues.``b-as-line-feed``
+
+let ``b-l-trimmed Flow-in`` = HardValues.``b-non-content`` + OOM(``l-empty Flow-in``)
+
+
+let ``b-l-folded Flow-in`` = ``b-l-trimmed Flow-in`` ||| HardValues.``b-as-space``
+
+let ``s-flow-folded`` =
+    OPT(HardValues.``s-separate-in-line``) + (``b-l-folded Flow-in``) + ``s-line-prefix Flow-in``
+
+let ``s-single-next-line`` = 
+    ZOM((``s-flow-folded``) + HardValues.``ns-single-char`` + HardValues.``nb-ns-single-in-line``) + (``s-flow-folded``) |||
+    OOM((``s-flow-folded``) + HardValues.``ns-single-char`` + HardValues.``nb-ns-single-in-line``) + ZOM(HardValues.``s-white``)        
+
+
+let ``nb-single-multi-line`` = HardValues.``nb-ns-single-in-line`` + ((``s-single-next-line``) ||| ZOM(HardValues.``s-white``))
+
+let ``nb-single-text`` = ``nb-single-multi-line``
+
+let ``c-single-quoted`` = HardValues.``c-single-quote`` + GRP(``nb-single-text``) + HardValues.``c-single-quote``
+
 
 NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 0)
-let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
-
-let ``s-separate-lines`` = (HardValues.``s-l-comments`` + (``s-flow-line-prefix``)) ||| HardValues.``s-separate-in-line``
-let ``s-separate`` = ``s-separate-lines``
 
 
-//s-separate	 loc:(3,4) i:1 c:Block-out &a:0 e:0 w:0 sp:8
-//////c	Flow-out	Legivel.Parser.Context
-//////m	1	int
-//////n	1	int
-//////t	Clip	Legivel.Parser.Chomping
+//c-single-quoted	 loc:(7,3) i:1 c:Flow-out &a:0 e:2 w:0 sp:57
+//nb-single-text	 loc:(7,3) i:1 c:Flow-out &a:0 e:2 w:0 sp:57
+//s-line-prefix	 loc:(7,3) i:1 c:Flow-in &a:0 e:2 w:0 sp:57
+//s-line-prefix	 loc:(7,3) i:1 c:Flow-in &a:0 e:2 w:0 sp:57
+//s-line-prefix	 loc:(7,3) i:1 c:Flow-in &a:0 e:2 w:0 sp:57
 
-let nfa = ``s-separate`` |> rgxToNFA
+
+let nfa = ``c-single-quoted`` |> rgxToNFA
+
+
 PrintIt nfa
 
 
-let yaml = "
-key:    # Comment
-        # lines
-  value
-
-"
 
 
+//let yaml = "
+//? - Detroit Tigers
+//  - Chicago cubs
+//:
+//  - 2001-07-23
 
+//? [ New York Yankees,
+//    Atlanta Braves ]
+//: [ 2001-07-02, 2001-08-12,
+//    2001-08-14 ]
+//"
+
+let yaml = "'test single quote'"
 let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
-stream.Position <- 5
+//stream.Position <- 57
 
 
 parseIt nfa stream
-
-
-//let parse pos yaml rgx =
-//    let nfa = rgxToNFA rgx
-//    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
-//    stream.Position <- pos
-//    parseIt nfa stream
-    
-
-
-//(HardValues.``s-l-comments`` + (``s-flow-line-prefix``)) ||| HardValues.``s-separate-in-line``
-//|>  rgxToNFA
-//|>  PrintIt
-
-
-//(HardValues.``s-b-comment`` + ``s-flow-line-prefix``) (*||| HardValues.``s-separate-in-line``*)
-//|>  rgxToNFA
-//|>  PrintIt
-
-
-
-//parse 1 "   # abc  " ((HardValues.``s-b-comment`` ) ||| HardValues.``s-separate-in-line``)
-
-//parse 1 "   # abc  " ((OPT(HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``)) + HardValues.``b-comment`` ) ||| ((*OOM(HardValues.``s-white``) ||| *)HardValues.``start-of-line``))
-
-//parse 1 "   # abc  B" ((OPT(HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``)) + RGP("B", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``) + RGP("A", [Token.``nb-json``])))
-
-//parse 1 "   # and B" ((OPT(HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``)) + RGP("B", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``) + RGP("A", [Token.``nb-json``])))
-
-
-////  werkt goed:
-//parse 1 "   # abc  " ((OPT(HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``)) + RGO("\\z", [Token.EOF]) ) ||| ((*OOM(HardValues.``s-white``) ||| *)HardValues.``start-of-line``))
-
-////  werkt niet goed:
-//parse 1 "   # abc  " ((OPT(HardValues.``s-separate-in-line`` + OPT(HardValues.``c-nb-comment-text``)) + RGO("\\z", [Token.EOF]) ) ||| (OOM(HardValues.``s-white``) ||| HardValues.``start-of-line``))
-
-
-
-
-////  werkt goed:
-//parse 1 "   #" ((OPT(HardValues.``s-separate-in-line`` + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]) ) (*||| ((*OOM(HardValues.``s-white``) ||| *)HardValues.``start-of-line``)*))
-
-////  werkt niet goed:
-//parse 1 "   #" ((OPT(HardValues.``s-separate-in-line`` + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]) ) ||| (OOM(HardValues.``s-white``) (*||| HardValues.``start-of-line``*)))
-
-
-
-////  werkt goed:
-//parse 1 "   #" (OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]))
-
-////  werkt niet goed:
-//parse 1 "   #" ((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGO("\\z", [Token.EOF]) ) ||| (OOM(HardValues.``s-white``))) 
-
-
-
-
-////  werkt goed:
-//parse 1 "   #A" (OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``]))
-
-////  werkt niet goed:
-//parse 1 "   #A" ((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``))) 
-
-
-
-
-
-////  werkt goed:
-//(OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``]))
-//|>  rgxToNFA
-//|>  PrintIt
-
-
-////  werkt niet goed:
-//((OPT(OOM(HardValues.``s-white``) + OPT(RGP("#", [Token.``t-hash``]))) + RGP("A", [Token.``nb-json``])) ||| (OOM(HardValues.``s-white``))) 
-//|>  rgxToNFA
-//|>  PrintIt
-
-
-
-
 

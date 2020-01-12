@@ -239,6 +239,9 @@ let Advance(m : string, s : string) =  s.Substring(m.Length)
 
 
 
+
+
+
 type ExactChar = {
         Char       : char
         ListCheck  : Token list
@@ -1409,6 +1412,7 @@ module rec Refactoring =
         else
             let gosubId = MT.CreateGosubId()
             let rtNode = MT.createRetSub gosubId
+            let empty = MT.createEmptyPath PointerToStateFinal
 
             let replaceRet gid (curr:StatePointer) =
                 MT.lookup curr.StatePointer
@@ -1419,8 +1423,8 @@ module rec Refactoring =
             let bundle =
                 stnl 
                 |>  List.map(fun gs -> 
-                    searchAndReplace (replaceRet gs.GosubId) gs.StatePointer |> ignore
-                    gs.NextState
+                    Duplication.duplicateStructureAndLinkToNext [] gs.NextState empty
+                    |> searchAndReplace (replaceRet gs.GosubId) (*gs.NextState*)
                 )
                 |>  refactorMultiPathStates
                 |>  MT.createAndSimplifyMultiPathSp
@@ -1533,7 +1537,10 @@ module rec Refactoring =
         let rec traverse (current:StatePointer) =
             let replaceOrNext nxt  =
                 let ck = check current
-                if ck = current then traverse nxt else ck
+                if ck = current then traverse nxt 
+                else 
+                    passedNodes.Add ck.Id |> ignore
+                    ck
 
             let replace()  = check current
 
@@ -1546,10 +1553,8 @@ module rec Refactoring =
                 |   MultiPath  d -> 
                     d.States 
                     |>  List.map(fun stid -> traverse stid.StatePointer)
-                    |>  List.map MT.lookup
-                    |>  MT.SortStateNodes
-                    |>  List.map(fun e -> e.StatePointer)
-                    |>  Refactoring.refactorMultiPathStates
+                    |>  List.map(fun e -> e.SinglePathPointerValue)
+                    //|>  Refactoring.refactorMultiPathStates
                     |>  MT.createAndSimplifyMultiPathSp
                 |   EmptyPath     d -> replaceOrNext d.NextState |> setNextState current
                 |   RepeatIterOrExit   d ->  replaceOrNext d.NextState |> setNextState current
@@ -1560,8 +1565,12 @@ module rec Refactoring =
                 |   SinglePath  d -> replaceOrNext d.NextState |> setNextState current
                 |   StartLinePath d -> replaceOrNext d.NextState |> setNextState current
                 |   GoSub d ->  
-                    let gs = replaceOrNext d.NextState |> setNextState current
-                    let rt = replaceOrNext d.ReturnState |> setNextState current
+                    let gs = replaceOrNext d.NextState
+                    let rt = 
+                        if d.ReturnState <> current then
+                            replaceOrNext d.ReturnState
+                        else
+                            gs
                     GoSub { d with NextState = gs; ReturnState = rt}
                     |>  MT.updateAndReturn
                 |   ReturnSub d -> replace()
@@ -2009,8 +2018,5 @@ let clts (cl:char list) = System.String.Concat(cl)
 module ParseResult =
     let IsMatch pr = pr.IsMatch
     let FullMatch pr = pr.FullMatch
-
-
-
 
 
