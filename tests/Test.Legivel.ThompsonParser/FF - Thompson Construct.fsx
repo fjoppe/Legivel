@@ -13,8 +13,8 @@ open NLog
 
 #load "nlog.fsx"
 
-let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
-let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) (* Where m < n *)
+let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 0)
+let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, -1) (* Where m < n *)
 
 let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
 
@@ -30,16 +30,21 @@ let ``b-l-folded Flow-in`` = ``b-l-trimmed Flow-in`` ||| HardValues.``b-as-space
 let ``s-flow-folded`` =
     OPT(HardValues.``s-separate-in-line``) + (``b-l-folded Flow-in``) + ``s-line-prefix Flow-in``
 
-let ``s-single-next-line`` = 
-    ZOM((``s-flow-folded``) + HardValues.``ns-single-char`` + HardValues.``nb-ns-single-in-line``) + (``s-flow-folded``) |||
-    OOM((``s-flow-folded``) + HardValues.``ns-single-char`` + HardValues.``nb-ns-single-in-line``) + ZOM(HardValues.``s-white``)        
+
+let ``s-double-escaped`` = ZOM(HardValues.``s-white``) + HardValues.``c-escape`` + HardValues.``b-non-content`` + ZOM(``l-empty Flow-in``) + (``s-flow-line-prefix``)
+
+let ``s-double-break`` = (``s-double-escaped``) ||| (``s-flow-folded``)
+
+let ``s-double-next-line`` =  
+    ZOM((``s-double-break``) + HardValues.``ns-double-char`` + HardValues.``nb-ns-double-in-line``) + (``s-double-break``) |||
+    OOM((``s-double-break``) + HardValues.``ns-double-char`` + HardValues.``nb-ns-double-in-line``) + ZOM(HardValues.``s-white``)
 
 
-let ``nb-single-multi-line`` = HardValues.``nb-ns-single-in-line`` + ((``s-single-next-line``) ||| ZOM(HardValues.``s-white``))
+let ``nb-double-multi-line`` = HardValues.``nb-ns-double-in-line`` + ((``s-double-next-line``) ||| ZOM(HardValues.``s-white``))
 
-let ``nb-single-text`` = ``nb-single-multi-line``
+let ``nb-double-text`` = ``nb-double-multi-line`` 
 
-let ``c-single-quoted`` = HardValues.``c-single-quote`` + GRP(``nb-single-text``) + HardValues.``c-single-quote``
+let ``c-double-quoted`` = HardValues.``c-double-quote`` + GRP(``nb-double-text``) + HardValues.``c-double-quote``
 
 
 NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
@@ -48,36 +53,50 @@ let logger = LogManager.GetLogger("*")
 
 
 
-//c-single-quoted	 loc:(7,3) i:1 c:Flow-out &a:0 e:2 w:0 sp:57
-//nb-single-text	 loc:(7,3) i:1 c:Flow-out &a:0 e:2 w:0 sp:57
-//s-line-prefix	 loc:(7,3) i:1 c:Flow-in &a:0 e:2 w:0 sp:57
-//s-line-prefix	 loc:(7,3) i:1 c:Flow-in &a:0 e:2 w:0 sp:57
-//s-line-prefix	 loc:(7,3) i:1 c:Flow-in &a:0 e:2 w:0 sp:57
+//c-double-quoted	 loc:(2,1) i:0 c:Flow-out &a:0 e:3 w:0 sp:1
+//s-line-prefix	 loc:(2,1) i:0 c:Flow-in &a:0 e:3 w:0 sp:1
+//s-line-prefix	 loc:(2,1) i:0 c:Flow-in &a:0 e:3 w:0 sp:1
+//s-line-prefix	 loc:(2,1) i:0 c:Flow-in &a:0 e:3 w:0 sp:1
+//s-line-prefix	 loc:(2,1) i:0 c:Flow-in &a:0 e:3 w:0 sp:1
+//s-line-prefix	 loc:(2,1) i:0 c:Flow-in &a:0 e:3 w:0 sp:1
+//s-line-prefix	 loc:(2,1) i:0 c:Flow-in &a:0 e:3 w:0 sp:1
 
 
-let nfa = ``c-single-quoted`` |> rgxToNFA
 
-
+let nfa = ``c-double-quoted`` |> rgxToNFA
 PrintIt nfa
 
+//HardValues.``ns-double-char``
+//|>  rgxToNFA
+//|>  PrintIt
+
+//(RGP ("\\\\", [Token.``c-escape``]) + RGP("A", [Token.``nb-json``])) |||
+//(((HardValues.``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]) - HardValues.``s-white``)) + RGP("B", [Token.``nb-json``]))
+//|>  rgxToNFA
+//|>  PrintIt
 
 
 
-//let yaml = "
-//? - Detroit Tigers
-//  - Chicago cubs
-//:
-//  - 2001-07-23
 
-//? [ New York Yankees,
-//    Atlanta Braves ]
-//: [ 2001-07-02, 2001-08-12,
-//    2001-08-14 ]
-//"
 
-let yaml = "'test single quote'"
+//(RGP("\n", [Token.NewLine]) + RGP("A", [Token.``nb-json``])) ||| 
+//(RGO("\t\n", [Token.``t-tab``;Token.NewLine]) + RGP("X", [Token.``nb-json``])) |||
+//(RGP("\t", [Token.``t-tab``]) + RGP("Y", [Token.``nb-json``]))
+//|>  rgxToNFA
+//|>  PrintIt
+
+
+
+let yaml = "
+\"Fun with \\\\
+\\\" \\a \\b \\e \\f \\
+\\n \\r \\t \\v \\0 \\
+\\  \\_ \\N \\L \\P \\
+\\x41 \\u0041 \\U00000041\"
+"
+
 let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
-//stream.Position <- 57
+stream.Position <- 1
 
 
 parseIt nfa stream

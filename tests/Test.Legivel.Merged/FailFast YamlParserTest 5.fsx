@@ -94,20 +94,16 @@ let YamlParseWithErrors s =
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760799")>]
-//let ``Example 2.11. Mapping between Sequences``() =
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2775100")>]
+//let ``Example 5.13. Escaped Characters``() =
 
 
 let yaml = "
-? - Detroit Tigers
-  - Chicago cubs
-:
-  - 2001-07-23
-
-? [ New York Yankees,
-    Atlanta Braves ]
-: [ 2001-07-02, 2001-08-12,
-    2001-08-14 ]
+\"Fun with \\\\
+\\\" \\a \\b \\e \\f \\
+\\n \\r \\t \\v \\0 \\
+\\  \\_ \\N \\L \\P \\
+\\x41 \\u0041 \\U00000041\"
 "
 
 
