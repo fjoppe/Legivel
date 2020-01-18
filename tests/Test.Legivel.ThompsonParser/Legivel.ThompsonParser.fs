@@ -1528,9 +1528,10 @@ type RepositionInfo = {
     StreamPosition : int
     Character      : TokenData
     StartOfLine    : bool
+    RunningGroups  : GroupId list
 }
 with    
-    static member Create sp c sl = { StreamPosition =sp ; Character = c ; StartOfLine = sl }
+    static member Create sp c sl rg = { StreamPosition =sp ; Character = c ; StartOfLine = sl; RunningGroups = rg }
 
 
 type RunningState = {
@@ -1595,6 +1596,8 @@ with
 
     member this.SetStartOfLine b = { this with StartOfLine = b }
 
+    member this.SetRunningGroups r = { this with GroupParse = { this.GroupParse with RunningGroups = r}}
+
 module RunningState =
     let AddChar ch (rs:RunningState) = rs.AddChar ch
     let Push st (rs:RunningState) = rs.Push st
@@ -1603,6 +1606,7 @@ module RunningState =
     let SetGosub gi sp (rs:RunningState) = rs.SetGosub gi sp
     let SetCurrentChar cc (rs:RunningState) = rs.SetCurrentChar cc
     let SetStartOfLine b (rs:RunningState) = rs.SetStartOfLine b
+    let SetRunningGroups r (rs:RunningState) = rs.SetRunningGroups r
 
 let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
     let stMap = Dictionary<StateId, StateNode>()
@@ -1631,6 +1635,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     stream.Position <- rpi.StreamPosition
                     runningState.Rollback df
                     |>  RunningState.SetCurrentChar rpi.Character
+                    |>  RunningState.SetRunningGroups rpi.RunningGroups
                 |   None   -> runningState
 
             //let inline backtoupperlevel() = processStr runningState 
@@ -1678,7 +1683,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     let pos = stream.Position
                     p.States
                     |>  List.rev
-                    |>  List.fold(fun (st:RunningState) i -> st.Push(i.StatePointer, Some(RepositionInfo.Create pos runningState.CurrentChar runningState.StartOfLine))) runningState
+                    |>  List.fold(fun (st:RunningState) i -> st.Push(i.StatePointer, Some(RepositionInfo.Create pos runningState.CurrentChar runningState.StartOfLine runningState.GroupParse.RunningGroups))) runningState
                 |   EmptyPath p -> runningState.Push (p.NextState, None) 
                 |   RepeatStart _ 
                 |   RepeatInit _ 

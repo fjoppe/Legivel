@@ -99,5 +99,9 @@ let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (To
 stream.Position <- 1
 
 
-parseIt nfa stream
+let r = parseIt nfa stream
+
+r.Groups.[0] |> clts
+
+
 
