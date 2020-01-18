@@ -98,16 +98,7 @@ let YamlParseWithErrors s =
 //let ``Example 5.13. Escaped Characters``() =
 
 
-let yaml = "
-\"Fun with \\\\
-\\\" \\a \\b \\e \\f \\
-\\n \\r \\t \\v \\0 \\
-\\  \\_ \\N \\L \\P \\
-\\x41 \\u0041 \\U00000041\"
-"
-
-
-YamlParse yaml
-
-
-
+YamlParse "
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey"

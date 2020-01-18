@@ -129,7 +129,7 @@ let ``c-flow-indicator`` =
 let ``b-line-feed`` = RGP ("\u000a", [Token.NewLine])
 
 //  [25]    http://www.yaml.org/spec/1.2/spec.html#b-carriage-return
-let ``b-carriage-return`` = RGP ("\u000d", [Token.NewLine])
+let ``b-carriage-return`` = RGP ("\u000a", [Token.NewLine]) //RGP ("\u000d", [Token.NewLine])
 
 //  [i26]   http://www.yaml.org/spec/1.2/spec.html#b-char
 let ``b-char`` = ``b-line-feed`` ||| ``b-carriage-return``
