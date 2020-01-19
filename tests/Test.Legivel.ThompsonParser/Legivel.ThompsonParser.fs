@@ -912,7 +912,8 @@ module rec Refactoring =
                         nxtLst
                         |>  List.map(MT.getSinglePathPointers)
                         |>  List.collect id
-                        |>  refactorMultiPathStates2
+                        |>  List.map(fun e -> e.StatePointer)
+                        |>  refactorMultiPathStates // refactorMultiPathStates2
                         |>  MT.createAndSimplifyMultiPathSp
                     prvmaps.Add(nk,target)
                     target
@@ -1105,7 +1106,8 @@ module rec Refactoring =
             let bundle =
                 let origBundle =
                     stnl 
-                    |>  List.map(fun gs -> gs.NextState.SinglePathPointerValue)
+                    |>  List.map(fun gs -> gs.NextState |> MT.getSinglePathPointers)
+                    |>  List.collect id
                     |>  MT.createAndSimplifyMultiPathSp
 
                 let dup = Duplication.duplicateStructureAndLinkToNext [] origBundle empty

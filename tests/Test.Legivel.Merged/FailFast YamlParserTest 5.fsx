@@ -94,11 +94,12 @@ let YamlParseWithErrors s =
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2775100")>]
-//let ``Example 5.13. Escaped Characters``() =
-
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2780696")>]
+//let ``Example 6.11. Multi-Line Comments``() =
 
 YamlParse "
-- Mark McGwire
-- Sammy Sosa
-- Ken Griffey"
+key:    # Comment
+        # lines
+  value
+
+"
