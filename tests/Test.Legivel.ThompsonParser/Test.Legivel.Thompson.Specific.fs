@@ -179,6 +179,29 @@ let ``c-double-quoted``() =
 
     let r = parseIt nfa stream
 
-    r.Groups.[0] |> clts |> shouldEqual "Fun with \\\\\n\\\" \\a \\b \\e \\f\\\" \\a \\b \\e \\f \\\n\\n \\r \\t \\v \\0 \\\n\\  \\_ \\N \\L \\P \\\n\\x41 \\u0041 \\U00000041"
+    r.IsMatch |> shouldEqual false
+    r.Groups.[0] |> clts |> shouldEqual "Fun with \\\\\n\\\" \\a \\b \\e \\f \\\n\\n \\r \\t \\v \\0 \\\n\\  \\_ \\N \\L \\P \\\n\\x41 \\u0041 \\U00000041"
 
 
+[<Test>]
+let ``s-separate``() =
+    let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
+    let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
+    let ``s-separate-lines`` = (HardValues.``s-l-comments`` + (``s-flow-line-prefix``)) ||| HardValues.``s-separate-in-line``
+    let ``s-separate`` = ``s-separate-lines``
+    
+    let nfa = ``s-separate`` |> rgxToNFA
+    
+    let yaml = "
+key:    # Comment
+        # lines
+  value
+
+"
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    stream.Position <- 5
+
+    let r = parseIt nfa stream
+
+    r.IsMatch |> shouldEqual true
+    stream.Position |> shouldEqual 37

@@ -964,22 +964,67 @@ let ``Two groups with nested Repeat test``() =
     assertGroupMatch nfa "ABCDABEFAB" 1"EF"
     assertGroupMatch nfa "ABCDCDABEFEFAB" 1 "EFEF"
 
+module ``Start of Line`` =
+    [<Test>]
+    let ``Start of Line optional match``() =
+        let nfa = 
+            rgxToNFA <|
+                    (RGO("-\n", [Token.``t-hyphen``; Token.NewLine])) +
+                    (RGP("AB", [Token.``nb-json``]) ||| 
+                        ``start-of-line`` + RGP("CD", [Token.``nb-json``])) +
+                    RGP("EF", [Token.``nb-json``])
 
-[<Test>]
-let ``Start of Line optional match``() =
-    let nfa = 
-        rgxToNFA <|
+        assertFullMatch nfa "-ABEF"
+        assertFullMatch nfa "\nABEF"
+        assertFullMatch nfa "\nCDEF"
+
+        assertNoMatch nfa "-CDEF"
+
+    [<Test>]
+    let ``Start of Line Concat``() =
+        let nfa = 
+            rgxToNFA <|
                 (RGO("-\n", [Token.``t-hyphen``; Token.NewLine])) +
-                (RGP("AB", [Token.``c-printable``]) ||| 
-                    ``start-of-line`` + RGP("CD", [Token.``c-printable``])) +
-                RGP("EF", [Token.``c-printable``])
+                ``start-of-line`` + RGP("CD", [Token.``nb-json``])
+        
+        assertFullMatch nfa "\nCD"
+        assertNoMatch nfa "-CD"
 
-    assertFullMatch nfa "-ABEF"
-    assertFullMatch nfa "\nABEF"
-    assertFullMatch nfa "\nCDEF"
+    [<Test>]
+    let ``Start of Line Concat in group``() =
+        let nfa = 
+            rgxToNFA <|
+                RGO("-\n", [Token.``t-hyphen``; Token.NewLine]) +
 
-    assertNoMatch nfa "-CDEF"
+                ((``start-of-line`` + RGP("CD", [Token.``nb-json``])) |||
+                    (RGP("FG", [Token.``nb-json``])))
+                + RGP("HI", [Token.``nb-json``])
+        
+        assertFullMatch nfa "\nCDHI"
+        assertFullMatch nfa "-FGHI"
+        assertFullMatch nfa "\nFGHI"
 
+        assertNoMatch nfa "-CDHI"
+
+
+    [<Test>]
+    let ``Zero Or More Start of Line in group``() =
+        let nfa = 
+            rgxToNFA <|
+            ZOM(RGO("-\n", [Token.``t-hyphen``; Token.NewLine]) +
+            
+                            ((``start-of-line`` + RGP("CD", [Token.``nb-json``])) |||
+                                (RGP("FG", [Token.``nb-json``])))
+                            + RGP("HI", [Token.``nb-json``]))
+
+        assertFullMatch nfa "\nCDHI"
+        assertFullMatch nfa "-FGHI"
+        assertFullMatch nfa "\nFGHI"
+
+        assertFullMatch nfa "\nCDHI-FGHI"
+        
+        assertPartialMatch nfa "\nCDHI-A" "\nCDHI"
+        assertPartialMatch nfa "-CDHI" ""
 
 [<Test>]
 let ``Nested loops - test infinite parsing``() =
