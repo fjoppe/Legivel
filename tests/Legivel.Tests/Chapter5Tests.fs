@@ -173,7 +173,7 @@ block:\t|
     )
 
 
-[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2775100")>]
+[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2777266")>]
 let ``Example 5.13. Escaped Characters``() =
     let yml = YamlParseList "
 \"Fun with \\\\
