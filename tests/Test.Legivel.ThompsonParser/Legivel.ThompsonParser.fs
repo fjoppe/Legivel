@@ -275,6 +275,12 @@ type StateNode =
                 |   StartLinePath _ -> true
                 |   _ -> false
 
+        member this.IsNoMatchValue 
+            with get() =
+                match this with
+                |   NoMatch _ -> true
+                |   _ -> false
+
         member this.NextState 
             with get() =
                 match this with
@@ -483,7 +489,7 @@ let SPrintIt (nfa:NFAMachine) =
                             sprintf "|GS-Ret      " |> sb.Append |> ignore
                             printLineRest (LevelType.Gosub :: hist) d.ReturnState passedGosub
                         else
-                            sprintf "|GS(%4d, %d)" d.Id d.GosubId.Id |> sb.Append |> ignore
+                            sprintf "|GS(%4d, %d) " d.Id d.GosubId.Id |> sb.Append |> ignore
                             printLineRest (LevelType.Gosub :: hist) d.NextState (passedGosub.Add d.GosubId)
                             printPrefix (hist)
                             sprintf "|GS-Ret      " |> sb.Append |> ignore
@@ -621,8 +627,8 @@ module MT = //    Match Tree
             |   GroupEnd       _ -> 700
             |   GoSub          _ -> 900
             |   RepeatStart    _ -> 950
-            |   EmptyPath      _ -> 1000
-            |   ReturnSub      _ -> 1100
+            |   ReturnSub      _ -> 1000
+            |   EmptyPath      _ -> 1100
             |   NoMatch        _ -> 1200
         let rec sortOrderCompare c1 c2 =
             (sortOrder c1).CompareTo(sortOrder c2)
@@ -792,8 +798,8 @@ module Duplication =
                         |>  fun rt -> (rt.Link :: npt, rt.SourceToTarget)
                         ) ([], p.SourceToTarget)
                     |>  fun (llst, st) ->
-                        //let p = MT.createAndSimplifyMultiPath llst
-                        let p = createAndSimplifyMultiPath llst
+                        let p = MT.createAndSimplifyMultiPath llst
+                        //let p = createAndSimplifyMultiPath llst
                         DuplicateReturn.Create st p
 
                 |   EmptyPath d  when d.NextState.Id = PointerToStateFinal.Id -> 
@@ -937,9 +943,10 @@ module rec Refactoring =
             let bundle =
                 lst
                 |>  List.map(fun e -> if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next)
-                |>  List.map(MT.getSinglePathPointers)
+                |>  List.map MT.getSinglePathPointers
                 |>  List.collect id
-                |>  refactorMultiPathStates2
+                |>  List.map(fun e -> e.StatePointer)
+                |>  refactorMultiPathStates
                 |>  MT.createAndSimplifyMultiPath
             
             sp
@@ -1134,6 +1141,10 @@ module rec Refactoring =
             let allIfFalseIds =
                 stnl
                 |>  List.filter(fun e -> e.IfFalse.Id <> PointerToStateFinal.Id)
+                |>  List.filter(fun e -> 
+                    let nd = MT.lookup e.IfFalse
+                    not(nd.IsNoMatchValue)
+                ) 
                 |>  List.map(fun e -> MT.getSinglePathPointers e.IfFalse)
                 |>  List.collect id
                 |>  List.map(fun e -> e.StatePointer)
@@ -1207,6 +1218,61 @@ module rec Refactoring =
             gs.SinglePathPointerValue :: (sil |> List.filter(fun e -> not(toRemove.Contains e)))
 
 
+    let mergeAllGosubs (sil : SinglePathPointer list) =
+        let searchChangeNodeInGosubChain start =
+            let rec search start curr  =
+                MT.lookup curr
+                |>  function
+                    |   GoSub gp -> search start gp.NextState
+                    |   _ -> Some (start,curr)
+            MT.lookup start
+            |>  function
+                |   GoSub gp -> search start gp.NextState
+                |   _   -> None
+
+
+        let (gsl, spl, npl) =
+            sil
+            |>  List.fold(fun (gsl, spl, npl) e ->
+                let srch = searchChangeNodeInGosubChain e.StatePointer
+                match srch with
+                |   Some (gs, sp) ->    (gs :: gsl, sp::spl, npl)
+                |   None          ->    (gsl, spl, e::npl)
+            ) ([],[],[])
+
+        if gsl.Length = 0 then
+            sil
+        else
+            let bundle =
+                spl
+                |>  List.map MT.getSinglePathPointers
+                |>  List.collect id
+                |>  List.append npl
+                |>  refactorMultiPathStatesSp
+                |>  MT.createAndSimplifyMultiPath
+
+            
+            let duplicateAndLinkGosub st lnk =
+                let rec duplicateFromEnd st =
+                    MT.lookup st
+                    |>  function    
+                        |   GoSub gs -> 
+                            let nxt = duplicateFromEnd gs.NextState
+                            let gsdup = MT.createGoSub nxt PointerToStateFinal gs.GosubId
+                            if gs.ReturnState.Id = gs.Id then
+                                MT.setNextState gsdup.StatePointer gsdup
+                            else
+                                MT.setNextState gs.ReturnState gsdup
+                        |   _   -> lnk
+                duplicateFromEnd st
+
+            gsl
+            |>  List.fold(fun (sp:StatePointer) gs ->
+                duplicateAndLinkGosub gs sp
+            ) bundle
+            |>  fun e -> [e.SinglePathPointerValue]
+
+
     let refactorMultiPathStates2 (lst : SinglePathPointer list) =
         lst
         |>  refactorSinglePaths
@@ -1221,8 +1287,8 @@ module rec Refactoring =
         |>  List.collect id
         |>  mergeStartOfLine
         |>  mergeInfiniteGosubs
+        |>  mergeAllGosubs
         |>  refactorMultiPathStates2
-
     
 
     let refactorMultiPathStatesSp (lst : SinglePathPointer list) =
@@ -1354,7 +1420,7 @@ module rec Refactoring =
                         if d.ReturnState <> current then
                             replaceOrNext d.ReturnState
                         else
-                            gs
+                            current
                     GoSub { d with NextState = gs; ReturnState = rt}
                     |>  MT.updateAndReturn
                 |   ReturnSub d -> replace()
@@ -1482,6 +1548,17 @@ module rec Refactoring =
 let PrintIt (nfa:NFAMachine) =
     printfn "%s" (SPrintIt nfa)
 
+    nfa.States
+    |>  List.sortBy(fun s -> s.Id)
+    |>  List.iter(fun s ->
+        match s with
+        |   SinglePath sp ->
+            match sp.State with
+            |   OneInSetMatch    ois ->
+                printfn "{ id: %d, OiS, Tokens: [%O] }" sp.Id ois.ListCheck
+            |   _ -> ()
+        |   _ -> ()
+    )
 
 
 let rgxToNFA rgx =
@@ -1634,7 +1711,7 @@ with
 type RunningState = {
     RunningLoops    : Map<RepeatId, RepeatState>
     GroupParse      : GroupParse
-    GosubMapping    : Map<GosubId, StatePointer>
+    GosubMapping    : Map<GosubId, StatePointer * int>
     LoopToPos       : Map<RepeatId, int>
     CurrentChar     : TokenData
     StartOfLine     : bool
@@ -1797,11 +1874,17 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                 |   NoMatch _ -> runningState
                 |   GoSub gs -> 
                     runningState
-                    |>  RunningState.SetGosub gs.GosubId gs.ReturnState
+                    |>  RunningState.SetGosub gs.GosubId (gs.ReturnState, stream.Position)
                     |>  RunningState.Push (gs.NextState , None)
                 |   ReturnSub rs -> 
-                    runningState
-                    |>  RunningState.Push (runningState.GosubMapping.[rs.GosubId], None)
+                    let ill = SinglePathPointer.Create (System.UInt32.MaxValue)
+                    let (sp, gp) = runningState.GosubMapping.[rs.GosubId]
+                    if stream.Position > gp then
+                        runningState
+                        |>  RunningState.SetGosub rs.GosubId (ill.StatePointer, stream.Position)
+                        |>  RunningState.Push (sp, None)
+                    else
+                        runningState
                 |>  processStr
     processStr (RunningState.Create (stream.Get()) nfa.Start startOfLine) 
 
