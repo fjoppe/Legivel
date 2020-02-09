@@ -515,7 +515,7 @@ module MT = //    Match Tree
     let private CreateNewId() =
         currentId <- (currentId + 1u)
 #if LOGTRACE
-        if currentId >= 20000u then failwith "Too many nodes"
+        if currentId >= 5000u then failwith "Too many nodes"
 #endif
         currentId
     
@@ -1104,11 +1104,25 @@ module rec Refactoring =
 
 
     let refactorUnprocessedSinglePaths (lst:StatePointer list) =
+#if LOGTRACE
+        logger.Trace "refactorUnprocessedSinglePaths "
+        lst |> MT.createAndSimplifyMultiPath |> logtree 
+#endif
+
         let notEmpty (nx:StatePointer) gt = 
             if nx.Id = PointerToStateFinal.Id then gt 
             else 
                 let nwnx = refactorAll nx 
-                MT.duplicateAndLinkToNext nwnx gt
+                if nwnx.Id <> nx.Id then
+                    MT.duplicateAndLinkToNext nwnx gt
+                else
+                    gt
+#if LOGTRACE
+                |>  fun e ->
+                    logger.Trace "refactorUnprocessedSinglePaths - reconnect"
+                    logtree e
+                    e
+#endif
 
         lst
         |>  List.map(fun sp ->
@@ -1118,7 +1132,12 @@ module rec Refactoring =
                 MT.lookup sp
                 |>  function
                     |   GroupStart      d -> notEmpty d.NextState sp
-                    |   StartLinePath   d -> sp
+                    |   StartLinePath   d -> 
+                        let nx = d.Iftrue
+                        if nx.Id = PointerToStateFinal.Id then sp 
+                        else 
+                            let nwnx = refactorAll nx 
+                            MT.createStartLinePath nwnx d.IfFalse
                     |   MultiPath       d -> 
                         MT.getSinglePathPointers sp
                         |>  createBundleSp
@@ -1135,7 +1154,10 @@ module rec Refactoring =
 
 
     let refactorSinglePaths (sil:SinglePathPointer list) =
-        logger.Trace(sprintf "refactorSinglePaths %O" (sil |> List.map(fun e -> e.Id)))
+#if LOGTRACE
+        logger.Trace "refactorSinglePaths"
+        sil |> MT.createAndSimplifyMultiPathSp |> logtree 
+#endif
 
         let sameCharSPs  = Dictionary<char, Token option * StatePointer * SystemList<NormalizedProcessing> >()
         let sameTokenSPs = Dictionary<Token, SystemList<NormalizedProcessing> >()
@@ -1259,7 +1281,7 @@ module rec Refactoring =
                 |   nd -> pr, nd.StatePointer :: np
             ) ([],[])
 
-        if stnl.Length = 0 then
+        if stnl.Length = 0 || sil.Length=1  then
             sil
         else
             let empty = lazy(MT.createEmptyPath PointerToStateFinal)
@@ -1388,6 +1410,11 @@ module rec Refactoring =
 
 
     let refactorMultiPathStates (lst : StatePointer list) =
+#if LOGTRACE
+        logger.Trace "refactorMultiPathStates"
+        lst |> MT.createAndSimplifyMultiPath |> logtree 
+#endif
+
         lst
         |>  MT.simplifyMultiPathStates
         |>  List.map MT.cleanupEmptyPaths
@@ -1406,7 +1433,7 @@ module rec Refactoring =
         |>  refactorMultiPathStates
 
 
-    let appendStateIdToAllFinalPathNodes (allPaths:bool) (entryStartId:StatePointer) (concatPtr:StatePointer) =
+    let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
 
         let inline setNextState obj nx = MT.setNextState nx obj
     
@@ -1458,13 +1485,8 @@ module rec Refactoring =
                     let nt = 
                         if d.Iftrue.Id = PointerToStateFinal.Id then concatPtr
                         else traverse d.Iftrue concatPtr
-                    let nf = 
-                        if allPaths then
-                            if d.IfFalse.Id = PointerToStateFinal.Id then concatPtr
-                            else traverse d.IfFalse concatPtr
-                        else d.IfFalse
 
-                    { d with Iftrue = nt;IfFalse = nf}
+                    { d with Iftrue = nt}
                     |>  StartLinePath
                     |>  MT.updateAndReturn
 
@@ -1547,7 +1569,12 @@ module rec Refactoring =
         |   _ -> 
             start
 
-    let refactorAll (sp:StatePointer) =
+    let refactorAll (sp:StatePointer) : StatePointer =
+#if LOGTRACE
+        logger.Trace "refactorAll"
+        logtree sp
+#endif
+
         MT.getSinglePathPointers sp
         |>  refactorMultiPathStatesSp
         |>  MT.createAndSimplifyMultiPath
@@ -1586,7 +1613,7 @@ let rgxToNFA rgx =
             let repExit = MT.createRepeatIterOrExit repPath repState.RepeatId linkState
             let repeatLoopStart = MT.createRepeatStart repState.RepeatId repExit
             
-            let nx = Refactoring.appendStateIdToAllFinalPathNodes true repPath repeatLoopStart
+            let nx = Refactoring.appendStateIdToAllFinalPathNodes repPath repeatLoopStart
 
             match MT.lookup repExit with
             |   RepeatIterOrExit ioe ->
@@ -1615,15 +1642,12 @@ let rgxToNFA rgx =
                 |>  List.map(convert)
 
             converts
-            |>  List.fold(fun (concatPtr:StatePointer, allPaths) (entryStart:StatePointer) ->
-                    let en = MT.lookup entryStart
-                    let ap = allPaths && not(en.IsStartOfLine)
-                    let append = Refactoring.appendStateIdToAllFinalPathNodes ap entryStart concatPtr
+            |>  List.fold(fun (concatPtr:StatePointer) (entryStart:StatePointer) ->
+                    let append = Refactoring.appendStateIdToAllFinalPathNodes entryStart concatPtr
                     let convert = Refactoring.convertRepeaterToExplicitGraph append
 
-                    (convert, ap)
-                    ) (linkState, true)
-            |>  fst
+                    convert
+                    ) linkState
         |   Or     l ->
             l
             |>  List.map(convert >> MT.cleanupEmptyPaths >> Refactoring.convertRepeaterToExplicitGraph)
@@ -1647,7 +1671,7 @@ let rgxToNFA rgx =
             let gp = convert r |> Refactoring.convertRepeaterToExplicitGraph
             let gs = MT.createGroup()
             let ge = MT.createGroupEnd gs ep
-            Refactoring.appendStateIdToAllFinalPathNodes true gp ge
+            Refactoring.appendStateIdToAllFinalPathNodes gp ge
             |>  MT.createGroupStart gs
         |   IterRange (irx,mxo,mno) ->
             match mno with

@@ -27,10 +27,9 @@ let ``start-of-line`` = RGP ("^", [Token.NoToken])
 
 
 //[<Test>]
-//let ``Start of Line Concat``() =
+//let ``Colliding plains in nested Repeater X-path with one state deep``() =
 
-(RGO("-\n", [Token.``t-hyphen``; Token.NewLine])) +
-``start-of-line`` + RGP("CD", [Token.``nb-json``])
+OPT(OPT(RGP("B", [Token.``c-printable``]))+ RGP("A", [Token.``c-printable``])) + RGP("A", [Token.``c-printable``]) 
 |>  rgxToNFA
 |>  PrintIt
 
