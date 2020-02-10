@@ -515,7 +515,7 @@ module MT = //    Match Tree
     let private CreateNewId() =
         currentId <- (currentId + 1u)
 #if LOGTRACE
-        if currentId >= 5000u then failwith "Too many nodes"
+        if currentId >= 10000u then failwith "Too many nodes"
 #endif
         currentId
     
@@ -531,7 +531,7 @@ module MT = //    Match Tree
         currentGosubId <- (currentGosubId + 1u)
         GosubId currentGosubId
 
-    let private allNodes = Dictionary<StateId, StateNode>()
+    let private allNodes = Dictionary<StateId, StateNode>(10000)
     let mutable private allRepeats = new System.Collections.Generic.List<RepeatState>()
 
     let Init() =
