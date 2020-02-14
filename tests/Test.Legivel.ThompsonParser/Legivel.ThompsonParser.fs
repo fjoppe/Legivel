@@ -423,7 +423,7 @@ let SPrintIt (level:int) (nfa:NFAMachine) =
                 |   LevelType.RepeatExit  -> " |X      " |> sb.Append |> ignore
                 |   LevelType.RepeatIter  -> " |I      " |> sb.Append |> ignore
                 |   LevelType.LoopStart   -> "                 " |> sb.Append |> ignore
-                |   LevelType.Gosub       -> "|            " |> sb.Append |> ignore
+                |   LevelType.Gosub       -> "|           " |> sb.Append |> ignore
             )
 
         printPrefix hist
@@ -774,11 +774,13 @@ let specificTokens =
     |>   List.iter(fun i -> hsh.Add i |> ignore)
     hsh
 
+#if LOGTRACE
 let logtree sp =
     sp
     |>  MT.ToNFAMachine
     |>  SPrintIt 5
     |>  fun t -> logger.Trace(sprintf "\n%s" t)
+#endif
 
 module Duplication = 
     type DuplicateWithCommand = {
@@ -960,25 +962,38 @@ module rec Refactoring =
 
 
     type RefactoringParam = {
-        RefactoredFromTo : Dictionary<StatePointer, StatePointer>
-        IsRefactored     : HashSet<StatePointer>
+        RefactoredFromTo : Dictionary<StateId, StateId>
+        Combinations     : Dictionary<StateId list, StatePointer list>
+        IsRefactored     : HashSet<StateId>
         StatePointers    : StatePointer list
     }
     with
-        static member Create s = { RefactoredFromTo = Dictionary<_,_>(); IsRefactored = HashSet<_>(); StatePointers = s}
+        static member Create s = { RefactoredFromTo = Dictionary<_,_>(); IsRefactored = HashSet<_>();Combinations = Dictionary<_,_>(); StatePointers = s}
         member this.WithStatePointers s = {this with StatePointers = s}
         member this.Append l = { this with StatePointers = this.StatePointers @ l}
-        member this.Add f t = 
+        member this.Add (f:StatePointer) (t:StatePointer) = 
             let dic = this.RefactoredFromTo
             let hsh = this.IsRefactored
-            dic.Add(f,t)
-            hsh.Add(t) |> ignore
+            dic.Remove(f.Id) |> ignore
+            dic.Add(f.Id,t.Id)
+            hsh.Add(t.Id) |> ignore
             { this with RefactoredFromTo = dic; IsRefactored = hsh}
         member this.MarkRefactored t =
             let hsh = this.IsRefactored
             hsh.Add(t) |> ignore
             { this with IsRefactored = hsh}
-        
+        member this.RegisterCombination (f:StatePointer list) (t:StatePointer list) =
+            let dict = this.Combinations
+            let k = f |> List.map(fun e -> e.Id) |> List.sort
+            dict.Add(k, t)
+            { this with Combinations = dict}
+        member this.GetRegisteredCombination (f:StatePointer list) =
+            let k = f |> List.map(fun e -> e.Id) |> List.sort
+            if this.Combinations.ContainsKey k then
+                Some this.Combinations.[k]
+            else
+                None
+
 
     module RefactoringParam =
         let WithStatePointers (p:RefactoringParam) s = p.WithStatePointers s
@@ -1040,6 +1055,10 @@ module rec Refactoring =
         |>  fun (normList,irrelst) -> (normList |> List.collect id, irrelst)
     
 
+    let refactorSimplifyStartOfLine chr nxt =
+        if chr='\n' then getStartOfLineTrue nxt
+        else getStartOfLineFalse nxt
+
 
     let refactorCommonPlains2 (rp:RefactoringParam) (sil:(char*StatePointer*(NormalizedProcessing list))list) =
         let empty = lazy(MT.createEmptyPath PointerToStateFinal)
@@ -1049,12 +1068,13 @@ module rec Refactoring =
                 lst
                 |>  List.map(fun e -> 
                     if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next
-                    |>  if c='\n' then getStartOfLineTrue
-                        else getStartOfLineFalse
+                    |>  refactorSimplifyStartOfLine c
                 )
                 |>  rps.WithStatePointers
                 |>  createBundle
-            rpr, MT.duplicateAndLinkToNext bundle sp ::pl
+
+            let finbun = refactorSimplifyStartOfLine c bundle
+            rpr, MT.duplicateAndLinkToNext finbun sp ::pl
         ) (rp,[])
         |>  fun (rpn, lst) -> rpn.WithStatePointers lst
 
@@ -1159,9 +1179,10 @@ module rec Refactoring =
             if sp.Id = PointerToStateFinal.Id then
                 (srp, sp :: rl)
             else
-                if srp.RefactoredFromTo.ContainsKey sp then
-                    srp, srp.RefactoredFromTo.[sp] :: rl
-                else if srp.IsRefactored.Contains sp then
+                if srp.RefactoredFromTo.ContainsKey sp.Id then
+                    let chc = SinglePathPointer.Create srp.RefactoredFromTo.[sp.Id]
+                    srp, chc.StatePointer :: rl
+                else if srp.IsRefactored.Contains sp.Id then
                     srp, sp :: rl
                 else
                     MT.lookup sp
@@ -1189,7 +1210,26 @@ module rec Refactoring =
                             nrp, nsp :: rl
                         |   RepeatInit      d -> (srp, sp :: rl)
                         |   RepeatIterOrExit d -> (srp, sp :: rl)
-                        |   SinglePath      d -> notEmpty d.NextState sp
+                        |   SinglePath      d -> 
+                            match d.State with
+                            |   ExactMatch em ->
+                                let nx = d.NextState
+                                if nx.Id = PointerToStateFinal.Id then srp, sp :: rl
+                                else 
+                                    let rpn = 
+                                        srp.WithStatePointers [nx]
+                                        |>  refactorSingleStatePointer
+
+                                    let nwnx = rpn.StatePointers.Head
+                                    if nwnx.Id <> nx.Id then
+                                        let nwnxsim = refactorSimplifyStartOfLine em.Char nwnx
+                                        let nn = MT.duplicateAndLinkToNext nwnxsim sp
+                                        let rpnr = rpn.Add sp nn
+                                        rpnr.WithStatePointers [nn], nn :: rl
+                                    else
+                                        srp, sp :: rl
+                            |   _ -> notEmpty d.NextState sp
+                        
                         |   GroupEnd        d -> notEmpty d.NextState sp
                         |   GoSub           d -> (srp, sp :: rl)
                         |   RepeatStart     d -> (srp, sp :: rl)
@@ -1310,6 +1350,7 @@ module rec Refactoring =
         |>  refactorUnprocessedSinglePaths
         |>  RefactoringParam.append plainsRefactored.StatePointers
         |>  RefactoringParam.append oneInSetRefactored.StatePointers
+        |>  Some
 
 
     let getStartOfLineTrue sp : StatePointer =
@@ -1340,8 +1381,7 @@ module rec Refactoring =
                 |   nd -> pr, nd.StatePointer :: np
             ) ([],[])
 
-        if stnl.Length = 0 || rp.StatePointers.Length=1  then
-            rp
+        if stnl.Length = 0 || rp.StatePointers.Length=1  then None
         else
             let empty = lazy(MT.createEmptyPath PointerToStateFinal)
             let allIfTrueIds =
@@ -1378,153 +1418,246 @@ module rec Refactoring =
                 |>  createBundle
 
             let replace = MT.createStartLinePath bundleTrue bundleFalse
+
             [replace]
             |>  RefactoringParam.WithStatePointers rpnf
+            |>  Some
 
 
-    let mergeInfiniteGosubs (rp:RefactoringParam) =
-        let (stnl, np) =
-            rp.StatePointers
-            |>  List.map(fun i -> MT.lookup i)
-            |>  List.fold(fun (pr, np) e ->
-                match e with
-                |   GoSub p when p.ReturnState.Id = p.Id -> p :: pr, np
-                |   _ -> pr, e.StatePointer :: np
-            ) ([], [])
 
-        match stnl.Length with
-        |   0   -> rp
-        |   1   -> 
-            let gsold = stnl.Head
+    //let mergeInfiniteGosubs (rp:RefactoringParam) =
+    //    let (stnl, np) =
+    //        rp.StatePointers
+    //        |>  List.map(fun i -> MT.lookup i)
+    //        |>  List.fold(fun (pr, np) e ->
+    //            match e with
+    //            |   GoSub p when p.ReturnState.Id = p.Id -> p :: pr, np
+    //            |   _ -> pr, e.StatePointer :: np
+    //        ) ([], [])
 
-            if rp.RefactoredFromTo.ContainsKey gsold.StatePointer then 
-                rp.WithStatePointers [rp.RefactoredFromTo.[gsold.StatePointer]]
-            else
-                let refactored = 
-                    [gsold.NextState]
-                    |>  rp.WithStatePointers
-                    |>  refactorUnprocessedSinglePaths
+    //    match stnl.Length with
+    //    |   0   -> None
+    //    |   1   -> 
+    //        let gsold = stnl.Head
+
+    //        if rp.RefactoredFromTo.ContainsKey gsold.StatePointer then 
+    //            rp.WithStatePointers [rp.RefactoredFromTo.[gsold.StatePointer]] |> Some
+    //        else
+    //            let refactored = 
+    //                [gsold.NextState]
+    //                |>  rp.WithStatePointers
+    //                |>  refactorUnprocessedSinglePaths
             
-                let gs = MT.createGoSub refactored.StatePointers.Head PointerToStateFinal gsold.GosubId
-                let gs = MT.setNextState gs gs
+    //            let gs = MT.createGoSub refactored.StatePointers.Head PointerToStateFinal gsold.GosubId
+    //            let gs = MT.setNextState gs gs
 
-                let rpn =
-                    gs :: np
-                    |>  refactored.WithStatePointers
-                RefactoringParam.add rpn gsold.StatePointer gs
-        |   _ -> 
-            let (bundle, rpn) =
-                let ns = 
-                    stnl 
-                    |>  List.map(fun gs -> gs.NextState)
+    //            let rpn =
+    //                gs :: np
+    //                |>  refactored.WithStatePointers
+    //            RefactoringParam.add rpn gsold.StatePointer gs
+    //            |>  Some
+    //    |   _ -> 
+    //        let (bundle, rpn) =
+    //            let ns = 
+    //                stnl 
+    //                |>  List.map(fun gs -> gs.NextState)
 
-                let wk = 
-                    rp.WithStatePointers ns
-                    |>  getSinglePathWork 
+    //            ns
+    //            |>  rp.WithStatePointers
+    //            |>  createBundle
 
-                if wk.OisOverlapRefactoring.Length >0 || wk.CommonPlainRefactoring.Length >0 then
-                    ns
-                    |>  rp.WithStatePointers
-                    |>  createBundle
-                else
-                    ns
-                    |>  MT.createAndSimplifyMultiPath
-                    |>  fun t -> t, rp
+    //        let gs =
+    //            stnl
+    //            |>  List.fold(fun nx e ->
+    //                let sp = MT.createGoSub nx PointerToStateFinal e.GosubId
+    //                MT.setNextState sp sp
+    //            ) bundle
 
-            let gs =
-                stnl
-                |>  List.fold(fun nx e ->
-                    let sp = MT.createGoSub nx PointerToStateFinal e.GosubId
-                    MT.setNextState sp sp
-                ) bundle
+    //        gs :: np
+    //        |>  rpn.WithStatePointers
+    //        |>  RefactoringParam.markRefactored gs
 
-            gs :: np
-            |>  rpn.WithStatePointers
-            |>  RefactoringParam.markRefactored gs
 
+    //let mergeAllGosubs (rp:RefactoringParam) =
+    //    //let searchChangeNodeInGosubChain start =
+    //    //    let rec search start curr  =
+    //    //        MT.lookup curr
+    //    //        |>  function
+    //    //            |   GoSub gp -> search start gp.NextState
+    //    //            |   _ -> Some (start,curr)
+    //    //    MT.lookup start
+    //    //    |>  function
+    //    //        |   GoSub gp -> search start gp.NextState
+    //    //        |   _   -> None
+
+    //    let (gsl, spl, npl) =
+    //        rp.StatePointers
+    //        |>  List.fold(fun (gsl, spl, npl) e ->
+    //            let srch = searchChangeNodeInGosubChain e.StatePointer
+    //            match srch with
+    //            |   Some (gs, sp) ->    (gs :: gsl, sp::spl, npl)
+    //            |   None          ->    (gsl, spl, e::npl)
+    //        ) ([],[],[])
+
+    //    if gsl.Length = 0 then
+    //        rp
+    //    else
+    //        let (bundle, rpn) =
+    //            npl
+    //            |>  List.map(fun e -> e.StatePointer)
+    //            |>  List.append spl
+    //            |>  rp.WithStatePointers
+    //            |>  createBundle
+            
+    //        let duplicateAndLinkGosub st lnk =
+    //            let rec duplicateFromEnd st =
+    //                MT.lookup st
+    //                |>  function    
+    //                    |   GoSub gs -> 
+    //                        let nxt = duplicateFromEnd gs.NextState
+    //                        let gsdup = MT.createGoSub nxt PointerToStateFinal gs.GosubId
+    //                        if gs.ReturnState.Id = gs.Id then
+    //                            MT.setNextState gsdup.StatePointer gsdup
+    //                        else
+    //                            MT.setNextState gs.ReturnState gsdup
+    //                    |   _   -> lnk
+    //            duplicateFromEnd st
+
+    //        gsl
+    //        |>  List.fold(fun (sp:StatePointer) gs ->
+    //            duplicateAndLinkGosub gs sp
+    //        ) bundle
+    //        |>  fun e -> 
+    //            [e]
+    //            |>  rpn.WithStatePointers
 
     let mergeAllGosubs (rp:RefactoringParam) =
-        let searchChangeNodeInGosubChain start =
-            let rec search start curr  =
-                MT.lookup curr
-                |>  function
-                    |   GoSub gp -> search start gp.NextState
-                    |   _ -> Some (start,curr)
-            MT.lookup start
-            |>  function
-                |   GoSub gp -> search start gp.NextState
-                |   _   -> None
-
-
-        let (gsl, spl, npl) =
+        let (gsr, gsrt, np) =
             rp.StatePointers
-            |>  List.fold(fun (gsl, spl, npl) e ->
-                let srch = searchChangeNodeInGosubChain e.StatePointer
-                match srch with
-                |   Some (gs, sp) ->    (gs :: gsl, sp::spl, npl)
-                |   None          ->    (gsl, spl, e::npl)
-            ) ([],[],[])
+            |>  List.map(fun i -> MT.lookup i)
+            |>  List.fold(fun (pr, prt, np) e ->
+                match e with
+                |   GoSub p -> p :: pr, prt+1, np
+                |   _       -> pr, prt, e.StatePointer :: np
+            ) ([], 0, [])
 
-        if gsl.Length = 0 then
-            rp
-        else
-            let (bundle, rpn) =
-                npl
-                |>  List.map(fun e -> e.StatePointer)
-                |>  List.append spl
+
+        match gsrt with
+        |   0 -> None
+        |   1 -> 
+            let gsh =
+                gsr
+                |>  List.head
+
+            if rp.RefactoredFromTo.ContainsKey gsh.StatePointer.Id then
+                let sp = SinglePathPointer.Create rp.RefactoredFromTo.[gsh.StatePointer.Id]
+                [sp.StatePointer]
                 |>  rp.WithStatePointers
+                |>  Some
+            else
+                let nx = gsh.NextState :: np
+                    
+                let (bundle, rpn) =
+                    nx
+                    |>  rp.WithStatePointers
+                    |>  createBundle
+
+                let gs =
+                    if gsh.StatePointer = gsh.ReturnState then
+                        let gs = MT.createGoSub bundle PointerToStateFinal gsh.GosubId
+                        MT.setNextState gs gs
+                    else
+                        MT.createGoSub bundle gsh.ReturnState gsh.GosubId
+                    
+                let rpr = rpn.Add gsh.StatePointer gs
+                RefactoringParam.WithStatePointers rpr [gs]
+                |>  Some
+
+        | _ ->
+            let (bundle, rpn) =
+                gsr
+                |>  List.map(fun e -> e.NextState)
+                |>  List.append np
+                |>  rp.WithStatePointers 
                 |>  createBundle
 
-            
-            let duplicateAndLinkGosub st lnk =
-                let rec duplicateFromEnd st =
-                    MT.lookup st
-                    |>  function    
-                        |   GoSub gs -> 
-                            let nxt = duplicateFromEnd gs.NextState
-                            let gsdup = MT.createGoSub nxt PointerToStateFinal gs.GosubId
-                            if gs.ReturnState.Id = gs.Id then
-                                MT.setNextState gsdup.StatePointer gsdup
-                            else
-                                MT.setNextState gs.ReturnState gsdup
-                        |   _   -> lnk
-                duplicateFromEnd st
+            let gs = 
+                gsr
+                |>  List.fold(fun nxt (gsh:GoSubPath) ->
+                    if gsh.StatePointer = gsh.ReturnState then
+                        let gs = MT.createGoSub nxt PointerToStateFinal gsh.GosubId
+                        MT.setNextState gs gs
+                    else
+                        MT.createGoSub nxt gsh.ReturnState gsh.GosubId
+                ) bundle
 
-            gsl
-            |>  List.fold(fun (sp:StatePointer) gs ->
-                duplicateAndLinkGosub gs sp
-            ) bundle
-            |>  fun e -> 
-                [e]
-                |>  rpn.WithStatePointers
+            rpn.WithStatePointers [gs]
+            |>  Some
+
+
+
+    let getCleanPointers (lst: StatePointer list) =
+        lst
+        |>  List.map MT.getSinglePathPointers
+        |>  List.collect id
+        |>  List.map(fun e -> e.StatePointer)
+        |>  MT.simplifyMultiPathStates
+        |>  List.map MT.cleanupEmptyPaths
+        |>  MT.distinctEmptyPathToFinal
 
 
     let refactorMultiPathStates (rp:RefactoringParam) : RefactoringParam =
-        let refactorIt lst =
-            lst
-            |>  MT.simplifyMultiPathStates
-            |>  List.map MT.cleanupEmptyPaths
-            |>  MT.distinctEmptyPathToFinal
-            |>  List.map MT.getSinglePathPointers
-            |>  List.collect id
-            |>  List.map(fun e -> e.StatePointer)
+        let rpp = 
+            rp.StatePointers
+            |>  getCleanPointers
             |>  rp.WithStatePointers
-            |>  mergeStartOfLine
-            |>  mergeInfiniteGosubs
-            //|>  mergeAllGosubs
-            |>  refactorSinglePaths
 
-        
-        if rp.StatePointers.Length = 1 then
-            let sp = rp.StatePointers.Head
-            if rp.RefactoredFromTo.ContainsKey sp then
-                rp // rp.RefactoredFromTo.[sp]
-            else if rp.IsRefactored.Contains sp then
-                rp
-            else
-                refactorIt rp.StatePointers
-        else
-            refactorIt rp.StatePointers
+        let (|MergeStartOfLine|_|) rp = mergeStartOfLine rp
+        let (|MergeGosubs|_|) rp = mergeAllGosubs rp
+        let (|RefactorSinglePaths|_|) rp = refactorSinglePaths rp
+
+#if LOGTRACE
+        let ids (l:StatePointer list) = l |> List.map(fun e -> e.Id) |> List.sort
+#endif
+
+        match rpp.GetRegisteredCombination rpp.StatePointers with
+        |   Some rs -> 
+
+#if LOGTRACE
+            logger.Trace (sprintf "refactorMultiPathStates cache: %A -> %A" (ids rpp.StatePointers) (ids rs))
+#endif
+            rpp.WithStatePointers rs
+        |   None    ->
+            match rpp with
+            |   MergeStartOfLine rps -> rps
+            |   MergeGosubs rps -> rps
+            |   RefactorSinglePaths rps -> rps
+            |   _ -> rpp
+            |>  fun rpn ->
+                rpn.RegisterCombination rpp.StatePointers rpn.StatePointers
+#if LOGTRACE
+            |> fun rpn ->
+            logger.Trace (sprintf "refactorMultiPathStates processed: %A -> %A" (ids rpp.StatePointers) (ids rpn.StatePointers))
+            rpn
+#endif
+    
+    let refactorSingleStatePointer (rp:RefactoringParam) : RefactoringParam =
+        rp.StatePointers.Head
+        |>  MT.getSinglePathPointers
+        |>  List.map(fun e -> e.StatePointer)
+        |>  rp.WithStatePointers
+        |>  refactorMultiPathStates
+        |>  fun rpn ->
+            [MT.createAndSimplifyMultiPath rpn.StatePointers]
+            |>  rpn.WithStatePointers
+                
+    
+    let refactorAll (sp:StatePointer) : StatePointer =
+        Refactoring.RefactoringParam.Create [sp]
+        |>  refactorSingleStatePointer
+        |>  fun rpn -> rpn.StatePointers.Head
+
+
 
     let appendStateIdToAllFinalPathNodes (entryStartId:StatePointer) (concatPtr:StatePointer) =
 
@@ -1662,22 +1795,6 @@ module rec Refactoring =
         |   _ -> 
             start
 
-
-    let refactorSingleStatePointer (rp:RefactoringParam) : RefactoringParam =
-        rp.StatePointers.Head
-        |>  MT.getSinglePathPointers
-        |>  List.map(fun e -> e.StatePointer)
-        |>  rp.WithStatePointers
-        |>  refactorMultiPathStates
-        |>  fun rpn ->
-            [MT.createAndSimplifyMultiPath rpn.StatePointers]
-            |>  rpn.WithStatePointers
-            
-
-    let refactorAll (sp:StatePointer) : StatePointer =
-        Refactoring.RefactoringParam.Create [sp]
-        |>  refactorSingleStatePointer
-        |>  fun rpn -> rpn.StatePointers.Head
 
 
 let PrintIt (nfa:NFAMachine) =
@@ -1969,7 +2086,9 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     |>  List.rev
                 { IsMatch = true; FullMatch = runningState.GroupParse.GroupMatches.[GroupId MT.fullmatchGroup] |> postProcessGroup; Groups = gs }
             else
+#if LOGTRACE
                 logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s'" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)))
+#endif
                 let st = stMap.[cs.Id]
                 match st with
                 |   SinglePath p ->

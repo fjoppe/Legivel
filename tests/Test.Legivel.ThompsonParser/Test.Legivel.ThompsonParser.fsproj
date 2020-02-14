@@ -95,7 +95,6 @@
     </None>    
     <None Include="Legivel.Utilities.RegexDSL.fs" />    
     <Compile Include="Legivel.ThompsonParser.fs" />    
-    <Compile Include="Legivel.ThompsonParser.old.fs" />    
     <Compile Include="Test.Legivel.ThompsonParser.fs" />    
     <Compile Include="Test.Legivel.Thompson.Specific.fs" />
     <None Include="RegexDSL.fsx" />

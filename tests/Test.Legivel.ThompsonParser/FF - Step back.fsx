@@ -17,12 +17,10 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
-let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
-let ``s-separate-lines`` = (HardValues.``s-l-comments`` + (``s-flow-line-prefix``)) ||| HardValues.``s-separate-in-line``
-let ``s-separate`` = ``s-separate-lines``
+rgxToNFA <|
+ZOM(OPT(RGP("A", [Token.``nb-json``])) + ZOM(RGP("C", [Token.``nb-json``])))
 
-let nfa = ``s-separate`` |> rgxToNFA
+
 
 
 
