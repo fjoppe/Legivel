@@ -94,12 +94,15 @@ let YamlParseWithErrors s =
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2780696")>]
-//let ``Example 6.11. Multi-Line Comments``() =
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761008")>]
+//let ``Example 2.13.  In literals, newlines are preserved``() =
 
-YamlParse "
-key:    # Comment
-        # lines
-  value
+let yml = "
+# ASCII Art
+--- |
+  \//||\/||
+  // ||  ||__"
 
-"
+
+YamlParse yml
+

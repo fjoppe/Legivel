@@ -2271,6 +2271,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             trimHead slist []
         ps |> ParseState.``Match and Advance`` NFAValues.``NFA pipe`` (fun prs ->
             let ``literal-content`` (ps:ParseState) =
+                logger "literal-content internal" ps
                 let ps = if ps.n < 1 then (ps.SetIndent 1) else ps
                 let p = this.``l-literal-content`` ps
                 match ps  with

@@ -26,32 +26,56 @@ let logger = LogManager.GetLogger("*")
 let ``start-of-line`` = RGP ("^", [Token.NoToken])
 
 
-let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
-let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) (* Where m < n *)
+//  literal-content internal	 loc:(4,1) i:2 c:Block-in &a:0 e:0 w:0 sp:19
 
-let ``s-flow-line-prefix`` = (``s-indent(n)``) + OPT(HardValues.``s-separate-in-line``)
-let ``s-line-prefix Flow-in`` = ``s-flow-line-prefix``
-let ``l-empty Flow-in`` = ((``s-line-prefix Flow-in``) ||| (``s-indent(<n)``)) + HardValues.``b-as-line-feed``
-let ``b-l-trimmed Flow-in`` = HardValues.``b-non-content`` + OOM(``l-empty Flow-in``)
-let ``b-l-folded Flow-in`` = ``b-l-trimmed Flow-in`` ||| HardValues.``b-as-space``
+let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 2)
+let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, (1)) (* Where m < n *)
+let ``s-indent(<=n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 2)  (* Where m ≤ n *)
 
-let ``s-flow-folded`` =
-    OPT(HardValues.``s-separate-in-line``) + (``b-l-folded Flow-in``) + ``s-line-prefix Flow-in``
+let ``s-block-line-prefix`` = ``s-indent(n)`` 
+let ``s-line-prefix`` = ``s-block-line-prefix``
 
-let ``s-single-next-line`` = 
-    ZOM((``s-flow-folded``) + HardValues.``ns-single-char`` + HardValues.``nb-ns-single-in-line``) + (``s-flow-folded``) |||
-    OOM((``s-flow-folded``) + HardValues.``ns-single-char`` + HardValues.``nb-ns-single-in-line``) + ZOM(HardValues.``s-white``)        
+let ``l-empty Block-in`` = ((``s-line-prefix``) ||| (``s-indent(<n)``)) + HardValues.``b-as-line-feed``
 
-let ``nb-single-multi-line`` = HardValues.``nb-ns-single-in-line`` + ((``s-single-next-line``) ||| ZOM(HardValues.``s-white``))
-let ``nb-single-text`` = ``nb-single-multi-line``
-let ``c-single-quoted`` = HardValues.``c-single-quote`` + GRP(``nb-single-text``) + HardValues.``c-single-quote``
+let ``l-nb-literal-text`` = ZOM(``l-empty Block-in``) + (``s-indent(n)``) + OOM(HardValues.``nb-char``)
 
-let nfa = ``c-single-quoted`` |> rgxToNFA
+let ``b-nb-literal-next`` = HardValues.``b-as-line-feed`` + (``l-nb-literal-text``)
+
+let ``b-chomped-last`` = HardValues.``b-as-line-feed``   ||| RGO("\\z", [Token.EOF])
+let ``l-trail-comments`` = (``s-indent(<n)``) + HardValues.``c-nb-comment-text`` + HardValues.``b-comment`` + ZOM(HardValues.``l-comment``)
 
 
+let ``l-strip-empty`` = ZOM((``s-indent(<=n)``) + HardValues.``b-non-content``) + OPT(``l-trail-comments``)
+
+let ``l-chomped-empty`` = ``l-strip-empty``
+
+let ``l-literal-content`` = 
+    GRP(OPT(``l-nb-literal-text`` + ZOM(``b-nb-literal-next``) + ``b-chomped-last``) + ``l-chomped-empty``)
 
 
+//let nfa =
+//    ``l-literal-content``
+//    |>  rgxToNFA
 
+//nfa    |>  PrintIt
+
+
+//let yml = "
+//# ASCII Art
+//--- |
+//  \//||\/||
+//  // ||  ||__"
+
+
+//let stream = RollingStream<_>.Create (tokenProcessor yml) (TokenData.Create (Token.EOF) "")
+//stream.Position <- 19
+
+//let r = parseIt nfa stream
+
+
+``l-nb-literal-text``
+|>  rgxToNFA
+|>  PrintIt
 
 
 
