@@ -85,7 +85,7 @@ let ``Test l-folded-content``() =
  What a year!"
 
 
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Position <- 3
 
 
@@ -119,7 +119,7 @@ let ``Test c-single-quoted``() =
     let nfa = ``c-single-quoted`` |> rgxToNFA
 
     let yaml = "'test single quote'"
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
 
 
     let r = parseIt nfa stream
@@ -173,7 +173,7 @@ let ``c-double-quoted``() =
 \\x41 \\u0041 \\U00000041\"
 "
 
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Position <- 1
 
 
@@ -198,7 +198,7 @@ key:    # Comment
   value
 
 "
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Position <- 5
 
     let r = parseIt nfa stream

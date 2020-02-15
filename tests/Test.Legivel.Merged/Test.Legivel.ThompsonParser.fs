@@ -13,21 +13,21 @@ let ``end-of-file`` = RGP ("\\z", [Token.NoToken])
 let clts (cl:char list) = System.String.Concat(cl)
 
 let assertFullMatch nfa yaml =
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     let r = parseIt nfa stream
     r.IsMatch   |> shouldEqual true
     r.FullMatch |> clts |> shouldEqual yaml
 
 
 let assertGroupMatch nfa yaml gn mt =
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     let r = parseIt nfa stream
     r.IsMatch|> shouldEqual true
     r.Groups |> List.item gn |> clts |> shouldEqual mt
 
 
 let assertPartialMatch nfa yaml strmatched =
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     let r = parseIt nfa stream
     r.IsMatch |> shouldEqual true
     r.FullMatch |> clts |> shouldEqual strmatched
@@ -37,7 +37,7 @@ let assertPartialMatch nfa yaml strmatched =
     c.Source.[0] |> shouldEqual rest.[0]
 
 let assertNoMatch nfa yaml =
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     let r = parseIt nfa stream
     r.IsMatch |> shouldEqual false
     r.FullMatch |> shouldEqual []

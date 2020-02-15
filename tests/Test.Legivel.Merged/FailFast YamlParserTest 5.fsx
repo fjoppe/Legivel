@@ -94,15 +94,24 @@ let YamlParseWithErrors s =
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2761008")>]
-//let ``Example 2.13.  In literals, newlines are preserved``() =
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760519")>]
+//let ``Example 2.8.  Play by Play Feed from a Game``() =
 
 let yml = "
-# ASCII Art
---- |
-  \//||\/||
-  // ||  ||__"
+---
+time: 20:03:20
+player: Sammy Sosa
+action: strike (miss)
+...
+---
+time: 20:03:47
+player: Sammy Sosa
+action: grand slam
+...
+"
 
 
-YamlParse yml
+YamlParseList yml
+
+yml.Substring(122)
 

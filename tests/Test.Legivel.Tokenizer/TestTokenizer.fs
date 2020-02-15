@@ -116,7 +116,7 @@ let ``Test Tokenizer - Flow Sequence - simple text``() =
 - Sammy Sosa
 - Ken Griffey"
 
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Stream
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList
@@ -131,7 +131,7 @@ let ``Test Tokenizer - Flow Sequence - simple text``() =
 let ``Test Tokenizer - Block Sequence - simple text``() =
     let yaml = "[ Mark McGwire, Sammy Sosa, Ken Griffey ]"
 
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Stream
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList
@@ -152,7 +152,7 @@ let ``Test Tokenizer - Flow Sequence - numbers``() =
 - 10
 - -9"
 
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Stream
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList
@@ -170,7 +170,7 @@ let ``Test Tokenizer - Yaml directives``() =
 %TAG foo someurl
 %RESERVED somestuff"
 
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Stream
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList
@@ -194,7 +194,7 @@ time: 20:03:47
 player: Sammy Sosa
 ...
 "
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Stream
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList
@@ -216,7 +216,7 @@ player: Sammy Sosa
 [<Test>]
 let ``Test Tokenizer - Directives end - borderline case``() =
     let yaml = "--"
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "")
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
     stream.Stream
     |>  Seq.takeWhile (fun e -> e.Token <> Token.EOF)
     |>  Seq.toList

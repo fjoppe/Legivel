@@ -356,6 +356,11 @@ type SinglePath = {
         member this.StatePointer = SinglePathPointer(SinglePathPointer.Create this.Id)
         member this.SinglePathPointer = SinglePathPointer.Create this.Id
         member this.Duplicate i = {this with Id = i}
+        member this.IsEOF with get() =
+            match this.State with
+            |   OneInSetMatch ois -> 
+                ois.ListCheck.Length = 1 && ois.ListCheck.Head = Token.EOF
+            |   _ -> false
 
 
 type MultiPath = {
@@ -987,7 +992,7 @@ let qcOneInSet ls = ls |> List.fold(fun s i -> s ||| uint32(i)) 0u
 let createSinglePathFromRgx rgx =
     match rgx with
     |   Plain d when d.``fixed`` = "^" && d.Token = [Token.NoToken] -> MT.createStartLinePath PointerToStateFinal (MT.noMatch())
-    |   Plain d when d.``fixed`` = "" && d.Token = [Token.EOF] -> 
+    |   Plain d when d.Token = [Token.EOF] -> 
         let listCheck = [Token.EOF]
         let quickCheck = qcOneInSet listCheck
         MT.createSinglePath (OneInSetMatch({ QuickCheck = quickCheck; ListCheck = listCheck})) PointerToStateFinal
@@ -2301,11 +2306,17 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                 match st with
                 |   SinglePath p ->
                     if (p.State.Match runningState.CurrentChar) then
-                        runningState
-                        |>  RunningState.AddChar (runningState.CurrentChar.Source.[0])
-                        |>  RunningState.Push(p.NextState, None)
-                        |>  RunningState.SetStartOfLine (runningState.CurrentChar.Token = Token.NewLine)
-                        |>  AdvanceToNextChar
+                        if p.IsEOF then
+                            runningState
+                            |>  RunningState.AddChar (runningState.CurrentChar.Source.[0])
+                            |>  RunningState.Push(p.NextState, None)
+                            |>  RunningState.SetStartOfLine (runningState.CurrentChar.Token = Token.NewLine)
+                        else
+                            runningState
+                            |>  RunningState.AddChar (runningState.CurrentChar.Source.[0])
+                            |>  RunningState.Push(p.NextState, None)
+                            |>  RunningState.SetStartOfLine (runningState.CurrentChar.Token = Token.NewLine)
+                            |>  AdvanceToNextChar
                     else 
                         runningState
                 |   StartLinePath st ->
@@ -2356,3 +2367,4 @@ let clts (cl:char list) = System.String.Concat(cl)
 module ParseResult =
     let IsMatch pr = pr.IsMatch
     let FullMatch pr = pr.FullMatch
+

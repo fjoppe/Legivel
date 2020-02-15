@@ -245,7 +245,7 @@ type RollingStream<'a when 'a : equality> = private {
 
         member this.EOF 
             with get() = 
-                this.TokenStream.Count > 0 && this.TokenStream.[0] = this.StopValue
+                this.TokenStream.Count > 0 && this.TokenStream.[this.TokenStream.Count-1] = this.StopValue && this.Position = this.TokenStream.Count
 
         member this.PeekPrevious() = 
             if this.TokenStream.Count > 0 && this.StreamPosition > 0 then this.TokenStream.[this.StreamPosition-1] |> Some

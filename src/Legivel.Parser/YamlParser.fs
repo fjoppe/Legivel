@@ -77,7 +77,7 @@ type RollingTokenizer = private {
         member this.Advance() = { this with ContextPosition = this.Data.Position}
         member this.EOF = this.Data.EOF
         member this.Peek()  = this.Data.Peek()
-        static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) ""); ContextPosition = 0}
+        static member Create i = { Data = RollingStream<_>.Create (tokenProcessor i) (TokenData.Create (Token.EOF) "\x00"); ContextPosition = 0}
 
 
 [<NoEquality; NoComparison>]
