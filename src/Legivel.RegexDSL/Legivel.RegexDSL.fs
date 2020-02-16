@@ -2155,9 +2155,10 @@ with
         this.RunningGroups
         |>  List.iter(fun gi ->
             let org = dict.[gi]
-            let rb = org |> List.skip n
-            dict.Remove gi |> ignore
-            dict.Add(gi, rb)
+            if org.Length > 0 then
+                let rb = org |> List.skip n
+                dict.Remove gi |> ignore
+                dict.Add(gi, rb)
         ) 
         {this with GroupMatches = dict}
 
