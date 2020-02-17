@@ -40,7 +40,7 @@ let YamlParseWithWarning s =
             |   NoRepresentation nr -> failwith (sprintf "Unexpected errors\n%s" (nr.Error|> List.fold(fun c s -> sprintf "%s\n%O" c s) ""))
             |   CompleteRepresentaton cr -> cr
             |   PartialRepresentaton pr -> pr
-            |   EmptyRepresentation er -> failwith "Unexpected empty"
+            |   EmptyRepresentation _ -> failwith "Unexpected empty"
     with
     | e -> printfn "%A" e; raise e
 

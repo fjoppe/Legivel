@@ -1,964 +1,110 @@
 l-yaml-stream	 loc:(1,1) i:0 c:Block-out &a:0 e:0 w:0 sp:0
 l-any-document	 loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:1
 l-directive-document	 loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:1
-/l-directive-document (NoResult) loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:1
-l-explicit-document	 loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:1
-l-bare-document	 loc:(2,4) i:0 c:Block-out &a:0 e:0 w:0 sp:4
-s-l+block-node	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:4
-s-l+block-in-block	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:4
-s-l+block-scalar	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:4
-s-separate	 loc:(2,4) i:0 c:Block-in &a:0 e:0 w:0 sp:4
-c-ns-properties	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-c-l+literal	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-/c-l+literal (NoResult) loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-c-l+folded	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-/c-l+folded (NoResult) loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-/s-l+block-scalar (NoResult) loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-s-l+block-collection	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:4
-s-separate	 loc:(2,4) i:0 c:Block-in &a:0 e:0 w:0 sp:4
-c-ns-properties	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-l+block-sequence	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-c-l-block-seq-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-/c-l-block-seq-entry (NoResult) loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-/l+block-sequence (NoResult) loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-l+block-mapping	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:5
-ns-l-block-map-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-c-l-block-map-explicit-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-c-l-block-map-explicit-key	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-/c-l-block-map-explicit-key (NoResult) loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-/c-l-block-map-explicit-entry (NoResult) loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-ns-l-block-map-implicit-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-ns-s-block-map-implicit-key	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:5
-c-s-implicit-json-key	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-flow-json-node	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-flow-json-content	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-single-quoted	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-nb-single-text	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-nb-single-text	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-/c-single-quoted (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-double-quoted	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-s-line-prefix	 loc:(3,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:5
-s-line-prefix	 loc:(3,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:5
-/c-double-quoted (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-flow-mapping	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-/c-flow-mapping (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-flow-sequence	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-/c-flow-sequence (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-/c-flow-json-content (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-ns-properties	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-/c-flow-json-node (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-/c-s-implicit-json-key (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-s-implicit-yaml-key	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-flow-yaml-node	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-c-ns-alias-node	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-/c-ns-alias-node (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-flow-yaml-content	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-s-line-prefix	 loc:(3,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-ns-plain-safe	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:5
-> ns-plain value: time	 loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:9
-/ns-flow-yaml-content (Value) loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:9
-/ns-flow-yaml-node (Value) loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:9
-/ns-s-implicit-yaml-key (Value) loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:9
-/ns-s-block-map-implicit-key (Value) loc:(3,5) i:0 c:Block-in &a:0 e:0 w:0 sp:9
-c-l-block-map-implicit-value	 loc:(3,5) i:0 c:Block-in &a:0 e:0 w:0 sp:9
-s-l+block-node	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-s-l+block-in-block	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-s-l+block-scalar	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-s-separate	 loc:(3,6) i:1 c:Block-out &a:0 e:0 w:0 sp:10
-c-ns-properties	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-c-l+literal	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-/c-l+literal (NoResult) loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-c-l+folded	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-/c-l+folded (NoResult) loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-/s-l+block-scalar (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-s-l+block-collection	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-s-separate	 loc:(3,6) i:1 c:Block-out &a:0 e:0 w:0 sp:10
-c-ns-properties	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-l+block-sequence	 loc:(3,6) i:-1 c:Block-out &a:0 e:0 w:0 sp:10
-c-l-block-seq-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-/c-l-block-seq-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-/l+block-sequence (NoResult) loc:(3,6) i:-1 c:Block-out &a:0 e:0 w:0 sp:11
-l+block-mapping	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-ns-l-block-map-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-c-l-block-map-explicit-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-c-l-block-map-explicit-key	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-/c-l-block-map-explicit-key (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-/c-l-block-map-explicit-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-ns-l-block-map-implicit-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-ns-s-block-map-implicit-key	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-c-s-implicit-json-key	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-flow-json-node	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-flow-json-content	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-single-quoted	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-nb-single-text	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-/c-single-quoted (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-double-quoted	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-s-line-prefix	 loc:(3,7) i:1 c:Flow-in &a:0 e:0 w:0 sp:11
-s-line-prefix	 loc:(3,7) i:1 c:Flow-in &a:0 e:0 w:0 sp:11
-/c-double-quoted (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-flow-mapping	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-/c-flow-mapping (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-flow-sequence	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-/c-flow-sequence (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-/c-flow-json-content (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-ns-properties	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-/c-flow-json-node (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-/c-s-implicit-json-key (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-s-implicit-yaml-key	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-flow-yaml-node	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-c-ns-alias-node	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-/c-ns-alias-node (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-flow-yaml-content	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-s-line-prefix	 loc:(3,7) i:1 c:Flow-in &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:11
-> ns-plain value: 20:03:20	 loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:19
-/ns-flow-yaml-content (Value) loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:19
-/ns-flow-yaml-node (Value) loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:19
-/ns-s-implicit-yaml-key (Value) loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:19
-/ns-s-block-map-implicit-key (Value) loc:(3,15) i:1 c:Block-out &a:0 e:0 w:0 sp:19
-c-l-block-map-implicit-value	 loc:(3,15) i:1 c:Block-out &a:0 e:0 w:0 sp:19
-/c-l-block-map-implicit-value (NoResult) loc:(3,15) i:1 c:Block-out &a:0 e:0 w:0 sp:19
-/ns-l-block-map-implicit-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:19
-/ns-l-block-map-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:11
-/l+block-mapping (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:11
-/s-l+block-collection (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-/s-l+block-in-block (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-s-l+flow-in-block	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:10
-s-separate	 loc:(3,6) i:1 c:Flow-out &a:0 e:0 w:0 sp:10
-ns-flow-node	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-c-ns-alias-node	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-/c-ns-alias-node (NoResult) loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-flow-content	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-flow-yaml-content	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-plain	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-s-line-prefix	 loc:(3,7) i:1 c:Flow-in &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-ns-plain-safe	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:11
-> ns-plain value: 20:03:20	 loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:19
-s-line-prefix	 loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:19
-		<-20:03:20\n	 loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:19
-/ns-flow-yaml-content (Value) loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:19
-/ns-flow-content (Value) loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:19
-/ns-flow-node (Value) loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:19
-/s-l+flow-in-block (Value) loc:(4,1) i:0 c:Block-out &a:0 e:0 w:0 sp:20
-/s-l+block-node (Value) loc:(4,1) i:0 c:Block-out &a:0 e:0 w:0 sp:20
-/c-l-block-map-implicit-value (Value) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-/ns-l-block-map-implicit-entry (Value) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-/ns-l-block-map-entry (Value) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-ns-l-block-map-entry	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-c-l-block-map-explicit-entry	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-c-l-block-map-explicit-key	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-/c-l-block-map-explicit-key (NoResult) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-/c-l-block-map-explicit-entry (NoResult) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-ns-l-block-map-implicit-entry	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-ns-s-block-map-implicit-key	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:20
-c-s-implicit-json-key	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-flow-json-node	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-flow-json-content	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-single-quoted	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-nb-single-text	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-/c-single-quoted (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-double-quoted	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-s-line-prefix	 loc:(4,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:20
-s-line-prefix	 loc:(4,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:20
-/c-double-quoted (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-flow-mapping	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-/c-flow-mapping (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-flow-sequence	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-/c-flow-sequence (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-/c-flow-json-content (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-ns-properties	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-/c-flow-json-node (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-/c-s-implicit-json-key (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-ns-s-implicit-yaml-key	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-ns-flow-yaml-node	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-c-ns-alias-node	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-/c-ns-alias-node (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-ns-flow-yaml-content	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-ns-plain	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:20
-> ns-plain value: player	 loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:26
-/ns-flow-yaml-content (Value) loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:26
-/ns-flow-yaml-node (Value) loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:26
-/ns-s-implicit-yaml-key (Value) loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:26
-/ns-s-block-map-implicit-key (Value) loc:(4,7) i:0 c:Block-in &a:0 e:0 w:0 sp:26
-c-l-block-map-implicit-value	 loc:(4,7) i:0 c:Block-in &a:0 e:0 w:0 sp:26
-s-l+block-node	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-s-l+block-in-block	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-s-l+block-scalar	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-s-separate	 loc:(4,8) i:1 c:Block-out &a:0 e:0 w:0 sp:27
-c-ns-properties	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-c-l+literal	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-/c-l+literal (NoResult) loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-c-l+folded	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-/c-l+folded (NoResult) loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-/s-l+block-scalar (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-s-l+block-collection	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-s-separate	 loc:(4,8) i:1 c:Block-out &a:0 e:0 w:0 sp:27
-c-ns-properties	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-l+block-sequence	 loc:(4,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:27
-c-l-block-seq-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-/c-l-block-seq-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-/l+block-sequence (NoResult) loc:(4,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:28
-l+block-mapping	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-ns-l-block-map-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-c-l-block-map-explicit-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-c-l-block-map-explicit-key	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-/c-l-block-map-explicit-key (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-/c-l-block-map-explicit-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-ns-l-block-map-implicit-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-ns-s-block-map-implicit-key	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-c-s-implicit-json-key	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-flow-json-node	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-flow-json-content	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-single-quoted	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-nb-single-text	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-/c-single-quoted (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-double-quoted	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-s-line-prefix	 loc:(4,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:28
-s-line-prefix	 loc:(4,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:28
-/c-double-quoted (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-flow-mapping	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-/c-flow-mapping (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-flow-sequence	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-/c-flow-sequence (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-/c-flow-json-content (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-ns-properties	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-/c-flow-json-node (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-/c-s-implicit-json-key (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-ns-s-implicit-yaml-key	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-ns-flow-yaml-node	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-c-ns-alias-node	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-/c-ns-alias-node (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-ns-flow-yaml-content	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-ns-plain	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:28
-> ns-plain value: Sammy Sosa	 loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:38
-/ns-flow-yaml-content (Value) loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:38
-/ns-flow-yaml-node (Value) loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:38
-/ns-s-implicit-yaml-key (Value) loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:38
-/ns-s-block-map-implicit-key (Value) loc:(4,19) i:1 c:Block-out &a:0 e:0 w:0 sp:38
-c-l-block-map-implicit-value	 loc:(4,19) i:1 c:Block-out &a:0 e:0 w:0 sp:38
-/c-l-block-map-implicit-value (NoResult) loc:(4,19) i:1 c:Block-out &a:0 e:0 w:0 sp:38
-/ns-l-block-map-implicit-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:38
-/ns-l-block-map-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:28
-/l+block-mapping (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:28
-/s-l+block-collection (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-/s-l+block-in-block (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-s-l+flow-in-block	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:27
-s-separate	 loc:(4,8) i:1 c:Flow-out &a:0 e:0 w:0 sp:27
-ns-flow-node	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:28
-c-ns-alias-node	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:28
-/c-ns-alias-node (NoResult) loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:28
-ns-flow-content	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:28
-ns-flow-yaml-content	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:28
-ns-plain	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:28
-> ns-plain value: Sammy Sosa	 loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:38
-s-line-prefix	 loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:38
-		<-Sammy Sosa\n	 loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:38
-/ns-flow-yaml-content (Value) loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:38
-/ns-flow-content (Value) loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:38
-/ns-flow-node (Value) loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:38
-/s-l+flow-in-block (Value) loc:(5,1) i:0 c:Block-out &a:0 e:0 w:0 sp:39
-/s-l+block-node (Value) loc:(5,1) i:0 c:Block-out &a:0 e:0 w:0 sp:39
-/c-l-block-map-implicit-value (Value) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-/ns-l-block-map-implicit-entry (Value) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-/ns-l-block-map-entry (Value) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-ns-l-block-map-entry	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-c-l-block-map-explicit-entry	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-c-l-block-map-explicit-key	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-/c-l-block-map-explicit-key (NoResult) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-/c-l-block-map-explicit-entry (NoResult) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-ns-l-block-map-implicit-entry	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-ns-s-block-map-implicit-key	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:39
-c-s-implicit-json-key	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-flow-json-node	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-flow-json-content	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-single-quoted	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-nb-single-text	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-/c-single-quoted (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-double-quoted	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-s-line-prefix	 loc:(5,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:39
-s-line-prefix	 loc:(5,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:39
-/c-double-quoted (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-flow-mapping	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-/c-flow-mapping (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-flow-sequence	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-/c-flow-sequence (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-/c-flow-json-content (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-ns-properties	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-/c-flow-json-node (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-/c-s-implicit-json-key (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-ns-s-implicit-yaml-key	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-ns-flow-yaml-node	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-c-ns-alias-node	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-/c-ns-alias-node (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-ns-flow-yaml-content	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-ns-plain	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:39
-> ns-plain value: action	 loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:45
-/ns-flow-yaml-content (Value) loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:45
-/ns-flow-yaml-node (Value) loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:45
-/ns-s-implicit-yaml-key (Value) loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:45
-/ns-s-block-map-implicit-key (Value) loc:(5,7) i:0 c:Block-in &a:0 e:0 w:0 sp:45
-c-l-block-map-implicit-value	 loc:(5,7) i:0 c:Block-in &a:0 e:0 w:0 sp:45
-s-l+block-node	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-s-l+block-in-block	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-s-l+block-scalar	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-s-separate	 loc:(5,8) i:1 c:Block-out &a:0 e:0 w:0 sp:46
-c-ns-properties	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-c-l+literal	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-/c-l+literal (NoResult) loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-c-l+folded	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-/c-l+folded (NoResult) loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-/s-l+block-scalar (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-s-l+block-collection	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-s-separate	 loc:(5,8) i:1 c:Block-out &a:0 e:0 w:0 sp:46
-c-ns-properties	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-l+block-sequence	 loc:(5,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:46
-c-l-block-seq-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-/c-l-block-seq-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-/l+block-sequence (NoResult) loc:(5,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:47
-l+block-mapping	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-ns-l-block-map-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-c-l-block-map-explicit-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-c-l-block-map-explicit-key	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-/c-l-block-map-explicit-key (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-/c-l-block-map-explicit-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-ns-l-block-map-implicit-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-ns-s-block-map-implicit-key	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-c-s-implicit-json-key	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-flow-json-node	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-flow-json-content	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-single-quoted	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-nb-single-text	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-/c-single-quoted (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-double-quoted	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-s-line-prefix	 loc:(5,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:47
-s-line-prefix	 loc:(5,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:47
-/c-double-quoted (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-flow-mapping	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-/c-flow-mapping (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-flow-sequence	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-/c-flow-sequence (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-/c-flow-json-content (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-ns-properties	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-/c-flow-json-node (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-/c-s-implicit-json-key (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-ns-s-implicit-yaml-key	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-ns-flow-yaml-node	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-c-ns-alias-node	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-/c-ns-alias-node (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-ns-flow-yaml-content	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-ns-plain	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:47
-> ns-plain value: strike (miss)	 loc:(5,22) i:1 c:Block-key &a:0 e:0 w:0 sp:60
-/ns-flow-yaml-content (Value) loc:(5,22) i:1 c:Block-key &a:0 e:0 w:0 sp:60
-/ns-flow-yaml-node (Value) loc:(5,22) i:1 c:Block-key &a:0 e:0 w:0 sp:60
-/ns-s-implicit-yaml-key (Value) loc:(5,22) i:1 c:Block-key &a:0 e:0 w:0 sp:60
-/ns-s-block-map-implicit-key (Value) loc:(5,22) i:1 c:Block-out &a:0 e:0 w:0 sp:60
-c-l-block-map-implicit-value	 loc:(5,22) i:1 c:Block-out &a:0 e:0 w:0 sp:60
-/c-l-block-map-implicit-value (NoResult) loc:(5,22) i:1 c:Block-out &a:0 e:0 w:0 sp:60
-/ns-l-block-map-implicit-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:60
-/ns-l-block-map-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:47
-/l+block-mapping (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:47
-/s-l+block-collection (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-/s-l+block-in-block (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-s-l+flow-in-block	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:46
-s-separate	 loc:(5,8) i:1 c:Flow-out &a:0 e:0 w:0 sp:46
-ns-flow-node	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:47
-c-ns-alias-node	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:47
-/c-ns-alias-node (NoResult) loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:47
-ns-flow-content	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:47
-ns-flow-yaml-content	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:47
-ns-plain	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:47
-> ns-plain value: strike (miss)	 loc:(5,22) i:1 c:Flow-out &a:0 e:0 w:0 sp:60
-s-line-prefix	 loc:(5,22) i:1 c:Flow-out &a:0 e:0 w:0 sp:60
-		<-strike (miss)\n	 loc:(5,22) i:1 c:Flow-out &a:0 e:0 w:0 sp:60
-/ns-flow-yaml-content (Value) loc:(5,22) i:1 c:Flow-out &a:0 e:0 w:0 sp:60
-/ns-flow-content (Value) loc:(5,22) i:1 c:Flow-out &a:0 e:0 w:0 sp:60
-/ns-flow-node (Value) loc:(5,22) i:1 c:Flow-out &a:0 e:0 w:0 sp:60
-/s-l+flow-in-block (Value) loc:(6,1) i:0 c:Block-out &a:0 e:0 w:0 sp:61
-/s-l+block-node (Value) loc:(6,1) i:0 c:Block-out &a:0 e:0 w:0 sp:61
-/c-l-block-map-implicit-value (Value) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-/ns-l-block-map-implicit-entry (Value) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-/ns-l-block-map-entry (Value) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-ns-l-block-map-entry	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-c-l-block-map-explicit-entry	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-c-l-block-map-explicit-key	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-/c-l-block-map-explicit-key (NoResult) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-/c-l-block-map-explicit-entry (NoResult) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-ns-l-block-map-implicit-entry	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-ns-s-block-map-implicit-key	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:61
-c-s-implicit-json-key	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-flow-json-node	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-flow-json-content	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-single-quoted	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-nb-single-text	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-/c-single-quoted (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-double-quoted	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-s-line-prefix	 loc:(6,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:61
-s-line-prefix	 loc:(6,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:61
-/c-double-quoted (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-flow-mapping	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-/c-flow-mapping (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-flow-sequence	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-/c-flow-sequence (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-/c-flow-json-content (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-ns-properties	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-/c-flow-json-node (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-/c-s-implicit-json-key (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-ns-s-implicit-yaml-key	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-ns-flow-yaml-node	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-c-ns-alias-node	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-/c-ns-alias-node (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-ns-flow-yaml-content	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:61
-ns-plain	 loc:(6,1) i:0 c:Block-key &a:0 e:1 w:0 sp:73
-/ns-flow-yaml-content (ErrorResult) loc:(6,1) i:0 c:Block-key &a:0 e:1 w:0 sp:73
-c-ns-properties	 loc:(6,1) i:0 c:Block-key &a:0 e:1 w:0 sp:61
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:1 w:0 sp:61
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:1 w:0 sp:61
-/ns-flow-yaml-node (ErrorResult) loc:(6,1) i:0 c:Block-key &a:0 e:1 w:0 sp:61
-/ns-s-implicit-yaml-key (ErrorResult) loc:(6,1) i:0 c:Block-key &a:0 e:1 w:0 sp:61
-/ns-s-block-map-implicit-key (ErrorResult) loc:(6,1) i:0 c:Block-in &a:0 e:1 w:0 sp:61
-c-l-block-map-implicit-value	 loc:(6,1) i:0 c:Block-in &a:0 e:1 w:0 sp:61
-/c-l-block-map-implicit-value (NoResult) loc:(6,1) i:0 c:Block-in &a:0 e:1 w:0 sp:61
-/ns-l-block-map-implicit-entry (ErrorResult) loc:(6,1) i:0 c:Block-in &a:0 e:1 w:0 sp:61
-/ns-l-block-map-entry (ErrorResult) loc:(6,1) i:0 c:Block-in &a:0 e:1 w:0 sp:61
-/l+block-mapping (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:1 w:0 sp:61
-/s-l+block-collection (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:1 w:0 sp:61
-/s-l+block-in-block (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:1 w:0 sp:61
-/s-l+block-node (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:1 w:0 sp:61
-/l-bare-document (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:1 w:0 sp:61
-/l-explicit-document (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:1 w:0 sp:61
-/l-any-document (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:1 w:0 sp:61
-l-any-document	 loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:65
-l-directive-document	 loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:65
-/l-directive-document (NoResult) loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:65
-l-explicit-document	 loc:(2,1) i:0 c:Block-out &a:0 e:0 w:0 sp:65
-l-bare-document	 loc:(2,4) i:0 c:Block-out &a:0 e:0 w:0 sp:68
-s-l+block-node	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:68
-s-l+block-in-block	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:68
-s-l+block-scalar	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:68
-s-separate	 loc:(2,4) i:0 c:Block-in &a:0 e:0 w:0 sp:68
-c-ns-properties	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-c-l+literal	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-/c-l+literal (NoResult) loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-c-l+folded	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-/c-l+folded (NoResult) loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-/s-l+block-scalar (NoResult) loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-s-l+block-collection	 loc:(2,4) i:-1 c:Block-in &a:0 e:0 w:0 sp:68
-s-separate	 loc:(2,4) i:0 c:Block-in &a:0 e:0 w:0 sp:68
-c-ns-properties	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-l+block-sequence	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-c-l-block-seq-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-/c-l-block-seq-entry (NoResult) loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-/l+block-sequence (NoResult) loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-l+block-mapping	 loc:(3,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:69
-ns-l-block-map-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-c-l-block-map-explicit-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-c-l-block-map-explicit-key	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-/c-l-block-map-explicit-key (NoResult) loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-/c-l-block-map-explicit-entry (NoResult) loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-ns-l-block-map-implicit-entry	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-ns-s-block-map-implicit-key	 loc:(3,1) i:0 c:Block-in &a:0 e:0 w:0 sp:69
-c-s-implicit-json-key	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-flow-json-node	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-flow-json-content	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-single-quoted	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-nb-single-text	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-/c-single-quoted (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-double-quoted	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-s-line-prefix	 loc:(3,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:69
-s-line-prefix	 loc:(3,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:69
-/c-double-quoted (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-flow-mapping	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-/c-flow-mapping (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-flow-sequence	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-/c-flow-sequence (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-/c-flow-json-content (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-ns-properties	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-s-separate	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-/c-flow-json-node (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-/c-s-implicit-json-key (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-ns-s-implicit-yaml-key	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-ns-flow-yaml-node	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-c-ns-alias-node	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-/c-ns-alias-node (NoResult) loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-ns-flow-yaml-content	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-ns-plain	 loc:(3,1) i:0 c:Block-key &a:0 e:0 w:0 sp:69
-> ns-plain value: time	 loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:73
-/ns-flow-yaml-content (Value) loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:73
-/ns-flow-yaml-node (Value) loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:73
-/ns-s-implicit-yaml-key (Value) loc:(3,5) i:0 c:Block-key &a:0 e:0 w:0 sp:73
-/ns-s-block-map-implicit-key (Value) loc:(3,5) i:0 c:Block-in &a:0 e:0 w:0 sp:73
-c-l-block-map-implicit-value	 loc:(3,5) i:0 c:Block-in &a:0 e:0 w:0 sp:73
-s-l+block-node	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-s-l+block-in-block	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-s-l+block-scalar	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-s-separate	 loc:(3,6) i:1 c:Block-out &a:0 e:0 w:0 sp:74
-c-ns-properties	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-c-l+literal	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-/c-l+literal (NoResult) loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-c-l+folded	 loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-/c-l+folded (NoResult) loc:(3,7) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-/s-l+block-scalar (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-s-l+block-collection	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-s-separate	 loc:(3,6) i:1 c:Block-out &a:0 e:0 w:0 sp:74
-c-ns-properties	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-l+block-sequence	 loc:(3,6) i:-1 c:Block-out &a:0 e:0 w:0 sp:74
-c-l-block-seq-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-/c-l-block-seq-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-/l+block-sequence (NoResult) loc:(3,6) i:-1 c:Block-out &a:0 e:0 w:0 sp:75
-l+block-mapping	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-ns-l-block-map-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-c-l-block-map-explicit-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-c-l-block-map-explicit-key	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-/c-l-block-map-explicit-key (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-/c-l-block-map-explicit-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-ns-l-block-map-implicit-entry	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-ns-s-block-map-implicit-key	 loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-c-s-implicit-json-key	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-flow-json-node	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-flow-json-content	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-single-quoted	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-nb-single-text	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-/c-single-quoted (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-double-quoted	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-s-line-prefix	 loc:(3,7) i:1 c:Flow-in &a:0 e:0 w:0 sp:75
-s-line-prefix	 loc:(3,7) i:1 c:Flow-in &a:0 e:0 w:0 sp:75
-/c-double-quoted (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-flow-mapping	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-/c-flow-mapping (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-flow-sequence	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-/c-flow-sequence (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-/c-flow-json-content (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-ns-properties	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-s-separate	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-/c-flow-json-node (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-/c-s-implicit-json-key (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-ns-s-implicit-yaml-key	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-ns-flow-yaml-node	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-c-ns-alias-node	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-/c-ns-alias-node (NoResult) loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-ns-flow-yaml-content	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-ns-plain	 loc:(3,7) i:1 c:Block-key &a:0 e:0 w:0 sp:75
-> ns-plain value: 20:03:47	 loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:83
-/ns-flow-yaml-content (Value) loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:83
-/ns-flow-yaml-node (Value) loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:83
-/ns-s-implicit-yaml-key (Value) loc:(3,15) i:1 c:Block-key &a:0 e:0 w:0 sp:83
-/ns-s-block-map-implicit-key (Value) loc:(3,15) i:1 c:Block-out &a:0 e:0 w:0 sp:83
-c-l-block-map-implicit-value	 loc:(3,15) i:1 c:Block-out &a:0 e:0 w:0 sp:83
-/c-l-block-map-implicit-value (NoResult) loc:(3,15) i:1 c:Block-out &a:0 e:0 w:0 sp:83
-/ns-l-block-map-implicit-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:83
-/ns-l-block-map-entry (NoResult) loc:(3,7) i:1 c:Block-out &a:0 e:0 w:0 sp:75
-/l+block-mapping (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:75
-/s-l+block-collection (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-/s-l+block-in-block (NoResult) loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-s-l+flow-in-block	 loc:(3,6) i:0 c:Block-out &a:0 e:0 w:0 sp:74
-s-separate	 loc:(3,6) i:1 c:Flow-out &a:0 e:0 w:0 sp:74
-ns-flow-node	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:75
-c-ns-alias-node	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:75
-/c-ns-alias-node (NoResult) loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:75
-ns-flow-content	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:75
-ns-flow-yaml-content	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:75
-ns-plain	 loc:(3,7) i:1 c:Flow-out &a:0 e:0 w:0 sp:75
-> ns-plain value: 20:03:47	 loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:83
-s-line-prefix	 loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:83
-		<-20:03:47\n	 loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:83
-/ns-flow-yaml-content (Value) loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:83
-/ns-flow-content (Value) loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:83
-/ns-flow-node (Value) loc:(3,15) i:1 c:Flow-out &a:0 e:0 w:0 sp:83
-/s-l+flow-in-block (Value) loc:(4,1) i:0 c:Block-out &a:0 e:0 w:0 sp:84
-/s-l+block-node (Value) loc:(4,1) i:0 c:Block-out &a:0 e:0 w:0 sp:84
-/c-l-block-map-implicit-value (Value) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-/ns-l-block-map-implicit-entry (Value) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-/ns-l-block-map-entry (Value) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-ns-l-block-map-entry	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-c-l-block-map-explicit-entry	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-c-l-block-map-explicit-key	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-/c-l-block-map-explicit-key (NoResult) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-/c-l-block-map-explicit-entry (NoResult) loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-ns-l-block-map-implicit-entry	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-ns-s-block-map-implicit-key	 loc:(4,1) i:0 c:Block-in &a:0 e:0 w:0 sp:84
-c-s-implicit-json-key	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-flow-json-node	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-flow-json-content	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-single-quoted	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-nb-single-text	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-/c-single-quoted (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-double-quoted	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-s-line-prefix	 loc:(4,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:84
-s-line-prefix	 loc:(4,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:84
-/c-double-quoted (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-flow-mapping	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-/c-flow-mapping (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-flow-sequence	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-/c-flow-sequence (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-/c-flow-json-content (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-ns-properties	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-s-separate	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-/c-flow-json-node (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-/c-s-implicit-json-key (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-ns-s-implicit-yaml-key	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-ns-flow-yaml-node	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-c-ns-alias-node	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-/c-ns-alias-node (NoResult) loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-ns-flow-yaml-content	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-ns-plain	 loc:(4,1) i:0 c:Block-key &a:0 e:0 w:0 sp:84
-> ns-plain value: player	 loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:90
-/ns-flow-yaml-content (Value) loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:90
-/ns-flow-yaml-node (Value) loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:90
-/ns-s-implicit-yaml-key (Value) loc:(4,7) i:0 c:Block-key &a:0 e:0 w:0 sp:90
-/ns-s-block-map-implicit-key (Value) loc:(4,7) i:0 c:Block-in &a:0 e:0 w:0 sp:90
-c-l-block-map-implicit-value	 loc:(4,7) i:0 c:Block-in &a:0 e:0 w:0 sp:90
-s-l+block-node	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-s-l+block-in-block	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-s-l+block-scalar	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-s-separate	 loc:(4,8) i:1 c:Block-out &a:0 e:0 w:0 sp:91
-c-ns-properties	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-c-l+literal	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-/c-l+literal (NoResult) loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-c-l+folded	 loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-/c-l+folded (NoResult) loc:(4,9) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-/s-l+block-scalar (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-s-l+block-collection	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-s-separate	 loc:(4,8) i:1 c:Block-out &a:0 e:0 w:0 sp:91
-c-ns-properties	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-l+block-sequence	 loc:(4,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:91
-c-l-block-seq-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-/c-l-block-seq-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-/l+block-sequence (NoResult) loc:(4,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:92
-l+block-mapping	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-ns-l-block-map-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-c-l-block-map-explicit-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-c-l-block-map-explicit-key	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-/c-l-block-map-explicit-key (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-/c-l-block-map-explicit-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-ns-l-block-map-implicit-entry	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-ns-s-block-map-implicit-key	 loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-c-s-implicit-json-key	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-flow-json-node	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-flow-json-content	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-single-quoted	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-nb-single-text	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-/c-single-quoted (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-double-quoted	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-s-line-prefix	 loc:(4,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:92
-s-line-prefix	 loc:(4,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:92
-/c-double-quoted (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-flow-mapping	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-/c-flow-mapping (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-flow-sequence	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-/c-flow-sequence (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-/c-flow-json-content (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-ns-properties	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-s-separate	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-/c-flow-json-node (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-/c-s-implicit-json-key (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-ns-s-implicit-yaml-key	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-ns-flow-yaml-node	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-c-ns-alias-node	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-/c-ns-alias-node (NoResult) loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-ns-flow-yaml-content	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-ns-plain	 loc:(4,9) i:1 c:Block-key &a:0 e:0 w:0 sp:92
-> ns-plain value: Sammy Sosa	 loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:102
-/ns-flow-yaml-content (Value) loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:102
-/ns-flow-yaml-node (Value) loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:102
-/ns-s-implicit-yaml-key (Value) loc:(4,19) i:1 c:Block-key &a:0 e:0 w:0 sp:102
-/ns-s-block-map-implicit-key (Value) loc:(4,19) i:1 c:Block-out &a:0 e:0 w:0 sp:102
-c-l-block-map-implicit-value	 loc:(4,19) i:1 c:Block-out &a:0 e:0 w:0 sp:102
-/c-l-block-map-implicit-value (NoResult) loc:(4,19) i:1 c:Block-out &a:0 e:0 w:0 sp:102
-/ns-l-block-map-implicit-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:102
-/ns-l-block-map-entry (NoResult) loc:(4,9) i:1 c:Block-out &a:0 e:0 w:0 sp:92
-/l+block-mapping (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:92
-/s-l+block-collection (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-/s-l+block-in-block (NoResult) loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-s-l+flow-in-block	 loc:(4,8) i:0 c:Block-out &a:0 e:0 w:0 sp:91
-s-separate	 loc:(4,8) i:1 c:Flow-out &a:0 e:0 w:0 sp:91
-ns-flow-node	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:92
-c-ns-alias-node	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:92
-/c-ns-alias-node (NoResult) loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:92
-ns-flow-content	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:92
-ns-flow-yaml-content	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:92
-ns-plain	 loc:(4,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:92
-> ns-plain value: Sammy Sosa	 loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:102
-s-line-prefix	 loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:102
-		<-Sammy Sosa\n	 loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:102
-/ns-flow-yaml-content (Value) loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:102
-/ns-flow-content (Value) loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:102
-/ns-flow-node (Value) loc:(4,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:102
-/s-l+flow-in-block (Value) loc:(5,1) i:0 c:Block-out &a:0 e:0 w:0 sp:103
-/s-l+block-node (Value) loc:(5,1) i:0 c:Block-out &a:0 e:0 w:0 sp:103
-/c-l-block-map-implicit-value (Value) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-/ns-l-block-map-implicit-entry (Value) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-/ns-l-block-map-entry (Value) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-ns-l-block-map-entry	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-c-l-block-map-explicit-entry	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-c-l-block-map-explicit-key	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-/c-l-block-map-explicit-key (NoResult) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-/c-l-block-map-explicit-entry (NoResult) loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-ns-l-block-map-implicit-entry	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-ns-s-block-map-implicit-key	 loc:(5,1) i:0 c:Block-in &a:0 e:0 w:0 sp:103
-c-s-implicit-json-key	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-flow-json-node	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-flow-json-content	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-single-quoted	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-nb-single-text	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-/c-single-quoted (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-double-quoted	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-s-line-prefix	 loc:(5,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:103
-s-line-prefix	 loc:(5,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:103
-/c-double-quoted (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-flow-mapping	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-/c-flow-mapping (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-flow-sequence	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-/c-flow-sequence (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-/c-flow-json-content (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-ns-properties	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-s-separate	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-/c-flow-json-node (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-/c-s-implicit-json-key (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-ns-s-implicit-yaml-key	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-ns-flow-yaml-node	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-c-ns-alias-node	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-/c-ns-alias-node (NoResult) loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-ns-flow-yaml-content	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-ns-plain	 loc:(5,1) i:0 c:Block-key &a:0 e:0 w:0 sp:103
-> ns-plain value: action	 loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:109
-/ns-flow-yaml-content (Value) loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:109
-/ns-flow-yaml-node (Value) loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:109
-/ns-s-implicit-yaml-key (Value) loc:(5,7) i:0 c:Block-key &a:0 e:0 w:0 sp:109
-/ns-s-block-map-implicit-key (Value) loc:(5,7) i:0 c:Block-in &a:0 e:0 w:0 sp:109
-c-l-block-map-implicit-value	 loc:(5,7) i:0 c:Block-in &a:0 e:0 w:0 sp:109
-s-l+block-node	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-s-l+block-in-block	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-s-l+block-scalar	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-s-separate	 loc:(5,8) i:1 c:Block-out &a:0 e:0 w:0 sp:110
-c-ns-properties	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-c-l+literal	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-/c-l+literal (NoResult) loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-c-l+folded	 loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-/c-l+folded (NoResult) loc:(5,9) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-/s-l+block-scalar (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-s-l+block-collection	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-s-separate	 loc:(5,8) i:1 c:Block-out &a:0 e:0 w:0 sp:110
-c-ns-properties	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-l+block-sequence	 loc:(5,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:110
-c-l-block-seq-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-/c-l-block-seq-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-/l+block-sequence (NoResult) loc:(5,8) i:-1 c:Block-out &a:0 e:0 w:0 sp:111
-l+block-mapping	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-ns-l-block-map-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-c-l-block-map-explicit-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-c-l-block-map-explicit-key	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-/c-l-block-map-explicit-key (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-/c-l-block-map-explicit-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-ns-l-block-map-implicit-entry	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-ns-s-block-map-implicit-key	 loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-c-s-implicit-json-key	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-flow-json-node	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-flow-json-content	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-single-quoted	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-nb-single-text	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-/c-single-quoted (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-double-quoted	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-s-line-prefix	 loc:(5,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:111
-s-line-prefix	 loc:(5,9) i:1 c:Flow-in &a:0 e:0 w:0 sp:111
-/c-double-quoted (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-flow-mapping	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-/c-flow-mapping (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-flow-sequence	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-/c-flow-sequence (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-/c-flow-json-content (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-ns-properties	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-s-separate	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-/c-flow-json-node (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-/c-s-implicit-json-key (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-ns-s-implicit-yaml-key	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-ns-flow-yaml-node	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-c-ns-alias-node	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-/c-ns-alias-node (NoResult) loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-ns-flow-yaml-content	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-ns-plain	 loc:(5,9) i:1 c:Block-key &a:0 e:0 w:0 sp:111
-> ns-plain value: grand slam	 loc:(5,19) i:1 c:Block-key &a:0 e:0 w:0 sp:121
-/ns-flow-yaml-content (Value) loc:(5,19) i:1 c:Block-key &a:0 e:0 w:0 sp:121
-/ns-flow-yaml-node (Value) loc:(5,19) i:1 c:Block-key &a:0 e:0 w:0 sp:121
-/ns-s-implicit-yaml-key (Value) loc:(5,19) i:1 c:Block-key &a:0 e:0 w:0 sp:121
-/ns-s-block-map-implicit-key (Value) loc:(5,19) i:1 c:Block-out &a:0 e:0 w:0 sp:121
-c-l-block-map-implicit-value	 loc:(5,19) i:1 c:Block-out &a:0 e:0 w:0 sp:121
-/c-l-block-map-implicit-value (NoResult) loc:(5,19) i:1 c:Block-out &a:0 e:0 w:0 sp:121
-/ns-l-block-map-implicit-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:121
-/ns-l-block-map-entry (NoResult) loc:(5,9) i:1 c:Block-out &a:0 e:0 w:0 sp:111
-/l+block-mapping (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:111
-/s-l+block-collection (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-/s-l+block-in-block (NoResult) loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-s-l+flow-in-block	 loc:(5,8) i:0 c:Block-out &a:0 e:0 w:0 sp:110
-s-separate	 loc:(5,8) i:1 c:Flow-out &a:0 e:0 w:0 sp:110
-ns-flow-node	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:111
-c-ns-alias-node	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:111
-/c-ns-alias-node (NoResult) loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:111
-ns-flow-content	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:111
-ns-flow-yaml-content	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:111
-ns-plain	 loc:(5,9) i:1 c:Flow-out &a:0 e:0 w:0 sp:111
-> ns-plain value: grand slam	 loc:(5,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:121
-s-line-prefix	 loc:(5,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:121
-		<-grand slam\n	 loc:(5,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:121
-/ns-flow-yaml-content (Value) loc:(5,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:121
-/ns-flow-content (Value) loc:(5,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:121
-/ns-flow-node (Value) loc:(5,19) i:1 c:Flow-out &a:0 e:0 w:0 sp:121
-/s-l+flow-in-block (Value) loc:(6,1) i:0 c:Block-out &a:0 e:0 w:0 sp:122
-/s-l+block-node (Value) loc:(6,1) i:0 c:Block-out &a:0 e:0 w:0 sp:122
-/c-l-block-map-implicit-value (Value) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-/ns-l-block-map-implicit-entry (Value) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-/ns-l-block-map-entry (Value) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-ns-l-block-map-entry	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-c-l-block-map-explicit-entry	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-c-l-block-map-explicit-key	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-/c-l-block-map-explicit-key (NoResult) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-/c-l-block-map-explicit-entry (NoResult) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-ns-l-block-map-implicit-entry	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-ns-s-block-map-implicit-key	 loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-c-s-implicit-json-key	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-flow-json-node	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-flow-json-content	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-single-quoted	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-nb-single-text	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-/c-single-quoted (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-double-quoted	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-s-line-prefix	 loc:(6,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:122
-s-line-prefix	 loc:(6,1) i:0 c:Flow-in &a:0 e:0 w:0 sp:122
-/c-double-quoted (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-flow-mapping	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-/c-flow-mapping (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-flow-sequence	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-/c-flow-sequence (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-/c-flow-json-content (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-ns-properties	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-s-separate	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-/c-flow-json-node (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-/c-s-implicit-json-key (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-ns-s-implicit-yaml-key	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-ns-flow-yaml-node	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-c-ns-alias-node	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-/c-ns-alias-node (NoResult) loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-ns-flow-yaml-content	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-ns-plain	 loc:(6,1) i:0 c:Block-key &a:0 e:0 w:0 sp:122
-> ns-plain value: ...	 loc:(6,4) i:0 c:Block-key &a:0 e:0 w:0 sp:125
-/ns-flow-yaml-content (Value) loc:(6,4) i:0 c:Block-key &a:0 e:0 w:0 sp:125
-/ns-flow-yaml-node (Value) loc:(6,4) i:0 c:Block-key &a:0 e:0 w:0 sp:125
-/ns-s-implicit-yaml-key (Value) loc:(6,4) i:0 c:Block-key &a:0 e:0 w:0 sp:125
-/ns-s-block-map-implicit-key (Value) loc:(6,4) i:0 c:Block-in &a:0 e:0 w:0 sp:125
-c-l-block-map-implicit-value	 loc:(6,4) i:0 c:Block-in &a:0 e:0 w:0 sp:125
-/c-l-block-map-implicit-value (NoResult) loc:(6,4) i:0 c:Block-in &a:0 e:0 w:0 sp:125
-/ns-l-block-map-implicit-entry (NoResult) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:125
-/ns-l-block-map-entry (NoResult) loc:(6,1) i:0 c:Block-in &a:0 e:0 w:0 sp:122
-/l+block-mapping (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:122
-/s-l+block-collection (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:122
-/s-l+block-in-block (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:122
-/s-l+block-node (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:122
-/l-bare-document (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:122
-/l-explicit-document (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:122
-/l-any-document (Value) loc:(6,1) i:-1 c:Block-in &a:0 e:0 w:0 sp:122
+l-explicit-document	 loc:(4,1) i:0 c:Block-out &a:0 e:0 w:1 sp:66
+l-bare-document	 loc:(4,4) i:0 c:Block-out &a:0 e:0 w:1 sp:69
+s-l+block-node	 loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+s-l+block-in-block	 loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+s-l+block-scalar	 loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+s-separate	 loc:(4,4) i:0 c:Block-in &a:0 e:0 w:1 sp:69
+c-ns-properties	 loc:(4,5) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+s-separate	 loc:(4,5) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+s-separate	 loc:(4,5) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+c-l+literal	 loc:(4,5) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+/c-l+literal (NoResult) loc:(4,5) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+c-l+folded	 loc:(4,5) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+/c-l+folded (NoResult) loc:(4,5) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+/s-l+block-scalar (NoResult) loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+s-l+block-collection	 loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+s-separate	 loc:(4,4) i:0 c:Block-in &a:0 e:0 w:1 sp:69
+c-ns-properties	 loc:(4,5) i:0 c:Block-in &a:0 e:0 w:1 sp:70
+s-separate	 loc:(4,5) i:0 c:Block-in &a:0 e:0 w:1 sp:70
+s-separate	 loc:(4,5) i:0 c:Block-in &a:0 e:0 w:1 sp:70
+l+block-sequence	 loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+c-l-block-seq-entry	 loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+/c-l-block-seq-entry (NoResult) loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+/l+block-sequence (NoResult) loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+l+block-mapping	 loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+ns-l-block-map-entry	 loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+c-l-block-map-explicit-entry	 loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+c-l-block-map-explicit-key	 loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+/c-l-block-map-explicit-key (NoResult) loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+/c-l-block-map-explicit-entry (NoResult) loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+ns-l-block-map-implicit-entry	 loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+ns-s-block-map-implicit-key	 loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+c-s-implicit-json-key	 loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+c-flow-json-node	 loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+c-flow-json-content	 loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+c-single-quoted	 loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+nb-single-text	 loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+nb-single-text	 loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+/c-single-quoted (NoResult) loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+c-double-quoted	 loc:(4,5) i:1 c:Block-key &a:0 e:0 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:1 c:Flow-in &a:0 e:0 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:1 c:Flow-in &a:0 e:0 w:1 sp:70
+/c-double-quoted (Value) loc:(4,10) i:1 c:Block-key &a:0 e:0 w:1 sp:75
+/c-flow-json-content (Value) loc:(4,10) i:1 c:Block-key &a:0 e:0 w:1 sp:75
+/c-flow-json-node (Value) loc:(4,10) i:1 c:Block-key &a:0 e:0 w:1 sp:75
+/c-s-implicit-json-key (Value) loc:(4,10) i:1 c:Block-key &a:0 e:0 w:1 sp:75
+/ns-s-block-map-implicit-key (Value) loc:(4,10) i:1 c:Block-in &a:0 e:0 w:1 sp:75
+c-l-block-map-implicit-value	 loc:(4,10) i:1 c:Block-in &a:0 e:0 w:1 sp:75
+/c-l-block-map-implicit-value (NoResult) loc:(4,10) i:1 c:Block-in &a:0 e:0 w:1 sp:75
+/ns-l-block-map-implicit-entry (NoResult) loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:75
+/ns-l-block-map-entry (NoResult) loc:(4,5) i:1 c:Block-in &a:0 e:0 w:1 sp:70
+/l+block-mapping (NoResult) loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:70
+/s-l+block-collection (NoResult) loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+/s-l+block-in-block (NoResult) loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+s-l+flow-in-block	 loc:(4,4) i:-1 c:Block-in &a:0 e:0 w:1 sp:69
+s-separate	 loc:(4,4) i:0 c:Flow-out &a:0 e:0 w:1 sp:69
+ns-flow-node	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+c-ns-alias-node	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+/c-ns-alias-node (NoResult) loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-flow-content	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-flow-yaml-content	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+ns-plain-safe	 loc:(4,5) i:0 c:Flow-out &a:0 e:0 w:1 sp:70
+/ns-flow-yaml-content (ErrorResult) loc:(4,5) i:0 c:Flow-out &a:0 e:1 w:1 sp:72
+c-flow-json-content	 loc:(4,5) i:0 c:Flow-out &a:0 e:1 w:1 sp:70
+c-single-quoted	 loc:(4,5) i:0 c:Flow-out &a:0 e:1 w:1 sp:70
+nb-single-text	 loc:(4,5) i:0 c:Flow-out &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+nb-single-text	 loc:(4,5) i:0 c:Flow-out &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+/c-single-quoted (NoResult) loc:(4,5) i:0 c:Flow-out &a:0 e:1 w:1 sp:70
+c-double-quoted	 loc:(4,5) i:0 c:Flow-out &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+s-line-prefix	 loc:(4,5) i:0 c:Flow-in &a:0 e:1 w:1 sp:70
+/c-double-quoted (Value) loc:(4,10) i:0 c:Flow-out &a:0 e:1 w:1 sp:75
+/c-flow-json-content (Value) loc:(4,10) i:0 c:Flow-out &a:0 e:1 w:1 sp:75
+/ns-flow-content (Value) loc:(4,10) i:0 c:Flow-out &a:0 e:1 w:1 sp:75
+/ns-flow-node (Value) loc:(4,10) i:0 c:Flow-out &a:0 e:1 w:1 sp:75
+/s-l+flow-in-block (Value) loc:(5,1) i:-1 c:Block-in &a:0 e:1 w:1 sp:76
+/s-l+block-node (Value) loc:(5,1) i:-1 c:Block-in &a:0 e:1 w:1 sp:76
+/l-bare-document (Value) loc:(5,1) i:-1 c:Block-in &a:0 e:1 w:1 sp:76
+/l-explicit-document (Value) loc:(5,1) i:-1 c:Block-in &a:0 e:1 w:1 sp:76
+/l-directive-document (Value) loc:(5,1) i:-1 c:Block-in &a:0 e:1 w:1 sp:76
+/l-any-document (Value) loc:(5,1) i:-1 c:Block-in &a:0 e:1 w:1 sp:76

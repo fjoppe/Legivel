@@ -91,27 +91,33 @@ let YamlParseWithErrors s =
     with
     | e -> printfn "%A" e; raise e
 
+
+let YamlParseWithWarning s =
+    try
+        let repr = (engine.``l-yaml-stream`` s)
+        let crrp = repr.Head
+        match crrp with
+        |   CompleteRepresentaton nr -> nr
+        |   _ -> failwith "Unexpected return type"
+
+    with
+    | e -> printfn "%A" e; raise e
+
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2760519")>]
-//let ``Example 2.8.  Play by Play Feed from a Game``() =
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2781445")>]
+//let ``Example 6.13. Reserved Directives``() =
 
 let yml = "
----
-time: 20:03:20
-player: Sammy Sosa
-action: strike (miss)
-...
----
-time: 20:03:47
-player: Sammy Sosa
-action: grand slam
-...
+%FOO bar baz # Should be ignored
+              # with a warning.
+--- \"foo\"
 "
 
 
-YamlParseList yml
+YamlParseWithWarning yml
 
-yml.Substring(122)
+yml.Substring(66)
+
 

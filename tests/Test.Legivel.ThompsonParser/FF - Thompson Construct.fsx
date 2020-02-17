@@ -26,10 +26,28 @@ let logger = LogManager.GetLogger("*")
 let ``start-of-line`` = RGP ("^", [Token.NoToken])
 
 
+let nfa =
+    GRP(HardValues.``ns-reserved-directive``) + HardValues.``s-l-comments`` 
+    |>  rgxToNFA
 
-HardValues.``l-document-suffix``
-|>  rgxToNFA
-|>  PrintIt
+PrintIt nfa
+
+let yaml = "
+%FOO bar baz # Should be ignored
+              # with a warning.
+--- \"foo\"
+"
+
+let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
+stream.Position <- 1
+
+let r = parseIt nfa stream
 
 
+
+
+
+HardValues.``s-b-comment``
+|> rgxToNFA
+|> PrintIt
 
