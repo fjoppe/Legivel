@@ -18,26 +18,13 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 let logger = LogManager.GetLogger("*")
 
 
-let assertPartialMatch nfa yaml strmatched =
-    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
-    parseIt nfa stream
-    
-    //r |> ParseResult.IsMatch   |> shouldEqual true
-    //r |> ParseResult.FullMatch |> clts |> shouldEqual strmatched
-
-    //let rest = yaml.Substring(strmatched.Length)
-    //let c = stream.Get()
-    //c.Source.[0] |> shouldEqual rest.[0]
-
-
 let nfa = 
     rgxToNFA <| 
-            ZOM(RGP("ABC", [Token.``c-printable``]))
+            RGP("AB", [Token.``c-printable``]) + GRP(RGP("CD", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``])
 
 
+PrintIt nfa
 
-assertPartialMatch nfa "ABCABCABD" "ABCABC"
-assertPartialMatch nfa "ABCAB" "ABC"
 
 
 
