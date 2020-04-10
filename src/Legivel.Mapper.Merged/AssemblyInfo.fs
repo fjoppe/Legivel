@@ -5,8 +5,8 @@ open System.Reflection
 [<assembly: AssemblyTitleAttribute("Legivel.Mapper")>]
 [<assembly: AssemblyProductAttribute("Legivel")>]
 [<assembly: AssemblyDescriptionAttribute("F# Yaml deserializer")>]
-[<assembly: AssemblyVersionAttribute("0.4.0")>]
-[<assembly: AssemblyFileVersionAttribute("0.4.0")>]
+[<assembly: AssemblyVersionAttribute("0.4.2")>]
+[<assembly: AssemblyFileVersionAttribute("0.4.2")>]
 [<assembly: AssemblyConfigurationAttribute("Release")>]
 do ()
 
@@ -14,6 +14,6 @@ module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyTitle = "Legivel.Mapper"
     let [<Literal>] AssemblyProduct = "Legivel"
     let [<Literal>] AssemblyDescription = "F# Yaml deserializer"
-    let [<Literal>] AssemblyVersion = "0.4.0"
-    let [<Literal>] AssemblyFileVersion = "0.4.0"
+    let [<Literal>] AssemblyVersion = "0.4.2"
+    let [<Literal>] AssemblyFileVersion = "0.4.2"
     let [<Literal>] AssemblyConfiguration = "Release"

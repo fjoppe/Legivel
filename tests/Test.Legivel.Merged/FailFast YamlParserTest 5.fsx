@@ -2,8 +2,8 @@
 
 #time
 
-#r @"bin/Debug/net45/FSharp.Core.dll"
-//#r @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.0.0\FSharp.Core.dll"
+//#r @"bin/Debug/net45/FSharp.Core.dll"
+//#r @"C:\Users\Gebruiker\.nuget\packages\fsharp.core\4.7.0\lib\net45\FSharp.Core.dll"
 #r @"bin/Debug/net45/Legivel.Parser.dll"
 #r @"bin/Debug/net45/NLog.dll"
 
@@ -31,8 +31,10 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let engine = Yaml12Parser(Failsafe.Schema)
-engine.SetLogFunc (logger.Trace)
+let engine = Yaml12Parser(Failsafe.Schema, logger.Trace<string>)
+//engine.SetLogFunc (logger.Trace)
+
+
 
 let WarnMsg (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
 let ErrMsg  (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -63,7 +65,7 @@ let YamlParse s =
     try
         let repr = (engine.``l-yaml-stream`` s)
         let crr = repr.Head 
-        //PrintNode crr
+        PrintNode crr
         ()
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
@@ -91,29 +93,16 @@ let YamlParseWithErrors s =
     with
     | e -> printfn "%A" e; raise e
 
-let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
-//YamlParse "
-//{
-//\"adjacent\":value,
-//\"readable\":value,
-//\"empty\":
-//}
-// "
-
-YamlParse s
+let yaml = "
+- behavior: merge
+  envs:
+  - base.env
+  name: base-name
+"
 
 
+YamlParse yaml
 
-let sd = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "logs/FailFast YamlParserTest 5.fsx.log.data"))
 
-sd.Split([|"\n"|], StringSplitOptions.RemoveEmptyEntries)
-|>  List.ofArray
-|>  List.map(fun s -> Int32.Parse(s))
-|>  List.groupBy id
-|>  List.map(fun (i, ls) -> i, ls.Length)
-|>  List.sortByDescending(fun (i, c) -> c,-i)
-|> List.filter(fun (i,c) -> c=3)
-//|>  List.length
 
-(8141 * 3) + 14904
