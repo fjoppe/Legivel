@@ -160,9 +160,9 @@ type ParseState = {
 
         member this.SetPositionDelta sl lc lcc =
             let cc = if lc > 0 then 1 + lcc else this.Location.Column + lcc
-#if DEBUG
-            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
-#endif
+//#if DEBUG
+//            [1..lc] |> List.iter(fun i -> this.LoggingFunction (sprintf "%d" (i + this.Location.Line) ))
+//#endif
             { this with Location = this.Location.AddAndSet lc cc; TrackLength = this.TrackLength + sl }
 
         member this.TrackPosition s =
@@ -546,13 +546,13 @@ let MemoizeCache = Dictionary<int*int*Context,RGXType>()
 
 type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit), parseEvents: ParseEvents) =
     let logger s ps = 
-//#if DEBUG
-//        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
-//        //sprintf "%d" (ps.Location.Line)
-//        |> loggingFunction
-//#else
+#if DEBUG
+        sprintf "%s\t loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" s (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (ps.Messages.Error.Count) (ps.Messages.Warn.Count) (ps.Input.Position)
+        //sprintf "%d" (ps.Location.Line)
+        |> loggingFunction
+#else
         ()
-//#endif
+#endif
 
     let mutable logfunc = loggingFunction
 
@@ -563,9 +563,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
     member private this.GlobalTagSchema
         with get() = globalTagSchema 
 
-    new(globalTagSchema : GlobalTagSchema, parseEvents: ParseEvents) = Yaml12Parser(globalTagSchema, (fun _ -> ()), parseEvents)
-
     new(globalTagSchema : GlobalTagSchema, loggingFunction:(string->unit)) = Yaml12Parser(globalTagSchema, loggingFunction, ParseEvents.Create())
+
+    new(globalTagSchema : GlobalTagSchema, parseEvents: ParseEvents) = Yaml12Parser(globalTagSchema, (fun _ -> ()), parseEvents)
 
     new(globalTagSchema : GlobalTagSchema) = Yaml12Parser(globalTagSchema, (fun _ -> ()), ParseEvents.Create())
 
@@ -579,18 +579,18 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         //|   FallibleOptionValue.ErrorResult ->  logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
         //|   _   -> failwith "Illegal value for pso.Result"
         pso,pm
-//#if DEBUG
-//        match pso.Result with
-//        |   FallibleOptionValue.Value -> 
-//            let  (_,prs) = pso.Data
-//            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-//        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
-//        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
-//        |   _   -> failwith "Illegal value for pso.Result"
-//        pso,pm
-//#else
-//        pso,pm
-//#endif
+#if DEBUG
+        match pso.Result with
+        |   FallibleOptionValue.Value -> 
+            let  (_,prs) = pso.Data
+            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+        |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
+        |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+        |   _   -> failwith "Illegal value for pso.Result"
+        pso,pm
+#else
+        pso,pm
+#endif
 
 
     //  Utility functions
@@ -2477,7 +2477,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
                     |   FallibleOptionValue.Value -> 
                         let (c, prs2) = clblockseqentry.Data
                         ``l+block-sequence`` prs2 (c :: acc)
-                    |   FallibleOptionValue.NoResult       -> psp |> contentOrNone (FallibleOption.NoResult(), pm)
+                    |   FallibleOptionValue.NoResult       -> 
+                        psp.Input.Reset()
+                        psp |> contentOrNone (FallibleOption.NoResult(), pm)
                     |   FallibleOptionValue.ErrorResult    -> psp |> contentOrNone (FallibleOption.ErrorResult(), pm)
                     | _ -> failwith "Illegal value for clblockseqentry"
                 let ps = ps.SetSubIndent m

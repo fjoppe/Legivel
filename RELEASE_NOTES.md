@@ -1,3 +1,6 @@
+#### 0.4.2 - Apr 10 2020
+*   Legivel.Parser - bugfix #23 - Unable to deserialize sequence with compact indentation
+
 #### 0.4.1 - Nov 11 2019
 *   Legivel.Mapper - deserialization contract is now forced on the yaml-input, was inferred before.
 *   Solved issue #16

@@ -137,6 +137,7 @@
     <Compile Include="..\Legivel.Tests\Chapter8Tests.fs">
       <Link>Chapter8Tests.fs</Link>
     </Compile>
+    <Compile Include="FoundIssue.fs" />
     <Compile Include="..\Test.Legivel.Common\Test.Legivel.Common.fs">
       <Link>Test.Legivel.Common.fs</Link>
     </Compile>
