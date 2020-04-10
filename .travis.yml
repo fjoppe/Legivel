@@ -15,8 +15,8 @@ install:
 before_install:
   - chmod +x build.sh
  
-  matrix:
-  include:
+matrix:
+include:
     - os: linux # Ubuntu 14.04
       dist: trusty
       sudo: required
