@@ -13,6 +13,7 @@ install:
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5/
   - sudo dotnet tool install fake-cli --tool-path /bin
   - sudo chmod -R a+rw /home/travis/.nuget
+  - sudo chmod -R a+rw /tmp
 
 
 before_install:
