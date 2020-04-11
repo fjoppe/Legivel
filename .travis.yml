@@ -11,9 +11,9 @@ install:
   # workaround for missing .net 4.5 targing pack
 
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5/
-  - cinst fake
+  - fake
 
-  
+
 before_install:
   - chmod +x build.sh
 
