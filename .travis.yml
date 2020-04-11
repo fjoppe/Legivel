@@ -11,7 +11,7 @@ install:
   # workaround for missing .net 4.5 targing pack
 
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5/
-  - fake
+  - dotnet tool install fake-cli
 
 
 before_install:
