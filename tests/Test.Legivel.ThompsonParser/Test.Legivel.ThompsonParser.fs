@@ -921,28 +921,39 @@ let ``Partial Repeat match After Fullmatch``() =
 
 
 
-[<Test>]
-let ``Simple group test``() =
-    let nfa = 
-        rgxToNFA <| 
-                RGP("AB", [Token.``c-printable``]) + GRP(RGP("CD", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``])
+module Groups =
+    [<Test>]
+    let ``Simple group test``() =
+        let nfa = 
+            rgxToNFA <| 
+                    RGP("AB", [Token.``c-printable``]) + GRP(RGP("CD", [Token.``c-printable``])) + RGP("AB", [Token.``c-printable``])
     
-    assertFullMatch nfa "ABCDAB" 
-    assertGroupMatch nfa "ABCDAB" 0 "CD"
+        assertFullMatch nfa "ABCDAB" 
+        assertGroupMatch nfa "ABCDAB" 0 "CD"
 
 
-[<Test>]
-let ``Group with nested Repeat test``() =
-    let nfa = 
-        rgxToNFA <| 
-                RGP("AB", [Token.``c-printable``]) + GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + RGP("AB", [Token.``c-printable``])
+    [<Test>]
+    let ``Group with nested Repeat test``() =
+        let nfa = 
+            rgxToNFA <| 
+                    RGP("AB", [Token.``c-printable``]) + GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + RGP("AB", [Token.``c-printable``])
     
-    assertFullMatch nfa "ABAB" 
-    assertFullMatch nfa "ABCDAB" 
+        assertFullMatch nfa "ABAB" 
+        assertFullMatch nfa "ABCDAB" 
 
-    assertGroupMatch nfa "ABCDAB" 0 "CD"
-    assertGroupMatch nfa "ABCDCDAB" 0 "CDCD"
+        assertGroupMatch nfa "ABCDAB" 0 "CD"
+        assertGroupMatch nfa "ABCDCDAB" 0 "CDCD"
 
+    [<Test>]
+    let ``Ambigious group test``() =
+        let nfa = 
+            rgxToNFA <| (RGP("AB", [Token.``c-printable``]) ||| GRP(RGP("AC", [Token.``c-printable``])))
+    
+
+        assertGroupMatch nfa "AC" 0 "AC"
+
+        assertFullMatch nfa "AB" 
+        assertFullMatch nfa "AC" 
 
 [<Test>]
 let ``Two groups with nested Repeat test``() =
