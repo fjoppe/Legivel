@@ -945,35 +945,107 @@ module Groups =
         assertGroupMatch nfa "ABCDCDAB" 0 "CDCD"
 
     [<Test>]
-    let ``Ambigious group test``() =
+    let ``Ambigious group test plain/plain direct``() =
         let nfa = 
             rgxToNFA <| (RGP("AB", [Token.``c-printable``]) ||| GRP(RGP("AC", [Token.``c-printable``])))
     
 
         assertGroupMatch nfa "AC" 0 "AC"
+        assertGroupMatch nfa "AB" 0 ""
+
 
         assertFullMatch nfa "AB" 
         assertFullMatch nfa "AC" 
 
-[<Test>]
-let ``Two groups with nested Repeat test``() =
-    let nfa = 
-        rgxToNFA <| 
-                RGP( "AB", [Token.``c-printable``]) + 
-                GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + 
-                RGP("AB", [Token.``c-printable``]) + 
-                GRP(ZOM(RGP("EF", [Token.``c-printable``]))) + 
-                RGP("AB", [Token.``c-printable``])
+
+    [<Ignore("Not sure if we need this, but .Net Regex provides a spec")>]
+    [<Test>]
+    let ``Ambigious group test plain/plain indicisive``() =
+        let nfaGroupAfter = 
+            rgxToNFA <| (RGP("A", [Token.``c-printable``]) ||| GRP(RGP("A", [Token.``c-printable``])))
     
-    assertFullMatch nfa "ABABAB" 
-    assertFullMatch nfa "ABCDABAB" 
-    assertFullMatch nfa "ABABEFAB" 
+        assertGroupMatch nfaGroupAfter "A" 0 "A"
+        assertFullMatch nfaGroupAfter "A" 
 
-    assertGroupMatch nfa "ABCDABAB" 0 "CD"
-    assertGroupMatch nfa "ABCDCDABAB" 0 "CDCD"
+        let nfaGroupBefore = 
+            rgxToNFA <| (GRP(RGP("A", [Token.``c-printable``])) ||| RGP("A", [Token.``c-printable``]))
+    
+        assertGroupMatch nfaGroupBefore "A" 0 "A"
+        assertFullMatch nfaGroupBefore "A" 
 
-    assertGroupMatch nfa "ABCDABEFAB" 1"EF"
-    assertGroupMatch nfa "ABCDCDABEFEFAB" 1 "EFEF"
+
+    [<Test>]
+    let ``Ambigious group test plain/plain with joined preceeding path``() =
+        let nfa = 
+            rgxToNFA <| 
+                RGP("D", [Token.``c-printable``]) +
+                (RGP("AB", [Token.``c-printable``]) ||| GRP(RGP("AC", [Token.``c-printable``])))
+    
+
+        assertGroupMatch nfa "DAC" 0 "AC"
+        assertGroupMatch nfa "DAB" 0 ""
+
+
+        assertFullMatch nfa "DAB" 
+        assertFullMatch nfa "DAC" 
+
+    [<Test>]
+    let ``Ambigious group test plain/plain with joined succeeding path``() =
+        let nfa = 
+            rgxToNFA <| 
+                (RGP("AB", [Token.``c-printable``]) ||| GRP(RGP("AC", [Token.``c-printable``])))
+                + RGP("D", [Token.``c-printable``])
+    
+
+        assertGroupMatch nfa "ACD" 0 "AC"
+        assertGroupMatch nfa "ABD" 0 ""
+
+
+        assertFullMatch nfa "ABD" 
+        assertFullMatch nfa "ACD" 
+
+
+    [<Test>]
+    let ``Ambigious group test ois/ois direct``() =
+        let nfa = 
+            rgxToNFA <| 
+                (
+                    RGO("\t\n", [Token.``t-tab``;Token.NewLine]) + RGP("A", [Token.``c-printable``]) ||| 
+                    GRP(RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``])) + RGP("B", [Token.``c-printable``])
+                ) 
+    
+
+        assertGroupMatch nfa "\tB" 0 "\t"
+        assertGroupMatch nfa "-B" 0 "-"
+        assertGroupMatch nfa "\tA" 0 ""
+        assertGroupMatch nfa "\nA" 0 ""
+
+        assertFullMatch nfa "\tA" 
+        assertFullMatch nfa "\tB" 
+        assertFullMatch nfa "\nA" 
+        assertFullMatch nfa "-B" 
+
+
+    [<Test>]
+    let ``Two groups with nested Repeat test``() =
+        let nfa = 
+            rgxToNFA <| 
+                    RGP( "AB", [Token.``c-printable``]) + 
+                    GRP(ZOM(RGP("CD", [Token.``c-printable``]))) + 
+                    RGP("AB", [Token.``c-printable``]) + 
+                    GRP(ZOM(RGP("EF", [Token.``c-printable``]))) + 
+                    RGP("AB", [Token.``c-printable``])
+    
+        assertFullMatch nfa "ABABAB" 
+        assertFullMatch nfa "ABCDABAB" 
+        assertFullMatch nfa "ABABEFAB" 
+
+        assertGroupMatch nfa "ABCDABAB" 0 "CD"
+        assertGroupMatch nfa "ABCDCDABAB" 0 "CDCD"
+
+        assertGroupMatch nfa "ABCDABEFAB" 1"EF"
+        assertGroupMatch nfa "ABCDCDABEFEFAB" 1 "EFEF"
+
 
 module ``Start of Line`` =
     [<Test>]

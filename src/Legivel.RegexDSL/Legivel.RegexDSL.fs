@@ -747,7 +747,7 @@ let SPrintIt (level:int) (nfa:NFAMachine) =
 
 
 
-module MT = //    Match Tree
+module internal MT = //    Match Tree
     [<Literal>]
     let fullmatchGroup = 0u //  groupId '0' will be full match
 
@@ -1024,7 +1024,7 @@ let logtree sp =
     |>  fun t -> logger.Trace(sprintf "\n%s" t)
 #endif
 
-module Duplication = 
+module internal Duplication = 
     type DuplicateWithCommand = {
         LinkTo  : StatePointer option
         Replace : (StatePointer -> StatePointer) option

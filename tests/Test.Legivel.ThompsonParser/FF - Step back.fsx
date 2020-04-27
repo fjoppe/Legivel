@@ -26,6 +26,3 @@ let nfa =
 PrintIt nfa
 
 
-
-
-
