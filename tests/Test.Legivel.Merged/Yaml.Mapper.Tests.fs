@@ -59,10 +59,25 @@ let ``Deserialize - bool - Sunny Day`` () =
 
 
 [<Test>]
-let ``Deserialize - DateTime - Sunny Day`` () =
+let ``Deserialize - DateTime 1 - Sunny Day`` () =
     let yml = "2014-09-12"
     let res = DeserializeSuccess<DateTime> yml 
     res |> shouldEqual (DateTime(2014, 09, 12))
+
+[<Test>]
+let ``Deserialize - DateTime 2 - Sunny Day`` () =
+    let yml = "2019-12-29T11:43:30+01:00"
+
+    let res = DeserializeSuccess<DateTime> yml
+
+    res.ToUniversalTime() |> shouldEqual (DateTime.Parse("2019-12-29T11:43:30+01:00").ToUniversalTime())
+
+
+[<Test>]
+let ``Deserialize - DateTimeOffset - Sunny Day`` () =
+    let yml = "2019-12-29T11:43:30+01:00"
+    let res = DeserializeSuccess<DateTimeOffset> yml
+    res |> shouldEqual (DateTimeOffset.Parse "2019-12-29T11:43:30+01:00")
 
 
 [<Test>]
@@ -556,6 +571,7 @@ t3: {1: yes, 0: maybe, -1: no}"
             s.Data.t3.[0]           |> shouldEqual "maybe"
             s.Data.t3.[-1]          |> shouldEqual "no"
         |   Error e -> failwith "Unexpected error"
+
 
 
 

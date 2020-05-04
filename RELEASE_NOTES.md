@@ -1,3 +1,6 @@
+#### 0.4.3 - May 4 2020
+*   Legivel.Parser - bugfix #27 - Cannot parse to DateTimeOffset
+
 #### 0.4.2 - Apr 10 2020
 *   Legivel.Parser - bugfix #23 - Unable to deserialize sequence with compact indentation
 
