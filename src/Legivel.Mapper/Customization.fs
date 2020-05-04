@@ -54,8 +54,10 @@ let YamlScalarToNativeMappings = [
     ScalarToNativeMapping.Create (YamlExtended.TimestampGlobalTag, typeof<DateTime>, fun (s:string) -> 
         let value = YamlExtended.TimestampGlobalTag.ToCanonical s |> Option.get 
         DateTime.Parse(value, CultureInfo.InvariantCulture).ToUniversalTime() |> box)
+    ScalarToNativeMapping.Create (YamlExtended.TimestampGlobalTag, typeof<DateTimeOffset>, fun (s:string) -> 
+        let value = YamlExtended.TimestampGlobalTag.ToCanonical s |> Option.get 
+        DateTimeOffset.Parse(value, CultureInfo.InvariantCulture).ToUniversalTime() |> box)
     ]
-
 
 
 
