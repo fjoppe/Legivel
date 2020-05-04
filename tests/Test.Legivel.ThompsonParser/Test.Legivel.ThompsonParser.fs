@@ -945,7 +945,7 @@ module Groups =
         assertGroupMatch nfa "ABCDCDAB" 0 "CDCD"
 
     [<Test>]
-    let ``Ambigious group test plain/plain direct``() =
+    let ``Ambigious group test plain/plain direct with one char``() =
         let nfa = 
             rgxToNFA <| (RGP("AB", [Token.``c-printable``]) ||| GRP(RGP("AC", [Token.``c-printable``])))
     
@@ -956,6 +956,20 @@ module Groups =
 
         assertFullMatch nfa "AB" 
         assertFullMatch nfa "AC" 
+
+    [<Test>]
+    let ``Ambigious group test plain/plain direct with multiple chars``() =
+        let nfa = 
+            rgxToNFA <| (RGP("ABC", [Token.``c-printable``]) ||| GRP(RGP("ABD", [Token.``c-printable``])))
+    
+
+        assertGroupMatch nfa "ABD" 0 "ABD"
+        assertGroupMatch nfa "ABC" 0 ""
+
+
+        assertFullMatch nfa "ABC" 
+        assertFullMatch nfa "ABD" 
+
 
 
     [<Ignore("Not sure if we need this, but .Net Regex provides a spec")>]
