@@ -2025,7 +2025,7 @@ type RepositionInfo = {
     Character      : TokenData
     StartOfLine    : bool
     GroupContents  : (GroupId*(char list)) list
-    ShelvedData    : char option
+    ShelvedData    : char list option
 }
 with    
     static member Create sp c sl gp yl = { StreamPosition =sp ; Character = c ; StartOfLine = sl; GroupContents = gp; ShelvedData = yl }
@@ -2036,17 +2036,20 @@ type RunningState = {
     GosubMapping    : Map<GosubId, StatePointer * int>
     CurrentChar     : TokenData
     StartOfLine     : bool
-    ShelvedData     : char option
+    ShelvedData     : char list option
     Stack           : (StatePointer * RepositionInfo option) list
 }
 with
     static member Create cc st sl gc = {GroupParse = GroupParse.Create gc ; GosubMapping = Map.empty<_,_>; CurrentChar = cc; StartOfLine = sl; ShelvedData = None; Stack = [(st, None)]}
 
     member this.AddChar sh ch gps = 
-        if sh then
-            {this with ShelvedData = Some ch}
-        else
-            {this with GroupParse = this.GroupParse.AddChar ch gps}
+        match (sh,this.ShelvedData) with
+        |   false, _        -> {this with GroupParse = this.GroupParse.AddChar ch gps}
+        |   true,  None     -> {this with ShelvedData = Some [ch]}
+        |   true,  Some lst -> {this with ShelvedData = Some (ch :: lst)}
+
+    member this.AddChars sh chlst gps = 
+        chlst |>  List.fold(fun (s:RunningState) c -> s.AddChar sh c gps) this
 
     member this.ResetGroupContent rl = {this with GroupParse = this.GroupParse.ResetContents rl}
 
@@ -2075,6 +2078,7 @@ with
 
 module RunningState =
     let AddChar sh ch gps (rs:RunningState) = rs.AddChar sh ch gps
+    let AddChars sh chlst gps (rs:RunningState) = rs.AddChars sh chlst gps
     let ResetGroupContent rl (rs:RunningState) = rs.ResetGroupContent rl
     let Push st (rs:RunningState) = rs.Push st
     let SetGosub gi sp (rs:RunningState) = rs.SetGosub gi sp
@@ -2169,10 +2173,10 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     |>  List.fold(fun (st:RunningState) i -> 
                         match (runningState.ShelvedData, i.GroupUnshelve) with
                         |   (None, None) -> st.Push(i.NodePointer.StatePointer, Some(RepositionInfo.Create pos runningState.CurrentChar runningState.StartOfLine runningState.GroupParse.GroupContents runningState.ShelvedData))
-                        |   (Some ch, Some gil) ->
+                        |   (Some chlst, Some gil) ->
                             st
                             |>  RunningState.ResetGroupContent runningState.GroupParse.GroupContents
-                            |>  RunningState.AddChar false ch gil
+                            |>  RunningState.AddChars false (chlst |> List.rev) gil
                             |>  fun rsl -> RunningState.Push(i.NodePointer.StatePointer, Some(RepositionInfo.Create pos runningState.CurrentChar runningState.StartOfLine rsl.GroupParse.GroupContents None)) rsl
                         |   _ -> failwith "shelve state and shelve prep are not in sync"
                     ) (runningState |> RunningState.UnShelve)
