@@ -20,7 +20,10 @@ let logger = LogManager.GetLogger("*")
 
 let nfa = 
     rgxToNFA <| 
-            (RGP("ABC", [Token.``c-printable``]) ||| GRP(RGP("ABD", [Token.``c-printable``])))
+            (
+                RGO("\t\n", [Token.``t-tab``;Token.NewLine]) + RGP("A", [Token.``c-printable``]) ||| 
+                GRP(RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``])) + RGP("B", [Token.``c-printable``])
+            )
 
 
 PrintIt nfa

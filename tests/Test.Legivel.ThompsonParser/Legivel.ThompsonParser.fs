@@ -10,6 +10,11 @@ open NLog
 let logger = LogManager.GetLogger("*")
 
 
+let DebugBreakpoint a =
+    let b = 0
+    a
+
+
 type ExactChar = {
         Char       : char
         ListCheck  : Token list
@@ -364,8 +369,8 @@ type StateNode =
             match this with
             |   SinglePath d -> 
                 match d.State with
-                |   ExactMatch    em -> sprintf "Id: %d, SinglePath Exact: '%c', Next: %d, Groups: %A" d.Id em.Char d.NextState.Id d.GroupIds
-                |   OneInSetMatch _  -> sprintf "Id: %d, SinglePath OiS, Next: %d, Groups: %A" d.Id d.NextState.Id d.GroupIds
+                |   ExactMatch    em -> sprintf "Id: %d, SinglePath Exact: '%c', Shelve: %b, Next: %d, Groups: %A" d.Id em.Char d.Shelve d.NextState.Id d.GroupIds
+                |   OneInSetMatch _  -> sprintf "Id: %d, SinglePath OiS, Shelve: %b, Next: %d, Groups: %A" d.Id d.Shelve d.NextState.Id d.GroupIds
             |   StartLinePath d -> sprintf "Id: %d, StartLinePath IfTrue: %d, IfFalse: %d" d.Id d.Iftrue.Id d.IfFalse.Id
             |   MultiPath  d -> sprintf "Id: %d, MultiPath, States: %O" d.Id (d.States |> List.map(fun i -> i.NodePointer.Id))
             |   EmptyPath  d -> sprintf "Id: %d, EmptyPath Next: %d" d.Id d.NextState.Id
@@ -505,7 +510,7 @@ module internal MT = //    Match Tree
 
     let mutable private currentId = 0u
     let mutable private currentRepeatId = 0u
-    let mutable private currentGroupId = (fullmatchGroup + 1u) 
+    let mutable private currentGroupId = fullmatchGroup
     let mutable private currentGosubId = 0u
 
     let private CreateNewId() =
@@ -530,7 +535,7 @@ module internal MT = //    Match Tree
     let Init() =
         currentId       <- 0u
         currentRepeatId <- 0u
-        currentGroupId  <- (fullmatchGroup + 1u)
+        currentGroupId  <- fullmatchGroup
         currentGosubId  <- 0u
         allNodes.Clear()
         allRepeats      <- new System.Collections.Generic.List<RepeatState>()
@@ -554,8 +559,8 @@ module internal MT = //    Match Tree
     let getNode i = allNodes.[i]
 
     let createSinglePath mt nx = SinglePath.Create (CreateNewId()) mt nx [GroupId fullmatchGroup] |> SinglePath |> addAndReturn
-    let createSinglePathForDuplicate mt nx gl = SinglePath.Create (CreateNewId()) mt nx gl |> SinglePath |> addAndReturn
-    let createSinglePathWithShelveForDuplicate mt nx gl = SinglePath.CreateWithShelve (CreateNewId()) mt nx gl true |> SinglePath |> addAndReturn
+    let createSinglePathWithGroups mt nx gl = SinglePath.Create (CreateNewId()) mt nx gl |> SinglePath |> addAndReturn
+    let createSinglePathWithShelve mt nx gl = SinglePath.CreateWithShelve (CreateNewId()) mt nx gl true |> SinglePath |> addAndReturn
     let createStartLinePath t f = StartOfLinePath.Create (CreateNewId()) t f |> StartLinePath |> addAndReturn
     let createMultiPath mt = MultiPath.Create (CreateNewId()) mt |> MultiPath |> addAndReturn
     let createEmptyPath nx = EmptyPath.Create (CreateNewId()) nx |> EmptyPath |> addAndReturn
@@ -626,7 +631,7 @@ module internal MT = //    Match Tree
     let duplicate (currPtr : StatePointer) =
         match lookup currPtr with
         |   EmptyPath   p -> createEmptyPath p.NextState
-        |   SinglePath  p -> createSinglePathForDuplicate p.State p.NextState p.GroupIds
+        |   SinglePath  p -> createSinglePathWithGroups p.State p.NextState p.GroupIds
         |   RepeatStart p -> createRepeatStart p.RepeatId p.NextState
         |   RepeatInit  p -> createRepeatInit p.RepeatId p.NextState
         |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId p.NextState
@@ -640,7 +645,7 @@ module internal MT = //    Match Tree
     let duplicateAndLinkToNext (next:StatePointer) (currPtr : StatePointer) =
         match lookup currPtr with
         |   EmptyPath   _ -> createEmptyPath next
-        |   SinglePath  p -> createSinglePathForDuplicate p.State next p.GroupIds
+        |   SinglePath  p -> createSinglePathWithGroups p.State next p.GroupIds
         |   RepeatStart p -> createRepeatStart p.RepeatId next
         |   RepeatInit  p -> createRepeatInit p.RepeatId next
         |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId next
@@ -653,7 +658,7 @@ module internal MT = //    Match Tree
     let duplicateWithShelveAndLinkToNext (next:StatePointer) (currPtr : StatePointer) =
         match lookup currPtr with
         |   EmptyPath   _ -> createEmptyPath next
-        |   SinglePath  p -> createSinglePathWithShelveForDuplicate p.State next p.GroupIds
+        |   SinglePath  p -> createSinglePathWithShelve p.State next p.GroupIds
         |   RepeatStart p -> createRepeatStart p.RepeatId next
         |   RepeatInit  p -> createRepeatInit p.RepeatId next
         |   RepeatIterOrExit p -> createRepeatIterOrExit p.IterateState p.RepeatId next
@@ -1154,82 +1159,113 @@ module internal rec Refactoring =
 
     let refactorConflictingCharacterSets2 (rp:RefactoringParam) (sil:(Token*(NormalizedProcessing list))list) =
         let prvmaps = Dictionary<StateId list, StatePointer>()
-        let toSpToken = Dictionary<StatePointer, SystemList<Token>>()
+        let toSpToken = Dictionary<StatePointer, (GroupId list option) * SystemList<Token>>()
 
         let empty = lazy(MT.createEmptyPath PointerToStateFinal)
 
         let rpn =
             sil
             |>  List.fold(fun (rps:RefactoringParam) (t, lst) ->
-                let (bundle, rpn) =
-                    let nxtLst = 
-                        lst 
-                        |> List.map(fun e -> 
-                            if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next
-                            |>  if t=Token.NewLine then getStartOfLineTrue
-                                else getStartOfLineFalse
-                        )
-                    let nk = nxtLst |> List.map(fun e -> e.Id) |> List.sort
-                    if  prvmaps.ContainsKey nk then
-                        prvmaps.[nk], rps
-                    else
-                        let (target,rpn) =
-                            nxtLst
-                            |>  rps.WithStatePointers
-                            |>  createBundle
+                let (bundle, rpn, groups) =
+                    if isShelvingRequired lst then
+                        let nxtLst = 
+                            lst 
+                            |> List.map(fun e -> 
+                                if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next
+                                |>  if t=Token.NewLine then getStartOfLineTrue
+                                    else getStartOfLineFalse
+                                |>  fun sp ->
+                                    sp, Some e.Groups
+                            )
+                        let nk = nxtLst |> List.map(fun (e,_) -> e.Id) |> List.sort
+                        if  prvmaps.ContainsKey nk then
+                            prvmaps.[nk], rps, None
+                        else
+                            let (target,rpn) =
+                                nxtLst
+                                |>  rps.WithShelvedGroupsAndStatePointers
+                                |>  Refactoring.createUnshelvingBundle
 
-                        prvmaps.Add(nk,target)
-                        target, rpn
+                            prvmaps.Add(nk,target)
+                            target, rpn, None
+                    else
+                        let nxtLst = 
+                            lst 
+                            |> List.map(fun e -> 
+                                if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next
+                                |>  if t=Token.NewLine then getStartOfLineTrue
+                                    else getStartOfLineFalse
+                            )
+                        let nk = nxtLst |> List.map(fun e -> e.Id) |> List.sort
+                        let gr = Some(lst.Head.Groups)
+                        if  prvmaps.ContainsKey nk then
+                            prvmaps.[nk], rps, gr
+                        else
+                            let (target,rpn) =
+                                nxtLst
+                                |>  rps.WithStatePointers
+                                |>  createBundle
+
+                            prvmaps.Add(nk,target)
+                            target, rpn, gr
 
                 if toSpToken.ContainsKey bundle then
-                    let tl = toSpToken.[bundle]
+                    let (_,tl) = toSpToken.[bundle]
                     tl.Add t
                     rpn
                 else
                     let tl = SystemList<Token>()
                     tl.Add t
-                    toSpToken.Add(bundle, tl)
+                    toSpToken.Add(bundle, (groups, tl))
                     rpn
             ) rp
  
         toSpToken.Keys
         |>  List.ofSeq
         |>  List.map(fun b ->
-            let tl = toSpToken.[b] |> List.ofSeq
-            MT.createSinglePath (OneInSetMatch({ ListCheck = tl; QuickCheck = qcOneInSet tl})) b
+            let (groups, tl) = toSpToken.[b] 
+            let tls = tl |> List.ofSeq
+
+            match groups with
+            |   None    ->  MT.createSinglePathWithShelve (OneInSetMatch({ ListCheck = tls; QuickCheck = qcOneInSet tls})) b []
+            |   Some g  ->  MT.createSinglePathWithGroups (OneInSetMatch({ ListCheck = tls; QuickCheck = qcOneInSet tls})) b g
         )
         |>  rpn.WithStatePointers
 
 
 
     let mergeCompatibleOneInSet2 (rp:RefactoringParam) (sil:(Token*(NormalizedProcessing list))list) =
-        let nextToToken = Dictionary<StatePointer, SystemList<Token> >()
+        let nextToToken = Dictionary<StatePointer, StatePointer*SystemList<Token>*(GroupId list)>()
 
         sil
         |>  List.iter(fun (t, nl) -> 
             nl
             |>  List.iter(fun nm ->
                 if nextToToken.ContainsKey nm.Next then
-                    let l = nextToToken.[nm.Next]
-                    l.Add(t)
+                    let (_, l, _) = nextToToken.[nm.Next]
+                    l.Add t
                 else
                    let l = SystemList<Token>()
-                   l.Add(t)
-                   nextToToken.Add(nm.Next, l) 
+                   l.Add t
+                   nextToToken.Add(nm.Next, (nm.IdSp, l, nm.Groups)) 
             )
         )
 
         nextToToken.Keys
         |>  List.ofSeq
-        |>  List.map(fun nx ->
-            let tl  = nextToToken.[nx] |> List.ofSeq
-            let newQC = qcOneInSet tl
-            MT.createSinglePath (OneInSetMatch({ QuickCheck = newQC; ListCheck = tl})) nx
-        )
-        |>  rp.WithStatePointers
+        |>  List.fold(fun (rpc:RefactoringParam, lst) nx ->
+            let (sp, tl, gl) = nextToToken.[nx] 
+            let tls = tl |> List.ofSeq
+            let newQC = qcOneInSet tls
+            let nwsp = MT.createSinglePathWithGroups (OneInSetMatch({ QuickCheck = newQC; ListCheck = tls})) nx gl
+            rpc.DuplicateStatePointerGroups sp.Id nwsp.Id, nwsp :: lst
+        ) (rp, [])
+        |>  fun (rpn, lst) -> rpn.WithStatePointers lst
 
 
     let refactorUnprocessedSinglePaths (rp:RefactoringParam) : RefactoringParam =
+        let toResult b a = (a,b)
+
         rp.StatePointers
         |>  List.fold(fun (srp:RefactoringParam,rl) sp ->
 
@@ -1243,8 +1279,11 @@ module internal rec Refactoring =
                     let nwnx = rpn.StatePointers.Head
                     if nwnx.Id <> nx.Id then
                         let nn = MT.duplicateAndLinkToNext nwnx gt
-                        let rpnr = rpn.Add gt nn
-                        rpnr.WithStatePointers [nn], nn :: rl
+                        rpn
+                        |>  RefactoringParam.Add gt nn
+                        |>  RefactoringParam.DuplicateStatePointerGroups gt.Id nn.Id
+                        |>  RefactoringParam.WithStatePointers [nn]
+                        |>  toResult (nn :: rl)
                     else
                         irp, gt :: rl
 
@@ -1639,28 +1678,29 @@ module internal rec Refactoring =
 
 
 
-    let getCleanPointers (rp:RefactoringParam) =
-        rp.StatePointers
-        |>  List.map(fun sp ->
-            sp 
-            |> Refactoring.getUnderlyingSinglePathPointers
-            |>  List.map(fun e->
-                match rp.StatePointerGroups.ContainsKey sp.Id with
-                |   true ->  e.StatePointer, Some rp.StatePointerGroups.[sp.Id]
-                |   false -> e.StatePointer, None
-            )
-        )
-        |>  List.collect id
+    let getCleanShelvedPointers (rp:RefactoringParam) =
+        let (rpn, spnl) =
+            rp.StatePointers
+            |>  List.fold(fun (rpco, mlst) sp ->
+                sp 
+                |>  Refactoring.getUnderlyingSinglePathPointers
+                |>  List.fold(fun (rpc, lst) e->
+                    match rpc.StatePointerGroups.ContainsKey sp.Id with
+                    |   true ->  rpc.DuplicateStatePointerGroups sp.Id e.Id,  (e.StatePointer, Some rpc.StatePointerGroups.[sp.Id]) :: lst
+                    |   false -> rpc, (e.StatePointer, None) :: lst
+                ) (rpco,mlst)
+            ) (rp,[])
+        spnl
+        //|>  List.collect id
         |>  Refactoring.undoubleAndRemovePointerToFinal
         |>  List.map(fun (sp, ogl) -> Refactoring.cleanupEmptyChains sp, ogl)
         |>  Refactoring.distinctEmptyPathToFinal
-
+        |>  rpn.WithShelvedGroupsAndStatePointers
 
     let refactorMultiPathStates (rp:RefactoringParam) : RefactoringParam =
         let rpp = 
             rp
-            |>  getCleanPointers
-            |>  rp.WithShelvedGroupsAndStatePointers
+            |>  getCleanShelvedPointers
 
         let (|MergeStartOfLine|_|) rp = mergeStartOfLine rp
         let (|MergeGosubs|_|) rp = mergeAllGosubs rp
@@ -1882,8 +1922,9 @@ let PrintIt (nfa:NFAMachine) =
         |   SinglePath sp ->
             match sp.State with
             |   OneInSetMatch    ois ->
-                printfn "{ id: %d, OiS, Tokens: [%A] }" sp.Id ois.ListCheck
-            |   _ -> ()
+                printfn "{ id: %d, OiS, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id ois.ListCheck sp.GroupIds sp.Shelve
+            |   ExactMatch       em ->  
+                printfn "{ id: %d, ExM, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id em.ListCheck sp.GroupIds sp.Shelve
         |   _ -> ()
     )
 
@@ -2142,7 +2183,15 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                 { IsMatch = true; FullMatch = runningState.GroupParse.GroupMatches.[GroupId MT.fullmatchGroup] |> postProcessGroup; Groups = gs }
             else
 #if LOGTRACE
-                logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s'" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)))
+                let grps =
+                    let groups =
+                        runningState.GroupParse.GroupContents
+                        |>  List.map(fun (gid, cl) ->
+                            let ca = cl |> Array.ofList
+                            sprintf "GroupId(%d) \"%s\""  gid.Id (new string(ca))
+                        )
+                    System.String.Join(", ", groups)
+                logger.Trace(sprintf "Id: %d, Pos: %d, Char: '%s', Groups: [%s]" cs.Id stream.Position (Regex.Escape(runningState.CurrentChar.Source)) (Regex.Escape grps))
 #endif
                 let st = stMap.[cs.Id]
                 match st with
@@ -2172,7 +2221,7 @@ let parseIt (nfa:NFAMachine) (stream:RollingStream<TokenData>) =
                     |>  List.rev
                     |>  List.fold(fun (st:RunningState) i -> 
                         match (runningState.ShelvedData, i.GroupUnshelve) with
-                        |   (None, None) -> st.Push(i.NodePointer.StatePointer, Some(RepositionInfo.Create pos runningState.CurrentChar runningState.StartOfLine runningState.GroupParse.GroupContents runningState.ShelvedData))
+                        |   (_, None) -> st.Push(i.NodePointer.StatePointer, Some(RepositionInfo.Create pos runningState.CurrentChar runningState.StartOfLine runningState.GroupParse.GroupContents runningState.ShelvedData))
                         |   (Some chlst, Some gil) ->
                             st
                             |>  RunningState.ResetGroupContent runningState.GroupParse.GroupContents

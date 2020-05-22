@@ -1029,8 +1029,8 @@ module Groups =
                 ) 
     
 
-        assertGroupMatch nfa "\tB" 0 "\t"
         assertGroupMatch nfa "-B" 0 "-"
+        assertGroupMatch nfa "\tB" 0 "\t"
         assertGroupMatch nfa "\tA" 0 ""
         assertGroupMatch nfa "\nA" 0 ""
 
@@ -1038,6 +1038,70 @@ module Groups =
         assertFullMatch nfa "\tB" 
         assertFullMatch nfa "\nA" 
         assertFullMatch nfa "-B" 
+
+
+    [<Test>]
+    let ``Ambigious group test ois/ois  with joined preceeding path``() =
+        let nfa = 
+            rgxToNFA <| 
+                RGP("D", [Token.``c-printable``]) +
+                (
+                    RGO("\t\n", [Token.``t-tab``;Token.NewLine]) + RGP("A", [Token.``c-printable``]) ||| 
+                    GRP(RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``])) + RGP("B", [Token.``c-printable``])
+                ) 
+    
+
+        assertGroupMatch nfa "D-B" 0 "-"
+        assertGroupMatch nfa "D\tB" 0 "\t"
+        assertGroupMatch nfa "D\tA" 0 ""
+        assertGroupMatch nfa "D\nA" 0 ""
+
+        assertFullMatch nfa "D\tA" 
+        assertFullMatch nfa "D\tB" 
+        assertFullMatch nfa "D\nA" 
+        assertFullMatch nfa "D-B" 
+
+
+    [<Test>]
+    let ``Ambigious group test ois/ois  with joined succeeding path``() =
+        let nfa = 
+            rgxToNFA <| 
+                (
+                    RGO("\t\n", [Token.``t-tab``;Token.NewLine]) + RGP("A", [Token.``c-printable``]) ||| 
+                    GRP(RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``])) + RGP("B", [Token.``c-printable``])
+                ) +
+                RGP("D", [Token.``c-printable``])
+    
+
+        assertGroupMatch nfa "-BD" 0 "-"
+        assertGroupMatch nfa "\tBD" 0 "\t"
+        assertGroupMatch nfa "\tAD" 0 ""
+        assertGroupMatch nfa "\nAD" 0 ""
+
+        assertFullMatch nfa "\tAD" 
+        assertFullMatch nfa "\tBD" 
+        assertFullMatch nfa "\nAD" 
+        assertFullMatch nfa "-BD" 
+
+
+    [<Test>]
+    let ``Ambigious group test ois/plain direct``() =
+        let nfa = 
+            rgxToNFA <| 
+                (
+                    RGP("\t", [Token.``t-tab``;Token.NewLine]) + RGP("A", [Token.``c-printable``]) ||| 
+                    GRP(RGO("\t-", [Token.``t-tab``; Token.``t-hyphen``])) + RGP("B", [Token.``c-printable``])
+                ) 
+    
+
+        assertGroupMatch nfa "-B" 0 "-"
+        assertGroupMatch nfa "\tB" 0 "\t"
+        assertGroupMatch nfa "\tA" 0 ""
+
+        assertFullMatch nfa "\tA" 
+        assertFullMatch nfa "\tB" 
+        assertFullMatch nfa "-B" 
+
 
 
     [<Test>]
