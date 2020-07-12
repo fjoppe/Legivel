@@ -1103,6 +1103,55 @@ module Groups =
         assertFullMatch nfa "-B" 
 
 
+    [<Test>]
+    let ``Ambigious Repeats on Group test``() =
+        let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
+        let ``s-indent(<=n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 1)  (* Where m ≤ n *)
+        
+
+        let nfap1 = 
+            rgxToNFA <| OPT(ZOM(HardValues.``b-as-line-feed`` + ``s-indent(n)``))
+
+        let nfap2 =
+            rgxToNFA <| ZOM((``s-indent(<=n)``) + HardValues.``b-non-content``)
+
+
+        let nfa = 
+            rgxToNFA <|
+            GRP(
+                OPT(
+                    ZOM(HardValues.``b-as-line-feed`` + ``s-indent(n)``)
+                )
+            )
+            + ZOM((``s-indent(<=n)``) + HardValues.``b-non-content``)
+        
+
+        //  combos made with: OPT(ZOM(HardValues.``b-as-line-feed`` + ``s-indent(n)``))
+        assertFullMatch nfap1 ""
+        assertFullMatch nfap1 "\n "
+        assertFullMatch nfap1 "\n \n "  // <-- ambigious
+
+        //  combos made with: ZOM((``s-indent(<=n)``) + HardValues.``b-non-content``)
+        assertFullMatch nfap2 ""
+        assertFullMatch nfap2 "\n"
+        assertFullMatch nfap2 " \n"
+        assertFullMatch nfap2 "\n\n"
+        assertFullMatch nfap2 "\n \n"   // <-- ambigious
+        assertFullMatch nfap2 " \n \n"
+
+
+        // combos made with the full rgx
+        assertFullMatch nfa ""
+        assertFullMatch nfa "\n "
+        assertFullMatch nfa "\n \n "
+        
+        assertFullMatch nfa "\n"
+        assertFullMatch nfa " \n"
+        assertFullMatch nfa "\n\n"
+        assertFullMatch nfa "\n \n"
+        assertFullMatch nfa " \n \n"
+
+        assertGroupMatch nfa "\n \n" 1 "\n \n"
 
     [<Test>]
     let ``Two groups with nested Repeat test``() =

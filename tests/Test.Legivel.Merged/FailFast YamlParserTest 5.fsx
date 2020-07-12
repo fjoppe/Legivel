@@ -31,8 +31,8 @@ NlogInit.With __SOURCE_DIRECTORY__ __SOURCE_FILE__
 
 let logger = LogManager.GetLogger("*")
 
-let engine = Yaml12Parser(Failsafe.Schema, logger.Trace)
-//engine.SetLogFunc (logger.Trace)
+let engine = Yaml12Parser(Failsafe.Schema, logger.Trace<string>)
+engine.SetLogFunc (logger.Trace)
 
 let WarnMsg (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "Warn: %d %d: %s" (s.Location.Line) (s.Location.Column) (s.Message))
 let ErrMsg  (sl:ParseMessageAtLine list) = sl |> List.iter(fun s -> printfn "ERROR: %d %d:%s" (s.Location.Line) (s.Location.Column) (s.Message))
@@ -63,7 +63,7 @@ let YamlParse s =
     try
         let repr = (engine.``l-yaml-stream`` s)
         let crr = repr.Head 
-        //PrintNode crr
+        PrintNode crr
         ()
     with
     | e -> printfn "%A:%A\n%A" (e.GetType()) (e.Message) (e.StackTrace); raise e
@@ -91,7 +91,6 @@ let YamlParseWithErrors s =
     with
     | e -> printfn "%A" e; raise e
 
-
 let YamlParseWithWarning s =
     try
         let repr = (engine.``l-yaml-stream`` s)
@@ -106,18 +105,14 @@ let YamlParseWithWarning s =
 //let s = File.ReadAllText(Path.Combine(__SOURCE_DIRECTORY__, "ec2-swagger.yaml"))
 
 
-//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2781445")>]
-//let ``Example 6.13. Reserved Directives``() =
+//[<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2796371")>]
+//let ``Example 8.9. Folded Scalar``() =
 
 let yml = "
-%FOO bar baz # Should be ignored
-              # with a warning.
---- \"foo\"
+>
+ folded
+ text
+
 "
 
-
-YamlParseWithWarning yml
-
-yml.Substring(66)
-
-
+YamlParse yml

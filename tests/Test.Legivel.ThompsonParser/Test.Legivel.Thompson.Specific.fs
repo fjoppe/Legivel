@@ -42,7 +42,7 @@ open Legivel.ThompsonParser
 
 
 [<Test>]
-let ``Test l-folded-content``() =
+let ``l-folded-content``() =
     let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
     let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) (* Where m < n *)
     let ``s-indent(<=n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 1)  (* Where m ≤ n *)
@@ -95,7 +95,7 @@ let ``Test l-folded-content``() =
 
 
 [<Test>]
-let ``Test c-single-quoted``() =
+let ``c-single-quoted``() =
     let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
     let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) (* Where m < n *)
     
@@ -205,3 +205,117 @@ key:    # Comment
 
     r.IsMatch |> shouldEqual true
     stream.Position |> shouldEqual 37
+
+
+[<Test>]
+let ``l-literal-content``() =
+    //c	Block-in	Legivel.Parser.Context
+    //m	0	int
+    //n	1	int
+    //t	Clip	Legivel.Parser.Chomping
+    
+    let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) (* Where m < n *)
+    let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
+    let ``s-indent(<=n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 1)  (* Where m ≤ n *)
+    
+    let ``s-block-line-prefix`` = ``s-indent(n)``
+    let ``s-line-prefix Block-in`` = ``s-block-line-prefix``
+    let ``l-empty Block-in`` = ((``s-line-prefix Block-in``) ||| (``s-indent(<n)``)) + HardValues.``b-as-line-feed``
+    
+    let ``l-nb-literal-text`` = ZOM(``l-empty Block-in``) + (``s-indent(n)``) + OOM(HardValues.``nb-char``)
+    
+    let ``b-nb-literal-next`` = HardValues.``b-as-line-feed`` + (``l-nb-literal-text``)
+    
+    let ``b-chomped-last`` = HardValues.``b-as-line-feed``   ||| RGP("\\z", [Token.EOF])
+    
+    let ``l-trail-comments`` = (``s-indent(<n)``) + HardValues.``c-nb-comment-text`` + HardValues.``b-comment`` + ZOM(HardValues.``l-comment``)
+    
+    let ``l-strip-empty`` = ZOM((``s-indent(<=n)``) + HardValues.``b-non-content``) + OPT(``l-trail-comments``)
+    let ``l-chomped-empty``  = ``l-strip-empty``
+    let ``l-literal-content`` = 
+        GRP(OPT((``l-nb-literal-text``) + ZOM(``b-nb-literal-next``) + (``b-chomped-last``)) + (``l-chomped-empty``))
+    
+    
+    let nfa = 
+        rgxToNFA <| ``l-literal-content``
+    
+    let yaml = "
+|
+ literal
+ \ttext
+
+"
+    
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
+    stream.Position <- 3
+    
+    let r = parseIt nfa stream
+
+    r.IsMatch |> shouldEqual true
+    stream.Position |> shouldEqual 20
+
+[<Test>]
+let ``folded-content``() =
+    //  c	Block-in	Legivel.Parser.Context
+    //  m	0	int
+    //  n	1	int
+    //  t	Clip	Legivel.Parser.Chomping
+    
+    
+    let ``s-indent(<n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 0) (* Where m < n *)
+    let ``s-indent(n)`` = Repeat(RGP (HardValues.``s-space``, [Token.``t-space``]), 1)
+    let ``s-indent(<=n)`` = Range(RGP (HardValues.``s-space``, [Token.``t-space``]), 0, 1)  (* Where m ≤ n *)
+    
+    
+    let ``s-block-line-prefix`` = ``s-indent(n)``
+    let ``s-line-prefix Block-in`` = ``s-block-line-prefix``
+    
+    let ``l-empty Block-in`` = ((``s-line-prefix Block-in``) ||| (``s-indent(<n)``)) + HardValues.``b-as-line-feed``
+    
+    let ``s-nb-folded-text`` = (``s-indent(n)``) + ZOM(HardValues.``nb-char``)
+    
+    let ``b-l-trimmed`` = HardValues.``b-non-content`` + OOM(``l-empty Block-in``)
+    let ``b-l-folded Block-in`` = (``b-l-trimmed``) ||| HardValues.``b-as-space``
+    
+    let ``s-nb-spaced-text`` = (``s-indent(n)``) + HardValues.``s-white`` + ZOM(HardValues.``nb-char``)
+    
+    let ``b-l-spaced`` = HardValues.``b-as-line-feed`` + ZOM(``l-empty Block-in``)
+    
+    let ``l-nb-spaced-lines`` = (``s-nb-spaced-text``) + ZOM((``b-l-spaced``) + (``s-nb-spaced-text``))
+    let ``l-nb-folded-lines`` = (``s-nb-folded-text``) + ZOM((``b-l-folded Block-in``) + ``s-nb-folded-text``)
+    
+    let ``l-nb-same-lines`` = ZOM(``l-empty Block-in``) + ((``l-nb-folded-lines``) ||| (``l-nb-spaced-lines``))
+    
+    
+    let ``l-nb-diff-lines`` = (``l-nb-same-lines``) + ZOM(HardValues.``b-as-line-feed`` + (``l-nb-same-lines``))
+    
+    let ``b-chomped-last`` = HardValues.``b-as-line-feed``   ||| RGO("\\z", [Token.EOF])
+    let ``l-trail-comments`` = (``s-indent(<n)``) + HardValues.``c-nb-comment-text`` + HardValues.``b-comment`` + ZOM(HardValues.``l-comment``)
+    let ``l-strip-empty`` = ZOM((``s-indent(<=n)``) + HardValues.``b-non-content``) + OPT(``l-trail-comments``)
+    let ``l-chomped-empty`` = ``l-strip-empty``
+    let ``l-folded-content`` = GRP(OPT((``l-nb-diff-lines``) + (``b-chomped-last``))) + (``l-chomped-empty``)
+    
+    
+    let ``folded-content`` = ``l-folded-content``
+    
+    
+    let nfa = 
+        rgxToNFA <| ``folded-content``
+
+    let yaml = "
+>
+ folded
+ text
+
+"
+
+
+    let stream = RollingStream<_>.Create (tokenProcessor yaml) (TokenData.Create (Token.EOF) "\x00")
+    stream.Position <- 3
+
+    let r = parseIt nfa stream
+
+    r.IsMatch |> shouldEqual true
+    r.Groups.Length |> shouldEqual 2
+    r.Groups.[1] |> clts |> shouldEqual  " folded\n text\n"
+

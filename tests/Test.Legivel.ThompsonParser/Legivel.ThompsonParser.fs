@@ -503,6 +503,21 @@ let SPrintIt (level:int) (nfa:NFAMachine) =
     sb.ToString()
 
 
+let SprintItNodes (lst: StateNode list) =
+    lst
+    |>  List.sortBy(fun s -> s.Id)
+    |>  List.iter(fun s ->
+        match s with
+        |   SinglePath sp ->
+            match sp.State with
+            |   OneInSetMatch    ois ->
+                printfn "{ id: %d, OiS, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id ois.ListCheck sp.GroupIds sp.Shelve
+            |   ExactMatch       em ->  
+                printfn "{ id: %d, ExM, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id em.ListCheck sp.GroupIds sp.Shelve
+        |   _ -> ()
+    )
+
+
 
 module internal MT = //    Match Tree
     [<Literal>]
@@ -1034,6 +1049,7 @@ module internal rec Refactoring =
             |   MultiPath mp -> mp.States |> List.map(fun e -> e.NodePointer)
             |   _ -> failwith "Expected MultiPath"
 
+
     let createAndSimplifyMultiPath (lst:StatePointer list) : StatePointer =
         match lst.Length with
         |   0 -> MT.createEmptyPath PointerToStateFinal
@@ -1042,11 +1058,12 @@ module internal rec Refactoring =
             let sorted =
                 lst
                 |>  List.map cleanupEmptyChains
-                |>  List.map MT.lookup
-                |>  MT.SortStateNodes
-                |>  List.map(fun e -> e.StatePointer)
                 |>  List.map getUnderlyingSinglePathPointers
                 |>  List.collect id
+                |>  List.map(fun e -> e.StatePointer)
+                |>  List.map MT.lookup
+                |>  MT.SortStateNodes
+                |>  List.map(fun e -> e.SinglePathPointer)
             let mn = 
                 sorted 
                 |>  List.map(fun e -> UnShelvable.Create e None)
@@ -1140,7 +1157,16 @@ module internal rec Refactoring =
                     |>  Refactoring.createUnshelvingBundle
 
                 let finbun = refactorSimplifySucceedingStartOfLine c bundle
-                rpr, MT.duplicateWithShelveAndLinkToNext finbun sp ::pl
+                match finbun with
+                |   MultiPathPointer  _ -> rpr, MT.duplicateWithShelveAndLinkToNext finbun sp ::pl
+                |   SinglePathPointer _ -> 
+                    finbun.StatePointer
+                    |>  MT.lookup
+                    |>  function
+                        |   SinglePath spv when spv.Shelve -> MT.duplicateWithShelveAndLinkToNext finbun sp
+                        |   _ -> MT.duplicateAndLinkToNext finbun sp 
+                    |>  fun spnw ->
+                        rpr.DuplicateStatePointerGroups sp.Id spnw.Id, spnw ::pl
             else
                 let (bundle, rpr) =
                     lst
@@ -1148,6 +1174,10 @@ module internal rec Refactoring =
                         if e.Next.Id = PointerToStateFinal.Id then empty.Force() else e.Next
                         |>  refactorSimplifySucceedingStartOfLine c
                     )
+                    |>  List.map cleanupEmptyChains
+                    |>  List.map getUnderlyingSinglePathPointers
+                    |>  List.collect id  
+                    |>  List.map(fun e -> e.StatePointer)
                     |>  rps.WithStatePointers
                     |>  createBundle
 
@@ -1713,9 +1743,7 @@ module internal rec Refactoring =
         match rpp.GetCachedCombination rpp.StatePointers with
         |   Some rs -> 
             //  TODO: in case shelved groups are input, the cached objects should be duplicated with the shelved groups
-#if LOGTRACE
-            logger.Trace (sprintf "refactorMultiPathStates cache: %A -> %A" (ids rpp.StatePointers) (ids rs))
-#endif
+
             rpp.WithStatePointers rs
         |   None    ->
             //  TODO:   Somewhere here, shelved groups should be added to the descendants
@@ -1726,11 +1754,7 @@ module internal rec Refactoring =
             |   _ -> rpp
             |>  fun rpn ->
                 rpn.RegisterCache rpp.StatePointers rpn.StatePointers
-#if LOGTRACE
-            |> fun rpn ->
-            logger.Trace (sprintf "refactorMultiPathStates processed: %A -> %A" (ids rpp.StatePointers) (ids rpn.StatePointers))
-            rpn
-#endif
+
     
     let refactorSingleStatePointer (rp:RefactoringParam) : RefactoringParam =
         rp.StatePointers.Head
@@ -1916,17 +1940,18 @@ let PrintIt (nfa:NFAMachine) =
     printfn "%s" (SPrintIt 0 nfa)
 
     nfa.States
-    |>  List.sortBy(fun s -> s.Id)
-    |>  List.iter(fun s ->
-        match s with
-        |   SinglePath sp ->
-            match sp.State with
-            |   OneInSetMatch    ois ->
-                printfn "{ id: %d, OiS, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id ois.ListCheck sp.GroupIds sp.Shelve
-            |   ExactMatch       em ->  
-                printfn "{ id: %d, ExM, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id em.ListCheck sp.GroupIds sp.Shelve
-        |   _ -> ()
-    )
+    |>  SprintItNodes
+    //|>  List.sortBy(fun s -> s.Id)
+    //|>  List.iter(fun s ->
+    //    match s with
+    //    |   SinglePath sp ->
+    //        match sp.State with
+    //        |   OneInSetMatch    ois ->
+    //            printfn "{ id: %d, OiS, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id ois.ListCheck sp.GroupIds sp.Shelve
+    //        |   ExactMatch       em ->  
+    //            printfn "{ id: %d, ExM, Tokens: [%A], Goups: [%A], Shelve: %b }" sp.Id em.ListCheck sp.GroupIds sp.Shelve
+    //    |   _ -> ()
+    //)
 
 
 let rgxToNFA rgx =
@@ -1974,6 +1999,18 @@ let rgxToNFA rgx =
             let converts =
                 l
                 |>  List.map(convert)
+
+            #if LOGTRACE
+            
+            logger.Trace (sprintf "Concat %O" l)
+            
+            converts
+            |>  List.iter(fun sp ->
+                logger.Trace "---------------"
+                logtree sp
+            )
+
+            #endif
 
             converts
             |>  List.fold(fun (concatPtr:StatePointer) (entryStart:StatePointer) ->
