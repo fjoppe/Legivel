@@ -11,6 +11,8 @@ install:
   # workaround for missing .net 4.5 targing pack
 
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5/
+  - sudo sudo curl -s -L https://entrust.com/root-certificates/entrust_l1k.cer -o /usr/local/share/ca-certificates/entrust_l1k.crt
+  - sudo update-ca-certificates
   - sudo dotnet tool install fake-cli --tool-path /bin
   - sudo chmod -R a+rw /home/travis/.nuget
   - sudo chmod -R a+rw /tmp
