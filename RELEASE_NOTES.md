@@ -1,3 +1,7 @@
+#### 0.4.4 - Aug 5 2020
+*   Legivel.Parser - feature #29 - Strong names - strong signed binaries
+*   Legivel.Mapper - feature #29 - Strong names - strong signed binaries
+
 #### 0.4.3 - May 4 2020
 *   Legivel.Parser - bugfix #27 - Cannot parse to DateTimeOffset
 

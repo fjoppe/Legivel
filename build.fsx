@@ -65,7 +65,7 @@ let gitName = "Legivel"
 // The url for the raw files hosted
 let gitRaw = Environment.environVarOrDefault "gitRaw" "https://raw.githubusercontent.com/fjoppe"
 
-let website = "/Legivel"
+let website = "Legivel"
 
 // --------------------------------------------------------------------------------------
 // END TODO: The rest of the file includes standard build steps
@@ -86,12 +86,15 @@ let (|Fsproj|Csproj|Vbproj|Shproj|) (projFileName:string) =
 // Generate assembly info files with the right version & up-to-date information
 Target.create "AssemblyInfo" (fun _ ->
     let getAssemblyInfoAttributes projectName =
-        [ AssemblyInfo.Title (projectName)
+        [
+          AssemblyInfo.Title (projectName)
           AssemblyInfo.Product project
           AssemblyInfo.Description summary
           AssemblyInfo.Version release.AssemblyVersion
           AssemblyInfo.FileVersion release.AssemblyVersion
-          AssemblyInfo.Configuration configuration ]
+          AssemblyInfo.Configuration configuration 
+          AssemblyInfo.KeyFile (__SOURCE_DIRECTORY__ + "/src/Legivel.Signing/Legivel.snk")
+        ]
 
     let getProjectDetails projectPath =
         let projectName = Path.GetFileNameWithoutExtension(projectPath)
@@ -170,6 +173,7 @@ Target.create "Build" (fun _ ->
                     "Configuration", configuration
                     "version", release.AssemblyVersion
                 ]
+            DisableInternalBinLog = true
          }
     MSBuild.build setParams solutionFile
 )
