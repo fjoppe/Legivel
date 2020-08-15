@@ -46,10 +46,25 @@ module YamlMapped =
 /// All yaml-scalar to native mappings
 let YamlScalarToNativeMappings = [
     ScalarToNativeMapping.Create (YamlExtended.StringGlobalTag, typeof<string>, fun (s:string) -> box s)
-    ScalarToNativeMapping.Create (YamlCore.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
-    ScalarToNativeMapping.Create (YamlCore.FloatGlobalTag, typeof<float>, fun (s:string) -> 
+    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> 
         let value = YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get
-        Double.Parse(value, CultureInfo.InvariantCulture) |> box)
+        match value with
+        |   "+.inf"  -> Double.PositiveInfinity
+        |   "-.inf"  -> Double.NegativeInfinity
+        |   ".nan"   -> Double.NaN
+        |    _ -> Double.Parse(value, CultureInfo.InvariantCulture)
+        |> box
+        )
+    ScalarToNativeMapping.Create (YamlExtended.FloatGlobalTag, typeof<single>, fun (s:string) -> 
+        let value = YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get
+        match value with
+        |   "+.inf"  -> Single.PositiveInfinity
+        |   "-.inf"  -> Single.NegativeInfinity
+        |   ".nan"   -> Single.NaN
+        |    _ -> Single.Parse(value, CultureInfo.InvariantCulture)
+        |> box
+        )
     ScalarToNativeMapping.Create (YamlExtended.BooleanGlobalTag, typeof<bool>, fun (s:string) -> YamlExtended.BooleanGlobalTag.ToCanonical s |> Option.get |> Boolean.Parse |> box)
     ScalarToNativeMapping.Create (YamlExtended.TimestampGlobalTag, typeof<DateTime>, fun (s:string) -> 
         let value = YamlExtended.TimestampGlobalTag.ToCanonical s |> Option.get 
