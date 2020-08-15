@@ -1,12 +1,21 @@
+#### 0.4.5 - Aug 15 2020
+*   Legivel.Mapper - Supporting extended schema for types 'float' and 'integer'
+*   Legivel.Mapper - Supporting 'single' type
+*   Legivel.Mapper - Fix #32 - supporting Nan, +Inf, -Inf for single and float
+
+
 #### 0.4.4 - Aug 5 2020
 *   Legivel.Parser - feature #29 - Strong names - strong signed binaries
 *   Legivel.Mapper - feature #29 - Strong names - strong signed binaries
 
+
 #### 0.4.3 - May 4 2020
 *   Legivel.Parser - bugfix #27 - Cannot parse to DateTimeOffset
 
+
 #### 0.4.2 - Apr 10 2020
 *   Legivel.Parser - bugfix #23 - Unable to deserialize sequence with compact indentation
+
 
 #### 0.4.1 - Nov 11 2019
 *   Legivel.Mapper - deserialization contract is now forced on the yaml-input, was inferred before.
