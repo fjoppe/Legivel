@@ -54,9 +54,6 @@
     <Compile Include="..\Legivel.SpookyHash\Legivel.SpookyHash.fs">
       <Link>Legivel.SpookyHash.fs</Link>
     </Compile>
-    <Compile Include="..\Legivel.Tokenizer\Legivel.Tokenizer.fs">
-      <Link>Legivel.Tokenizer.fs</Link>
-    </Compile>
     <Compile Include="..\Legivel.RegexDSL\Legivel.RegexDSL.fsi">
       <Link>Legivel.RegexDSL.fsi</Link>
     </Compile>

@@ -1,6 +1,5 @@
 ﻿module Legivel.Utilities.RegexDSL 
 
-open Legivel.Tokenizer
 
 /// Contains a Regular Expression
 type RGXType
@@ -33,10 +32,10 @@ val OOMNG : RGXType -> RGXType
 val OPT : RGXType -> RGXType
 
 /// Plain regex pattern, eg: RGP("abc") := abc
-val RGP : string  * Token list -> RGXType 
+val RGP : string -> RGXType 
 
 /// One in Set regex pattern, eg: RGO("a-zA-Z") := [a-zA-Z]
-val RGO : string  * Token list -> RGXType
+val RGO : string -> RGXType
 
 /// Exclude Set regex pattern, eg: NOT(RGO("a-zA-Z")) := [^a-zA-Z]
 val NOT : RGXType -> RGXType
@@ -56,21 +55,37 @@ val GRP : RGXType -> RGXType
 /// Returns rest-string, where match 'm' is removed from source 's'
 val Advance : string * string -> string
 
-type ParseResult = {
-    Groups  : (TokenData list) list;
-    Match   : (TokenData list)
+//type ParseResult = {
+//    Groups  : (TokenData list) list;
+//    Match   : (TokenData list)
+//}
+
+//type ParseOutput = bool * ParseResult
+
+
+type ParseInput = {
+    InputYaml   : string 
+    Position    : int
+    Length      : int
 }
+with
+    static member Create : string -> ParseInput
+    member Advance : int -> ParseInput
+    member SetPosition : int -> ParseInput
+    member Peek : unit -> char
+    member EOF : unit -> bool with get
 
-type ParseOutput = bool * ParseResult
 
-/// Primary input assesment with Post-Parse condition. The condition is checked after each RGP token/char.
-val AssesInputPostParseCondition : (RollingStream<TokenData> * TokenData -> bool) -> RollingStream<TokenData> -> RGXType -> ParseOutput
+///// Primary input assesment with Post-Parse condition. The condition is checked after each RGP token/char.
+//val AssesInputPostParseCondition : (RollingStream<TokenData> * TokenData -> bool) -> RollingStream<TokenData> -> RGXType -> ParseOutput
 
-/// Primary input assesment, rough input match (at token-level), if match, return the input that matched
-val AssesInput : RollingStream<TokenData> -> RGXType -> ParseOutput
+///// Primary input assesment, rough input match (at token-level), if match, return the input that matched
+//val AssesInput : ParseInput -> RGXType -> ParseOutput
 
-/// Matched tokens to matched string
-val TokenDataToString : ParseOutput -> string option
+///// Matched tokens to matched string
+//val TokenDataToString : ParseOutput -> string option
+
+val AssesInput : ParseInput -> RGXType -> System.Text.RegularExpressions.Match
 
 /// MatchResult of a regex match
 type MatchResult = {
@@ -89,20 +104,20 @@ type MatchResult = {
 val Match : string * 'a -> string list
 
 /// Returns whether pattern p matches on string s
-val IsMatch : RollingStream<TokenData> * RGXType -> bool
+val IsMatch : ParseInput * RGXType -> bool
 
 /// Returns whether pattern p matches on string s
 val IsMatchStr : string * 'a -> bool
 
 /// Checks for matches of pattern p in string s.
 /// If matched, returns (true, <match-string>), otherwise (false, "")
-val HasMatches : RollingStream<TokenData>*RGXType -> bool*string
+val HasMatches : ParseInput * RGXType -> System.Text.RegularExpressions.Match
 
 /// Regex Active pattern to match string pattern on string input, and returns a list of matches
 val (|Regex|_|) : string -> string -> string list option
 
 /// Regex Active Pattern to match RGXType pattern on string input, and returns a match result
-val (|Regex2|_|) : RGXType -> RollingStream<TokenData> -> MatchResult option
+val (|Regex2|_|) : RGXType -> ParseInput -> MatchResult option
 
 /// Converts string-literal encoded unicode characters as "\u0000" or "\U00000000" to the char they represent
 val DecodeEncodedUnicodeCharacters : string -> string

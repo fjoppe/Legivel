@@ -21,7 +21,7 @@ module internal ParserMonads =
 
 
     [<DebuggerStepThrough>]
-    type EitherBuilder<'a,'c,'d>(context: 'c, messages : ParseMessage, resetNoRes:'c->unit, advance:'c->'c, contAfterErr: 'c-> bool) =
+    type EitherBuilder<'a,'c,'d>(context: 'c, messages : ParseMessage, contAfterErr: 'c-> bool) =
         member this.Yield (_ : 'd) : EitherResult<_,_> = EitherResult<_,_>.Create context (FallibleOption.NoResult(), messages)
 
         [<CustomOperation("setcontext")>]
@@ -32,13 +32,11 @@ module internal ParserMonads =
             match pv.ResultValue with
             |   FallibleOptionValue.Value -> pv
             |   FallibleOptionValue.NoResult -> 
-                resetNoRes pv.Context
                 if contAfterErr pv.Context then 
                     pv.SetResult <| nw (pv.Context)
                 else 
                     pv.SetResult (FallibleOption.NoResult(), pv.Messages)
             |   FallibleOptionValue.ErrorResult -> 
-                resetNoRes <| pv.Context
                 let ctn = pv.SetError()
                 if contAfterErr ctn.Context then 
                     ctn.SetResult <| nw (ctn.Context)
@@ -51,14 +49,12 @@ module internal ParserMonads =
         member this.IfNeither (pv:EitherResult<_,_>, nw) = 
             match pv.ResultValue with
             |   FallibleOptionValue.NoResult    -> 
-                resetNoRes (pv.Context)
                 if contAfterErr (pv.Context) then 
                     pv.SetResult (nw, pv.Messages)
                 else 
                     pv.SetResult (FallibleOption.NoResult(), pv.Messages)
-            |   FallibleOptionValue.Value  -> pv.Context |> advance |> pv.SetContext
+            |   FallibleOptionValue.Value  -> pv
             |   FallibleOptionValue.ErrorResult -> 
-                resetNoRes pv.Context
                 let ctn = pv.SetError()            
                 if contAfterErr (pv.Context) then 
                     ctn.SetResult (nw, pv.Messages)
@@ -70,15 +66,13 @@ module internal ParserMonads =
         member this.IfNeitherPm (pv:EitherResult<_,_>, nw:FallibleOption<_>*ParseMessage) = 
             match pv.ResultValue with
             |   FallibleOptionValue.NoResult    -> 
-                resetNoRes (pv.Context)
                 if contAfterErr (pv.Context) then 
                     let pv = if (fst nw).Result = FallibleOptionValue.ErrorResult then pv.SetError() else pv
                     pv.SetResult (nw)
                 else 
                     pv.SetResult (FallibleOption.NoResult(), pv.Messages)
-            |   FallibleOptionValue.Value  -> pv.Result.Data |> snd |> advance |> pv.SetContext
+            |   FallibleOptionValue.Value  -> pv
             |   FallibleOptionValue.ErrorResult -> 
-                resetNoRes pv.Context
                 let ctn = pv.SetError()            
                 if contAfterErr (pv.Context) then 
                     ctn.SetResult (nw)
@@ -90,16 +84,14 @@ module internal ParserMonads =
         member this.IfNeitherFn (pv:EitherResult<_,_>, nw:unit -> FallibleOption<_>*ParseMessage) = 
             match pv.ResultValue with
             |   FallibleOptionValue.NoResult    -> 
-                resetNoRes (pv.Context)
                 if contAfterErr (pv.Context) then 
                     let nw = nw()
                     let pv = if (fst nw).Result = FallibleOptionValue.ErrorResult then pv.SetError() else pv
                     pv.SetResult (nw)
                 else 
                     pv.SetResult (FallibleOption.NoResult(),pv.Messages)
-            |   FallibleOptionValue.Value -> pv.Result.Data |> snd |> advance |> pv.SetContext
+            |   FallibleOptionValue.Value -> pv
             |   FallibleOptionValue.ErrorResult -> 
-                resetNoRes pv.Context
                 let ctn = pv.SetError()            
                 if contAfterErr (pv.Context) then 
                     let nw = nw()
