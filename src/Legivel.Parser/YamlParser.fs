@@ -569,12 +569,12 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         //|   FallibleOptionValue.NoResult -> logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
         //|   FallibleOptionValue.ErrorResult ->  logfunc (sprintf "%d -> %d" (ps.Location.Line) (ps.Location.Line))
         //|   _   -> failwith "Illegal value for pso.Result"
-        pso,pm
+        //pso,pm
 #if DEBUG
         match pso.Result with
         |   FallibleOptionValue.Value -> 
             let  (_,prs) = pso.Data
-            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
+            sprintf "/%s (Value) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (prs.Location.Line) (prs.Location.Column) (prs.n) (prs.c) (prs.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (prs.Input.Position) |> loggingFunction
         |   FallibleOptionValue.NoResult -> sprintf "/%s (NoResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction 
         |   FallibleOptionValue.ErrorResult -> sprintf "/%s (ErrorResult) loc:(%d,%d) i:%d c:%A &a:%d e:%d w:%d sp:%d" str (ps.Location.Line) (ps.Location.Column) (ps.n) (ps.c) (ps.Anchors.Count) (pm.Error.Count) (pm.Warn.Count) (ps.Input.Position) |> loggingFunction
         |   _   -> failwith "Illegal value for pso.Result"
@@ -634,8 +634,9 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         let tkl = AssesInput (ps.Input) icp
         match tkl with
         |   mt when mt.Success -> 
-            let th = mt.Value.ToCharArray() |> List.ofArray |> List.takeWhile(fun e -> e = ' ')
-            th.Length - ps.n
+            //let th = mt.Value.ToCharArray() |> List.ofArray |> List.takeWhile(fun e -> e = ' ')
+            //th.Length - ps.n
+            mt.Groups.[1].Length - ps.n
         |   _ -> -1
 
 
@@ -2487,8 +2488,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
         |>  ParseState.``Match and Advance`` (RGP "-") (fun prs ->
             if IsMatch(prs.Input, (this.``ns-char``)) then // Not followed by an ns-char
                 FallibleOption.NoResult(), prs.Messages
-            else
-                //prs.Input.Reset()
+            else                
                 let prs = prs.SetStyleContext Context.``Block-in``
                 this.``s-l+block-indented`` prs
         )

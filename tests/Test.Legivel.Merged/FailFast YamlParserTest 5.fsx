@@ -95,11 +95,9 @@ let YamlParseWithErrors s =
 
 
 let yaml = "
-- behavior: merge
-  envs:
-  - base.env
-  name: base-name
-"
+- Mark McGwire
+- Sammy Sosa
+- Ken Griffey"
 
 
 YamlParse yaml

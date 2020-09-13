@@ -351,7 +351,7 @@ with
 //    |> fun (b,pr) -> b, { pr with Match = pr.Match |> List.rev}
 
 let AssesInput (rs:ParseInput) (rg:RGXType) = 
-    let rgx = new Regex(rg.ToString())
+    let rgx = new Regex(sprintf "\G%s" (rg.ToString()), RegexOptions.Multiline)
     rgx.Match(rs.InputYaml, rs.Position)
 
 
