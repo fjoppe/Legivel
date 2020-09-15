@@ -2137,7 +2137,7 @@ type Yaml12Parser(globalTagSchema : GlobalTagSchema, loggingFunction:(string->un
             match ps.Input with
             | Regex2(p)  mt -> 
                 let (i, c) = mt.ge2
-                FallibleOption.Value(indent  i, ps.SetChomping (chomp c) |> ParseState.TrackPosition mt.FullMatch), ps.Messages
+                FallibleOption.Value(indent  i, ps.SetChomping (chomp c) |> ParseState.Advance (mt.FullMatch.Length) |> ParseState.TrackPosition mt.FullMatch), ps.Messages
             |   _ -> FallibleOption.NoResult(), ps.Messages
 
         let ``chomp indent`` ps : FallibleOption<int option * ParseState>* ParseMessage = 

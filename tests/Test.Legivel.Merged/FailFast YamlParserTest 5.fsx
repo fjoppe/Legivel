@@ -95,9 +95,10 @@ let YamlParseWithErrors s =
 
 
 let yaml = "
-- Mark McGwire
-- Sammy Sosa
-- Ken Griffey"
+# ASCII Art
+--- |
+  \//||\/||
+  // ||  ||__"
 
 
 YamlParse yaml
