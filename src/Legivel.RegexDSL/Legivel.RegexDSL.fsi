@@ -66,6 +66,7 @@ val Advance : string * string -> string
 type ParseInput = {
     InputYaml   : string 
     Position    : int
+    LastPos     : int
     Length      : int
 }
 with
@@ -74,7 +75,7 @@ with
     member SetPosition : int -> ParseInput
     member Peek : unit -> char
     member EOF : unit -> bool with get
-
+    member SetLastPosition : int -> ParseInput
 
 ///// Primary input assesment with Post-Parse condition. The condition is checked after each RGP token/char.
 //val AssesInputPostParseCondition : (RollingStream<TokenData> * TokenData -> bool) -> RollingStream<TokenData> -> RGXType -> ParseOutput
@@ -105,6 +106,9 @@ val Match : string * 'a -> string list
 
 /// Returns whether pattern p matches on string s
 val IsMatch : ParseInput * RGXType -> bool
+
+/// Returns first position where pattern p matches on string s, or -1 when not found
+val firstMatch : ParseInput * RGXType -> int
 
 /// Returns whether pattern p matches on string s
 val IsMatchStr : string * 'a -> bool

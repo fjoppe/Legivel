@@ -217,14 +217,17 @@ let Advance(m : string, s : string) =  s.Substring(m.Length)
 type ParseInput = {
     InputYaml   : string 
     Position    : int
+    LastPos     : int
     Length      : int
 }
 with
-    static member Create s = { InputYaml = s ; Position = 0; Length = s.Length }
+    static member Create s = { InputYaml = s ; Position = 0; Length = s.Length; LastPos = s.Length }
     member this.Advance i = { this with Position = this.Position + i }
     member this.SetPosition i = { this with Position = i }
     member this.Peek() = this.InputYaml.[this.Position]
     member this.EOF with get() = this.Position >= this.Length
+    member this.SetLastPosition i = { this with LastPos = i }
+
 
 //type ParseResult = {
 //    Groups  : (TokenData list) list;
@@ -352,7 +355,7 @@ with
 
 let AssesInput (rs:ParseInput) (rg:RGXType) = 
     let rgx = new Regex(sprintf "\G%s" (rg.ToString()), RegexOptions.Multiline)
-    rgx.Match(rs.InputYaml, rs.Position)
+    rgx.Match(rs.InputYaml, rs.Position, rs.LastPos - rs.Position)
 
 
 type MatchResult = {
@@ -379,6 +382,16 @@ let Match(s, p) =
 /// Returns whether pattern p matches on string s
 [<DebuggerStepThrough>]
 let IsMatch(s:ParseInput, p) = AssesInput s p |> fun m -> m.Success
+
+/// Returns first position where pattern p matches on string s, or -1 when not found
+[<DebuggerStepThrough>]
+let firstMatch (s:ParseInput, p:RGXType) = 
+    let rgx = new Regex(sprintf "%s" (p.ToString()), RegexOptions.Multiline)
+    let nextMatch = rgx.Match(s.InputYaml, s.Position)
+    if nextMatch.Success then
+        nextMatch.Index
+    else
+        -1
 
 
 [<DebuggerStepThrough>]

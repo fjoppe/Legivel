@@ -94,14 +94,20 @@ let YamlParseWithErrors s =
     | e -> printfn "%A" e; raise e
 
 
+// Example 6.21. Local Tag Prefix
+
 let yaml = "
-# ASCII Art
---- |
-  \//||\/||
-  // ||  ||__"
+%TAG !m! !my-
+--- # Bulb here
+!m!light fluorescent
+...
+%TAG !m! !my-
+--- # Color here
+!m!light green
+"
 
 
-YamlParse yaml
+YamlParseList yaml
 
 
 
