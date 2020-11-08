@@ -1,3 +1,7 @@
+#### 0.4.6 - Nov 7 2020
+*   Legivel.Parser - reverted back to .Net Regex as parser, to improve performance.
+
+
 #### 0.4.5 - Aug 15 2020
 *   Legivel.Mapper - Supporting extended schema for types 'float' and 'integer'
 *   Legivel.Mapper - Supporting 'single' type

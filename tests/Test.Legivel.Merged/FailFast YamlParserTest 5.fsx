@@ -94,20 +94,14 @@ let YamlParseWithErrors s =
     | e -> printfn "%A" e; raise e
 
 
-// Example 6.21. Local Tag Prefix
+// Example 8.3. Invalid Block Scalar Indentation Indicators
 
 let yaml = "
-%TAG !m! !my-
---- # Bulb here
-!m!light fluorescent
-...
-%TAG !m! !my-
---- # Color here
-!m!light green
+- |2
+ text
 "
 
 
-YamlParseList yaml
-
+YamlParseWithErrors yaml
 
 

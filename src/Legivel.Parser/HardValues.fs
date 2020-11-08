@@ -88,7 +88,7 @@ let ``c-directive`` = "%"
 let ``c-reserved`` = RGO "\u0040\u0060"
 
 //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
-let ``c-indicator`` = RGO  "\-\?:,\[\]\{\}#&\*!;>\'\"%@`" 
+let ``c-indicator`` = RGO  "\-\?:,\[\]\{\}#&\*!\|>\'\"%@`" 
 
 //  [23]    http://www.yaml.org/spec/1.2/spec.html#c-flow-indicator
 let ``c-flow-indicator`` = RGO  @",\[\]\{\}" 
