@@ -38,7 +38,7 @@ open FsUnitTyped
 open TestUtils
 open Legivel.RepresentationGraph
 
- [<Ignore "Activate when peformance has improved">]
+//[<Ignore "Activate when peformance has improved">]
 [<TestCaseSource("apisGuruYamlSchemaUrls")>]
 let ``Parse schema from APIs.guru``(url:string) =
     let schema =
