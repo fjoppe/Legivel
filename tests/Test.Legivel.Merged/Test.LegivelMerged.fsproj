@@ -152,6 +152,7 @@
       <Link>APIs.guru.Tests.fs</Link>
     </Compile>
     <None Include="FailFast YamlParserTest 5.fsx" />
+    <None Include="FailFast issue reproduction.fsx" />
     <None Include="Failfast Mapping.fsx" />
     <None Include="QuotationTest.fsx" />
     <!-- <Compile Include="Main.fs"/> -->

@@ -89,4 +89,82 @@ let ``Deserialize - double float - Rainy Day`` () =
     )
 
 
+[<Test>]
+let ``Deserialize - uint16 - Sunny Day`` () =
+    [
+        ("0", 0us)
+        ("1", 1us)
+        ("32768", 32768us)
+    ]
+    |>  List.iter(fun (yml,asrt) -> 
+        let r = DeserializeSuccess<uint16> yml 
+        r |> shouldEqual asrt
+    )
 
+
+[<Test>]
+let ``Deserialize - uint16 - Rainy Day`` () =
+    [
+        "-1"
+        "-10"
+        "65536"
+        "no a number"
+    ]
+    |>  List.iter(fun yml -> 
+        let err = DeserializeError<uint16> yml 
+        err.Error.Head.Message.StartsWith "Incorrect format:" |> shouldEqual true
+    )
+
+
+[<Test>]
+let ``Deserialize - uint32 - Sunny Day`` () =
+    [
+        ("0", 0u)
+        ("1", 1u)
+        ("32768", 32768u)
+    ]
+    |>  List.iter(fun (yml,asrt) -> 
+        let r = DeserializeSuccess<uint32> yml 
+        r |> shouldEqual asrt
+    )
+
+
+[<Test>]
+let ``Deserialize - uint32 - Rainy Day`` () =
+    [
+        "-1"
+        "-10"
+        "4294967296"
+        "no a number"
+    ]
+    |>  List.iter(fun yml -> 
+        let err = DeserializeError<uint32> yml 
+        err.Error.Head.Message.StartsWith "Incorrect format:" |> shouldEqual true
+    )
+
+
+[<Test>]
+let ``Deserialize - uint64 - Sunny Day`` () =
+    [
+        ("0", 0UL)
+        ("1", 1UL)
+        ("32768", 32768UL)
+    ]
+    |>  List.iter(fun (yml,asrt) -> 
+        let r = DeserializeSuccess<uint64> yml 
+        r |> shouldEqual asrt
+    )
+
+
+[<Test>]
+let ``Deserialize - uint64 - Rainy Day`` () =
+    [
+        "-1"
+        "-10"
+        "9223372036854775808"
+        "no a number"
+    ]
+    |>  List.iter(fun yml -> 
+        let err = DeserializeError<uint64> yml 
+        err.Error.Head.Message.StartsWith "Incorrect format:" |> shouldEqual true
+    )

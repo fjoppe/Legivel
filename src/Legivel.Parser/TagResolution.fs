@@ -88,7 +88,12 @@ module SchemaUtils =
 
     let isFormattedScalarValid  (pm:ParseMessage) (n: Node) = 
         let data = getScalarNode n
-        n.NodeTag.CanonFn data |> tagFormatCheckError pm n data
+        try
+            n.NodeTag.CanonFn data |> tagFormatCheckError pm n data
+        with
+        |   e -> 
+            pm.AddError(MessageAtLine.CreateTerminate (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (lazy sprintf "Incorrect format: '%s', for tag: %s, error: %s" data (n.NodeTag.ToPrettyString()) e.Message))
+            FallibleOption.ErrorResult(), pm
 
 
     let tagResolution (failsafe:TagResolutionInfo->GlobalTag option) (fsMap, fsSeq, fsScal) (mappingTags:GlobalTag list) (seqTags:GlobalTag list) (scalarTags:GlobalTag list) : TagResolutionFunc = fun nst -> 

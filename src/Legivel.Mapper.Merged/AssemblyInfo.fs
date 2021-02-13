@@ -8,7 +8,7 @@ open System.Reflection
 [<assembly: AssemblyVersionAttribute("0.4.6")>]
 [<assembly: AssemblyFileVersionAttribute("0.4.6")>]
 [<assembly: AssemblyConfigurationAttribute("Release")>]
-[<assembly: AssemblyKeyFileAttribute("c:\Users\Gebruiker\Desktop\ProjectData\Projecten\LegivelBranch/src/Legivel.Signing/Legivel.snk")>]
+[<assembly: AssemblyKeyFileAttribute("c:\Users\Gebruiker\Desktop\ProjectData\Projecten\LegivelMaster/src/Legivel.Signing/Legivel.snk")>]
 do ()
 
 module internal AssemblyVersionInformation =
@@ -18,4 +18,4 @@ module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyVersion = "0.4.6"
     let [<Literal>] AssemblyFileVersion = "0.4.6"
     let [<Literal>] AssemblyConfiguration = "Release"
-    let [<Literal>] AssemblyKeyFile = "c:\Users\Gebruiker\Desktop\ProjectData\Projecten\LegivelBranch/src/Legivel.Signing/Legivel.snk"
+    let [<Literal>] AssemblyKeyFile = "c:\Users\Gebruiker\Desktop\ProjectData\Projecten\LegivelMaster/src/Legivel.Signing/Legivel.snk"

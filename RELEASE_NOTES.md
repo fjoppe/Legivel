@@ -1,3 +1,9 @@
+#### 0.4.6 - Feb 13 2021
+*   Fixed Issue #34 - Output more descriptive errors when deserializing a record with unsupported types
+*   Improved support for primitive types
+*   Parse Errors on Primitive Types do not raise exceptions anymore
+
+
 #### 0.4.6 - Nov 7 2020
 *   Legivel.Parser - reverted back to .Net Regex as parser, to improve performance.
 
