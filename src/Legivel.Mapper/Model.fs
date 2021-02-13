@@ -101,12 +101,13 @@ and AllTryFindIdiomaticMappers = private {
             |>  List.tryFindFo msgList (fun pmf -> 
                 match findParams.GetExistingType() with
                 |   Some v -> v
-                |   None -> pmf findParams)
+                |   None -> pmf findParams
+            )
             |>  fun (foundMapper, pm) ->
                 match foundMapper.Result with
-                |   FallibleOptionValue.NoResult    -> AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
-                |   FallibleOptionValue.Value  -> FallibleOption.Value (foundMapper.Data), msgList
-                |   _ -> failwith (sprintf "Ambigous: too many converters found for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName))
+                |   FallibleOptionValue.NoResult -> AddError msgList (ParseMessageAtLine.Create NoDocumentLocation (sprintf "Unsupported: no conversion for: %s.%s" (t.MemberType.GetType().FullName) (t.FullName)))
+                |   FallibleOptionValue.Value    -> FallibleOption.Value (foundMapper.Data), msgList
+                |   _ -> failwith (sprintf "Error finding parser for type: %s.%s" (t.MemberType.GetType().FullName) (t.FullName))
 
         member this.GetMapper r = this.KnownTypes.GetMapper r
 

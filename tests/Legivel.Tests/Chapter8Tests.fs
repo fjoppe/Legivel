@@ -80,9 +80,9 @@ let ``Example 8.3. Invalid Block Scalar Indentation Indicators``() =
 - |2
  text
 "
-    err.Error.Length |> shouldEqual 1
+    err.Error.Length |> shouldEqual 2
     err.Error |> List.filter(fun m -> m.Message = "The text is less indented than the indicated level.") |> List.length |> shouldEqual 1
-
+    err.Error |> List.filter(fun m -> m.Message = "Reserved indicators can't start a plain scalar.") |> List.length |> shouldEqual 1
 
 
 [<Test(Description="http://www.yaml.org/spec/1.2/spec.html#id2795034")>]

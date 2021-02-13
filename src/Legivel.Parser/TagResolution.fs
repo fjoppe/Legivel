@@ -1,4 +1,4 @@
-﻿module Legivel.TagResolution
+module Legivel.TagResolution
 
 open System
 open Legivel.RepresentationGraph
@@ -7,7 +7,7 @@ open ErrorsAndWarnings
 open Legivel.Common
 open Legivel.Internals
 open System.Text.RegularExpressions
-open Legivel.Tokenizer
+
 
 [<NoEquality; NoComparison>]
 type TagResolutionInfo = {
@@ -88,7 +88,12 @@ module SchemaUtils =
 
     let isFormattedScalarValid  (pm:ParseMessage) (n: Node) = 
         let data = getScalarNode n
-        n.NodeTag.CanonFn data |> tagFormatCheckError pm n data
+        try
+            n.NodeTag.CanonFn data |> tagFormatCheckError pm n data
+        with
+        |   e -> 
+            pm.AddError(MessageAtLine.CreateTerminate (n.ParseInfo.Start) MessageCode.ErrTagBadFormat (lazy sprintf "Incorrect format: '%s', for tag: %s, error: %s" data (n.NodeTag.ToPrettyString()) e.Message))
+            FallibleOption.ErrorResult(), pm
 
 
     let tagResolution (failsafe:TagResolutionInfo->GlobalTag option) (fsMap, fsSeq, fsScal) (mappingTags:GlobalTag list) (seqTags:GlobalTag list) (scalarTags:GlobalTag list) : TagResolutionFunc = fun nst -> 
@@ -557,8 +562,8 @@ module YamlExtended =
         )
 
     let TimestampGlobalTag = 
-        let digit = RGO("0-9",[Token.``ns-dec-digit``])
-        let hyphen = RGP("-", [Token.``t-hyphen``])
+        let digit = RGO("0-9")
+        let hyphen = RGP("-")
         let rgyear = Repeat(digit,4)
         let rgmonth = digit + OPT(digit)
         let rgmonthf = Repeat(digit,2)
@@ -570,12 +575,12 @@ module YamlExtended =
         let rgmin = Repeat(digit, 2)
         let rgsec = Repeat(digit, 2)
         let rgfrac= ZOM(digit)
-        let rgtime = (GRP rghour) + RGP(":", [Token.``t-colon``]) + (GRP rgmin) + RGP(":", [Token.``t-colon``]) + (GRP rgsec) + OPT(RGP("\.", [Token.``t-dot``]) + GRP(rgfrac))
-        let rgztimez = RGP("Z", [Token.``c-printable``])
-        let rgdtimez = RGO ("-+", [Token.``t-hyphen``;Token.``t-plus``]) + rghour + OPT(RGP(":", [Token.``t-colon``]) + rgmin)
-        let rgws = ZOM(RGO (" \t",[Token.``t-tab``] ))
+        let rgtime = (GRP rghour) + RGP(":") + (GRP rgmin) + RGP(":") + (GRP rgsec) + OPT(RGP "\." + GRP(rgfrac))
+        let rgztimez = RGP "Z"
+        let rgdtimez = RGO "-+" + rghour + OPT(RGP ":" + rgmin)
+        let rgws = ZOM(RGO " \t")
  
-        let rgISO8601 = rgdate + OPT(((RGO ("Tt",[Token.``c-printable``])) ||| OOM(rgws)) + rgtime + OPT(rgws + GRP((rgztimez ||| rgdtimez))))
+        let rgISO8601 = rgdate + OPT(((RGO "Tt") ||| OOM(rgws)) + rgtime + OPT(rgws + GRP((rgztimez ||| rgdtimez))))
         let rgtimestamp = rgdate ||| rgISO8601
 
         let timestampToCanonical s =
@@ -635,17 +640,17 @@ module YamlExtended =
     //  http://yaml.org/type/binary.html
     let BinaryGlobalTag =
         //  This tag can only be assigned, and is never detected; bc too many collisions with plain text.
-        let base64Alphabet = RGO("A-Z", [Token.``c-printable``]) + RGO("a-z", [Token.``c-printable``]) + RGO("0-9", [Token.``ns-dec-digit``]) + RGO("+/", [Token.``t-plus``;Token.``t-forward-slash``]) + RGO("=",[Token.``t-equals``])
+        let base64Alphabet = RGO "A-Z" + RGO "a-z" + RGO "0-9" + RGO "+/" + RGO "="
         //  from YamlParser, rules 24-33
-        let ``b-line-feed`` = RGP ("\u000a", [Token.``c-printable``])
-        let ``b-carriage-return`` = RGP("\u000d", [Token.``c-printable``])
+        let ``b-line-feed`` = RGP "\u000a"
+        let ``b-carriage-return`` = RGP "\u000d"
         let ``b-break`` = 
             (``b-carriage-return`` + ``b-line-feed``)   |||  //  DOS, Windows
             ``b-carriage-return``                       |||  //  MacOS upto 9.x
             ``b-line-feed``                                     //  UNIX, MacOS X
         let ``s-space`` = "\u0020"  // space
         let ``s-tab`` = "\u0009"    // tab
-        let ``s-white`` = RGO(``s-space`` + ``s-tab``, [Token.``t-space``; Token.``t-tab``])
+        let ``s-white`` = RGO (``s-space`` + ``s-tab``)
         let controlChar = ``b-break`` ||| ``s-white``
         let allowedChars = OOM(base64Alphabet ||| controlChar)
 

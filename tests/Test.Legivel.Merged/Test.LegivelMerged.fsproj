@@ -141,9 +141,6 @@
     <Compile Include="..\Test.Legivel.Common\Test.Legivel.Common.fs">
       <Link>Test.Legivel.Common.fs</Link>
     </Compile>
-    <Compile Include="..\Test.Legivel.RegexDSL\Test.Legivel.RegexDSL.fs">
-      <Link>Test.Legivel.RegexDSL.fs</Link>
-    </Compile>
     <Compile Include="..\Test.Legivel.SpookyHash\Test.Legivel.SpookyHash.fs">
       <Link>Test.Legivel.SpookyHash.fs</Link>
     </Compile>
@@ -154,10 +151,8 @@
     <Compile Include="..\Legivel.Tests\APIs.guru.Tests.fs">
       <Link>APIs.guru.Tests.fs</Link>
     </Compile>
-    <Compile Include="..\Test.Legivel.Tokenizer\TestTokenizer.fs">
-      <Link>TestTokenizer.fs</Link>
-    </Compile>
     <None Include="FailFast YamlParserTest 5.fsx" />
+    <None Include="FailFast issue reproduction.fsx" />
     <None Include="Failfast Mapping.fsx" />
     <None Include="QuotationTest.fsx" />
     <!-- <Compile Include="Main.fs"/> -->

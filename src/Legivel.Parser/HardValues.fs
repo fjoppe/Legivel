@@ -5,7 +5,6 @@
 open System
 open System.Text.RegularExpressions
 open Legivel.Common
-open Legivel.Tokenizer
 open Legivel.Internals.ParserMonads
 open Legivel.TagResolution
 open Legivel.Utilities.RegexDSL
@@ -16,64 +15,50 @@ open System.Diagnostics
 open System.IO
 open System.Collections.Generic
 
-let ``start-of-line`` = RGP ("^", [Token.NoToken])
-let ``end-of-file`` = RGP ("\\z", [Token.NoToken])
+let ``start-of-line`` = RGP "^"
+let ``end-of-file`` = RGP "\\z"
 
 
 //  [1] http://www.yaml.org/spec/1.2/spec.html#c-printable
 let ``c-printable`` = 
         RGO (
             "\u0009\u000a\u000d\u0020-\u007e" +   // 8 - bit, #x9 | #xA | #xD | [#x20-#x7E]
-            "\u0085\u00a0-\ud7ff\ue000-\ufffd",   // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
-                                                   //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
-            [
-            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-            Token.``ns-dec-digit``; Token.``c-escape``
-            ])
+            "\u0085\u00a0-\ud7ff\ue000-\ufffd"    // 16- bit, #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
+            )                                     //  32-bit -> currently not supported because .Net does not encode naturally. Yaml: [#x10000-#x10FFFF]
+
 
 //  [2] http://www.yaml.org/spec/1.2/spec.html#nb-json
-let ``nb-json`` = 
-        RGO ("\u0009\u0020-\uffff",
-            [
-            Token.``t-space``; Token.``t-tab``; Token.NewLine; Token.``c-printable``; Token.``t-hyphen``; Token.``t-plus``; Token.``t-questionmark`` 
-            Token.``t-colon`` ; Token.``t-comma``; Token.``t-dot`` ; Token.``t-square-bracket-start`` ; Token.``t-square-bracket-end`` ; Token.``t-curly-bracket-start``
-            Token.``t-curly-bracket-end`` ; Token.``t-hash`` ; Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-            Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``; Token.``t-percent``; Token.``t-commat``;Token.``t-tick``; Token.``t-forward-slash``; Token.``t-equals``
-            Token.``ns-dec-digit``; Token.``c-escape``; Token.``nb-json``
-            ])
+let ``nb-json`` =  RGO "\u0009\u0020-\uffff"
 
 //  [3] http://www.yaml.org/spec/1.2/spec.html#c-byte-order-mark
-let ``c-byte-order-mark`` = RGP ("\ufeff", [Token.``byte-order-mark``])
+let ``c-byte-order-mark`` = RGP "\ufeff"
 
 //  [4] http://www.yaml.org/spec/1.2/spec.html#c-sequence-entry
-let ``c-sequence-entry`` = RGP ("-", [Token.``t-hyphen``])
+let ``c-sequence-entry`` = RGP "-"
 
 //  [5] http://www.yaml.org/spec/1.2/spec.html#c-mapping-key
-let ``c-mapping-key`` = RGP ("\\?", [Token.``t-questionmark``])
+let ``c-mapping-key`` = RGP "\\?"
 
 //  [6] http://www.yaml.org/spec/1.2/spec.html#c-mapping-value
-let ``c-mapping-value`` = RGP (":", [Token.``t-colon``])
+let ``c-mapping-value`` = RGP ":"
 
 //  [7] http://www.yaml.org/spec/1.2/spec.html#c-collect-entry
-let ``c-collect-entry`` = RGP(",", [Token.``t-comma``])
+let ``c-collect-entry`` = RGP ","
 
 //  [8] http://www.yaml.org/spec/1.2/spec.html#c-sequence-start
-let ``c-sequence-start`` = RGP("\[", [Token.``t-square-bracket-start``])
+let ``c-sequence-start`` = RGP "\["
 
 //  [9] http://www.yaml.org/spec/1.2/spec.html#c-sequence-end
-let ``c-sequence-end`` = RGP("\]", [Token.``t-square-bracket-end``])
+let ``c-sequence-end`` = RGP "\]"
 
 //  [10]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-start
-let ``c-mapping-start`` = RGP ("\{",[Token.``t-curly-bracket-start``])
+let ``c-mapping-start`` = RGP "\{"
 
 //  [11]    http://www.yaml.org/spec/1.2/spec.html#c-mapping-end
-let ``c-mapping-end`` = RGP("\}", [Token.``t-curly-bracket-end``])
+let ``c-mapping-end`` = RGP "\}"
 
 //  [12]    http://www.yaml.org/spec/1.2/spec.html#c-comment
-let ``c-comment`` = RGP ("#", [Token.``t-hash``])
+let ``c-comment`` = RGP "#"
 
 //  [13]    http://www.yaml.org/spec/1.2/spec.html#c-anchor
 let ``c-anchor`` = "&"
@@ -88,54 +73,38 @@ let ``c-tag`` = "!"
 let ``c-literal`` = "|"
 
 //  [17]    http://www.yaml.org/spec/1.2/spec.html#c-folded
-let ``c-folded`` = RGP(">", [Token.``t-gt``])
+let ``c-folded`` = RGP ">"
 
 //  [18]    http://www.yaml.org/spec/1.2/spec.html#c-single-quote
-let ``c-single-quote`` = RGP ("\'", [Token.``t-single-quote``])
+let ``c-single-quote`` = RGP "\'"
 
 //  [19]    http://www.yaml.org/spec/1.2/spec.html#c-double-quote
-let ``c-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+let ``c-double-quote`` = RGP "\""
 
 //  [20]    http://www.yaml.org/spec/1.2/spec.html#c-directive
 let ``c-directive`` = "%"
 
 //  [21]    http://www.yaml.org/spec/1.2/spec.html#c-reserved
-let ``c-reserved`` = RGO ("\u0040\u0060", [Token.``t-commat``;Token.``t-tick``])
+let ``c-reserved`` = RGO "\u0040\u0060"
 
 //  [22]    http://www.yaml.org/spec/1.2/spec.html#c-indicator
-let ``c-indicator`` = 
-    RGO  (
-        "\-\?:,\[\]\{\}#&\*!;>\'\"%@`", 
-        [ 
-        Token.``t-hyphen``; Token.``t-questionmark``; Token.``t-colon``
-        Token.``t-comma``; Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
-        Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``; Token.``t-hash``
-        Token.``t-ampersand``; Token.``t-asterisk``; Token.``t-quotationmark``; Token.``t-pipe``
-        Token.``t-gt``; Token.``t-single-quote``; Token.``t-double-quote``
-        Token.``t-percent``; Token.``t-commat``;Token.``t-tick``
-        ])
-
+let ``c-indicator`` = RGO  "\-\?:,\[\]\{\}#&\*!\|>\'\"%@`" 
 
 //  [23]    http://www.yaml.org/spec/1.2/spec.html#c-flow-indicator
-let ``c-flow-indicator`` = 
-    RGO  (@",\[\]\{\}", 
-        [
-            Token.``t-comma``
-            Token.``t-square-bracket-start``; Token.``t-square-bracket-end``
-            Token.``t-curly-bracket-start``; Token.``t-curly-bracket-end``
-        ])
+let ``c-flow-indicator`` = RGO  @",\[\]\{\}" 
 
 //  [24]    http://www.yaml.org/spec/1.2/spec.html#b-line-feed
-let ``b-line-feed`` = RGP ("\u000a", [Token.NewLine])
+let ``b-line-feed`` = RGP "\u000a"
 
 //  [25]    http://www.yaml.org/spec/1.2/spec.html#b-carriage-return
-let ``b-carriage-return`` = RGP ("\u000d", [Token.NewLine])
+let ``b-carriage-return`` = RGP "\u000d"
 
 //  [i26]   http://www.yaml.org/spec/1.2/spec.html#b-char
 let ``b-char`` = ``b-line-feed`` ||| ``b-carriage-return``
 
 //  [27]    http://www.yaml.org/spec/1.2/spec.html#nb-char
-let ``nb-char``  = ``c-printable`` - RGO("\u000a\u000d", [Token.NewLine]) // ``b-char``
+let ``nb-char``  = ``c-printable`` - RGO "\u000a\u000d"
+
 
 //  [28]    http://www.yaml.org/spec/1.2/spec.html#b-break
 let ``b-break`` = 
@@ -156,119 +125,105 @@ let ``s-space`` : string = "\u0020"  // space
 let ``s-tab`` = "\u0009"    // tab
 
 //  [33]    http://www.yaml.org/spec/1.2/spec.html#s-white
-let ``s-white`` = RGO(``s-space`` + ``s-tab``, [Token.``t-space``; Token.``t-tab``])
+let ``s-white`` = RGO(``s-space`` + ``s-tab``)
 
 //  [34]    http://www.yaml.org/spec/1.2/spec.html#ns-char
 let ``ns-char`` = ``nb-char`` - ``s-white``
 
 //  [35]    http://www.yaml.org/spec/1.2/spec.html#ns-dec-digit
-let ``ns-dec-digit`` = RGO ("\u0030-\u0039", [Token.``ns-dec-digit``])      //  0-9
+let ``ns-dec-digit`` = RGO "\u0030-\u0039"      //  0-9
 
 //  [36]    http://www.yaml.org/spec/1.2/spec.html#ns-hex-digit
 let ``ns-hex-digit`` =
     ``ns-dec-digit`` +
-    RGO ("\u0041-\u0046", [Token.``c-printable``])  +  //  A-F
-    RGO ("\u0061-\u0066", [Token.``c-printable``])     //  a-f
+    RGO ("\u0041-\u0046")  +  //  A-F
+    RGO ("\u0061-\u0066")     //  a-f
 
 //  [37]    http://www.yaml.org/spec/1.2/spec.html#ns-ascii-letter
 let ``ns-ascii-letter`` = 
-    RGO ("\u0041-\u005A", [Token.``c-printable``]) +   //  A-Z
-    RGO ("\u0061-\u007A", [Token.``c-printable``])     //  a-z
+    RGO ("\u0041-\u005A") +   //  A-Z
+    RGO ("\u0061-\u007A")     //  a-z
 
 //  [38]    http://www.yaml.org/spec/1.2/spec.html#ns-word-char
 let ``ns-word-char`` =
-    ``ns-dec-digit`` + (RGO (@"\-", [Token.``t-hyphen``])) + ``ns-ascii-letter``
+    ``ns-dec-digit`` + (RGO @"\-") + ``ns-ascii-letter``
 
 //  [39]    http://www.yaml.org/spec/1.2/spec.html#ns-uri-char
 let ``ns-uri-char`` = 
-    RGP (@"%", [Token.``t-percent``]) + ``ns-hex-digit`` + ``ns-hex-digit``  |||
-    RGO (
-        @"#;/?:@&=+$,_.!~*\'\(\)\[\]", 
-        [
-        Token.``t-hash``; Token.``t-forward-slash``; Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
-        Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
-        Token.``t-quotationmark``;Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
-        Token.``c-printable``
-    ]) + ``ns-word-char``
+    RGP @"%" + ``ns-hex-digit`` + ``ns-hex-digit``  |||
+    RGO @"#;/?:@&=+$,_.!~*\'\(\)\[\]" + ``ns-word-char``
 
 //  [40]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-char
 let ``ns-tag-char`` = 
-    RGP (@"%", [Token.``t-percent``]) + ``ns-hex-digit`` + ``ns-hex-digit``  |||
-    (RGO (
-        @"#;/?:@&=+$_.~*\'\(\)", 
-        [
-        Token.``t-hash``; Token.``t-forward-slash``;Token.``t-questionmark``;Token.``t-colon``;Token.``t-ampersand``; 
-        Token.``t-commat``; Token.``t-equals``;Token.``t-plus``;Token.``t-comma``; Token.``t-dot``
-        Token.``t-single-quote``;Token.``t-square-bracket-start``;Token.``t-square-bracket-end``
-        Token.``c-printable``;
-    ]) - ``c-flow-indicator``) + ``ns-word-char``
+    RGP @"%" + ``ns-hex-digit`` + ``ns-hex-digit``  |||
+    (RGO @"#;/?:@&=+$_.~*\'\(\)" - ``c-flow-indicator``) + ``ns-word-char``
 
 //  [41]    http://www.yaml.org/spec/1.2/spec.html#c-escape
-let ``c-escape`` = RGP ("\\\\", [Token.``c-escape``])
+let ``c-escape`` = RGP "\\\\"
 
 //  [42]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-null
-let ``ns-esc-null`` = RGP ("0", [Token.``ns-dec-digit``])
+let ``ns-esc-null`` = RGP "0"
 
 //  [43]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-bell
-let ``ns-esc-bell`` = RGP ("a", [Token.``c-printable``])
+let ``ns-esc-bell`` = RGP "a"
 
 //  [44]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backspace
-let ``ns-esc-backspace`` = RGP( "b", [Token.``c-printable``])
+let ``ns-esc-backspace`` = RGP "b"
 
 //  [45]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-horizontal-tab
-let ``ns-esc-horizontal-tab`` = RGP ("t", [Token.``c-printable``])
+let ``ns-esc-horizontal-tab`` = RGP "t"
 
 //  [46]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-feed
-let ``ns-esc-line-feed`` = RGP ("n", [Token.``c-printable``])
+let ``ns-esc-line-feed`` = RGP "n"
 
 //  [47]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-vertical-tab
-let ``ns-esc-vertical-tab`` = RGP ("v", [Token.``c-printable``])
+let ``ns-esc-vertical-tab`` = RGP "v"
 
 //  [48]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-form-feed
-let ``ns-esc-form-feed`` = RGP ("f", [Token.``c-printable``])
+let ``ns-esc-form-feed`` = RGP "f"
 
 //  [49]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-carriage-return
-let ``ns-esc-carriage-return`` = RGP ("r", [Token.``c-printable``])
+let ``ns-esc-carriage-return`` = RGP "r"
 
 //  [50]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-escape
-let ``ns-esc-escape`` = RGP ("e", [Token.``c-printable``])
+let ``ns-esc-escape`` = RGP "e"
 
 //  [51]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-space
-let ``ns-esc-space`` = RGP ("\u0020", [Token.``t-space``])
+let ``ns-esc-space`` = RGP "\u0020"
 
 //  [52]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-double-quote
-let ``ns-esc-double-quote`` = RGP ("\"", [Token.``t-double-quote``])
+let ``ns-esc-double-quote`` = RGP "\""
 
 //  [53]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-slash
-let ``ns-esc-slash`` = RGP ("/", [Token.``c-printable``])
+let ``ns-esc-slash`` = RGP "/"
 
 //  [54]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-backslash
-let ``ns-esc-backslash`` = RGP ("\\\\", [Token.``c-escape``])
+let ``ns-esc-backslash`` = RGP "\\\\"
 
 //  [55]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-next-line
-let ``ns-esc-next-line`` = RGP ("N", [Token.``c-printable``])
+let ``ns-esc-next-line`` = RGP "N"
 
 //  [56]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-non-breaking-space
-let ``ns-esc-non-breaking-space`` = RGP ("_", [Token.``c-printable``])
+let ``ns-esc-non-breaking-space`` = RGP "_"
 
 //  [57]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-line-separator
-let ``ns-esc-line-separator`` = RGP ("L", [Token.``c-printable``])
+let ``ns-esc-line-separator`` = RGP "L"
 
 //  [58]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-paragraph-separator
-let ``ns-esc-paragraph-separator`` = RGP ("P", [Token.``c-printable``])
+let ``ns-esc-paragraph-separator`` = RGP "P"
 
 //  [59]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-8-bit
-let ``ns-esc-8-bit`` = (RGP ("x", [Token.``c-printable``])) + Repeat(``ns-hex-digit``,2)
+let ``ns-esc-8-bit`` = RGP "x" + Repeat(``ns-hex-digit``,2)
 
 //  [60]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-16-bit
-let ``ns-esc-16-bit`` = RGP ("u", [Token.``c-printable``]) + Repeat(``ns-hex-digit``,4)
+let ``ns-esc-16-bit`` = RGP "u" + Repeat(``ns-hex-digit``,4)
 
 //  [61]    http://www.yaml.org/spec/1.2/spec.html#ns-esc-32-bit
-let ``ns-esc-32-bit`` = RGP ("U", [Token.``c-printable``]) + Repeat(``ns-hex-digit``,8) // currently not supported
+let ``ns-esc-32-bit`` = RGP "U" + Repeat(``ns-hex-digit``,8) // currently not supported
 
 //  [62]    http://www.yaml.org/spec/1.2/spec.html#c-ns-esc-char
 let ``c-ns-esc-char`` = 
-    RGP ("\\\\", [Token.``c-escape``]) +
+    RGP "\\\\" +
         (``ns-esc-null``             |||
             ``ns-esc-bell``             |||
             ``ns-esc-backspace``        |||
@@ -297,10 +252,10 @@ let ``s-separate-in-line`` = OOM(``s-white``) ||| ``start-of-line``
 let ``b-as-space`` = ``b-break``
 
 //  [75]    http://www.yaml.org/spec/1.2/spec.html#c-nb-comment-text
-let ``c-nb-comment-text`` = RGP("#", [Token.``t-hash``]) + ZOM(``nb-char``)
+let ``c-nb-comment-text`` = RGP"#" + ZOM(``nb-char``)
 
 //  [76]    http://www.yaml.org/spec/1.2/spec.html#b-comment
-let ``b-comment`` = ``b-non-content`` ||| RGP("\\z", [Token.EOF]) // EOF..
+let ``b-comment`` = ``b-non-content`` ||| RGP "\\z" // EOF..
 
 //  [77]    http://www.yaml.org/spec/1.2/spec.html#s-b-comment
 let ``s-b-comment`` = OPT(``s-separate-in-line`` + OPT(``c-nb-comment-text``)) + ``b-comment`` 
@@ -322,32 +277,32 @@ let ``ns-directive-name`` = OOM(``ns-char``)
 let ``ns-directive-parameter`` = OOM(``ns-char``)
 
 //  [86]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-directive
-let ``ns-yaml-directive`` = RGP("YAML", [Token.``c-printable``]) + ``s-separate-in-line`` + GRP(``ns-yaml-version``)
+let ``ns-yaml-directive`` = RGP "YAML" + ``s-separate-in-line`` + GRP(``ns-yaml-version``)
 
 //  [87]    http://www.yaml.org/spec/1.2/spec.html#ns-yaml-version
-let ``ns-yaml-version`` = OOM(``ns-dec-digit``) + RGP("\\.", [Token.``c-printable``]) + OOM(``ns-dec-digit``)
+let ``ns-yaml-version`` = OOM(``ns-dec-digit``) + RGP "\\." + OOM(``ns-dec-digit``)
 
 //  [88]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-directive
 let ``ns-tag-directive`` = 
-    RGP ("TAG", [Token.``c-printable``]) + ``s-separate-in-line`` + GRP(``c-tag-handle``) + ``s-separate-in-line`` + GRP(``ns-tag-prefix``)
+    RGP "TAG" + ``s-separate-in-line`` + GRP(``c-tag-handle``) + ``s-separate-in-line`` + GRP(``ns-tag-prefix``)
 
 //  [89]    http://www.yaml.org/spec/1.2/spec.html#c-tag-handle
 let ``c-tag-handle`` = ``c-named-tag-handle`` ||| ``c-secondary-tag-handle`` ||| ``c-primary-tag-handle``
 
 //  [90]    http://www.yaml.org/spec/1.2/spec.html#c-primary-tag-handle
-let ``c-primary-tag-handle`` = RGP ("!", [Token.``t-quotationmark``])
+let ``c-primary-tag-handle`` = RGP "!"
 
 //  [91]    http://www.yaml.org/spec/1.2/spec.html#c-secondary-tag-handle
-let ``c-secondary-tag-handle`` = RGP ("!!", [Token.``t-quotationmark``])
+let ``c-secondary-tag-handle`` = RGP "!!"
 
 //  [92]    http://www.yaml.org/spec/1.2/spec.html#c-named-tag-handle
-let ``c-named-tag-handle`` = RGP ("!", [Token.``t-quotationmark``]) + OOM(``ns-word-char``) + RGP ("!", [Token.``t-quotationmark``]) 
+let ``c-named-tag-handle`` = RGP "!" + OOM(``ns-word-char``) + RGP "!"
 
 //  [93]    http://www.yaml.org/spec/1.2/spec.html#ns-tag-prefix
 let ``ns-tag-prefix`` = ``c-ns-local-tag-prefix`` ||| ``ns-global-tag-prefix``
 
 //  [94]    http://www.yaml.org/spec/1.2/spec.html#c-ns-local-tag-prefix
-let ``c-ns-local-tag-prefix`` = RGP ("!", [Token.``t-quotationmark``]) + ZOM(``ns-uri-char``)
+let ``c-ns-local-tag-prefix`` = RGP "!" + ZOM(``ns-uri-char``)
 
 //  [95]    http://www.yaml.org/spec/1.2/spec.html#ns-global-tag-prefix
 let ``ns-global-tag-prefix`` = ``ns-tag-char`` + ZOM(``ns-uri-char``)
@@ -357,16 +312,16 @@ let ``ns-global-tag-prefix`` = ``ns-tag-char`` + ZOM(``ns-uri-char``)
 let ``c-ns-tag-property`` = ``c-verbatim-tag`` ||| ``c-ns-shorthand-tag`` ||| ``c-non-specific-tag``
 
 //  [98]    http://www.yaml.org/spec/1.2/spec.html#c-verbatim-tag
-let ``c-verbatim-tag`` = RGP ("!", [Token.``t-quotationmark``]) + RGP ("<", [Token.``c-printable``]) + OOM(``ns-uri-char``) + RGP (">", [Token.``t-gt``]) 
+let ``c-verbatim-tag`` = RGP "!" + RGP "<" + OOM(``ns-uri-char``) + RGP ">"
 
 //  [99]    http://www.yaml.org/spec/1.2/spec.html#c-ns-shorthand-tag
 let ``c-ns-shorthand-tag`` = ``c-tag-handle`` + OOM(``ns-tag-char``)
 
 //  [100]   http://www.yaml.org/spec/1.2/spec.html#c-non-specific-tag
-let ``c-non-specific-tag`` = RGP ("!", [Token.``t-quotationmark``])
+let ``c-non-specific-tag`` = RGP "!"
 
 //  [101]   http://www.yaml.org/spec/1.2/spec.html#c-ns-anchor-property
-let ``c-ns-anchor-property`` = RGP ("&", [Token.``t-ampersand``]) + ``ns-anchor-name``
+let ``c-ns-anchor-property`` = RGP "&" + ``ns-anchor-name``
 
 //  [102]   http://www.yaml.org/spec/1.2/spec.html#ns-anchor-char
 let ``ns-anchor-char`` =  ``ns-char`` - ``c-flow-indicator``
@@ -375,16 +330,16 @@ let ``ns-anchor-char`` =  ``ns-char`` - ``c-flow-indicator``
 let ``ns-anchor-name`` = OOM(``ns-anchor-char``)
 
 //  [105]   http://www.yaml.org/spec/1.2/spec.html#e-scalar
-let ``e-scalar`` = RGP (String.Empty, [])     // we'll see if this works..
+let ``e-scalar`` = RGP String.Empty     // we'll see if this works..
 
 //  [106]   http://www.yaml.org/spec/1.2/spec.html#e-node
 let ``e-node`` = ``e-scalar``
 
 //  [107]   http://www.yaml.org/spec/1.2/spec.html#nb-double-char
-let ``nb-double-char`` = ``c-ns-esc-char`` ||| (``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]))
+let ``nb-double-char`` = ``c-ns-esc-char`` ||| (``nb-json`` - RGO "\\\\\"")
 
 //  [108]   http://www.yaml.org/spec/1.2/spec.html#ns-double-char
-let ``ns-double-char`` = ``c-ns-esc-char`` |||  (``nb-json`` - RGO("\\\\\"", [Token.``c-escape``; Token.``t-double-quote``]) - ``s-white``)
+let ``ns-double-char`` = ``c-ns-esc-char`` |||  (``nb-json`` - RGO "\\\\\"" - ``s-white``)
 
 //  [111]   http://www.yaml.org/spec/1.2/spec.html#nb-double-one-line
 let ``nb-double-one-line`` = ZOM(``nb-double-char``)
@@ -419,7 +374,7 @@ let ``ns-plain-safe-in`` = ``ns-char`` - ``c-flow-indicator``
 let ``c-indentation-indicator`` = OPT(``ns-dec-digit``)
 
 //  [164]   http://www.yaml.org/spec/1.2/spec.html#c-chomping-indicator(t)
-let ``c-chomping-indicator`` = OPT(RGP("\\+", [Token.``t-plus``]) ||| ``c-sequence-entry``)
+let ``c-chomping-indicator`` = OPT(RGP "\\+" ||| ``c-sequence-entry``)
 
 
 //  [202]   http://www.yaml.org/spec/1.2/spec.html#l-document-prefix

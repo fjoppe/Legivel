@@ -46,7 +46,12 @@ module YamlMapped =
 /// All yaml-scalar to native mappings
 let YamlScalarToNativeMappings = [
     ScalarToNativeMapping.Create (YamlExtended.StringGlobalTag, typeof<string>, fun (s:string) -> box s)
-    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int16>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int16.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int32>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int32.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<int64>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> Int64.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<uint16>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> UInt16.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<uint32>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> UInt32.Parse |> box)
+    ScalarToNativeMapping.Create (YamlExtended.IntegerGlobalTag, typeof<uint64>, fun (s:string) -> YamlExtended.IntegerGlobalTag.ToCanonical s |> Option.get |> UInt64.Parse |> box)
     ScalarToNativeMapping.Create (YamlExtended.FloatGlobalTag, typeof<float>, fun (s:string) -> 
         let value = YamlExtended.FloatGlobalTag.ToCanonical s |> Option.get
         match value with
@@ -108,10 +113,15 @@ type PrimitiveMappingInfo = {
             /// Map the given Node to the target primitive type
             member this.map (msgList:ProcessMessages)  (mappers:AllTryFindIdiomaticMappers) (n:Node) =
                 if n.NodeTag.Uri = this.ScalarMapping.YamlTag.Uri then
-                    faillableSequence msgList {
-                        let! scalar = getScalarNode msgList n
-                        return this.ScalarMapping.ToNative (scalar.Data)
-                    }
+                    try
+                        faillableSequence msgList {
+                            let! scalar = getScalarNode msgList n
+                            return this.ScalarMapping.ToNative (scalar.Data)
+                        }
+                    with
+                    |   e -> 
+                        let msg = sprintf "Incorrect format: %s" e.Message
+                        AddError msgList (ParseMessageAtLine.Create (n.ParseInfo.Start) msg)
                 else
                     AddError msgList (ParseMessageAtLine.Create (n.ParseInfo.Start) (sprintf "Type mismatch '%s' for tag: %s" n.NodeTag.Uri this.ScalarMapping.TargetType.Name))
 

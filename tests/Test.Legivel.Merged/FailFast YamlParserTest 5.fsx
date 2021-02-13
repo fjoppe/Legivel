@@ -94,15 +94,14 @@ let YamlParseWithErrors s =
     | e -> printfn "%A" e; raise e
 
 
+// Example 8.3. Invalid Block Scalar Indentation Indicators
+
 let yaml = "
-- behavior: merge
-  envs:
-  - base.env
-  name: base-name
+- |2
+ text
 "
 
 
-YamlParse yaml
-
+YamlParseWithErrors yaml
 
 
